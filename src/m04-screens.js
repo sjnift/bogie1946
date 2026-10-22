@@ -131,7 +131,7 @@ function lookupInner() {
   } else {
     body = `<p>Lookups aren't available in this view. Open the downloadable copy of this page in a browser and use a TMDB key.</p>`;
   }
-  return head + body + note + saveNote + imdbBlock(MY_LIB, true);
+  return head + body + note + saveNote + imdbBlock(MY_LIB, true) + letterboxdBlock(MY_LIB, true);
 }
 function progressText() {
   return job.kind === "claude" && job.done === 0 ? `Asking Claude about ${plural(job.total, "film")}… the first batch takes up to a minute.`
@@ -143,6 +143,8 @@ function renderLookupProgress() {
   if (p) p.textContent = progressText();
   const ip = $("#imdb-progress");
   if (ip) ip.textContent = imdbProgressText();
+  const lp = $("#lb-progress");
+  if (lp) lp.textContent = lbProgressText();
   const m = $("#lookup-meter");
   if (m && MY_LIB) m.style.width = `${Math.round(MY_LIB.films.filter((f) => metaOf(f)).length / Math.max(1, MY_LIB.films.length) * 100)}%`;
 }

@@ -107,14 +107,15 @@ function crowdBlock(I) {
     return `<button class="tab" role="tab" type="button" data-crowd="${k}" aria-selected="${k === C.key}" ${n < 5 ? "disabled" : ""} title="${n} rated films have this score">${c.label}</button>`; }).join("")}</div>`;
   if (C.n < 5) {
     const why = IN_VIEWER ? `Crowd scores come from TMDB and OMDb, which pages inside Claude can't reach. Open <a href="https://sjnift.github.io/credits-roll/" target="_blank" rel="noopener">the web version</a> with your keys.`
+      : C.key === "letterboxd" ? "Letterboxd averages come through Apify. Add your Apify token in the Cast &amp; crew box on the stats page."
       : C.key === "imdb" || C.key === "critics" ? "IMDb and critics' scores come from OMDb. Add a free OMDb key in the Cast &amp; crew box on the stats page."
       : "Crowd scores come with TMDB details. Look your films up from the Cast &amp; crew box on the stats page.";
     return tabs + `<div class="empty">${why}</div>`;
   }
   const lead = `<p class="lead">Across ${plural(C.n, "film")} you rated, you give ${Math.abs(C.meanDiff).toFixed(2)}★ ${C.meanDiff >= 0 ? "more" : "less"} than ${esc(C.label)} on average${followText(C.r)}.</p>`;
   const cap = (p) => `<div class="cap"><span class="stars">${stars(p.you)}</span>
-    <span class="muted">${esc(C.short)} ${(p.crowd * 2).toFixed(1)} · <b class="diff">${signed(p.diff)}★</b></span></div>`;
-  const row = (items, empty) => items && items.length ? `<div class="posters">${items.map((p) => `<div class="poster" title="You: ${p.you}★ · ${esc(C.label)}: ${(p.crowd * 2).toFixed(1)} out of 10">${artHtml(p.f)}${cap(p)}</div>`).join("")}</div>` : `<div class="empty">${empty}</div>`;
+    <span class="muted">${esc(C.short)} ${crowdScore(C.key, p.crowd)} · <b class="diff">${signed(p.diff)}★</b></span></div>`;
+  const row = (items, empty) => items && items.length ? `<div class="posters">${items.map((p) => `<div class="poster" title="You: ${p.you}★ · ${esc(C.label)}: ${crowdScore(C.key, p.crowd)}${C.key === "letterboxd" ? "" : " out of 10"}">${artHtml(p.f)}${cap(p)}</div>`).join("")}</div>` : `<div class="empty">${empty}</div>`;
   const gems = C.gems.length ? `<h3>Hidden gems</h3><p class="status">Films you rated 4½★ or more that few people have rated.</p>
     <div class="posters">${C.gems.map((g) => `<div class="poster">${artHtml(g.f)}<div class="cap"><span class="stars">${stars(g.f.rating)}</span><span class="muted">${fmtN(g.pop.n)} ${g.pop.src} votes</span></div></div>`).join("")}</div>` : "";
   return tabs + lead + `<div class="crowd">

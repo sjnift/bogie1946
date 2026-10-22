@@ -1,12 +1,15 @@
 <script>
 /* ---------- insights: patterns across the whole diary, shared by both layouts ----------
-   Year trends come from diary dates. Crowd comparisons need a crowd score per film:
-   TMDB users (from the TMDB lookup), IMDb users and critics (from OMDb). */
+   Year trends come from diary dates. Crowd comparisons need a crowd score per film, out of 10:
+   Letterboxd members (through Apify), TMDB users (from the TMDB lookup), IMDb users and critics (from OMDb). */
 const CROWDS = {
-  imdb: { label: "IMDb users", short: "IMDb", score: (m) => m && m.ir && (m.iv || 0) >= 100 ? m.ir : null, votes: (m) => m.iv },
-  tmdb: { label: "TMDB users", short: "TMDB", score: (m) => m && m.va && (m.vc || 0) >= 25 ? m.va : null, votes: (m) => m.vc },
-  critics: { label: "Critics (Metacritic)", short: "Critics", score: (m) => m && m.mc ? m.mc / 10 : null, votes: () => null },
+  letterboxd: { label: "Letterboxd members", short: "Letterboxd", score: (m, f) => { const x = f && LBX[f.key]; return x && x.r && x.n >= 10 ? x.r * 2 : null; } },
+  imdb: { label: "IMDb users", short: "IMDb", score: (m) => m && m.ir && (m.iv || 0) >= 100 ? m.ir : null },
+  tmdb: { label: "TMDB users", short: "TMDB", score: (m) => m && m.va && (m.vc || 0) >= 25 ? m.va : null },
+  critics: { label: "Critics (Metacritic)", short: "Critics", score: (m) => m && m.mc ? m.mc / 10 : null },
 };
+// A crowd's score the way that crowd shows it: Letterboxd in stars out of 5, the others out of 10.
+const crowdScore = (key, stars5) => key === "letterboxd" ? `${stars5.toFixed(1)}★` : (stars5 * 2).toFixed(1);
 const pctOf = (n, d) => d ? Math.round(n / d * 100) : 0;
 const starsNum = (x) => `${x.toFixed(1)}★`;
 const signed = (x, digits = 1) => Math.abs(x) < 0.5 * Math.pow(10, -digits) ? (0).toFixed(digits) : `${x >= 0 ? "+" : "−"}${Math.abs(x).toFixed(digits)}`;
@@ -101,7 +104,7 @@ function computeInsights(lib, metaOf, crowdKey) {
     for (const g of m.g) {
       let x = gmap.get(g); if (!x) { x = { name: g, films: [], mine: [], vsCrowd: [] }; gmap.set(g, x); }
       x.films.push(f);
-      if (f.rating) { x.mine.push(f.rating); const c = crowd.score(m); if (c) x.vsCrowd.push(f.rating - c / 2); }
+      if (f.rating) { x.mine.push(f.rating); const c = crowd.score(m, f); if (c) x.vsCrowd.push(f.rating - c / 2); }
     }
   }
   const withMetaCount = lib.films.filter((f) => metaOf(f)).length;
@@ -158,18 +161,18 @@ function computeInsights(lib, metaOf, crowdKey) {
   const discoveries = years.slice(1).map((y) => ({ year: y, count: firstYear.get(y) || 0 }));
 
   /* ----- against the crowd ----- */
-  const pairs = rated.map((f) => { const m = metaOf(f), c = crowd.score(m); return c ? { f, you: f.rating, crowd: c / 2, diff: f.rating - c / 2, votes: crowd.votes(m) } : null; }).filter(Boolean);
+  const pairs = rated.map((f) => { const c = crowd.score(metaOf(f), f); return c ? { f, you: f.rating, crowd: c / 2, diff: f.rating - c / 2 } : null; }).filter(Boolean);
   const crowdOut = { key: crowdKey, label: crowd.label, short: crowd.short, n: pairs.length, available: {} };
-  for (const k of Object.keys(CROWDS)) crowdOut.available[k] = rated.filter((f) => CROWDS[k].score(metaOf(f))).length;
+  for (const k of Object.keys(CROWDS)) crowdOut.available[k] = rated.filter((f) => CROWDS[k].score(metaOf(f), f)).length;
   if (pairs.length >= 5) {
     crowdOut.r = pearson(pairs.map((p) => p.you), pairs.map((p) => p.crowd));
     crowdOut.meanDiff = avg(pairs.map((p) => p.diff));
     crowdOut.higher = pairs.filter((p) => p.diff >= 0.75).sort((a, b) => b.diff - a.diff || b.you - a.you).slice(0, 12);
     crowdOut.lower = pairs.filter((p) => p.diff <= -0.75).sort((a, b) => a.diff - b.diff || a.you - b.you).slice(0, 12);
   }
-  const popularity = (f) => { const m = metaOf(f); return m ? (m.iv ? { n: m.iv, src: "IMDb" } : m.vc ? { n: m.vc, src: "TMDB" } : null) : null; };
+  const popularity = (f) => { const x = LBX[f.key], m = metaOf(f); return x && x.n ? { n: x.n, src: "Letterboxd" } : m && m.iv ? { n: m.iv, src: "IMDb" } : m && m.vc ? { n: m.vc, src: "TMDB" } : null; };
   crowdOut.gems = rated.filter((f) => f.rating >= 4.5).map((f) => ({ f, pop: popularity(f) }))
-    .filter((x) => x.pop && (x.pop.src === "IMDb" ? x.pop.n < 25000 : x.pop.n < 1000))
+    .filter((x) => x.pop && x.pop.n < { Letterboxd: 5000, IMDb: 25000, TMDB: 1000 }[x.pop.src])
     .sort((a, b) => b.f.rating - a.f.rating || a.pop.n - b.pop.n).slice(0, 12);
 
   /* ----- habits ----- */
@@ -228,10 +231,11 @@ function computeInsights(lib, metaOf, crowdKey) {
     crowd: crowdOut, habits, glance,
   };
 }
-// The crowd score to compare with: IMDb when most rated films have it, else TMDB.
+// The crowd to compare with: Letterboxd members when enough rated films have their average, then IMDb, then TMDB.
 function defaultCrowd(lib, metaOf) {
   const rated = lib.films.filter((f) => f.rating);
-  const n = (k) => rated.filter((f) => CROWDS[k].score(metaOf(f))).length;
-  return n("imdb") >= Math.max(5, n("tmdb") * 0.5) ? "imdb" : "tmdb";
+  const n = (k) => rated.filter((f) => CROWDS[k].score(metaOf(f), f)).length;
+  const enough = (k) => n(k) >= Math.max(5, n("tmdb") * 0.5);
+  return enough("letterboxd") ? "letterboxd" : enough("imdb") ? "imdb" : "tmdb";
 }
 </script>

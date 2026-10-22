@@ -80,11 +80,12 @@ function mCrowd(I) {
     ? `<button class="toggle" type="button" data-crowdsel="${k}" aria-pressed="${k === C.key}">${c.short}</button>` : "").join("")}</div>`;
   if (C.n < 5) {
     const why = IN_VIEWER ? `Crowd scores come from TMDB and OMDb, which pages inside Claude can't reach. Open <a href="https://sjnift.github.io/credits-roll/" target="_blank" rel="noopener">the web version</a>.`
-      : C.key === "tmdb" ? "Crowd scores come with TMDB details. Look your films up in the Import tab." : "IMDb and critics' scores need a free OMDb key, added in the Import tab.";
+      : C.key === "tmdb" ? "Crowd scores come with TMDB details. Look your films up in the Import tab."
+      : C.key === "letterboxd" ? "Letterboxd averages need an Apify token, added in the Import tab." : "IMDb and critics' scores need a free OMDb key, added in the Import tab.";
     return sh("Against the crowd") + toggles + `<div class="empty">${why}</div>`;
   }
-  const grid = (items) => `<div class="pgrid">${items.map((p) => `<div class="pitem" title="You ${p.you}★ · ${C.label} ${(p.crowd * 2).toFixed(1)}/10">${poster(p.f)}
-    <span class="pmeta"><span class="stars">${stars(p.you)}</span></span><span class="mdate">${C.short} ${(p.crowd * 2).toFixed(1)} · <b class="dv">${signed(p.diff)}★</b></span></div>`).join("")}</div>`;
+  const grid = (items) => `<div class="pgrid">${items.map((p) => `<div class="pitem" title="You ${p.you}★ · ${C.label} ${crowdScore(C.key, p.crowd)}">${poster(p.f)}
+    <span class="pmeta"><span class="stars">${stars(p.you)}</span></span><span class="mdate">${C.short} ${crowdScore(C.key, p.crowd)} · <b class="dv">${signed(p.diff)}★</b></span></div>`).join("")}</div>`;
   let html = sh("Against the crowd") + toggles + `<p class="lead">You give ${Math.abs(C.meanDiff).toFixed(2)}★ ${C.meanDiff >= 0 ? "more" : "less"} than ${esc(C.label)} on average${followText(C.r)}, across ${plural(C.n, "film")}.</p>`;
   html += sh(`Liked more than ${esc(C.short)}`) + (C.higher.length ? grid(C.higher) : `<div class="empty">No film you rated ¾★ or more above them.</div>`);
   html += sh(`Liked less than ${esc(C.short)}`) + (C.lower.length ? grid(C.lower) : `<div class="empty">No film you rated ¾★ or more below them.</div>`);

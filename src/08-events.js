@@ -33,9 +33,10 @@ function bind() {
   $("#btn-mine").addEventListener("click", () => { state.mode = "mine"; state.scope = "all"; saveView(); render(); });
 
   document.addEventListener("click", (e) => {
-    const t = e.target.closest("[data-crowd],[data-scope],[data-tab],[data-more],[data-list],[data-close],#btn-tmdb,#btn-change-key,#btn-omdb,#btn-change-omdb,#btn-claude,#btn-claude-retry,#btn-stop");
+    const t = e.target.closest("[data-lb],[data-crowd],[data-scope],[data-tab],[data-more],[data-list],[data-close],#btn-tmdb,#btn-change-key,#btn-omdb,#btn-change-omdb,#btn-claude,#btn-claude-retry,#btn-stop");
     if (!t) return;
-    if (t.dataset.crowd) { state.crowd = t.dataset.crowd; renderInsights(); $(`[data-crowd="${t.dataset.crowd}"]`)?.focus(); }
+    if (t.dataset.lb) lbAction(t.dataset.lb, MY_LIB);
+    else if (t.dataset.crowd) { state.crowd = t.dataset.crowd; renderInsights(); $(`[data-crowd="${t.dataset.crowd}"]`)?.focus(); }
     else if (t.dataset.scope) { state.scope = t.dataset.scope; state.more = { cast: false, directors: false }; saveView(); render(); }
     else if (t.dataset.tab) { state.tab[t.dataset.tab] = t.dataset.val; renderSections(STATS); $(`[data-tab="${t.dataset.tab}"][data-val="${t.dataset.val}"]`)?.focus(); }
     else if (t.dataset.more) { state.more[t.dataset.more] = true; renderSections(STATS); }
@@ -65,7 +66,7 @@ function bind() {
     clearTimeout(armed); armed = null;
     if (job.running && job.ctl) job.ctl.abort();
     Object.values(KEYS).forEach((k) => store.del(k));
-    META = {}; PHOTOS = {}; MY_LIB = null;
+    META = {}; PHOTOS = {}; LBX = {}; MY_LIB = null;
     Object.assign(state, { mode: "example", scope: "all" });
     job.note = ""; job.err = false;
     btn.textContent = "Delete saved data from this browser";
@@ -119,7 +120,7 @@ function init() {
   bind();
   render();
   // A saved key picks up films not yet looked up, or matched before matching improved.
-  if (MY_LIB) autoLookup(MY_LIB);
+  if (MY_LIB) { autoLookup(MY_LIB); pollLetterboxd(MY_LIB); }
 }
 init();
 </script>

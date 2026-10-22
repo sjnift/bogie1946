@@ -5,7 +5,7 @@
 # With TMDB_KEY set, the key is written into the two standalone files only, so their owner never has to paste it.
 set -e
 cd "$(dirname "$0")"
-SHARED="src/04-example.js src/05-core.js src/06-lookup.js src/06b-charts.js src/06c-insights.js"
+SHARED="src/04-example.js src/05-core.js src/06-lookup.js src/06b-charts.js src/06d-letterboxd.js src/06c-insights.js"
 DESK_HEAD="src/01-head.html src/02-style.html"
 DESK_BODY="src/03-body.html $SHARED src/07-render-a.js src/07-render-b.js src/07c-insights.js src/08-events.js"
 MOB_HEAD="src/m01-head.html"

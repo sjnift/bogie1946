@@ -493,7 +493,7 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } },
   del(k) { try { localStorage.removeItem(k); } catch {} },
 };
-const KEYS = { rows: "cr-rows-v1", meta: "cr-meta-v1", photos: "cr-photos-v1", tmdb: "cr-tmdb-key", omdb: "cr-omdb-key", view: "cr-view-v1" };
+const KEYS = { rows: "cr-rows-v1", meta: "cr-meta-v1", photos: "cr-photos-v1", tmdb: "cr-tmdb-key", omdb: "cr-omdb-key", apify: "cr-apify-key", lbx: "cr-letterboxd-v1", lbRun: "cr-letterboxd-run", view: "cr-view-v1" };
 
 /* ---------- reading a Letterboxd export ---------- */
 const WANTED = {
@@ -1139,14 +1139,146 @@ function heatmap(s) {
 
 </script>
 <script>
+/* ---------- Letterboxd averages, through an Apify actor ----------
+   Letterboxd has no public API and browsers can't read its pages from another site, so an Apify
+   actor (solidcode/letterboxd-scraper) reads the member's films page in Apify's cloud and returns
+   each film's Letterboxd average. It costs the viewer's Apify credit, so it only runs on a click.
+   Titles and years come from Letterboxd itself, so they match the export exactly. */
+const LB_ACTOR = "solidcode~letterboxd-scraper";
+const LB_PRICE_PER_FILM = 0.003; // the actor's listed price: from $3.00 per 1,000 films
+let LBX = store.get(KEYS.lbx, {}); // film key → { r: average out of 5, n: ratings, slug, at }
+const apifyKey = () => store.get(KEYS.apify, "");
+const lbJob = { running: false, started: 0, note: "", err: false, badKey: false };
+let editApify = false;
+
+async function apify(path, opts = {}) {
+  const res = await fetch("https://api.apify.com/v2" + path, {
+    ...opts, headers: { "Content-Type": "application/json", Authorization: "Bearer " + apifyKey() },
+  });
+  if (res.status === 401) throw { code: "auth" };
+  if (res.status === 402 || res.status === 403) throw { code: "credit", text: await res.text().catch(() => "") };
+  if (!res.ok) throw { code: "http", status: res.status };
+  return res.json();
+}
+const lbMissing = (lib) => lib.films.filter((f) => !LBX[f.key]);
+const cost = (n) => n < 0.01 ? "under 1¢" : `about $${n.toFixed(2)}`;
+
+async function startLetterboxd(lib, mode) {
+  const user = lib.profile.username;
+  if (!user) { Object.assign(lbJob, { note: "Your import has no Letterboxd username. Import the whole export ZIP, which includes profile.csv.", err: true }); renderLookup(); return; }
+  const missing = lbMissing(lib).length;
+  // "recent" reads the newest films first and stops once it has covered the missing ones
+  const input = mode === "recent"
+    ? { startUrls: [`https://letterboxd.com/${user}/films/by/date/`], includeReviews: false, maxResults: missing + 25 }
+    : { startUrls: [`https://letterboxd.com/${user}/films/`], includeReviews: false, maxResults: 0 };
+  Object.assign(lbJob, { running: true, started: Date.now(), note: "", err: false, badKey: false });
+  renderLookup();
+  try {
+    const run = await apify(`/acts/${LB_ACTOR}/runs`, { method: "POST", body: JSON.stringify(input) });
+    store.set(KEYS.lbRun, { id: run.data.id, dataset: run.data.defaultDatasetId, at: Date.now(), mode });
+    await pollLetterboxd(lib);
+  } catch (e) { finishLetterboxd(e); }
+}
+
+// Waits for the run, then reads its results. Also called on page load, so a run started earlier
+// is picked up even if the page was closed in the meantime.
+async function pollLetterboxd(lib) {
+  const r = store.get(KEYS.lbRun, null);
+  if (!r || !apifyKey()) return;
+  Object.assign(lbJob, { running: true, started: r.at, note: "", err: false });
+  renderLookup();
+  try {
+    for (;;) {
+      const run = await apify(`/actor-runs/${r.id}`);
+      const st = run.data.status;
+      if (st === "SUCCEEDED") break;
+      if (st === "FAILED" || st === "ABORTED" || st === "TIMED-OUT") { store.del(KEYS.lbRun); return finishLetterboxd({ code: "run", status: st }); }
+      renderLookupProgress();
+      await sleep(8000);
+    }
+    const items = [];
+    for (let offset = 0; ; offset += 1000) {
+      const page = await apify(`/datasets/${r.dataset}/items?clean=true&offset=${offset}&limit=1000&fields=recordType,title,year,filmSlug,averageRating,ratingsCount`);
+      items.push(...page);
+      if (page.length < 1000) break;
+    }
+    const byTitle = new Map(lib.films.map((f) => [`${personKey(f.name)}|${f.year || ""}`, f]));
+    const today = new Date().toISOString().slice(0, 10);
+    let matched = 0;
+    for (const it of items) {
+      if (it.recordType && it.recordType !== "film") continue;
+      const f = byTitle.get(`${personKey(it.title || "")}|${it.year || ""}`);
+      if (!f || !(Number(it.averageRating) > 0)) continue;
+      LBX[f.key] = { r: Number(it.averageRating), n: Number(it.ratingsCount) || 0, slug: it.filmSlug || null, at: today };
+      matched++;
+    }
+    store.set(KEYS.lbx, LBX);
+    store.del(KEYS.lbRun);
+    finishLetterboxd(null, matched, r.mode);
+  } catch (e) { finishLetterboxd(e); }
+}
+function finishLetterboxd(e, matched, mode) {
+  lbJob.running = false;
+  lbJob.err = !!e;
+  lbJob.badKey = !!e && e.code === "auth";
+  lbJob.note = !e ? `Done. Added Letterboxd averages for ${plural(matched, "film")}.${mode === "recent" && lbMissing(state.lib || MY_LIB).length ? " Some films are still missing; refresh all to catch them." : ""}`
+    : e.code === "auth" ? "Apify didn't accept that token. Copy it again from Apify Console → Settings → API & Integrations."
+    : e.code === "credit" ? "Apify refused the run, usually because the account is out of credit or the actor needs to be added to your account first. Open the actor's page on Apify, then try again."
+    : e.code === "run" ? `The Apify run ended with "${e.status}". Open Apify Console → Runs to see why, then try again.`
+    : e instanceof TypeError ? "Couldn't reach Apify. Check your connection; a run already started is picked up next time you open the page."
+    : "Something went wrong talking to Apify. Try again in a minute.";
+  scheduleRender();
+}
+
+// The Letterboxd part of the Cast & crew box, for both layouts.
+function letterboxdBlock(lib, phone) {
+  if (IN_VIEWER || !lib) return "";
+  const title = phone ? `<p class="title" style="margin-top:6px">Letterboxd averages</p>` : `<h3 class="sub-h">Letterboxd averages</h3>`;
+  const btn = (act, label, primary) => phone ? `<button class="btn ${primary ? "green " : ""}block" type="button" data-lb="${act}">${label}</button>` : `<button class="btn${primary ? " primary" : ""}" type="button" data-lb="${act}">${label}</button>`;
+  const link = (act, label) => `<button class="linkish" type="button" data-lb="${act}">${label}</button>`;
+  const note = lbJob.note ? `<p class="status${lbJob.err ? " err" : ""}" role="status">${esc(lbJob.note)}</p>` : "";
+  if (lbJob.running) return title + `<p class="status" id="lb-progress" role="status">${lbProgressText()}</p>`;
+  if (!apifyKey() || editApify || lbJob.badKey) {
+    const input = `<label class="sr-only" for="apify-key">Apify API token</label><input ${phone ? 'class="key" ' : ""}id="apify-key" type="password" autocomplete="off" spellcheck="false" placeholder="Apify API token (optional)" value="${esc(apifyKey())}">`;
+    return title + (phone ? input + btn("save", "Save token") : `<div class="lookup-row">${input}${btn("save", "Save token")}</div>`) +
+      `<p class="status">Compares your ratings with Letterboxd's own averages. An <a href="https://apify.com/solidcode/letterboxd-scraper" target="_blank" rel="noopener">Apify actor</a> reads your films page for you,
+      billed to your Apify account at about $3 per 1,000 films (the free plan includes $5 a month). Your token is under Apify Console → Settings → API &amp; Integrations, and is kept in this browser only.</p>` + note;
+  }
+  const total = lib.films.length, missing = lbMissing(lib).length, have = total - missing;
+  const all = cost(total * LB_PRICE_PER_FILM);
+  let body;
+  if (!have) body = (phone ? "" : `<div class="lookup-row">`) + btn("all", `Get Letterboxd averages for ${plural(total, "film")}`, true) + (phone ? "" : `<span class="status">Costs ${all}, billed by Apify.</span></div>`) + (phone ? `<p class="status">Costs ${all}, billed by Apify.</p>` : "");
+  else if (missing) body = `<p class="status">${fmtN(have)} of ${plural(total, "film")} have Letterboxd averages.</p>` +
+    (phone ? "" : `<div class="lookup-row">`) + btn(missing <= 200 ? "recent" : "all", `Get the ${plural(missing, "missing film")}`, true) +
+    (phone ? `<p class="status">Costs ${cost((missing <= 200 ? missing + 25 : total) * LB_PRICE_PER_FILM)}. ${link("all", `Refresh all (${all})`)}</p>` : `<span class="status">${cost((missing <= 200 ? missing + 25 : total) * LB_PRICE_PER_FILM)} · ${link("all", `Refresh all (${all})`)}</span></div>`);
+  else body = `<p class="status">Every film has a Letterboxd average. ${link("all", `Refresh all (${all})`)}</p>`;
+  return title + body + `<p class="status">${link("change", "Change Apify token")}</p>` + note;
+}
+function lbProgressText() {
+  const mins = Math.max(0, Math.round((Date.now() - lbJob.started) / 60000));
+  return `Apify is reading your Letterboxd films (started ${mins ? `${mins} min ago` : "just now"}). Big libraries take several minutes; you can close this page and the results are picked up when you come back.`;
+}
+function lbAction(act, lib) {
+  if (act === "save") {
+    const key = ($("#apify-key")?.value || "").trim();
+    if (!key) { Object.assign(lbJob, { note: "Paste your Apify token first.", err: true }); renderLookup(); return; }
+    store.set(KEYS.apify, key); editApify = false; lbJob.badKey = false; lbJob.note = ""; renderLookup();
+  } else if (act === "change") { editApify = true; renderLookup(); $("#apify-key")?.focus(); }
+  else if (act === "all" || act === "recent") startLetterboxd(lib, act);
+}
+</script>
+<script>
 /* ---------- insights: patterns across the whole diary, shared by both layouts ----------
-   Year trends come from diary dates. Crowd comparisons need a crowd score per film:
-   TMDB users (from the TMDB lookup), IMDb users and critics (from OMDb). */
+   Year trends come from diary dates. Crowd comparisons need a crowd score per film, out of 10:
+   Letterboxd members (through Apify), TMDB users (from the TMDB lookup), IMDb users and critics (from OMDb). */
 const CROWDS = {
-  imdb: { label: "IMDb users", short: "IMDb", score: (m) => m && m.ir && (m.iv || 0) >= 100 ? m.ir : null, votes: (m) => m.iv },
-  tmdb: { label: "TMDB users", short: "TMDB", score: (m) => m && m.va && (m.vc || 0) >= 25 ? m.va : null, votes: (m) => m.vc },
-  critics: { label: "Critics (Metacritic)", short: "Critics", score: (m) => m && m.mc ? m.mc / 10 : null, votes: () => null },
+  letterboxd: { label: "Letterboxd members", short: "Letterboxd", score: (m, f) => { const x = f && LBX[f.key]; return x && x.r && x.n >= 10 ? x.r * 2 : null; } },
+  imdb: { label: "IMDb users", short: "IMDb", score: (m) => m && m.ir && (m.iv || 0) >= 100 ? m.ir : null },
+  tmdb: { label: "TMDB users", short: "TMDB", score: (m) => m && m.va && (m.vc || 0) >= 25 ? m.va : null },
+  critics: { label: "Critics (Metacritic)", short: "Critics", score: (m) => m && m.mc ? m.mc / 10 : null },
 };
+// A crowd's score the way that crowd shows it: Letterboxd in stars out of 5, the others out of 10.
+const crowdScore = (key, stars5) => key === "letterboxd" ? `${stars5.toFixed(1)}★` : (stars5 * 2).toFixed(1);
 const pctOf = (n, d) => d ? Math.round(n / d * 100) : 0;
 const starsNum = (x) => `${x.toFixed(1)}★`;
 const signed = (x, digits = 1) => Math.abs(x) < 0.5 * Math.pow(10, -digits) ? (0).toFixed(digits) : `${x >= 0 ? "+" : "−"}${Math.abs(x).toFixed(digits)}`;
@@ -1241,7 +1373,7 @@ function computeInsights(lib, metaOf, crowdKey) {
     for (const g of m.g) {
       let x = gmap.get(g); if (!x) { x = { name: g, films: [], mine: [], vsCrowd: [] }; gmap.set(g, x); }
       x.films.push(f);
-      if (f.rating) { x.mine.push(f.rating); const c = crowd.score(m); if (c) x.vsCrowd.push(f.rating - c / 2); }
+      if (f.rating) { x.mine.push(f.rating); const c = crowd.score(m, f); if (c) x.vsCrowd.push(f.rating - c / 2); }
     }
   }
   const withMetaCount = lib.films.filter((f) => metaOf(f)).length;
@@ -1298,18 +1430,18 @@ function computeInsights(lib, metaOf, crowdKey) {
   const discoveries = years.slice(1).map((y) => ({ year: y, count: firstYear.get(y) || 0 }));
 
   /* ----- against the crowd ----- */
-  const pairs = rated.map((f) => { const m = metaOf(f), c = crowd.score(m); return c ? { f, you: f.rating, crowd: c / 2, diff: f.rating - c / 2, votes: crowd.votes(m) } : null; }).filter(Boolean);
+  const pairs = rated.map((f) => { const c = crowd.score(metaOf(f), f); return c ? { f, you: f.rating, crowd: c / 2, diff: f.rating - c / 2 } : null; }).filter(Boolean);
   const crowdOut = { key: crowdKey, label: crowd.label, short: crowd.short, n: pairs.length, available: {} };
-  for (const k of Object.keys(CROWDS)) crowdOut.available[k] = rated.filter((f) => CROWDS[k].score(metaOf(f))).length;
+  for (const k of Object.keys(CROWDS)) crowdOut.available[k] = rated.filter((f) => CROWDS[k].score(metaOf(f), f)).length;
   if (pairs.length >= 5) {
     crowdOut.r = pearson(pairs.map((p) => p.you), pairs.map((p) => p.crowd));
     crowdOut.meanDiff = avg(pairs.map((p) => p.diff));
     crowdOut.higher = pairs.filter((p) => p.diff >= 0.75).sort((a, b) => b.diff - a.diff || b.you - a.you).slice(0, 12);
     crowdOut.lower = pairs.filter((p) => p.diff <= -0.75).sort((a, b) => a.diff - b.diff || a.you - b.you).slice(0, 12);
   }
-  const popularity = (f) => { const m = metaOf(f); return m ? (m.iv ? { n: m.iv, src: "IMDb" } : m.vc ? { n: m.vc, src: "TMDB" } : null) : null; };
+  const popularity = (f) => { const x = LBX[f.key], m = metaOf(f); return x && x.n ? { n: x.n, src: "Letterboxd" } : m && m.iv ? { n: m.iv, src: "IMDb" } : m && m.vc ? { n: m.vc, src: "TMDB" } : null; };
   crowdOut.gems = rated.filter((f) => f.rating >= 4.5).map((f) => ({ f, pop: popularity(f) }))
-    .filter((x) => x.pop && (x.pop.src === "IMDb" ? x.pop.n < 25000 : x.pop.n < 1000))
+    .filter((x) => x.pop && x.pop.n < { Letterboxd: 5000, IMDb: 25000, TMDB: 1000 }[x.pop.src])
     .sort((a, b) => b.f.rating - a.f.rating || a.pop.n - b.pop.n).slice(0, 12);
 
   /* ----- habits ----- */
@@ -1368,11 +1500,12 @@ function computeInsights(lib, metaOf, crowdKey) {
     crowd: crowdOut, habits, glance,
   };
 }
-// The crowd score to compare with: IMDb when most rated films have it, else TMDB.
+// The crowd to compare with: Letterboxd members when enough rated films have their average, then IMDb, then TMDB.
 function defaultCrowd(lib, metaOf) {
   const rated = lib.films.filter((f) => f.rating);
-  const n = (k) => rated.filter((f) => CROWDS[k].score(metaOf(f))).length;
-  return n("imdb") >= Math.max(5, n("tmdb") * 0.5) ? "imdb" : "tmdb";
+  const n = (k) => rated.filter((f) => CROWDS[k].score(metaOf(f), f)).length;
+  const enough = (k) => n(k) >= Math.max(5, n("tmdb") * 0.5);
+  return enough("letterboxd") ? "letterboxd" : enough("imdb") ? "imdb" : "tmdb";
 }
 </script>
 <script>
@@ -1678,7 +1811,7 @@ function lookupInner() {
   } else {
     body = `<p>Lookups aren't available in this view. Open the downloadable copy of this page in a browser and use a TMDB key.</p>`;
   }
-  return head + body + note + saveNote + imdbBlock(MY_LIB, true);
+  return head + body + note + saveNote + imdbBlock(MY_LIB, true) + letterboxdBlock(MY_LIB, true);
 }
 function progressText() {
   return job.kind === "claude" && job.done === 0 ? `Asking Claude about ${plural(job.total, "film")}… the first batch takes up to a minute.`
@@ -1690,6 +1823,8 @@ function renderLookupProgress() {
   if (p) p.textContent = progressText();
   const ip = $("#imdb-progress");
   if (ip) ip.textContent = imdbProgressText();
+  const lp = $("#lb-progress");
+  if (lp) lp.textContent = lbProgressText();
   const m = $("#lookup-meter");
   if (m && MY_LIB) m.style.width = `${Math.round(MY_LIB.films.filter((f) => metaOf(f)).length / Math.max(1, MY_LIB.films.length) * 100)}%`;
 }
@@ -1714,7 +1849,7 @@ function dataScreen() {
       <p>With your own TMDB key, film details come from The Movie Database. This product uses the TMDB API but is not endorsed or certified by TMDB.
       Inside the Claude app, details come from Claude's knowledge of each film instead, so check anything surprising.</p>
       <p>On a computer? <a href="desktop.html">Open the desktop version</a>. It uses the same import.</p>
-      <p>Updated 22 Oct 2026, 08:48 UTC</p></div>`;
+      <p>Updated 22 Oct 2026, 09:49 UTC</p></div>`;
 }
 
 /* ---------- pushed detail screens ---------- */
@@ -1816,11 +1951,12 @@ function mCrowd(I) {
     ? `<button class="toggle" type="button" data-crowdsel="${k}" aria-pressed="${k === C.key}">${c.short}</button>` : "").join("")}</div>`;
   if (C.n < 5) {
     const why = IN_VIEWER ? `Crowd scores come from TMDB and OMDb, which pages inside Claude can't reach. Open <a href="https://sjnift.github.io/credits-roll/" target="_blank" rel="noopener">the web version</a>.`
-      : C.key === "tmdb" ? "Crowd scores come with TMDB details. Look your films up in the Import tab." : "IMDb and critics' scores need a free OMDb key, added in the Import tab.";
+      : C.key === "tmdb" ? "Crowd scores come with TMDB details. Look your films up in the Import tab."
+      : C.key === "letterboxd" ? "Letterboxd averages need an Apify token, added in the Import tab." : "IMDb and critics' scores need a free OMDb key, added in the Import tab.";
     return sh("Against the crowd") + toggles + `<div class="empty">${why}</div>`;
   }
-  const grid = (items) => `<div class="pgrid">${items.map((p) => `<div class="pitem" title="You ${p.you}★ · ${C.label} ${(p.crowd * 2).toFixed(1)}/10">${poster(p.f)}
-    <span class="pmeta"><span class="stars">${stars(p.you)}</span></span><span class="mdate">${C.short} ${(p.crowd * 2).toFixed(1)} · <b class="dv">${signed(p.diff)}★</b></span></div>`).join("")}</div>`;
+  const grid = (items) => `<div class="pgrid">${items.map((p) => `<div class="pitem" title="You ${p.you}★ · ${C.label} ${crowdScore(C.key, p.crowd)}">${poster(p.f)}
+    <span class="pmeta"><span class="stars">${stars(p.you)}</span></span><span class="mdate">${C.short} ${crowdScore(C.key, p.crowd)} · <b class="dv">${signed(p.diff)}★</b></span></div>`).join("")}</div>`;
   let html = sh("Against the crowd") + toggles + `<p class="lead">You give ${Math.abs(C.meanDiff).toFixed(2)}★ ${C.meanDiff >= 0 ? "more" : "less"} than ${esc(C.label)} on average${followText(C.r)}, across ${plural(C.n, "film")}.</p>`;
   html += sh(`Liked more than ${esc(C.short)}`) + (C.higher.length ? grid(C.higher) : `<div class="empty">No film you rated ¾★ or more above them.</div>`);
   html += sh(`Liked less than ${esc(C.short)}`) + (C.lower.length ? grid(C.lower) : `<div class="empty">No film you rated ¾★ or more below them.</div>`);
@@ -1880,7 +2016,7 @@ function act(t) {
     clearTimeout(forgetTimer); state.forgetArmed = false;
     if (job.running && job.ctl) job.ctl.abort();
     Object.values(KEYS).forEach((k) => store.del(k)); store.del(VIEW_KEY);
-    META = {}; PHOTOS = {}; MY_LIB = null;
+    META = {}; PHOTOS = {}; LBX = {}; MY_LIB = null;
     Object.assign(state, { mode: "example", scope: "all", stack: [] });
     job.note = "Deleted your saved data from this browser."; job.err = false;
     render();
@@ -1898,8 +2034,9 @@ function bind() {
   const fileInput = $("#file-input");
   fileInput.addEventListener("change", () => { const files = [...fileInput.files]; fileInput.value = ""; if (files.length) importFiles(files); });
   document.addEventListener("click", (e) => {
-    const t = e.target.closest("[data-crowdsel],[data-act],[data-view],[data-scope],[data-push],[data-role],[data-crew],[data-sort],[data-catsort]");
+    const t = e.target.closest("[data-lb],[data-crowdsel],[data-act],[data-view],[data-scope],[data-push],[data-role],[data-crew],[data-sort],[data-catsort]");
     if (!t) return;
+    if (t.dataset.lb) { lbAction(t.dataset.lb, MY_LIB); return; }
     if (t.dataset.crowdsel) { state.crowd = t.dataset.crowdsel; render(); return; }
     if (t.dataset.act) return act(t);
     if (t.dataset.view) {
@@ -1952,7 +2089,7 @@ function init() {
   bind();
   render();
   // A saved key picks up films not yet looked up, or matched before matching improved.
-  if (MY_LIB) autoLookup(MY_LIB);
+  if (MY_LIB) { autoLookup(MY_LIB); pollLetterboxd(MY_LIB); }
 }
 init();
 </script>

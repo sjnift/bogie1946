@@ -44,7 +44,7 @@ function act(t) {
     clearTimeout(forgetTimer); state.forgetArmed = false;
     if (job.running && job.ctl) job.ctl.abort();
     Object.values(KEYS).forEach((k) => store.del(k)); store.del(VIEW_KEY);
-    META = {}; PHOTOS = {}; MY_LIB = null;
+    META = {}; PHOTOS = {}; LBX = {}; MY_LIB = null;
     Object.assign(state, { mode: "example", scope: "all", stack: [] });
     job.note = "Deleted your saved data from this browser."; job.err = false;
     render();
@@ -62,8 +62,9 @@ function bind() {
   const fileInput = $("#file-input");
   fileInput.addEventListener("change", () => { const files = [...fileInput.files]; fileInput.value = ""; if (files.length) importFiles(files); });
   document.addEventListener("click", (e) => {
-    const t = e.target.closest("[data-crowdsel],[data-act],[data-view],[data-scope],[data-push],[data-role],[data-crew],[data-sort],[data-catsort]");
+    const t = e.target.closest("[data-lb],[data-crowdsel],[data-act],[data-view],[data-scope],[data-push],[data-role],[data-crew],[data-sort],[data-catsort]");
     if (!t) return;
+    if (t.dataset.lb) { lbAction(t.dataset.lb, MY_LIB); return; }
     if (t.dataset.crowdsel) { state.crowd = t.dataset.crowdsel; render(); return; }
     if (t.dataset.act) return act(t);
     if (t.dataset.view) {
@@ -116,7 +117,7 @@ function init() {
   bind();
   render();
   // A saved key picks up films not yet looked up, or matched before matching improved.
-  if (MY_LIB) autoLookup(MY_LIB);
+  if (MY_LIB) { autoLookup(MY_LIB); pollLetterboxd(MY_LIB); }
 }
 init();
 </script>
