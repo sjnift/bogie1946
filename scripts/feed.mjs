@@ -45,7 +45,7 @@ async function update(user) {
   const res = await fetch(`https://letterboxd.com/${encodeURIComponent(user)}/rss/`, {
     headers: { "User-Agent": "Mozilla/5.0 (compatible; CreditsRollFeed/1.0; +https://github.com/sjnift/credits-roll)", Accept: "application/rss+xml, application/xml" },
   });
-  if (!res.ok) throw new Error(`${user}: Letterboxd answered ${res.status}`);
+  if (!res.ok) throw new Error(`${user}: Letterboxd answered ${res.status} ${res.statusText} (${res.headers.get("server") || "?"}, ${res.headers.get("cf-mitigated") || "no challenge"})`);
   const fresh = parse(await res.text());
   const file = `docs/feed/${user.toLowerCase()}.json`;
   let old = { items: [] };
@@ -66,5 +66,11 @@ async function update(user) {
 const users = process.argv.slice(2);
 if (!users.length) { console.error("usage: node scripts/feed.mjs <username> ..."); process.exit(2); }
 let failed = 0;
-for (const u of users) { try { await update(u); } catch (e) { failed++; console.error(String(e.message || e)); } }
+for (const u of users) {
+  try { await update(u); } catch (e) {
+    failed++;
+    // in GitHub Actions an error line becomes an annotation, readable on the run's page
+    console.error(`${process.env.GITHUB_ACTIONS ? "::error::" : ""}${String(e.message || e)}`);
+  }
+}
 process.exit(failed ? 1 : 0);
