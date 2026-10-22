@@ -1,0 +1,2 @@
+# Builds for Claude and personal downloads stay out of the repo; a personal download can hold a TMDB key.
+/credits-roll*.html

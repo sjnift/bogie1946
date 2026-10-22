@@ -1,0 +1,1434 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Credits Roll Mobile</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: a phone app in the style of the Letterboxd app. A sticky nav bar with year tabs,
+   one scrolling screen per bottom tab, list rows with chevrons, and pushed detail screens.
+   Dark only, like the app. On wide screens the app sits in a centred 480px column. */
+:root {
+  --bg: #14181C;
+  --bar: #1B2128;
+  --card: #202830;
+  --card-2: #2C3440;
+  --line: #2C3440;
+  --ink: #FFFFFF;
+  --ink-1: #DDE6EE;
+  --ink-2: #99AABB;
+  --muted: #6E8193;
+  --green: #00E054;
+  --green-mark: #00A83E;
+  --blue: #40BCF4;
+  --blue-mark: #2E95D3;
+  --orange: #FF8000;
+  --slate-mark: #62788D;
+  --heat-1: #0E5C2C;
+  --heat-2: #13873F;
+  --heat-3: #2FC266;
+  --danger: #FF7A7A;
+  --frame: rgba(221, 238, 255, .2);
+  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Roboto, "Segoe UI", sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --navbar: 48px;
+  --scopebar: 40px;
+  --tabbar: 56px;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { background: var(--bg); }
+body { color: var(--ink-2); font-family: var(--sans); font-size: 15px; line-height: 1.4; -webkit-font-smoothing: antialiased; }
+button, input { font: inherit; color: inherit; }
+a { color: var(--blue); text-decoration: none; }
+:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; border-radius: 4px; }
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.num { font-variant-numeric: tabular-nums; }
+
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--bar); }
+.app { max-width: 480px; margin: 0 auto; min-height: 100vh; padding-bottom: calc(var(--tabbar) + env(safe-area-inset-bottom, 0px) + 24px); }
+@media (min-width: 520px) { .app { border-inline: 1px solid var(--line); } }
+.screen {
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+/* ---------- nav bar + year tabs ---------- */
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--bar); border-bottom: 1px solid var(--line); }
+.nav {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; height: var(--navbar);
+  padding-left: max(12px, env(safe-area-inset-left, 0px)); padding-right: max(12px, env(safe-area-inset-right, 0px));
+}
+.nav h1 { color: var(--ink); font-size: 17px; font-weight: 600; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60vw; }
+.nav .left { justify-self: start; } .nav .right { justify-self: end; }
+.nav-btn { background: none; border: 0; color: var(--green); font-size: 15px; font-weight: 500; padding: 8px 4px; cursor: pointer; display: inline-flex; align-items: center; gap: 2px; }
+.nav-btn svg { width: 22px; height: 22px; }
+.scopes {
+  display: flex; gap: 22px; overflow-x: auto; scrollbar-width: none; height: var(--scopebar); align-items: stretch;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.scopes::-webkit-scrollbar { display: none; }
+.scope {
+  all: unset; flex: none; cursor: pointer; font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--muted); border-bottom: 2px solid transparent; display: flex; align-items: center;
+}
+.scope[aria-pressed="true"] { color: var(--ink); border-bottom-color: var(--green); }
+.scope:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
+.top.detail .scopes { display: none; }
+
+/* ---------- common pieces ---------- */
+.sh {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin: 26px 0 10px; padding-bottom: 7px;
+  border-bottom: 1px solid var(--line); font-size: 12px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2);
+}
+.sh .more { all: unset; cursor: pointer; color: var(--ink-2); font-size: 12px; letter-spacing: .08em; }
+.sh .more:hover { color: var(--ink); }
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; border: 0;
+  border-radius: 6px; padding: 11px 16px; font-weight: 600; font-size: 15px; background: var(--card-2); color: var(--ink);
+}
+.btn.green { background: var(--green-mark); color: #fff; }
+.btn.block { width: 100%; }
+.btn:disabled { opacity: .5; cursor: default; }
+.card { background: var(--card); border-radius: 8px; padding: 14px; display: grid; gap: 10px; }
+.card p { margin: 0; }
+.card .title { color: var(--ink); font-weight: 600; font-size: 15px; }
+.status { font-size: 13.5px; color: var(--ink-2); }
+.status.err { color: var(--danger); }
+.linkish { all: unset; cursor: pointer; color: var(--blue); }
+.linkish:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.stars { color: var(--green); letter-spacing: .02em; white-space: nowrap; }
+.heart { color: var(--orange); }
+.rewatch { color: var(--green); }
+.chev { width: 16px; height: 16px; color: var(--muted); flex: none; }
+.empty { color: var(--muted); padding: 16px 0; font-size: 14px; }
+.meter { height: 4px; border-radius: 999px; background: var(--card-2); overflow: hidden; }
+.meter > span { display: block; height: 100%; background: var(--green-mark); width: 0; transition: width .3s; }
+
+/* ---------- profile ---------- */
+.profile { display: grid; justify-items: center; gap: 6px; padding-top: 22px; text-align: center; }
+.avatar {
+  border-radius: 50%; background: var(--card-2); display: grid; place-items: center; overflow: hidden; position: relative;
+  color: var(--ink-1); font-weight: 700; flex: none; box-shadow: inset 0 0 0 1px var(--frame);
+}
+.avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 20%; }
+.avatar.xl { width: 84px; height: 84px; font-size: 28px; }
+.avatar.lg { width: 64px; height: 64px; font-size: 21px; }
+.avatar.md { width: 44px; height: 44px; font-size: 15px; }
+.profile .name { color: var(--ink); font-size: 20px; font-weight: 700; margin-top: 6px; }
+.profile .handle { font-size: 13.5px; }
+.pill { display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--bg); background: var(--ink-2); border-radius: 3px; padding: 2px 6px; }
+.strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 18px; border-block: 1px solid var(--line); }
+.strip div { display: grid; justify-items: center; padding: 12px 2px; gap: 1px; min-width: 0; }
+.strip div + div { border-left: 1px solid var(--line); }
+.strip b { color: var(--ink); font-size: 19px; font-weight: 700; }
+.strip span { font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; }
+.notice { margin-top: 16px; }
+
+/* ---------- menu rows ---------- */
+.menu { list-style: none; margin: 0; padding: 0; }
+.row {
+  all: unset; box-sizing: border-box; width: 100%; cursor: pointer; display: flex; align-items: center; gap: 12px;
+  padding: 13px 0; border-bottom: 1px solid var(--line); color: var(--ink-1); font-size: 16px;
+}
+.row:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
+.row .count { margin-left: auto; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.row.danger { color: var(--danger); }
+
+/* ---------- people ---------- */
+.scroller { display: flex; gap: 12px; overflow-x: auto; scrollbar-width: none; margin-inline: -16px; padding-inline: 16px; padding-bottom: 2px; }
+.scroller::-webkit-scrollbar { display: none; }
+.pcard { all: unset; cursor: pointer; flex: none; width: 74px; display: grid; justify-items: center; gap: 5px; text-align: center; }
+.pcard .nm { color: var(--ink-1); font-size: 12px; line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.pcard .ct { font-size: 11.5px; color: var(--ink-2); margin-top: -3px; }
+.segctl { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); background: var(--card); border-radius: 8px; padding: 2px; gap: 2px; margin-top: 14px; }
+.segctl button { all: unset; text-align: center; padding: 7px 0; border-radius: 6px; font-size: 13.5px; font-weight: 600; color: var(--ink-2); cursor: pointer; }
+.segctl button[aria-pressed="true"] { background: var(--card-2); color: var(--ink); }
+.segctl button:focus-visible { outline: 2px solid var(--blue); }
+.toggles { display: flex; gap: 18px; margin-top: 14px; }
+.toggle { all: unset; cursor: pointer; font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding-bottom: 3px; border-bottom: 2px solid transparent; }
+.toggle[aria-pressed="true"] { color: var(--ink); border-bottom-color: var(--green); }
+.prow {
+  all: unset; box-sizing: border-box; width: 100%; cursor: pointer; display: grid; grid-template-columns: 24px 44px minmax(0, 1fr) auto 16px;
+  align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line);
+}
+.prow:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
+.prow .rk { font-size: 12px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+.prow .nm { color: var(--ink); font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prow .sub { font-size: 12.5px; color: var(--ink-2); }
+.prow .val { color: var(--ink-1); font-size: 14px; font-variant-numeric: tabular-nums; }
+.prow.cat { grid-template-columns: minmax(0, 1fr) 90px 44px 16px; }
+.mini { height: 6px; background: var(--card-2); border-radius: 3px; overflow: hidden; }
+.mini span { display: block; height: 100%; background: var(--slate-mark); border-radius: 3px; }
+
+/* ---------- posters ---------- */
+.pgrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 8px; }
+.pitem { all: unset; cursor: default; display: grid; gap: 4px; min-width: 0; }
+.poster {
+  position: relative; aspect-ratio: 2 / 3; max-width: 100%; border-radius: 4px; overflow: hidden;
+  background: linear-gradient(165deg, #2F3946, #1C232B);
+}
+.poster::after { content: ""; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 1px var(--frame); pointer-events: none; }
+.poster img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.poster .ph { position: absolute; inset: 0; padding: 7px 6px; display: flex; flex-direction: column; justify-content: flex-end; color: var(--ink-1); font-size: 11px; font-weight: 600; line-height: 1.15; overflow-wrap: break-word; }
+.poster .ph small { color: var(--ink-2); font-weight: 400; font-size: 10px; margin-top: 2px; }
+.pmeta { display: flex; gap: 4px; align-items: center; font-size: 11px; min-height: 14px; }
+.mlabel { font-size: 10.5px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mdate { font-size: 11px; color: var(--muted); margin-top: -2px; }
+
+/* ---------- diary ---------- */
+.facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 16px; }
+.fact { background: var(--card); border-radius: 8px; padding: 10px 12px; display: grid; gap: 1px; min-width: 0; }
+.fact .k { font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-2); }
+.fact .v { color: var(--ink); font-weight: 600; font-size: 15px; overflow-wrap: anywhere; }
+.month-h {
+  position: sticky; top: calc(env(safe-area-inset-top, 0px) + var(--navbar) + var(--scopebar) + 1px); z-index: 5;
+  background: var(--bg); padding: 10px 0 6px; border-bottom: 1px solid var(--line);
+  font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2);
+}
+.drow { display: grid; grid-template-columns: 30px 34px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.drow .day { font-size: 22px; font-weight: 300; color: var(--ink-2); text-align: center; font-variant-numeric: tabular-nums; }
+.drow .poster { width: 34px; }
+.drow .poster .ph { display: none; }
+.drow .t { color: var(--ink); font-weight: 600; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.drow .t span { color: var(--ink-2); font-weight: 400; }
+.drow .m { font-size: 12px; display: flex; gap: 6px; align-items: center; }
+.drow .icons { display: flex; gap: 6px; font-size: 14px; }
+
+/* ---------- charts ---------- */
+.chart { position: relative; margin-right: 26px; margin-top: 8px; }
+.cols { position: relative; z-index: 1; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); align-items: end; gap: 1px; border-bottom: 1px solid var(--line); padding-top: 8px; }
+.col { height: 100%; display: flex; flex-direction: column-reverse; align-items: center; min-width: 0; }
+.col .seg { width: 100%; max-width: 24px; }
+.col .seg + .seg { margin-bottom: 2px; }
+.col .seg.a { background: var(--green-mark); }
+.col .seg.b { background: var(--blue-mark); }
+.col .seg:last-child { border-radius: 3px 3px 0 0; }
+.col:hover .seg { filter: brightness(1.25); }
+.chart.slate .col .seg.a { background: var(--slate-mark); }
+.chart + .axis { margin-right: 26px; }
+.axis { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 1px; margin-top: 5px; }
+.axis span { font-size: 10.5px; color: var(--muted); text-align: center; white-space: nowrap; }
+.axis.dense span.minor { visibility: hidden; }
+.gridline { position: absolute; left: 0; right: -26px; border-top: 1px solid var(--line); pointer-events: none; }
+.gridline span { position: absolute; right: 0; top: -8px; font-size: 10.5px; line-height: 16px; color: var(--muted); }
+.legend { display: flex; gap: 14px; font-size: 12.5px; color: var(--ink-2); }
+.legend i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; }
+.weekdays { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
+.wd { display: grid; gap: 4px; justify-items: center; }
+.wd .bar-v { width: 100%; max-width: 24px; height: 60px; display: flex; align-items: flex-end; }
+.wd .bar-v span { display: block; width: 100%; background: var(--green-mark); border-radius: 3px 3px 0 0; }
+.wd .lbl { font-size: 11px; color: var(--muted); }
+.wd .cnt { font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.cal-wrap { overflow-x: auto; padding-bottom: 4px; }
+.cal { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, 10px); grid-auto-columns: 10px; gap: 3px; width: max-content; }
+.cal i { display: block; border-radius: 2px; background: var(--card-2); }
+.cal i.l1 { background: var(--heat-1); } .cal i.l2 { background: var(--heat-2); } .cal i.l3 { background: var(--heat-3); }
+.cal i.pad { background: transparent; }
+.cal-months { display: grid; grid-auto-flow: column; grid-auto-columns: 10px; gap: 3px; width: max-content; margin-bottom: 4px; }
+.cal-months span { font-size: 10px; color: var(--muted); white-space: nowrap; width: 10px; }
+.heat-key { display: flex; align-items: center; gap: 4px; font-size: 11.5px; color: var(--muted); margin-top: 6px; }
+.heat-key i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; background: var(--card-2); }
+.hist-ends { display: flex; justify-content: space-between; font-size: 11px; margin-top: 4px; }
+
+/* ---------- detail screens ---------- */
+.dhead { display: grid; justify-items: center; gap: 4px; padding-top: 22px; text-align: center; }
+.dhead .name { color: var(--ink); font-size: 21px; font-weight: 700; margin-top: 8px; }
+.dhead .sub { font-size: 13.5px; }
+
+/* ---------- tab bar ---------- */
+.tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 25; background: var(--bar); border-top: 1px solid var(--line);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.tabbar nav { max-width: 448px; margin: 0 auto; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); height: var(--tabbar); }
+.tabbar button { all: unset; cursor: pointer; display: grid; justify-items: center; align-content: center; gap: 3px; color: var(--muted); font-size: 10.5px; font-weight: 500; }
+.tabbar button svg { width: 24px; height: 24px; }
+.tabbar button[aria-current="page"] { color: var(--ink); }
+.tabbar button:focus-visible { outline: 2px solid var(--blue); outline-offset: -4px; border-radius: 8px; }
+
+#tip { position: fixed; z-index: 50; pointer-events: none; background: var(--ink-1); color: var(--bg); font-size: 12.5px; padding: 6px 9px; border-radius: 6px; max-width: 240px; line-height: 1.35; }
+.foot { font-size: 12.5px; color: var(--muted); margin-top: 26px; display: grid; gap: 6px; }
+.foot p { margin: 0; }
+input.key { width: 100%; padding: 11px 12px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); font-family: var(--mono); font-size: 13px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top" id="top">
+    <div class="nav">
+      <div class="left" id="nav-left"></div>
+      <h1 id="nav-title">Profile</h1>
+      <div class="right" id="nav-right"></div>
+    </div>
+    <div class="scopes" id="scopes" role="group" aria-label="Time period"></div>
+  </header>
+  <main class="screen" id="screen"></main>
+</div>
+
+<div class="tabbar">
+  <nav aria-label="Sections">
+    <button type="button" data-view="profile" aria-current="page">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 20c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>
+      Profile</button>
+    <button type="button" data-view="people">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 19.5c1-3.5 3.6-5.5 6.5-5.5s5.5 2 6.5 5.5"/><path d="M15.5 4.8a3.5 3.5 0 0 1 0 6.4M17.5 14c2 .8 3.4 2.6 4 5.5"/></svg>
+      People</button>
+    <button type="button" data-view="diary">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg>
+      Diary</button>
+    <button type="button" data-view="films">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 3v18M16 3v18M4 7.5h4M4 12h4M4 16.5h4M16 7.5h4M16 12h4M16 16.5h4"/></svg>
+      Films</button>
+    <button type="button" data-view="data">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 16.5v3A1.5 1.5 0 0 0 5.5 21h13a1.5 1.5 0 0 0 1.5-1.5v-3"/></svg>
+      Import</button>
+  </nav>
+</div>
+
+<input id="file-input" type="file" accept=".zip,.csv,application/zip,text/csv" multiple hidden>
+<div id="tip" role="tooltip" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+/* Example diary shown before anyone imports an export. The films are real; the dates,
+   ratings and likes are invented for the example. Columns:
+   title, year, rating, liked, directors, cast, genres, countries, language, runtime, writers, cinematography, music */
+const EXAMPLE_FILMS = [
+  ["Parasite", 2019, 5, 1, "Bong Joon-ho", "Song Kang-ho|Lee Sun-kyun|Cho Yeo-jeong|Choi Woo-shik|Park So-dam|Lee Jung-eun", "Comedy|Thriller|Drama", "South Korea", "Korean", 133, "Bong Joon-ho|Han Jin-won", "Hong Kyung-pyo", "Jung Jae-il"],
+  ["Memories of Murder", 2003, 4.5, 1, "Bong Joon-ho", "Song Kang-ho|Kim Sang-kyung|Kim Roe-ha|Song Jae-ho|Byun Hee-bong", "Crime|Drama|Thriller", "South Korea", "Korean", 132, "Bong Joon-ho|Shim Sung-bo", "Kim Hyung-koo", "Taro Iwashiro"],
+  ["The Host", 2006, 3.5, 0, "Bong Joon-ho", "Song Kang-ho|Byun Hee-bong|Park Hae-il|Bae Doona|Go Ah-sung", "Horror|Drama|Science Fiction", "South Korea", "Korean", 120, "Bong Joon-ho|Ha Joon-won|Baek Chul-hyun", "Kim Hyung-koo", "Lee Byung-woo"],
+  ["Decision to Leave", 2022, 4.5, 1, "Park Chan-wook", "Park Hae-il|Tang Wei|Lee Jung-hyun|Go Kyung-pyo", "Mystery|Romance|Thriller", "South Korea", "Korean", 138, "Park Chan-wook|Jeong Seo-kyeong", "Kim Ji-yong", "Cho Young-wuk"],
+  ["Oldboy", 2003, 4, 0, "Park Chan-wook", "Choi Min-sik|Yoo Ji-tae|Kang Hye-jung", "Thriller|Mystery|Drama", "South Korea", "Korean", 120, "Park Chan-wook|Hwang Jo-yun|Lim Joon-hyung", "Chung Chung-hoon", "Cho Young-wuk"],
+  ["The Handmaiden", 2016, 4.5, 1, "Park Chan-wook", "Kim Min-hee|Kim Tae-ri|Ha Jung-woo|Cho Jin-woong", "Thriller|Drama|Romance", "South Korea", "Korean", 145, "Park Chan-wook|Jeong Seo-kyeong", "Chung Chung-hoon", "Cho Young-wuk"],
+  ["Past Lives", 2023, 4.5, 1, "Celine Song", "Greta Lee|Teo Yoo|John Magaro", "Drama|Romance", "USA|South Korea", "English", 106, "Celine Song", "Shabier Kirchner", "Christopher Bear|Daniel Rossen"],
+  ["In the Mood for Love", 2000, 5, 1, "Wong Kar-wai", "Tony Leung Chiu-wai|Maggie Cheung|Rebecca Pan|Lai Chen", "Drama|Romance", "Hong Kong", "Cantonese", 98, "Wong Kar-wai", "Christopher Doyle|Mark Lee Ping-bing", "Michael Galasso|Shigeru Umebayashi"],
+  ["Chungking Express", 1994, 4.5, 1, "Wong Kar-wai", "Brigitte Lin|Takeshi Kaneshiro|Tony Leung Chiu-wai|Faye Wong|Valerie Chow", "Drama|Romance|Comedy", "Hong Kong", "Cantonese", 102, "Wong Kar-wai", "Christopher Doyle|Andrew Lau", "Frankie Chan|Roel A. García"],
+  ["2046", 2004, 4, 0, "Wong Kar-wai", "Tony Leung Chiu-wai|Gong Li|Faye Wong|Takuya Kimura|Zhang Ziyi", "Drama|Romance|Science Fiction", "Hong Kong", "Cantonese", 129, "Wong Kar-wai", "Christopher Doyle", "Shigeru Umebayashi|Peer Raben"],
+  ["Fallen Angels", 1995, 4, 0, "Wong Kar-wai", "Leon Lai|Michelle Reis|Takeshi Kaneshiro|Charlie Yeung|Karen Mok", "Drama|Crime|Romance", "Hong Kong", "Cantonese", 99, "Wong Kar-wai", "Christopher Doyle", "Frankie Chan|Roel A. García"],
+  ["Infernal Affairs", 2002, 4, 0, "Andrew Lau|Alan Mak", "Andy Lau|Tony Leung Chiu-wai|Anthony Wong|Eric Tsang", "Crime|Thriller", "Hong Kong", "Cantonese", 101, "Alan Mak|Felix Chong", "Andrew Lau|Lai Yiu-fai", "Chan Kwong-wing"],
+  ["Lost in Translation", 2003, 4, 1, "Sofia Coppola", "Bill Murray|Scarlett Johansson|Giovanni Ribisi|Anna Faris", "Drama|Comedy|Romance", "USA|Japan", "English", 102, "Sofia Coppola", "Lance Acord", "Brian Reitzell|Kevin Shields"],
+  ["The Grand Budapest Hotel", 2014, 4.5, 1, "Wes Anderson", "Ralph Fiennes|Tony Revolori|F. Murray Abraham|Adrien Brody|Willem Dafoe|Saoirse Ronan", "Comedy|Drama", "USA|Germany|UK", "English", 100, "Wes Anderson", "Robert Yeoman", "Alexandre Desplat"],
+  ["Fantastic Mr. Fox", 2009, 4.5, 1, "Wes Anderson", "George Clooney|Meryl Streep|Jason Schwartzman|Bill Murray|Willem Dafoe", "Animation|Comedy|Family", "USA|UK", "English", 87, "Wes Anderson|Noah Baumbach", "Tristan Oliver", "Alexandre Desplat"],
+  ["The Royal Tenenbaums", 2001, 4, 0, "Wes Anderson", "Gene Hackman|Anjelica Huston|Ben Stiller|Gwyneth Paltrow|Luke Wilson|Owen Wilson|Bill Murray", "Comedy|Drama", "USA", "English", 110, "Wes Anderson|Owen Wilson", "Robert Yeoman", "Mark Mothersbaugh"],
+  ["Asteroid City", 2023, 3.5, 0, "Wes Anderson", "Jason Schwartzman|Scarlett Johansson|Tom Hanks|Jeffrey Wright|Tilda Swinton", "Comedy|Drama|Romance", "USA", "English", 105, "Wes Anderson", "Robert Yeoman", "Alexandre Desplat"],
+  ["Moonrise Kingdom", 2012, 4, 1, "Wes Anderson", "Jared Gilman|Kara Hayward|Bruce Willis|Edward Norton|Bill Murray|Frances McDormand", "Comedy|Drama|Romance", "USA", "English", 94, "Wes Anderson|Roman Coppola", "Robert Yeoman", "Alexandre Desplat"],
+  ["Rushmore", 1998, 3.5, 0, "Wes Anderson", "Jason Schwartzman|Bill Murray|Olivia Williams", "Comedy|Drama", "USA", "English", 93, "Wes Anderson|Owen Wilson", "Robert Yeoman", "Mark Mothersbaugh"],
+  ["Oppenheimer", 2023, 4, 0, "Christopher Nolan", "Cillian Murphy|Emily Blunt|Matt Damon|Robert Downey Jr.|Florence Pugh", "Drama|History", "USA|UK", "English", 181, "Christopher Nolan", "Hoyte van Hoytema", "Ludwig Göransson"],
+  ["Interstellar", 2014, 4.5, 1, "Christopher Nolan", "Matthew McConaughey|Anne Hathaway|Jessica Chastain|Michael Caine|Mackenzie Foy", "Science Fiction|Drama|Adventure", "USA|UK", "English", 169, "Jonathan Nolan|Christopher Nolan", "Hoyte van Hoytema", "Hans Zimmer"],
+  ["The Prestige", 2006, 4, 0, "Christopher Nolan", "Hugh Jackman|Christian Bale|Michael Caine|Scarlett Johansson|Rebecca Hall", "Drama|Mystery|Thriller", "USA|UK", "English", 130, "Jonathan Nolan|Christopher Nolan", "Wally Pfister", "David Julyan"],
+  ["Inception", 2010, 4, 0, "Christopher Nolan", "Leonardo DiCaprio|Joseph Gordon-Levitt|Elliot Page|Tom Hardy|Ken Watanabe|Cillian Murphy|Marion Cotillard|Michael Caine", "Action|Science Fiction|Adventure", "USA|UK", "English", 148, "Christopher Nolan", "Wally Pfister", "Hans Zimmer"],
+  ["Dune: Part Two", 2024, 4.5, 1, "Denis Villeneuve", "Timothée Chalamet|Zendaya|Rebecca Ferguson|Javier Bardem|Josh Brolin|Austin Butler|Florence Pugh", "Science Fiction|Adventure", "USA|Canada", "English", 167, "Denis Villeneuve|Jon Spaihts", "Greig Fraser", "Hans Zimmer"],
+  ["Dune", 2021, 4, 0, "Denis Villeneuve", "Timothée Chalamet|Rebecca Ferguson|Oscar Isaac|Josh Brolin|Stellan Skarsgård|Zendaya", "Science Fiction|Adventure", "USA|Canada", "English", 156, "Jon Spaihts|Denis Villeneuve|Eric Roth", "Greig Fraser", "Hans Zimmer"],
+  ["Arrival", 2016, 4.5, 1, "Denis Villeneuve", "Amy Adams|Jeremy Renner|Forest Whitaker|Michael Stuhlbarg", "Science Fiction|Drama", "USA|Canada", "English", 116, "Eric Heisserer", "Bradford Young", "Jóhann Jóhannsson"],
+  ["Blade Runner 2049", 2017, 4.5, 0, "Denis Villeneuve", "Ryan Gosling|Harrison Ford|Ana de Armas|Sylvia Hoeks|Robin Wright|Jared Leto", "Science Fiction|Drama", "USA|UK|Canada", "English", 164, "Hampton Fancher|Michael Green", "Roger Deakins", "Benjamin Wallfisch|Hans Zimmer"],
+  ["Prisoners", 2013, 4, 0, "Denis Villeneuve", "Hugh Jackman|Jake Gyllenhaal|Viola Davis|Maria Bello|Terrence Howard|Melissa Leo|Paul Dano", "Crime|Drama|Thriller", "USA", "English", 153, "Aaron Guzikowski", "Roger Deakins", "Jóhann Jóhannsson"],
+  ["Sicario", 2015, 4, 0, "Denis Villeneuve", "Emily Blunt|Benicio del Toro|Josh Brolin|Daniel Kaluuya", "Action|Crime|Thriller", "USA", "English", 121, "Taylor Sheridan", "Roger Deakins", "Jóhann Jóhannsson"],
+  ["Enemy", 2013, 3.5, 0, "Denis Villeneuve", "Jake Gyllenhaal|Mélanie Laurent|Sarah Gadon|Isabella Rossellini", "Mystery|Thriller", "Canada|Spain", "English", 91, "Javier Gullón", "Nicolas Bolduc", "Danny Bensi|Saunder Jurriaans"],
+  ["Nightcrawler", 2014, 4, 0, "Dan Gilroy", "Jake Gyllenhaal|Rene Russo|Riz Ahmed|Bill Paxton", "Crime|Thriller|Drama", "USA", "English", 117, "Dan Gilroy", "Robert Elswit", "James Newton Howard"],
+  ["Zodiac", 2007, 4.5, 1, "David Fincher", "Jake Gyllenhaal|Mark Ruffalo|Robert Downey Jr.|Anthony Edwards|Brian Cox", "Crime|Drama|Mystery", "USA", "English", 157, "James Vanderbilt", "Harris Savides", "David Shire"],
+  ["Brokeback Mountain", 2005, 4, 0, "Ang Lee", "Heath Ledger|Jake Gyllenhaal|Michelle Williams|Anne Hathaway|Randy Quaid", "Drama|Romance", "USA|Canada", "English", 134, "Larry McMurtry|Diana Ossana", "Rodrigo Prieto", "Gustavo Santaolalla"],
+  ["Donnie Darko", 2001, 3.5, 0, "Richard Kelly", "Jake Gyllenhaal|Jena Malone|Maggie Gyllenhaal|Drew Barrymore|Mary McDonnell|Patrick Swayze", "Drama|Mystery|Science Fiction", "USA", "English", 113, "Richard Kelly", "Steven Poster", "Michael Andrews"],
+  ["The Social Network", 2010, 4.5, 1, "David Fincher", "Jesse Eisenberg|Andrew Garfield|Justin Timberlake|Armie Hammer|Rooney Mara", "Drama", "USA", "English", 120, "Aaron Sorkin", "Jeff Cronenweth", "Trent Reznor|Atticus Ross"],
+  ["Gone Girl", 2014, 4, 0, "David Fincher", "Ben Affleck|Rosamund Pike|Neil Patrick Harris|Tyler Perry|Carrie Coon", "Mystery|Thriller|Drama", "USA", "English", 149, "Gillian Flynn", "Jeff Cronenweth", "Trent Reznor|Atticus Ross"],
+  ["Fight Club", 1999, 3.5, 0, "David Fincher", "Edward Norton|Brad Pitt|Helena Bonham Carter|Meat Loaf|Jared Leto", "Drama|Thriller", "USA|Germany", "English", 139, "Jim Uhls", "Jeff Cronenweth", "The Dust Brothers"],
+  ["La La Land", 2016, 4, 1, "Damien Chazelle", "Ryan Gosling|Emma Stone|John Legend|Rosemarie DeWitt|J.K. Simmons", "Comedy|Drama|Romance|Music", "USA", "English", 129, "Damien Chazelle", "Linus Sandgren", "Justin Hurwitz"],
+  ["Whiplash", 2014, 4.5, 1, "Damien Chazelle", "Miles Teller|J.K. Simmons|Melissa Benoist|Paul Reiser", "Drama|Music", "USA", "English", 107, "Damien Chazelle", "Sharone Meir", "Justin Hurwitz"],
+  ["Drive", 2011, 4, 0, "Nicolas Winding Refn", "Ryan Gosling|Carey Mulligan|Bryan Cranston|Albert Brooks|Oscar Isaac|Ron Perlman", "Crime|Drama|Thriller", "USA", "English", 100, "Hossein Amini", "Newton Thomas Sigel", "Cliff Martinez"],
+  ["Poor Things", 2023, 4, 1, "Yorgos Lanthimos", "Emma Stone|Mark Ruffalo|Willem Dafoe|Ramy Youssef", "Science Fiction|Romance|Comedy", "UK|USA|Ireland", "English", 141, "Tony McNamara", "Robbie Ryan", "Jerskin Fendrix"],
+  ["The Favourite", 2018, 4, 0, "Yorgos Lanthimos", "Olivia Colman|Emma Stone|Rachel Weisz|Nicholas Hoult|Joe Alwyn", "Drama|History|Comedy", "UK|Ireland|USA", "English", 119, "Deborah Davis|Tony McNamara", "Robbie Ryan", ""],
+  ["The Lobster", 2015, 3.5, 0, "Yorgos Lanthimos", "Colin Farrell|Rachel Weisz|Jessica Barden|Olivia Colman|Ben Whishaw|Léa Seydoux|John C. Reilly", "Comedy|Drama|Romance", "Ireland|UK|Greece|France|Netherlands", "English", 119, "Yorgos Lanthimos|Efthimis Filippou", "Thimios Bakatakis", ""],
+  ["Kinds of Kindness", 2024, 3, 0, "Yorgos Lanthimos", "Emma Stone|Jesse Plemons|Willem Dafoe|Margaret Qualley|Hong Chau", "Comedy|Drama", "Ireland|UK|USA", "English", 165, "Yorgos Lanthimos|Efthimis Filippou", "Robbie Ryan", "Jerskin Fendrix"],
+  ["Portrait of a Lady on Fire", 2019, 5, 1, "Céline Sciamma", "Noémie Merlant|Adèle Haenel|Luàna Bajrami|Valeria Golino", "Drama|Romance|History", "France", "French", 122, "Céline Sciamma", "Claire Mathon", "Para One|Arthur Simonini"],
+  ["Anatomy of a Fall", 2023, 4, 0, "Justine Triet", "Sandra Hüller|Swann Arlaud|Milo Machado-Graner|Antoine Reinartz", "Drama|Crime|Mystery", "France", "French", 151, "Justine Triet|Arthur Harari", "Simon Beaufils", ""],
+  ["The Zone of Interest", 2023, 4, 0, "Jonathan Glazer", "Christian Friedel|Sandra Hüller", "Drama|History|War", "UK|Poland|USA", "German", 105, "Jonathan Glazer", "Łukasz Żal", "Mica Levi"],
+  ["Spirited Away", 2001, 5, 1, "Hayao Miyazaki", "Rumi Hiiragi|Miyu Irino|Mari Natsuki|Takashi Naito|Yasuko Sawaguchi", "Animation|Family|Fantasy", "Japan", "Japanese", 125, "Hayao Miyazaki", "Atsushi Okui", "Joe Hisaishi"],
+  ["My Neighbor Totoro", 1988, 4.5, 1, "Hayao Miyazaki", "Noriko Hidaka|Chika Sakamoto|Shigesato Itoi|Sumi Shimamoto", "Animation|Family|Fantasy", "Japan", "Japanese", 86, "Hayao Miyazaki", "Hisao Shirai", "Joe Hisaishi"],
+  ["Princess Mononoke", 1997, 4.5, 0, "Hayao Miyazaki", "Yoji Matsuda|Yuriko Ishida|Yuko Tanaka|Kaoru Kobayashi|Masahiko Nishimura", "Animation|Fantasy|Adventure", "Japan", "Japanese", 134, "Hayao Miyazaki", "Atsushi Okui", "Joe Hisaishi"],
+  ["Perfect Days", 2023, 4.5, 1, "Wim Wenders", "Koji Yakusho|Tokio Emoto|Arisa Nakano|Aoi Yamada", "Drama", "Japan|Germany", "Japanese", 124, "Wim Wenders|Takuma Takasaki", "Franz Lustig", ""],
+  ["Drive My Car", 2021, 4, 0, "Ryusuke Hamaguchi", "Hidetoshi Nishijima|Toko Miura|Reika Kirishima|Masaki Okada", "Drama", "Japan", "Japanese", 179, "Ryusuke Hamaguchi|Takamasa Oe", "Hidetoshi Shinomiya", "Eiko Ishibashi"],
+  ["Aftersun", 2022, 4.5, 1, "Charlotte Wells", "Paul Mescal|Frankie Corio|Celia Rowlson-Hall", "Drama", "UK|USA", "English", 102, "Charlotte Wells", "Gregory Oke", "Oliver Coates"],
+  ["All of Us Strangers", 2023, 4, 0, "Andrew Haigh", "Andrew Scott|Paul Mescal|Jamie Bell|Claire Foy", "Drama|Romance|Fantasy", "UK|USA", "English", 105, "Andrew Haigh", "Jamie D. Ramsay", "Emilie Levienaise-Farrouch"],
+  ["Lady Bird", 2017, 4, 1, "Greta Gerwig", "Saoirse Ronan|Laurie Metcalf|Tracy Letts|Lucas Hedges|Timothée Chalamet|Beanie Feldstein", "Comedy|Drama", "USA", "English", 94, "Greta Gerwig", "Sam Levy", "Jon Brion"],
+  ["Little Women", 2019, 4, 0, "Greta Gerwig", "Saoirse Ronan|Emma Watson|Florence Pugh|Eliza Scanlen|Laura Dern|Timothée Chalamet|Meryl Streep", "Drama|Romance", "USA", "English", 135, "Greta Gerwig", "Yorick Le Saux", "Alexandre Desplat"],
+  ["Frances Ha", 2012, 4, 1, "Noah Baumbach", "Greta Gerwig|Mickey Sumner|Adam Driver|Michael Zegen", "Comedy|Drama|Romance", "USA", "English", 86, "Noah Baumbach|Greta Gerwig", "Sam Levy", ""],
+  ["Marriage Story", 2019, 4, 0, "Noah Baumbach", "Adam Driver|Scarlett Johansson|Laura Dern|Alan Alda|Ray Liotta", "Drama|Comedy|Romance", "USA|UK", "English", 137, "Noah Baumbach", "Robbie Ryan", "Randy Newman"],
+  ["Paterson", 2016, 4, 1, "Jim Jarmusch", "Adam Driver|Golshifteh Farahani|Barry Shabaka Henley", "Drama|Comedy|Romance", "USA|Germany|France", "English", 118, "Jim Jarmusch", "Frederick Elmes", "SQÜRL"],
+  ["Call Me by Your Name", 2017, 4, 0, "Luca Guadagnino", "Armie Hammer|Timothée Chalamet|Michael Stuhlbarg|Amira Casar|Esther Garrel", "Drama|Romance", "Italy|France|USA|Brazil", "English", 132, "James Ivory", "Sayombhu Mukdeeprom", ""],
+  ["Challengers", 2024, 4, 1, "Luca Guadagnino", "Zendaya|Josh O'Connor|Mike Faist", "Drama|Romance", "USA|Italy", "English", 131, "Justin Kuritzkes", "Sayombhu Mukdeeprom", "Trent Reznor|Atticus Ross"],
+  ["Mulholland Drive", 2001, 4.5, 1, "David Lynch", "Naomi Watts|Laura Harring|Justin Theroux|Ann Miller|Robert Forster", "Drama|Mystery|Thriller", "France|USA", "English", 147, "David Lynch", "Peter Deming", "Angelo Badalamenti"],
+  ["Perfect Blue", 1997, 4, 0, "Satoshi Kon", "Junko Iwao|Rica Matsumoto|Shinpachi Tsuji|Masaaki Okura", "Animation|Thriller|Horror", "Japan", "Japanese", 81, "Sadayuki Murai", "Hisao Shirai", "Masahiro Ikumi"],
+  ["Everything Everywhere All at Once", 2022, 4.5, 1, "Daniel Kwan|Daniel Scheinert", "Michelle Yeoh|Ke Huy Quan|Stephanie Hsu|Jamie Lee Curtis|James Hong", "Action|Adventure|Science Fiction|Comedy", "USA", "English", 140, "Daniel Kwan|Daniel Scheinert", "Larkin Seiple", "Son Lux"],
+  ["Crouching Tiger, Hidden Dragon", 2000, 4, 0, "Ang Lee", "Chow Yun-fat|Michelle Yeoh|Zhang Ziyi|Chang Chen", "Action|Drama|Romance", "Taiwan|Hong Kong|USA|China", "Mandarin", 120, "Wang Hui-ling|James Schamus|Tsai Kuo-jung", "Peter Pau", "Tan Dun"],
+  ["Burning", 2018, 4.5, 1, "Lee Chang-dong", "Yoo Ah-in|Steven Yeun|Jeon Jong-seo", "Mystery|Drama|Thriller", "South Korea", "Korean", 148, "Oh Jung-mi|Lee Chang-dong", "Hong Kyung-pyo", "Mowg"],
+  ["Minari", 2020, 4, 0, "Lee Isaac Chung", "Steven Yeun|Han Ye-ri|Alan Kim|Noel Kate Cho|Youn Yuh-jung|Will Patton", "Drama", "USA", "Korean", 115, "Lee Isaac Chung", "Lachlan Milne", "Emile Mosseri"],
+  ["Nope", 2022, 3.5, 0, "Jordan Peele", "Daniel Kaluuya|Keke Palmer|Steven Yeun|Brandon Perea|Michael Wincott", "Horror|Mystery|Science Fiction", "USA", "English", 130, "Jordan Peele", "Hoyte van Hoytema", "Michael Abels"],
+  ["Get Out", 2017, 4, 0, "Jordan Peele", "Daniel Kaluuya|Allison Williams|Bradley Whitford|Catherine Keener|Caleb Landry Jones|LilRel Howery", "Horror|Mystery|Thriller", "USA", "English", 104, "Jordan Peele", "Toby Oliver", "Michael Abels"],
+  ["Before Sunrise", 1995, 4.5, 1, "Richard Linklater", "Ethan Hawke|Julie Delpy", "Drama|Romance", "USA|Austria|Switzerland", "English", 101, "Richard Linklater|Kim Krizan", "Lee Daniel", "Fred Frith"],
+  ["Before Sunset", 2004, 5, 1, "Richard Linklater", "Ethan Hawke|Julie Delpy", "Drama|Romance", "USA", "English", 80, "Richard Linklater|Julie Delpy|Ethan Hawke|Kim Krizan", "Lee Daniel", ""],
+  ["Before Midnight", 2013, 4, 0, "Richard Linklater", "Ethan Hawke|Julie Delpy", "Drama|Romance", "USA|Greece", "English", 109, "Richard Linklater|Julie Delpy|Ethan Hawke", "Christos Voudouris", "Graham Reynolds"],
+];
+
+/* Turns the table above into the same shape an imported export produces:
+   a library of films plus diary entries, and a metadata map keyed by film. */
+function buildExample() {
+  let seed = 20261021;
+  const rand = () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const start = Date.UTC(2025, 0, 3), end = Date.UTC(2026, 9, 18), day = 864e5;
+  const span = (end - start) / day;
+  const iso = (t) => new Date(t).toISOString().slice(0, 10);
+  // weight later dates a little so 2026 reads busier than 2025
+  const pick = () => start + Math.floor(Math.pow(rand(), 0.8) * span) * day;
+  const rows = { profile: [{ Username: "example" }], watched: [], ratings: [], diary: [], likes: [], reviews: [] };
+  const meta = {};
+  const split = (s) => s ? s.split("|") : [];
+  EXAMPLE_FILMS.forEach((f, i) => {
+    const [name, year, rating, liked, d, c, g, k, l, r, w, p, m] = f;
+    const base = { Name: name, Year: String(year), "Letterboxd URI": "" };
+    rows.watched.push({ ...base, Date: iso(start) });
+    rows.ratings.push({ ...base, Rating: String(rating) });
+    if (liked) rows.likes.push(base);
+    meta[filmKey(name, year)] = { src: "example", d: split(d), c: split(c), g: split(g), k: split(k), l, r, w: split(w), p: split(p), m: split(m) };
+    if (i % 9 === 4) return; // logged as watched without a diary date
+    const first = pick();
+    rows.diary.push({ ...base, "Watched Date": iso(first), Rating: String(rating), Rewatch: "", Tags: "" });
+    if (rating >= 4.5 && rand() < 0.55) {
+      const again = first + Math.floor(rand() * (end - first) / day) * day;
+      if (again > first) rows.diary.push({ ...base, "Watched Date": iso(again), Rating: String(rating), Rewatch: "Yes", Tags: "" });
+    }
+    if (rand() < 0.3) rows.reviews.push({ ...base, "Watched Date": iso(first) });
+  });
+  return { rows, meta };
+}
+</script>
+<script>
+/* ---------- small helpers ---------- */
+const $ = (s, el = document) => el.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmtN = (n) => Number(n || 0).toLocaleString("en-US");
+const plural = (n, one, many = one + "s") => `${fmtN(n)} ${n === 1 ? one : many}`;
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const MONTHS_LONG = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const WEEKDAYS_LONG = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+const fmtDate = (iso) => { if (!iso) return ""; const [y, m, d] = iso.split("-").map(Number); return `${d} ${MONTHS[m - 1]} ${y}`; };
+const stars = (r) => r ? "★".repeat(Math.floor(r)) + (r % 1 ? "½" : "") : "";
+const avg = (a) => a.length ? a.reduce((s, x) => s + x, 0) / a.length : null;
+const filmKey = (name, year) => `${String(name).trim().toLowerCase()}|${year || ""}`;
+const personKey = (n) => String(n).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+const dayIndex = (iso) => Math.floor(Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10)) / 864e5);
+const weekdayOf = (iso) => (new Date(iso + "T00:00:00Z").getUTCDay() + 6) % 7; // Monday = 0
+
+const store = {
+  get(k, fallback) { try { const v = localStorage.getItem(k); return v == null ? fallback : JSON.parse(v); } catch { return fallback; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } },
+  del(k) { try { localStorage.removeItem(k); } catch {} },
+};
+const KEYS = { rows: "cr-rows-v1", meta: "cr-meta-v1", photos: "cr-photos-v1", tmdb: "cr-tmdb-key", view: "cr-view-v1" };
+
+/* ---------- reading a Letterboxd export ---------- */
+const WANTED = {
+  diary: /(^|\/)diary\.csv$/i, watched: /(^|\/)watched\.csv$/i, ratings: /(^|\/)ratings\.csv$/i,
+  reviews: /(^|\/)reviews\.csv$/i, likes: /(^|\/)likes\/films\.csv$/i, watchlist: /(^|\/)watchlist\.csv$/i,
+  profile: /(^|\/)profile\.csv$/i,
+};
+const LOOSE_LIKES = /^films\.csv$/i; // likes/films.csv dropped on its own
+
+function parseCsv(text) {
+  const out = Papa.parse(text.replace(/^﻿/, ""), { header: true, skipEmptyLines: true });
+  return out.data.filter((r) => r && r.Name);
+}
+// Keep only the columns the stats use, so the saved copy stays small.
+function slim(kind, rows) {
+  const pick = (r, cols) => Object.fromEntries(cols.map((c) => [c, r[c] ?? ""]));
+  const base = ["Name", "Year"];
+  switch (kind) {
+    case "diary": return rows.map((r) => pick(r, [...base, "Date", "Watched Date", "Rating", "Rewatch", "Tags"]));
+    case "watched": return rows.map((r) => pick(r, [...base, "Date", "Letterboxd URI"]));
+    case "ratings": return rows.map((r) => pick(r, [...base, "Rating"]));
+    case "reviews": return rows.map((r) => pick(r, [...base, "Date", "Watched Date"]));
+    case "likes": case "watchlist": return rows.map((r) => pick(r, base));
+    default: return rows;
+  }
+}
+
+async function readExport(fileList) {
+  if (!window.Papa) throw new Error("The CSV reader didn't load. Check your internet connection and reload the page.");
+  const rows = { diary: [], watched: [], ratings: [], reviews: [], likes: [], watchlist: [], profile: [] };
+  let found = 0;
+  const take = (path, text) => {
+    if (/(^|\/)(deleted|orphaned)\//i.test(path)) return;
+    for (const [kind, re] of Object.entries(WANTED)) {
+      if (re.test(path) || (kind === "likes" && LOOSE_LIKES.test(path))) {
+        const parsed = kind === "profile" ? Papa.parse(text.replace(/^﻿/, ""), { header: true, skipEmptyLines: true }).data : parseCsv(text);
+        rows[kind] = slim(kind, parsed); found++; return;
+      }
+    }
+  };
+  for (const file of fileList) {
+    if (/\.zip$/i.test(file.name) || file.type.includes("zip")) {
+      if (!window.JSZip) throw new Error("The ZIP reader didn't load. Check your connection, or unzip the export and import diary.csv, watched.csv and ratings.csv.");
+      const zip = await JSZip.loadAsync(file);
+      for (const entry of Object.values(zip.files)) {
+        if (!entry.dir && /\.csv$/i.test(entry.name)) take(entry.name, await entry.async("string"));
+      }
+    } else if (/\.csv$/i.test(file.name)) {
+      take(file.name, await file.text());
+    }
+  }
+  if (!rows.watched.length && !rows.diary.length && !rows.ratings.length) {
+    throw new Error(found
+      ? "Those files have no films in them. Import the whole export ZIP, or at least diary.csv and watched.csv."
+      : "That doesn't look like a Letterboxd export. Import the ZIP you get from Settings → Data → Export your data.");
+  }
+  return rows;
+}
+
+/* ---------- the library: one record per film, one per diary entry ---------- */
+function buildLibrary(input) {
+  const rows = { diary: [], watched: [], ratings: [], reviews: [], likes: [], watchlist: [], profile: [], ...input };
+  const films = new Map();
+  const get = (r) => {
+    const k = filmKey(r.Name, r.Year);
+    let f = films.get(k);
+    if (!f) { f = { key: k, name: String(r.Name).trim(), year: parseInt(r.Year, 10) || null, rating: null, liked: false, entries: [], reviews: 0 }; films.set(k, f); }
+    return f;
+  };
+  rows.watched.forEach(get);
+  for (const r of rows.ratings) { const v = parseFloat(r.Rating); if (v) get(r).rating = v; }
+  for (const r of rows.likes) get(r).liked = true;
+  const entries = [];
+  rows.diary.forEach((r, i) => {
+    const date = r["Watched Date"] || r.Date;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date || "")) return;
+    const f = get(r);
+    const e = { film: f, date, rating: parseFloat(r.Rating) || null, rewatch: /^yes$/i.test(r.Rewatch || ""), order: i, review: false };
+    f.entries.push(e); entries.push(e);
+  });
+  for (const r of rows.reviews) {
+    const f = get(r); f.reviews++;
+    const d = r["Watched Date"] || r.Date;
+    const e = f.entries.find((x) => x.date === d) || f.entries[f.entries.length - 1];
+    if (e) e.review = true;
+  }
+  entries.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : a.order - b.order);
+  for (const f of films.values()) {
+    f.entries.sort((a, b) => a.date < b.date ? -1 : 1);
+    if (!f.rating) { const rated = f.entries.filter((e) => e.rating); if (rated.length) f.rating = rated[rated.length - 1].rating; }
+  }
+  const p = rows.profile[0] || {};
+  return {
+    films: [...films.values()], entries,
+    profile: { username: p.Username || "", joined: (p["Date Joined"] || "").slice(0, 10), name: [p["Given Name"], p["Family Name"]].filter(Boolean).join(" ") },
+    watchlist: rows.watchlist.length,
+  };
+}
+
+/* ---------- metadata: one shape whether it came from TMDB, Claude or the example ---------- */
+const COUNTRY_ALIASES = {
+  "united states of america": "USA", "united states": "USA", "us": "USA", "u.s.": "USA", "u.s.a.": "USA", "america": "USA",
+  "united kingdom": "UK", "great britain": "UK", "england": "UK", "u.k.": "UK", "britain": "UK",
+  "korea, republic of": "South Korea", "republic of korea": "South Korea", "korea": "South Korea",
+  "russian federation": "Russia", "czech republic": "Czechia", "hong kong sar china": "Hong Kong",
+  "people's republic of china": "China", "iran, islamic republic of": "Iran", "west germany": "Germany",
+};
+const country = (c) => { const t = String(c).trim(); return COUNTRY_ALIASES[t.toLowerCase()] || t; };
+let langNames = null;
+try { langNames = new Intl.DisplayNames(["en"], { type: "language" }); } catch {}
+const LANG_FIX = { cn: "Cantonese", zh: "Mandarin", xx: "No language" };
+function language(l) {
+  const t = String(l || "").trim();
+  if (!t) return "";
+  if (/^[a-z]{2}$/i.test(t)) return LANG_FIX[t.toLowerCase()] || (langNames ? langNames.of(t.toLowerCase()) : t);
+  return t === "Chinese" ? "Mandarin" : t;
+}
+const GENRES = ["Action", "Adventure", "Animation", "Comedy", "Crime", "Documentary", "Drama", "Family", "Fantasy", "History", "Horror", "Music", "Mystery", "Romance", "Science Fiction", "Thriller", "TV Movie", "War", "Western"];
+function cleanMeta(m) {
+  const list = (a, n = 20) => [...new Set((Array.isArray(a) ? a : []).map((x) => String(x).trim()).filter(Boolean))].slice(0, n);
+  const genre = (g) => g === "Sci-Fi" ? "Science Fiction" : g;
+  return {
+    src: m.src, id: m.id || null, poster: m.poster || null,
+    d: list(m.d, 6), c: list(m.c, 15), w: list(m.w, 6), p: list(m.p, 4), m: list(m.m, 4),
+    g: list((m.g || []).map(genre).filter((g) => GENRES.includes(g)), 6),
+    k: list((m.k || []).map(country), 6), l: language(m.l), r: Math.round(Number(m.r)) || null,
+  };
+}
+
+/* ---------- stats ---------- */
+const CAST_DEPTH = 15; // top-billed cast counted per film
+
+function inScope(lib, scope) {
+  if (scope === "all") return { films: lib.films, entries: lib.entries };
+  const entries = lib.entries.filter((e) => e.date.startsWith(scope));
+  return { films: [...new Set(entries.map((e) => e.film))], entries };
+}
+
+function rankPeople(films, metaOf, role, minRated) {
+  const map = new Map();
+  for (const f of films) {
+    const m = metaOf(f);
+    if (!m || !m[role]) continue;
+    const names = role === "c" ? m.c.slice(0, CAST_DEPTH) : m[role];
+    const seen = new Set();
+    for (const name of names) {
+      const k = personKey(name);
+      if (!k || seen.has(k)) continue;
+      seen.add(k);
+      let p = map.get(k);
+      if (!p) { p = { key: k, name, films: [], ratings: [] }; map.set(k, p); }
+      p.films.push(f);
+      if (f.rating) p.ratings.push(f.rating);
+    }
+  }
+  const all = [...map.values()].map((p) => ({ ...p, count: p.films.length, avg: avg(p.ratings) }));
+  const most = [...all].sort((a, b) => b.count - a.count || (b.avg || 0) - (a.avg || 0) || a.name.localeCompare(b.name));
+  const best = all.filter((p) => p.ratings.length >= minRated)
+    .sort((a, b) => b.avg - a.avg || b.ratings.length - a.ratings.length || a.name.localeCompare(b.name));
+  return { most, best, total: all.length };
+}
+
+function rankCategory(films, metaOf, field) {
+  const map = new Map();
+  for (const f of films) {
+    const m = metaOf(f);
+    if (!m) continue;
+    const vals = field === "l" ? (m.l ? [m.l] : []) : m[field] || [];
+    for (const v of vals) {
+      let c = map.get(v);
+      if (!c) { c = { key: v, name: v, films: [], ratings: [] }; map.set(v, c); }
+      c.films.push(f); if (f.rating) c.ratings.push(f.rating);
+    }
+  }
+  const all = [...map.values()].map((c) => ({ ...c, count: c.films.length, avg: avg(c.ratings) }));
+  return {
+    most: [...all].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)),
+    best: all.filter((c) => c.ratings.length >= 3).sort((a, b) => b.avg - a.avg || b.count - a.count),
+  };
+}
+
+function longestStreak(entries) {
+  const days = [...new Set(entries.map((e) => dayIndex(e.date)))].sort((a, b) => a - b);
+  let best = 0, run = 0, prev = null, endDay = null;
+  for (const d of days) { run = prev !== null && d === prev + 1 ? run + 1 : 1; if (run > best) { best = run; endDay = d; } prev = d; }
+  return { days: best, end: endDay };
+}
+
+function computeStats(lib, metaOf, scope) {
+  const { films, entries } = inScope(lib, scope);
+  const viewsOf = (f) => Math.max(1, scope === "all" ? f.entries.length : f.entries.filter((e) => e.date.startsWith(scope)).length);
+  const withMeta = films.filter((f) => metaOf(f));
+  let minutes = 0, timed = 0;
+  for (const f of films) { const m = metaOf(f); if (m && m.r) { minutes += m.r * viewsOf(f); timed++; } }
+  const rated = films.filter((f) => f.rating);
+  const spread = Array.from({ length: 10 }, (_, i) => ({ r: (i + 1) / 2, count: 0 }));
+  for (const f of rated) { const i = Math.round(f.rating * 2) - 1; if (spread[i]) spread[i].count++; }
+
+  // activity
+  const byDay = new Map();
+  for (const e of entries) byDay.set(e.date, (byDay.get(e.date) || 0) + 1);
+  const weekday = Array(7).fill(0);
+  for (const e of entries) weekday[weekdayOf(e.date)]++;
+  const byMonth = new Map();
+  for (const e of entries) byMonth.set(e.date.slice(0, 7), (byMonth.get(e.date.slice(0, 7)) || 0) + 1);
+  let busiestMonth = null;
+  for (const [k, v] of byMonth) if (!busiestMonth || v > busiestMonth.count) busiestMonth = { key: k, count: v };
+  let busiestDay = null;
+  for (const [k, v] of byDay) if (!busiestDay || v > busiestDay.count) busiestDay = { key: k, count: v };
+
+  // release decades
+  const dec = new Map();
+  for (const f of films) {
+    if (!f.year) continue;
+    const d = Math.floor(f.year / 10) * 10;
+    let x = dec.get(d); if (!x) { x = { decade: d, films: [], ratings: [] }; dec.set(d, x); }
+    x.films.push(f); if (f.rating) x.ratings.push(f.rating);
+  }
+  const decades = [...dec.values()].map((x) => ({ ...x, count: x.films.length, avg: avg(x.ratings),
+    top: [...x.films].filter((f) => f.rating).sort((a, b) => b.rating - a.rating || b.entries.length - a.entries.length).slice(0, 5) }))
+    .sort((a, b) => a.decade - b.decade);
+
+  const minRated = films.length >= 150 ? 3 : 2;
+  return {
+    scope, films, entries, withMeta: withMeta.length, minRated,
+    minutes, timed,
+    avgRating: avg(rated.map((f) => f.rating)), rated: rated.length, spread,
+    rewatches: entries.filter((e) => e.rewatch).length,
+    reviews: scope === "all" ? films.reduce((s, f) => s + f.reviews, 0) : entries.filter((e) => e.review).length,
+    likes: films.filter((f) => f.liked).length,
+    byDay, byMonth, weekday, busiestMonth, busiestDay, streak: longestStreak(entries),
+    decades,
+    cast: rankPeople(films, metaOf, "c", minRated), directors: rankPeople(films, metaOf, "d", minRated),
+    writers: rankPeople(films, metaOf, "w", minRated), dop: rankPeople(films, metaOf, "p", minRated), music: rankPeople(films, metaOf, "m", minRated),
+    genres: rankCategory(films, metaOf, "g"), countries: rankCategory(films, metaOf, "k"), languages: rankCategory(films, metaOf, "l"),
+    newReleases: scope === "all" ? null : films.filter((f) => String(f.year) === scope).length,
+  };
+}
+</script>
+<script>
+/* ---------- cast & crew lookups ----------
+   Opened as a file in a normal browser, the page calls TMDB with the viewer's own key.
+   Inside the Claude app the page can't reach other sites, so Claude fills in the details. */
+const IN_VIEWER = typeof window.claude === "object" && window.claude !== null;
+let META = store.get(KEYS.meta, {});
+let PHOTOS = store.get(KEYS.photos, {});
+let EXAMPLE_META = {};
+// A personal downloaded copy gets its owner's TMDB key written in here at build time; published pages leave it empty.
+const BUILT_IN_TMDB_KEY = "" /*TMDB_KEY*/;
+const tmdbKey = () => store.get(KEYS.tmdb, "") || BUILT_IN_TMDB_KEY;
+let editKey = false;
+let sampleFn = null;
+let sampleState = IN_VIEWER ? "pending" : "absent"; // pending | ready | off | absent
+const job = { running: false, kind: null, ctl: null, done: 0, total: 0, failed: 0, note: "", err: false, saveFailed: false, badKey: false };
+
+if (IN_VIEWER && typeof window.claude.use === "function") {
+  window.claude.use("sample").then((s) => { sampleFn = s; sampleState = s ? "ready" : "absent"; renderLookup(); })
+    .catch(() => { sampleState = "absent"; renderLookup(); });
+}
+
+function saveMeta() {
+  const ok = store.set(KEYS.meta, META) && store.set(KEYS.photos, PHOTOS);
+  job.saveFailed = !ok;
+}
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+function needsLookup(lib, kind) {
+  return lib.films.filter((f) => {
+    const m = META[f.key];
+    if (kind === "tmdb") return !m || (m.src !== "tmdb" && !m.tmdbMiss);
+    return !m && !EXAMPLE_META[f.key];
+  });
+}
+
+/* ----- TMDB ----- */
+async function tmdbGet(path, params, key, signal) {
+  const url = new URL("https://api.themoviedb.org/3" + path);
+  for (const [k, v] of Object.entries(params)) if (v !== "" && v != null) url.searchParams.set(k, v);
+  const headers = { accept: "application/json" };
+  if (key.startsWith("eyJ")) headers.Authorization = "Bearer " + key; else url.searchParams.set("api_key", key);
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const res = await fetch(url, { headers, signal });
+    if (res.status === 429) { await sleep((Number(res.headers.get("retry-after")) || 2) * 1000 * (attempt + 1)); continue; }
+    if (res.status === 401) throw { code: "auth" };
+    if (res.status === 404) return null;
+    if (!res.ok) throw { code: "http", status: res.status };
+    return res.json();
+  }
+  throw { code: "busy" };
+}
+function pickHit(results, f, tolerance) {
+  if (!results || !results.length) return null;
+  const want = personKey(f.name);
+  const yearOf = (r) => parseInt((r.release_date || "").slice(0, 4), 10);
+  const near = results.filter((r) => !f.year || !yearOf(r) || Math.abs(yearOf(r) - f.year) <= tolerance);
+  const exact = near.find((r) => personKey(r.title || "") === want || personKey(r.original_title || "") === want);
+  return exact || (tolerance === 0 ? near[0] : null) || null;
+}
+async function tmdbFilm(f, key, signal) {
+  let s = await tmdbGet("/search/movie", { query: f.name, year: f.year || "", include_adult: "false" }, key, signal);
+  let hit = pickHit(s && s.results, f, 0);
+  if (!hit && f.year) {
+    s = await tmdbGet("/search/movie", { query: f.name, include_adult: "false" }, key, signal);
+    hit = pickHit(s && s.results, f, 1);
+  }
+  if (!hit) return { src: "tmdb", miss: true };
+  const d = await tmdbGet(`/movie/${hit.id}`, { append_to_response: "credits" }, key, signal);
+  if (!d) return { src: "tmdb", miss: true };
+  const crew = (d.credits && d.credits.crew) || [];
+  const cast = ((d.credits && d.credits.cast) || []).slice().sort((a, b) => a.order - b.order).slice(0, CAST_DEPTH);
+  const names = (list) => [...new Set(list.map((x) => x.name))];
+  for (const p of [...cast, ...crew.filter((c) => c.job === "Director")]) if (p.profile_path && !PHOTOS[personKey(p.name)]) PHOTOS[personKey(p.name)] = p.profile_path;
+  return cleanMeta({
+    src: "tmdb", id: d.id, poster: d.poster_path,
+    d: names(crew.filter((c) => c.job === "Director")),
+    c: cast.map((c) => c.name),
+    w: names(crew.filter((c) => ["Screenplay", "Writer", "Story"].includes(c.job))),
+    p: names(crew.filter((c) => c.job === "Director of Photography")),
+    m: names(crew.filter((c) => c.job === "Original Music Composer" || c.job === "Music")),
+    g: (d.genres || []).map((g) => g.name),
+    k: (d.production_countries || []).map((c) => c.name),
+    l: d.original_language, r: d.runtime,
+  });
+}
+async function runTmdb(lib, key) {
+  const queue = needsLookup(lib, "tmdb");
+  Object.assign(job, { running: true, kind: "tmdb", ctl: new AbortController(), done: 0, total: queue.length, failed: 0, note: "", err: false, badKey: false });
+  renderLookup();
+  const signal = job.ctl.signal;
+  let fatal = null, sinceSave = 0;
+  const worker = async () => {
+    while (queue.length && !signal.aborted && !fatal) {
+      const f = queue.shift();
+      try {
+        const m = await tmdbFilm(f, key, signal);
+        if (m.miss) { if (!META[f.key]) META[f.key] = m; else META[f.key].tmdbMiss = true; job.failed++; }
+        else META[f.key] = m;
+      } catch (e) {
+        if (signal.aborted) return;
+        if (e && e.code === "auth") { job.badKey = true; fatal = "TMDB didn't accept that key. Copy the API Key (v3) or the API Read Access Token from your TMDB account settings and try again."; return; }
+        if (e instanceof TypeError) { fatal = "Couldn't reach TMDB. Check your internet connection and try again."; return; }
+        job.failed++;
+      }
+      job.done++;
+      if (++sinceSave >= 25) { sinceSave = 0; saveMeta(); scheduleRender(); }
+      renderLookupProgress();
+    }
+  };
+  await Promise.all(Array.from({ length: 6 }, worker));
+  saveMeta();
+  job.running = false;
+  if (fatal) { job.note = fatal; job.err = true; }
+  else if (signal.aborted) job.note = `Stopped after ${plural(job.done, "film")}. Progress is saved.`;
+  else job.note = job.failed ? "Done." : "Done. Every film has cast and crew.";
+  scheduleRender();
+}
+
+// Uses a key typed into the page if there is one, otherwise the saved or built-in key.
+function startTmdb(lib) {
+  const input = $("#tmdb-key");
+  const typed = input ? input.value.trim() : "";
+  const key = typed || tmdbKey();
+  if (!key) { job.note = "Paste your TMDB API key first."; job.err = true; editKey = true; renderLookup(); const i = $("#tmdb-key"); if (i) i.focus(); return; }
+  if (typed && typed !== BUILT_IN_TMDB_KEY) store.set(KEYS.tmdb, typed);
+  else if (typed) store.del(KEYS.tmdb);
+  editKey = false;
+  runTmdb(lib, key);
+}
+// After an import, a copy that already knows a key looks films up without being asked.
+function autoLookup(lib) {
+  if (!IN_VIEWER && tmdbKey() && needsLookup(lib, "tmdb").length) runTmdb(lib, tmdbKey());
+}
+
+/* ----- Claude ----- */
+const CLAUDE_BATCH = 40;
+function claudePrompt(batch) {
+  return `You are filling in film credits for someone's Letterboxd diary. For each film below (title and release year as listed on Letterboxd), give what you know:
+- d: director(s)
+- c: up to 8 top-billed cast, in billing order (for animation, the original-language voice cast)
+- w: screenwriter(s)
+- p: director(s) of photography
+- m: original score composer(s), or [] if none
+- g: genres, using only these names: ${GENRES.join(", ")}
+- k: production countries, short names (USA, UK, France, South Korea)
+- l: original language (English, Korean, Cantonese, Mandarin, French...)
+- r: runtime in minutes, as an integer
+Spell names the way TMDB credits them, and spell each person the same way every time. If you don't recognise a film with confidence, return {"i": <index>, "x": 1} for it instead of guessing.
+Reply with only a JSON array with one object per film, in the same order, like:
+[{"i":0,"d":["Bong Joon-ho"],"c":["Song Kang-ho","Lee Sun-kyun"],"w":["Bong Joon-ho","Han Jin-won"],"p":["Hong Kyung-pyo"],"m":["Jung Jae-il"],"g":["Comedy","Thriller","Drama"],"k":["South Korea"],"l":"Korean","r":133}]
+
+Films:
+${batch.map((f, i) => `${i}. ${f.name}${f.year ? ` (${f.year})` : ""}`).join("\n")}`;
+}
+async function runClaude(lib) {
+  const films = needsLookup(lib, "claude");
+  const batches = [];
+  for (let i = 0; i < films.length; i += CLAUDE_BATCH) batches.push(films.slice(i, i + CLAUDE_BATCH));
+  Object.assign(job, { running: true, kind: "claude", ctl: new AbortController(), done: 0, total: films.length, failed: 0, note: "", err: false });
+  renderLookup();
+  const signal = job.ctl.signal;
+  let stop = null;
+  const worker = async () => {
+    while (batches.length && !signal.aborted && !stop) {
+      const batch = batches.shift();
+      try {
+        const out = await sampleFn.json(claudePrompt(batch), { signal, modelTier: "default", effort: "low" });
+        if (!Array.isArray(out)) throw { code: "invalid_json" };
+        const answered = new Set();
+        for (const item of out) {
+          const f = batch[Number(item && item.i)];
+          if (!f || answered.has(f)) continue;
+          answered.add(f);
+          META[f.key] = item.x ? { src: "claude", miss: true } : cleanMeta({ ...item, src: "claude" });
+          if (item.x) job.failed++;
+        }
+        job.failed += batch.length - answered.size;
+      } catch (e) {
+        const code = e && e.code;
+        if (code === "cancelled") return;
+        if (["not_granted", "sampling_disabled", "not_declared", "capability_disabled", "capability_removed"].includes(code)) {
+          sampleState = "off"; stop = "Claude lookups aren't allowed for this page, so cast and crew stay blank. You can still use the page with a TMDB key in your own browser."; return;
+        }
+        if (code === "rate_limited") { stop = "Claude is limiting requests right now. Progress is saved; look up the rest in a few minutes."; return; }
+        if (code === "session_expired") { stop = "Your Claude session expired. Sign in again, then look up the rest."; return; }
+        job.failed += batch.length;
+      }
+      job.done += batch.length;
+      saveMeta(); scheduleRender(); renderLookupProgress();
+    }
+  };
+  await Promise.all([worker(), worker()]);
+  job.running = false;
+  if (stop) { job.note = stop; job.err = true; }
+  else if (signal.aborted) job.note = `Stopped after ${plural(job.done, "film")}. Progress is saved.`;
+  else job.note = job.failed ? `Done. ${plural(job.failed, "film")} came back without details. Try those again, or use TMDB.` : "Done. Every film has cast and crew.";
+  scheduleRender();
+}
+function retryClaudeMisses(lib) {
+  for (const f of lib.films) { const m = META[f.key]; if (m && m.miss && m.src === "claude") delete META[f.key]; }
+  return runClaude(lib);
+}
+</script>
+<script>
+/* ---------- helpers and charts shared by the desktop and phone pages ---------- */
+let LISTS = new Map(), listSeq = 0;
+function reg(title, sub, films, person) { const id = "l" + (++listSeq); LISTS.set(id, { title, sub, films, person }); return id; }
+const initials = (name) => name.replace(/[^\p{L}\s-]/gu, "").split(/[\s-]+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+const ordinal = (n) => { const s = ["th", "st", "nd", "rd"], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); };
+const isoOfDay = (d) => new Date(d * 864e5).toISOString().slice(0, 10);
+function niceTick(max) {
+  const raw = max * 0.8, p = Math.pow(10, Math.floor(Math.log10(raw))), n = raw / p;
+  return Math.max(1, (n >= 5 ? 5 : n >= 2 ? 2 : 1) * p);
+}
+const personSub = (p) => `${plural(p.count, "film")}${p.avg ? ` · ${p.avg.toFixed(2)} average from ${plural(p.ratings.length, "rating")}` : ""}`;
+
+/* ---------- column chart: weeks, months, years, ratings, decades ---------- */
+function colChart(cols, aria, legend, H = 162) {
+  const max = Math.max(1, ...cols.map((c) => c.a + (c.b || 0)));
+  const tick = niceTick(max);
+  const bars = cols.map((c) => {
+    const segs = [];
+    if (c.a) segs.push(`<div class="seg a" style="height:${(c.a / max * 100).toFixed(2)}%"></div>`);
+    if (c.b) segs.push(`<div class="seg b" style="height:${(c.b / max * 100).toFixed(2)}%"></div>`);
+    return `<div class="col" data-tip="${esc(c.tip)}">${segs.join("")}</div>`;
+  }).join("");
+  const axis = cols.map((c) => `<span${c.minor ? ' class="minor"' : ""}>${c.label || ""}</span>`).join("");
+  return `${legend || ""}<div class="chart"><div class="gridline" style="bottom:${(tick / max * H).toFixed(1)}px"><span>${fmtN(tick)}</span></div>
+    <div class="cols" style="height:${H + 8}px" role="img" aria-label="${esc(aria)}">${bars}</div></div><div class="axis" aria-hidden="true">${axis}</div>`;
+}
+function timeline(s) {
+  const E = s.entries, cols = [];
+  const add = (key, label, tipLabel, minor) => cols.push({ key, a: 0, b: 0, label, tipLabel, minor });
+  let keyOf;
+  if (s.scope !== "all") {
+    const y = +s.scope, jan1 = dayIndex(`${y}-01-01`), off = weekdayOf(`${y}-01-01`);
+    const weeks = Math.floor((dayIndex(`${y}-12-31`) - jan1 + off) / 7) + 1;
+    let prevMonth = -1;
+    for (let w = 0; w < weeks; w++) {
+      const startIso = isoOfDay(Math.max(jan1, jan1 + w * 7 - off));
+      const m = +startIso.slice(5, 7) - 1;
+      add(w, m !== prevMonth ? MONTHS[m] : "", `Week of ${fmtDate(isoOfDay(jan1 + w * 7 - off))}`, m % 3 !== 0);
+      prevMonth = m;
+    }
+    keyOf = (e) => Math.floor((dayIndex(e.date) - jan1 + off) / 7);
+  } else {
+    const first = E[0].date, last = E[E.length - 1].date;
+    const months = (+last.slice(0, 4) - +first.slice(0, 4)) * 12 + (+last.slice(5, 7) - +first.slice(5, 7)) + 1;
+    if (months <= 60) {
+      let y = +first.slice(0, 4), m = +first.slice(5, 7) - 1;
+      for (let i = 0; i < months; i++) {
+        const label = m === 0 ? String(y) : months <= 24 && m % 3 === 0 ? MONTHS[m] : "";
+        add(`${y}-${String(m + 1).padStart(2, "0")}`, label, `${MONTHS_LONG[m]} ${y}`, m !== 0);
+        if (++m === 12) { m = 0; y++; }
+      }
+      keyOf = (e) => e.date.slice(0, 7);
+    } else {
+      const y0 = +first.slice(0, 4), y1 = +last.slice(0, 4);
+      for (let y = y0; y <= y1; y++) add(String(y), (y1 - y0 > 16 && y % 2) ? "" : `’${String(y).slice(2)}`, String(y), y % 5 !== 0);
+      keyOf = (e) => e.date.slice(0, 4);
+    }
+  }
+  const idx = new Map(cols.map((c, i) => [c.key, i]));
+  for (const e of E) { const c = cols[idx.get(keyOf(e))]; if (c) e.rewatch ? c.b++ : c.a++; }
+  for (const c of cols) c.tip = `${c.tipLabel}: ${plural(c.a + c.b, "film")}${c.b ? ` (${plural(c.b, "rewatch", "rewatches")})` : ""}`;
+  return cols;
+}
+function heatmap(s) {
+  let start, end;
+  if (s.scope !== "all") { start = dayIndex(`${s.scope}-01-01`); end = dayIndex(`${s.scope}-12-31`); }
+  else { end = dayIndex(s.entries[s.entries.length - 1].date); start = end - 364; }
+  const pad = weekdayOf(isoOfDay(start));
+  const cells = [], months = [];
+  for (let i = 0; i < pad; i++) cells.push('<i class="pad"></i>');
+  for (let d = start; d <= end; d++) {
+    const iso = isoOfDay(d), n = s.byDay.get(iso) || 0;
+    cells.push(`<i class="${n ? "l" + Math.min(3, n) : ""}" data-tip="${fmtDate(iso)}: ${plural(n, "film")}"></i>`);
+  }
+  const weeks = Math.ceil((pad + end - start + 1) / 7);
+  for (let w = 0; w < weeks; w++) {
+    let label = "";
+    for (let k = 0; k < 7; k++) { const d = start - pad + w * 7 + k; if (d >= start && d <= end && isoOfDay(d).endsWith("-01")) label = MONTHS[+isoOfDay(d).slice(5, 7) - 1]; }
+    months.push(`<span>${label}</span>`);
+  }
+  return `<div class="cal-wrap"><div class="cal-months" aria-hidden="true">${months.join("")}</div>
+    <div class="cal" role="img" aria-label="Calendar of diary entries, ${fmtDate(isoOfDay(start))} to ${fmtDate(isoOfDay(end))}">${cells.join("")}</div></div>
+    <div class="heat-key" aria-hidden="true">Fewer <i></i><i style="background:var(--heat-1)"></i><i style="background:var(--heat-2)"></i><i style="background:var(--heat-3)"></i> More</div>`;
+}
+
+</script>
+<script>
+/* ---------- app state ---------- */
+const state = {
+  mode: "example", lib: null, scope: "all", view: "profile", stack: [],
+  role: "c", crew: "w", sort: "most", catSort: "most", peopleLimit: 50, diaryLimit: 60,
+};
+let MY_LIB = null, EXAMPLE_LIB = null, STATS = null;
+const IMG = "https://image.tmdb.org/t/p/w185";
+const showImages = !IN_VIEWER; // pages inside Claude can't load outside images
+const VIEW_KEY = "cr-mview-v1";
+const TITLES = { profile: "Profile", people: "People", diary: "Diary", films: "Films", data: "Import" };
+const CHEV = `<svg class="chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg>`;
+const BACK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>`;
+
+function metaOf(f) {
+  if (state.mode === "example") return EXAMPLE_META[f.key] || null;
+  const m = META[f.key];
+  if (m && !m.miss) return m;
+  return EXAMPLE_META[f.key] || null;
+}
+let renderQueued = false;
+function scheduleRender() {
+  if (renderQueued) return;
+  renderQueued = true;
+  requestAnimationFrame(() => { renderQueued = false; render(); });
+}
+function saveView() { store.set(VIEW_KEY, { scope: state.scope, mode: state.mode, view: state.view }); }
+
+function render() {
+  if (state.mode === "mine" && !MY_LIB) state.mode = "example";
+  state.lib = state.mode === "mine" ? MY_LIB : EXAMPLE_LIB;
+  const years = [...new Set(state.lib.entries.map((e) => e.date.slice(0, 4)))].sort().reverse();
+  if (state.scope !== "all" && !years.includes(state.scope)) state.scope = "all";
+  STATS = computeStats(state.lib, metaOf, state.scope);
+  LISTS = new Map();
+  const d = state.stack[state.stack.length - 1];
+  renderTop(years, d);
+  $("#screen").innerHTML = d ? detailScreen(d, STATS) : SCREENS[state.view](STATS);
+  for (const b of document.querySelectorAll(".tabbar [data-view]")) {
+    if (b.dataset.view === state.view) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
+  }
+  const cal = $(".cal-wrap");
+  if (cal) cal.scrollLeft = cal.scrollWidth;
+}
+function renderTop(years, d) {
+  $("#top").classList.toggle("detail", !!d);
+  $("#nav-left").innerHTML = d ? `<button class="nav-btn" type="button" data-act="back">${BACK}<span class="sr-only">Back</span></button>` : "";
+  const who = state.mode === "example" ? "Example diary" : state.lib.profile.username || "Your diary";
+  $("#nav-title").textContent = d ? d.title : state.view === "profile" ? who : TITLES[state.view];
+  $("#nav-right").innerHTML = !d && state.view !== "data" ? `<button class="nav-btn" type="button" data-act="import">Import</button>` : "";
+  $("#scopes").innerHTML = ["all", ...years].map((y) =>
+    `<button class="scope" type="button" data-scope="${y}" aria-pressed="${y === state.scope}">${y === "all" ? "All time" : y}</button>`).join("");
+}
+function push(entry) {
+  entry.ret = window.scrollY;
+  state.stack.push(entry);
+  render();
+  window.scrollTo(0, 0);
+}
+function pop() {
+  const d = state.stack.pop();
+  render();
+  window.scrollTo(0, d ? d.ret : 0);
+}
+
+/* ---------- pieces ---------- */
+const sh = (label, right = "") => `<div class="sh"><span>${label}</span>${right}</div>`;
+function avatar(p, size) {
+  const ph = showImages && p.key && PHOTOS[p.key];
+  return `<span class="avatar ${size}" aria-hidden="true">${esc(initials(p.name || "?"))}${ph ? `<img src="${IMG}${esc(ph)}" alt="" loading="lazy" onerror="this.remove()">` : ""}</span>`;
+}
+function poster(f) {
+  const m = metaOf(f);
+  const img = showImages && m && m.poster ? `<img src="${IMG}${esc(m.poster)}" alt="" loading="lazy" onerror="this.remove()">` : "";
+  return `<span class="poster"><span class="ph">${esc(f.name)}<small>${f.year || ""}</small></span>${img}</span>`;
+}
+function posterGrid(films) {
+  return `<div class="pgrid">${films.map((f) => `<div class="pitem" title="${esc(f.name)}${f.year ? ` (${f.year})` : ""}">${poster(f)}
+    <span class="pmeta"><span class="stars">${stars(f.rating)}</span>${f.liked ? '<span class="heart" aria-label="liked">♥</span>' : ""}</span></div>`).join("")}</div>`;
+}
+const filmsTitle = (p) => `${plural(p.count, "film")}${p.avg ? ` · ★ ${p.avg.toFixed(2)} average` : ""}`;
+function personRow(p, rank, sortBest) {
+  return `<button class="prow" type="button" data-push="${reg(p.name, filmsTitle(p), p.films, p)}">
+    <span class="rk">${rank}</span>${avatar(p, "md")}
+    <span style="min-width:0"><span class="nm" style="display:block">${esc(p.name)}</span><span class="sub">${filmsTitle(p)}</span></span>
+    <span class="val">${sortBest ? p.avg.toFixed(2) : fmtN(p.count)}</span>${CHEV}</button>`;
+}
+function catRow(c, max, sortBest) {
+  const w = sortBest ? c.avg / 5 : c.count / max;
+  return `<button class="prow cat" type="button" data-push="${reg(c.name, filmsTitle(c), c.films)}">
+    <span class="nm">${esc(c.name)}</span><span class="mini" aria-hidden="true"><span style="width:${(w * 100).toFixed(1)}%"></span></span>
+    <span class="val" style="text-align:right">${sortBest ? c.avg.toFixed(2) : fmtN(c.count)}</span>${CHEV}</button>`;
+}
+const needMeta = () => `<div class="card" style="margin-top:14px"><p class="title">No cast or crew yet</p>
+  <p>Letterboxd's export lists your films, dates and ratings, but not who's in them. Fill them in from the Import tab.</p>
+  <button class="btn green" type="button" data-view="data">Fill in cast &amp; crew</button></div>`;
+
+/* ---------- Profile ---------- */
+function profileScreen(s) {
+  const ex = state.mode === "example", lib = state.lib;
+  const name = ex ? "Example diary" : lib.profile.name || lib.profile.username || "Your diary";
+  const handle = ex ? `<span class="pill">Example</span>` : lib.profile.joined ? `Member since ${MONTHS_LONG[+lib.profile.joined.slice(5, 7) - 1]} ${lib.profile.joined.slice(0, 4)}` : "";
+  const notice = ex ? `<div class="card notice"><p class="title">This is an example diary, not yours.</p>
+      <p>Export your data from Letterboxd (Settings → Data → Export your data), then import the ZIP here. Your files stay in this browser.</p>
+      <button class="btn green block" type="button" data-act="import">Import your export</button></div>` : "";
+  const total = lib.films.length, have = lib.films.filter((f) => metaOf(f)).length;
+  const fill = !ex && have < total ? `<button class="row" type="button" data-view="data" style="border-top:1px solid var(--line); margin-top:16px">
+      <span>${job.running ? `Looking up cast &amp; crew · ${fmtN(job.done)} of ${fmtN(job.total)}` : `Cast &amp; crew for ${fmtN(have)} of ${plural(total, "film")}`}</span>
+      <span class="count" style="color:var(--green)">${job.running ? "" : "Fill in"}</span>${CHEV}</button>` : "";
+  const hours = Math.round(s.minutes / 60);
+  const strip = `<div class="strip">
+    <div><b class="num">${fmtN(s.films.length)}</b><span>Films</span></div>
+    <div><b class="num">${s.timed ? fmtN(hours) : "—"}</b><span>Hours</span></div>
+    <div><b class="num">${fmtN(s.entries.length)}</b><span>Entries</span></div>
+    <div><b class="num">${s.avgRating ? s.avgRating.toFixed(2) : "—"}</b><span>Average</span></div></div>`;
+  const top = s.films.filter((f) => f.rating).sort((a, b) => b.rating - a.rating || b.entries.length - a.entries.length || (b.year || 0) - (a.year || 0));
+  const topRated = top.length ? sh("Top rated", `<button class="more" type="button" data-act="all-rated">See all</button>`) + posterGrid(top.slice(0, 4)) : "";
+  const ratings = s.rated ? sh("Ratings", `<span class="num">${fmtN(s.rated)}</span>`) +
+    colChart(s.spread.map((x) => ({ a: x.count, b: 0, tip: `${stars(x.r)} · ${plural(x.count, "film")}` })), "How many films you gave each rating", "", 72)
+      .replace('class="chart"', 'class="chart slate"').replace(/<div class="axis"[^]*?<\/div>/, "") +
+    `<div class="hist-ends" style="margin-right:26px"><span class="stars">★</span><span class="stars">★★★★★</span></div>` : "";
+  const strip2 = (label, data, role) => {
+    const list = data.most.slice(0, 10);
+    if (!list.length) return "";
+    return sh(label, `<button class="more" type="button" data-act="people" data-role="${role}">See all</button>`) +
+      `<div class="scroller">${list.map((p) => `<button class="pcard" type="button" data-push="${reg(p.name, filmsTitle(p), p.films, p)}">
+        ${avatar(p, "lg")}<span class="nm">${esc(p.name)}</span><span class="ct">${plural(p.count, "film")}</span></button>`).join("")}</div>`;
+  };
+  const people = s.withMeta ? strip2("Most watched actors", s.cast, "c") + strip2("Most watched directors", s.directors, "d") : "";
+  const rows = [
+    ["Actors", s.cast.total, `data-act="people" data-role="c"`],
+    ["Directors", s.directors.total, `data-act="people" data-role="d"`],
+    ["Diary", s.entries.length, `data-view="diary"`],
+    ["Genres", s.genres.most.length, `data-act="cat" data-field="genres"`],
+    ["Countries", s.countries.most.length, `data-act="cat" data-field="countries"`],
+    ["Languages", s.languages.most.length, `data-act="cat" data-field="languages"`],
+    ["Rewatches", s.rewatches, `data-view="films"`],
+    ["Liked", s.likes, `data-act="liked"`],
+  ].map(([k, n, attrs]) => `<li><button class="row" type="button" ${attrs}><span>${k}</span><span class="count">${fmtN(n)}</span>${CHEV}</button></li>`).join("");
+  return `<div class="profile">${avatar({ name: ex ? "Example" : lib.profile.username || "You" }, "xl")}
+      <div class="name">${esc(name)}</div><div class="handle">${handle}</div></div>
+    ${notice}${strip}${fill}${topRated}${ratings}${people}
+    ${sh(state.scope === "all" ? "All time" : state.scope)}<ul class="menu">${rows}</ul>`;
+}
+
+/* ---------- People ---------- */
+function peopleScreen(s) {
+  const role = state.role;
+  const data = role === "c" ? s.cast : role === "d" ? s.directors : { w: s.writers, p: s.dop, m: s.music }[state.crew];
+  const best = state.sort === "best";
+  const list = best ? data.best : data.most;
+  const segs = [["c", "Actors"], ["d", "Directors"], ["crew", "Crew"]].map(([v, l]) =>
+    `<button type="button" data-role="${v}" aria-pressed="${v === role}">${l}</button>`).join("");
+  const crew = role === "crew" ? `<div class="toggles">${[["w", "Writers"], ["p", "Camera"], ["m", "Music"]].map(([v, l]) =>
+    `<button class="toggle" type="button" data-crew="${v}" aria-pressed="${v === state.crew}">${l}</button>`).join("")}</div>` : "";
+  const sorts = `<div class="toggles">${[["most", "Most watched"], ["best", "Highest rated"]].map(([v, l]) =>
+    `<button class="toggle" type="button" data-sort="${v}" aria-pressed="${v === state.sort}">${l}</button>`).join("")}</div>`;
+  const head = `<div class="segctl" role="group" aria-label="Role">${segs}</div>${crew}${sorts}`;
+  if (!s.withMeta) return head + needMeta();
+  const note = role === "c" ? `Top ${CAST_DEPTH} billed cast of each film.` : "";
+  const bestNote = best ? `${note ? " " : ""}Highest rated needs ${s.minRated} or more rated films.` : "";
+  const rows = list.slice(0, state.peopleLimit).map((p, i) => personRow(p, i + 1, best)).join("");
+  const more = list.length > state.peopleLimit ? `<button class="row" type="button" data-act="more-people"><span>Show more</span><span class="count">${fmtN(list.length - state.peopleLimit)} more</span>${CHEV}</button>` : "";
+  return head + sh(`${fmtN(list.length)} ${role === "c" ? "actors" : role === "d" ? "directors" : "people"}`) +
+    (note + bestNote ? `<p class="status" style="margin:-2px 0 4px">${esc(note + bestNote)}</p>` : "") +
+    (rows || `<div class="empty">Nobody to show for this period.</div>`) + more;
+}
+</script>
+<script>
+/* ---------- Diary ---------- */
+const fact = (k, v) => `<div class="fact"><span class="k">${k}</span><span class="v">${esc(v)}</span></div>`;
+function diaryScreen(s) {
+  if (!s.entries.length) return `<div class="empty" style="padding-top:28px">No diary dates in ${s.scope === "all" ? "your export" : s.scope}. Films logged without a date still count on the other tabs.</div>`;
+  const cols = timeline(s);
+  const unit = s.scope !== "all" ? "week" : cols[0].key.length === 7 ? "month" : "year";
+  const bm = s.busiestMonth, fav = s.weekday.indexOf(Math.max(...s.weekday));
+  const facts = `<div class="facts">${[
+    fact("Busiest month", bm ? `${MONTHS[+bm.key.slice(5, 7) - 1]} ${bm.key.slice(0, 4)} · ${plural(bm.count, "film")}` : "—"),
+    fact("Longest streak", s.streak.days > 1 ? `${s.streak.days} days` : "1 day"),
+    fact("Most in a day", s.busiestDay ? `${plural(s.busiestDay.count, "film")} · ${fmtDate(s.busiestDay.key).replace(/ \d{4}$/, s.scope === "all" ? "$&" : "")}` : "—"),
+    fact("Favourite day", WEEKDAYS_LONG[fav]),
+  ].join("")}</div>`;
+  const legend = s.rewatches ? `<div class="legend"><span><i style="background:var(--green-mark)"></i>First watch</span><span><i style="background:var(--blue-mark)"></i>Rewatch</span></div>` : "";
+  let chart = colChart(cols, `Diary entries by ${unit}`, legend, 110);
+  if (cols.length > 24) chart = chart.replace('class="axis"', 'class="axis dense"');
+  const wmax = Math.max(1, ...s.weekday);
+  const weekdays = `<div class="weekdays" role="img" aria-label="Diary entries by day of the week">${s.weekday.map((n, i) =>
+    `<div class="wd" data-tip="${WEEKDAYS_LONG[i]}: ${plural(n, "film")}"><span class="cnt">${n}</span><div class="bar-v"><span style="height:${(n / wmax * 100).toFixed(1)}%"></span></div><span class="lbl">${WEEKDAYS[i].slice(0, 1)}</span></div>`).join("")}</div>`;
+  const list = [...s.entries].reverse().slice(0, state.diaryLimit);
+  let rows = "", month = "";
+  for (const e of list) {
+    const m = e.date.slice(0, 7);
+    if (m !== month) { month = m; rows += `<div class="month-h">${MONTHS_LONG[+m.slice(5, 7) - 1]} ${m.slice(0, 4)}</div>`; }
+    rows += `<div class="drow"><span class="day">${+e.date.slice(8, 10)}</span>${poster(e.film)}
+      <span style="min-width:0"><span class="t" style="display:block">${esc(e.film.name)} <span>${e.film.year || ""}</span></span>
+      <span class="m"><span class="stars">${stars(e.rating)}</span></span></span>
+      <span class="icons">${e.rewatch ? '<span class="rewatch" title="Rewatch">↻</span>' : ""}${e.film.liked ? '<span class="heart" title="Liked">♥</span>' : ""}${e.review ? '<span title="Reviewed">≡</span>' : ""}</span></div>`;
+  }
+  const more = s.entries.length > state.diaryLimit ? `<button class="row" type="button" data-act="more-diary"><span>Show older entries</span><span class="count">${fmtN(s.entries.length - state.diaryLimit)} more</span>${CHEV}</button>` : "";
+  return facts + sh(`Films by ${unit}`, `<span class="num">${fmtN(s.entries.length)}</span>`) + chart +
+    sh("By day of the week") + weekdays +
+    sh(s.scope === "all" ? "Last 12 months" : `Every day of ${s.scope}`) + heatmap(s).replace("Fewer", "Less") +
+    sh("Diary", `<span class="num">${plural(s.entries.length, "entry", "entries")}</span>`) + `<div>${rows}</div>` + more;
+}
+
+/* ---------- Films ---------- */
+function filmsScreen(s) {
+  const views = (f) => s.scope === "all" ? f.entries.length : f.entries.filter((e) => e.date.startsWith(s.scope)).length;
+  const rated = s.films.filter((f) => f.rating).sort((a, b) => b.rating - a.rating || views(b) - views(a) || (b.year || 0) - (a.year || 0));
+  let html = rated.length ? sh("Highest rated", `<button class="more" type="button" data-act="all-rated">See all</button>`) + posterGrid(rated.slice(0, 8)) : "";
+  const best = state.catSort === "best";
+  if (s.withMeta) {
+    html += `<div class="toggles" style="margin-top:22px">${[["most", "Most watched"], ["best", "Highest rated"]].map(([v, l]) =>
+      `<button class="toggle" type="button" data-catsort="${v}" aria-pressed="${v === state.catSort}">${l}</button>`).join("")}</div>`;
+    for (const [label, data, field] of [["Genres", s.genres, "genres"], ["Countries", s.countries, "countries"], ["Languages", s.languages, "languages"]]) {
+      const list = (best ? data.best : data.most);
+      html += sh(label, list.length > 6 ? `<button class="more" type="button" data-act="cat" data-field="${field}">See all</button>` : "") +
+        (list.length ? list.slice(0, 6).map((c) => catRow(c, list[0].count, best)).join("") : `<div class="empty">${best ? "Needs 3 or more rated films each." : "Nothing yet."}</div>`);
+    }
+  } else html += needMeta();
+
+  if (s.decades.length) {
+    const all = s.decades, cols = [];
+    for (let d = all[0].decade; d <= all[all.length - 1].decade; d += 10) {
+      const x = all.find((y) => y.decade === d);
+      cols.push({ a: x ? x.count : 0, b: 0, label: `’${String(d).slice(2)}`, tip: `${d}s: ${plural(x ? x.count : 0, "film")}${x && x.avg ? ` · ${x.avg.toFixed(2)} average` : ""}` });
+    }
+    const ranked = all.filter((x) => x.ratings.length >= 3).sort((a, b) => b.avg - a.avg).slice(0, 5)
+      .map((x) => ({ name: `${x.decade}s`, films: x.films, count: x.count, avg: x.avg }));
+    html += sh("Decades") + colChart(cols, "Films by decade of release", "", 90) +
+      (ranked.length ? `<p class="status" style="margin:14px 0 0">Highest-rated decades</p>` + ranked.map((c) => catRow(c, 1, true)).join("") : "");
+  }
+
+  const re = s.films.filter((f) => views(f) > 1).sort((a, b) => views(b) - views(a) || (b.rating || 0) - (a.rating || 0)).slice(0, 8);
+  if (re.length) html += sh("Most rewatched") + re.map((f) => `<div class="drow" style="grid-template-columns:34px minmax(0,1fr) auto">${poster(f)}
+    <span style="min-width:0"><span class="t" style="display:block">${esc(f.name)} <span>${f.year || ""}</span></span><span class="m"><span class="stars">${stars(f.rating)}</span></span></span>
+    <span class="val num">${views(f)}×</span></div>`).join("");
+
+  const E = s.entries;
+  if (E.length) {
+    const marks = s.scope === "all" ? [50, 100, 250, 500, 750, 1000, 1500, 2000, 2500, 3000, 4000, 5000, 7500, 10000] : [25, 50, 100, 150, 200, 250, 300, 365, 400, 500];
+    const items = [["First film", E[0]], ...marks.filter((n) => n < E.length).slice(-5).map((n) => [`${ordinal(n)} film`, E[n - 1]])];
+    if (E.length > 1) items.push(["Latest", E[E.length - 1]]);
+    html += sh("Milestones") + `<div class="pgrid">${items.map(([k, e]) => `<div class="pitem" title="${esc(e.film.name)}${e.film.year ? ` (${e.film.year})` : ""}">
+      <span class="mlabel">${k}</span>${poster(e.film)}
+      <span class="pmeta"><span class="stars">${stars(e.rating)}</span>${e.rewatch ? '<span class="rewatch" aria-label="rewatch">↻</span>' : ""}</span>
+      <span class="mdate">${fmtDate(e.date)}</span></div>`).join("")}</div>`;
+  }
+
+  const timed = s.films.filter((f) => metaOf(f) && metaOf(f).r);
+  const longest = timed.reduce((a, f) => !a || metaOf(f).r > metaOf(a).r ? f : a, null);
+  const shortest = timed.reduce((a, f) => !a || metaOf(f).r < metaOf(a).r ? f : a, null);
+  const dated = s.films.filter((f) => f.year);
+  const oldest = dated.reduce((a, f) => !a || f.year < a.year ? f : a, null);
+  const newest = dated.reduce((a, f) => !a || f.year > a.year ? f : a, null);
+  const rec = [
+    longest && fact("Longest", `${longest.name} · ${metaOf(longest).r} min`), shortest && fact("Shortest", `${shortest.name} · ${metaOf(shortest).r} min`),
+    oldest && fact("Oldest", `${oldest.name} · ${oldest.year}`), newest && fact("Newest", `${newest.name} · ${newest.year}`),
+  ].filter(Boolean).join("");
+  if (rec) html += sh("Records") + `<div class="facts" style="margin-top:0">${rec}</div>`;
+  return html || `<div class="empty">No films in this period.</div>`;
+}
+
+/* ---------- Import ---------- */
+function lookupInner() {
+  if (state.mode === "example" || !MY_LIB) {
+    return `<p class="title">Cast &amp; crew</p><p>Letterboxd's export lists your films, dates and ratings, but not who's in them.
+      After you import yours, you can fill them in${IN_VIEWER ? " with Claude" : " from TMDB with your API key"}. The example has them filled in already.</p>`;
+  }
+  const lib = MY_LIB, total = lib.films.length;
+  const have = lib.films.filter((f) => metaOf(f)).length;
+  const fromTmdb = lib.films.filter((f) => META[f.key] && META[f.key].src === "tmdb" && !META[f.key].miss).length;
+  const pct = total ? Math.round(have / total * 100) : 0;
+  const src = fromTmdb ? (fromTmdb === have ? "From TMDB" : "From TMDB and Claude") : have ? "From Claude's film knowledge" : "Not looked up yet";
+  const head = `<p class="title">Cast &amp; crew</p><div class="meter" role="progressbar" aria-label="Films with cast and crew" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><span id="lookup-meter" style="width:${pct}%"></span></div>
+    <p class="status">${fmtN(have)} of ${plural(total, "film")} · ${src}</p>`;
+  const note = job.note ? `<p class="status${job.err ? " err" : ""}" role="status">${esc(job.note)}</p>` : "";
+  const saveNote = job.saveFailed ? `<p class="status err">This browser wouldn't save the results, so they'll be gone when you close the page.</p>` : "";
+  if (job.running) return head + `<p class="status" id="lookup-progress" role="status">${progressText()}</p><button class="btn block" type="button" data-act="stop">Stop</button>`;
+  let body;
+  if (!IN_VIEWER) {
+    const todo = needsLookup(lib, "tmdb").length;
+    const askKey = !tmdbKey() || editKey || job.badKey;
+    body = todo && !askKey ? `<button class="btn green block" type="button" data-act="tmdb">Look up ${plural(todo, "film")} on TMDB</button>
+      <p class="status">Using your saved TMDB key. <button class="linkish" type="button" data-act="change-key">Change key</button></p>` :
+      todo ? `<label class="sr-only" for="tmdb-key">TMDB API key or read access token</label>
+      <input class="key" id="tmdb-key" type="password" autocomplete="off" spellcheck="false" placeholder="TMDB API key or read access token" value="${esc(tmdbKey())}">
+      <button class="btn green block" type="button" data-act="tmdb">Look up ${plural(todo, "film")} on TMDB</button>
+      <p class="status">Get a free key at <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener">themoviedb.org/settings/api</a>. It's saved in this browser and sent only to TMDB.</p>` : have < total ? `<p>TMDB had no match for ${plural(total - have, "film")}.</p>` : `<p>Every film has details from TMDB.</p>`;
+  } else if (sampleState === "ready") {
+    const todo = needsLookup(lib, "claude").length;
+    const misses = lib.films.filter((f) => META[f.key] && META[f.key].miss && META[f.key].src === "claude").length;
+    body = `<p>Pages inside Claude can't reach TMDB, so Claude fills in each film from what it knows. Obscure films can come back wrong or empty.</p>` +
+      (todo ? `<button class="btn green block" type="button" data-act="claude">Look up ${plural(todo, "film")} with Claude</button>
+        <p class="status">About ${plural(Math.ceil(todo / CLAUDE_BATCH), "request")} on your Claude plan.</p>` :
+      misses ? `<button class="btn block" type="button" data-act="claude-retry">Try the ${plural(misses, "film")} Claude didn't recognise</button>` : "");
+  } else if (sampleState === "pending") {
+    body = `<p class="status">Connecting to Claude…</p>`;
+  } else {
+    body = `<p>Lookups aren't available in this view. Open the downloadable copy of this page in a browser and use a TMDB key.</p>`;
+  }
+  return head + body + note + saveNote;
+}
+function progressText() {
+  return job.kind === "claude" && job.done === 0 ? `Asking Claude about ${plural(job.total, "film")}… the first batch takes up to a minute.`
+    : `Looked up ${fmtN(job.done)} of ${plural(job.total, "film")} ${job.kind === "tmdb" ? "on TMDB" : "with Claude"}…`;
+}
+function renderLookup() { const el = $("#lookup"); if (el) el.innerHTML = lookupInner(); }
+function renderLookupProgress() {
+  const p = $("#lookup-progress");
+  if (p) p.textContent = progressText();
+  const m = $("#lookup-meter");
+  if (m && MY_LIB) m.style.width = `${Math.round(MY_LIB.films.filter((f) => metaOf(f)).length / Math.max(1, MY_LIB.films.length) * 100)}%`;
+}
+function dataScreen() {
+  const lib = MY_LIB;
+  const status = lib ? `${plural(lib.films.length, "film")} and ${plural(lib.entries.length, "diary entry", "diary entries")} imported${lib.profile.username ? ` for @${esc(lib.profile.username)}` : ""}.` : "Nothing imported yet.";
+  const rows = [];
+  if (state.mode === "mine") rows.push(`<li><button class="row" type="button" data-act="example"><span>View the example diary</span>${CHEV}</button></li>`);
+  else if (lib) rows.push(`<li><button class="row" type="button" data-act="mine"><span>Back to my diary</span>${CHEV}</button></li>`);
+  rows.push(`<li><button class="row danger" type="button" data-act="forget"><span>${state.forgetArmed ? "Tap again to delete" : "Delete saved data from this browser"}</span></button></li>`);
+  return `<div class="card" style="margin-top:18px"><p class="title">Your Letterboxd export</p><p>${status}</p>
+      <ol style="margin:0; padding-left:18px; display:grid; gap:4px">
+        <li>On <a href="https://letterboxd.com/settings/data/" target="_blank" rel="noopener">letterboxd.com</a>, open Settings → Data.</li>
+        <li>Choose Export your data and download the ZIP.</li>
+        <li>Import the ZIP here. It stays in this browser.</li></ol>
+      <button class="btn green block" type="button" data-act="import">${lib ? "Import a newer export" : "Import export"}</button>
+      ${state.importError ? `<p class="status err" role="alert">${esc(state.importError)}</p>` : ""}</div>
+    <div class="card" id="lookup" style="margin-top:12px">${lookupInner()}</div>
+    ${sh("This browser")}<ul class="menu">${rows.join("")}</ul>
+    ${state.forgetArmed ? `<p class="status">Removes your imported export and looked-up details, plus any TMDB key you typed in.</p>` : ""}
+    <div class="foot"><p>Credits Roll reads the CSV files in a Letterboxd data export. It is not made by or affiliated with Letterboxd.</p>
+      <p>With your own TMDB key, film details come from The Movie Database. This product uses the TMDB API but is not endorsed or certified by TMDB.
+      Inside the Claude app, details come from Claude's knowledge of each film instead, so check anything surprising.</p>
+      <p>On a computer? <a href="desktop.html">Open the desktop version</a>. It uses the same import.</p></div>`;
+}
+
+/* ---------- pushed detail screens ---------- */
+function detailScreen(d, s) {
+  if (d.type === "cat") {
+    const data = s[d.field], best = state.catSort === "best";
+    const list = best ? data.best : data.most;
+    return `<div class="toggles" style="margin-top:16px">${[["most", "Most watched"], ["best", "Highest rated"]].map(([v, l]) =>
+      `<button class="toggle" type="button" data-catsort="${v}" aria-pressed="${v === state.catSort}">${l}</button>`).join("")}</div>` +
+      sh(`${fmtN(list.length)} ${d.title.toLowerCase()}`) + (list.map((c) => catRow(c, list[0].count, best)).join("") || `<div class="empty">Nothing to show for this period.</div>`);
+  }
+  const films = [...d.films].sort((a, b) => (b.rating || 0) - (a.rating || 0) || (b.year || 0) - (a.year || 0));
+  return `<div class="dhead">${d.person && d.person.key ? avatar(d.person, "xl") : ""}<div class="name">${esc(d.title)}</div><div class="sub">${esc(d.sub)}</div></div>` +
+    sh("Films", `<span class="num">${fmtN(films.length)}</span>`) + posterGrid(films);
+}
+
+const SCREENS = { profile: profileScreen, people: peopleScreen, diary: diaryScreen, films: filmsScreen, data: dataScreen };
+</script>
+<script>
+/* ---------- importing ---------- */
+async function importFiles(files) {
+  state.importError = "";
+  try {
+    const rows = await readExport(files);
+    const saved = store.set(KEYS.rows, rows);
+    MY_LIB = buildLibrary(rows);
+    Object.assign(state, { mode: "mine", scope: "all", view: "profile", stack: [], peopleLimit: 50, diaryLimit: 60 });
+    job.note = saved ? "" : "This browser wouldn't save your export, so you'll need to import it again next time.";
+    job.err = !saved;
+    setTimeout(() => autoLookup(MY_LIB));
+  } catch (e) {
+    state.importError = (e && e.message) || "Couldn't read that file. Import the ZIP from Letterboxd → Settings → Data.";
+    Object.assign(state, { view: "data", stack: [] });
+  }
+  saveView();
+  render();
+  window.scrollTo(0, 0);
+}
+
+/* ---------- taps ---------- */
+let forgetTimer = null;
+function act(t) {
+  const a = t.dataset.act;
+  if (a === "import") $("#file-input").click();
+  else if (a === "back") pop();
+  else if (a === "people") { Object.assign(state, { view: "people", role: t.dataset.role || "c", stack: [], peopleLimit: 50 }); saveView(); render(); window.scrollTo(0, 0); }
+  else if (a === "cat") push({ type: "cat", field: t.dataset.field, title: t.dataset.field[0].toUpperCase() + t.dataset.field.slice(1) });
+  else if (a === "all-rated" || a === "liked") {
+    const films = STATS.films.filter((f) => a === "liked" ? f.liked : f.rating);
+    push({ type: "films", title: a === "liked" ? "Liked" : "Highest rated", sub: plural(films.length, "film"), films });
+  }
+  else if (a === "more-people") { state.peopleLimit += 100; render(); }
+  else if (a === "more-diary") { state.diaryLimit += 120; render(); }
+  else if (a === "example" || a === "mine") { Object.assign(state, { mode: a === "example" ? "example" : "mine", scope: "all", view: "profile", stack: [] }); saveView(); render(); window.scrollTo(0, 0); }
+  else if (a === "forget") {
+    if (!state.forgetArmed) {
+      state.forgetArmed = true; render();
+      forgetTimer = setTimeout(() => { state.forgetArmed = false; if (state.view === "data") render(); }, 6000);
+      return;
+    }
+    clearTimeout(forgetTimer); state.forgetArmed = false;
+    if (job.running && job.ctl) job.ctl.abort();
+    Object.values(KEYS).forEach((k) => store.del(k)); store.del(VIEW_KEY);
+    META = {}; PHOTOS = {}; MY_LIB = null;
+    Object.assign(state, { mode: "example", scope: "all", stack: [] });
+    job.note = "Deleted your saved data from this browser."; job.err = false;
+    render();
+  }
+  else if (a === "tmdb") startTmdb(MY_LIB);
+  else if (a === "change-key") { editKey = true; renderLookup(); $("#tmdb-key")?.focus(); }
+  else if (a === "claude") runClaude(MY_LIB);
+  else if (a === "claude-retry") retryClaudeMisses(MY_LIB);
+  else if (a === "stop") job.ctl && job.ctl.abort();
+}
+
+function bind() {
+  const fileInput = $("#file-input");
+  fileInput.addEventListener("change", () => { const files = [...fileInput.files]; fileInput.value = ""; if (files.length) importFiles(files); });
+  document.addEventListener("click", (e) => {
+    const t = e.target.closest("[data-act],[data-view],[data-scope],[data-push],[data-role],[data-crew],[data-sort],[data-catsort]");
+    if (!t) return;
+    if (t.dataset.act) return act(t);
+    if (t.dataset.view) {
+      const same = state.view === t.dataset.view && !state.stack.length;
+      Object.assign(state, { view: t.dataset.view, stack: [], forgetArmed: false });
+      saveView(); render();
+      if (!same) window.scrollTo(0, 0);
+    }
+    else if (t.dataset.scope) { Object.assign(state, { scope: t.dataset.scope, peopleLimit: 50, diaryLimit: 60 }); saveView(); render(); }
+    else if (t.dataset.push) { const L = LISTS.get(t.dataset.push); if (L) push({ type: "films", title: L.title, sub: L.sub, films: L.films, person: L.person }); }
+    else if (t.dataset.role) { Object.assign(state, { role: t.dataset.role, peopleLimit: 50 }); render(); }
+    else if (t.dataset.crew) { state.crew = t.dataset.crew; render(); }
+    else if (t.dataset.sort) { state.sort = t.dataset.sort; render(); }
+    else if (t.dataset.catsort) { state.catSort = t.dataset.catsort; render(); }
+  });
+
+  // tooltips for chart marks; a tap shows one on a phone
+  const tip = $("#tip");
+  const place = (x, y) => {
+    const r = tip.getBoundingClientRect();
+    let left = x + 12, top = y - r.height - 14;
+    if (left + r.width > innerWidth - 8) left = x - r.width - 12;
+    if (top < 8) top = y + 20;
+    tip.style.left = Math.max(8, left) + "px"; tip.style.top = top + "px";
+  };
+  document.addEventListener("pointerover", (e) => {
+    const t = e.target.closest && e.target.closest("[data-tip]");
+    if (!t) { tip.hidden = true; return; }
+    tip.textContent = t.dataset.tip; tip.hidden = false; place(e.clientX, e.clientY);
+  });
+  document.addEventListener("pointermove", (e) => { if (!tip.hidden) place(e.clientX, e.clientY); });
+  window.addEventListener("scroll", () => { tip.hidden = true; }, { passive: true });
+
+  // a dropped export works too, for anyone using this on a computer
+  const hasFiles = (e) => [...((e.dataTransfer && e.dataTransfer.types) || [])].includes("Files");
+  window.addEventListener("dragover", (e) => { if (hasFiles(e)) e.preventDefault(); });
+  window.addEventListener("drop", (e) => { if (!hasFiles(e)) return; e.preventDefault(); const files = [...e.dataTransfer.files]; if (files.length) importFiles(files); });
+}
+
+function init() {
+  const ex = buildExample();
+  EXAMPLE_META = Object.fromEntries(Object.entries(ex.meta).map(([k, m]) => [k, cleanMeta(m)]));
+  EXAMPLE_LIB = buildLibrary(ex.rows);
+  const saved = store.get(KEYS.rows, null);
+  if (saved) { try { MY_LIB = buildLibrary(saved); } catch { MY_LIB = null; } }
+  const view = store.get(VIEW_KEY, {});
+  state.mode = MY_LIB && view.mode !== "example" ? "mine" : "example";
+  if (view.scope) state.scope = view.scope;
+  if (SCREENS[view.view]) state.view = view.view;
+  bind();
+  render();
+}
+init();
+</script>
+</body>
+</html>

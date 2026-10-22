@@ -1,0 +1,158 @@
+<script>
+/* ---------- page state ---------- */
+const state = {
+  mode: "example", lib: null, scope: "all",
+  tab: { cast: "most", directors: "most", crew: "w", cats: "most" },
+  more: { cast: false, directors: false },
+};
+let MY_LIB = null, EXAMPLE_LIB = null, STATS = null;
+const IMG = "https://image.tmdb.org/t/p/w185";
+const showImages = !IN_VIEWER; // pages inside Claude can't load outside images
+
+function metaOf(f) {
+  if (state.mode === "example") return EXAMPLE_META[f.key] || null;
+  const m = META[f.key];
+  if (m && !m.miss) return m;
+  return EXAMPLE_META[f.key] || null;
+}
+let renderQueued = false;
+function scheduleRender() {
+  if (renderQueued) return;
+  renderQueued = true;
+  requestAnimationFrame(() => { renderQueued = false; render(); });
+}
+function saveView() { store.set(KEYS.view, { scope: state.scope, mode: state.mode }); }
+
+function render() {
+  state.lib = state.mode === "mine" && MY_LIB ? MY_LIB : EXAMPLE_LIB;
+  if (state.mode === "mine" && !MY_LIB) state.mode = "example";
+  const years = [...new Set(state.lib.entries.map((e) => e.date.slice(0, 4)))].sort().reverse();
+  if (state.scope !== "all" && !years.includes(state.scope)) state.scope = "all";
+  STATS = computeStats(state.lib, metaOf, state.scope);
+  renderHero(STATS, years);
+  renderTiles(STATS);
+  renderLookup();
+  renderSections(STATS);
+}
+
+/* ---------- title band ---------- */
+function renderHero(s, years) {
+  const lib = state.lib, ex = state.mode === "example";
+  $("#example-notice").hidden = !ex;
+  $("#btn-example").hidden = ex;
+  $("#btn-mine").hidden = !(ex && MY_LIB);
+  const who = ex ? "Example diary" : lib.profile.username ? `@${lib.profile.username}` : "Your diary";
+  const since = !ex && lib.profile.joined ? ` · member since ${MONTHS[+lib.profile.joined.slice(5, 7) - 1]} ${lib.profile.joined.slice(0, 4)}` : "";
+  $("#hero-eyebrow").textContent = who + since;
+  $("#hero-title").innerHTML = state.scope === "all" ? "All <span class=\"accent\">time</span>" : `<span class="accent">${esc(state.scope)}</span> in film`;
+  const hours = Math.round(s.minutes / 60);
+  let line = `${plural(s.films.length, "film")}`;
+  if (s.timed) line += ` and ${plural(hours, "hour")} in front of the screen`;
+  line += ".";
+  const star = s.cast.most[0], dir = s.directors.most[0];
+  if (star && star.count > 1) line += ` ${star.name} turns up most, in ${star.count} of them.`;
+  if (dir && dir.count > 1) line += ` ${dir.name} directed the most, with ${dir.count}.`;
+  if (!s.withMeta && s.films.length) line += " Look up cast and crew below to see who you watch most.";
+  $("#hero-sub").textContent = line;
+  $("#scopes").innerHTML = ["all", ...years].map((y) =>
+    `<button class="chip" type="button" data-scope="${y}" aria-pressed="${y === state.scope}">${y === "all" ? "All time" : y}</button>`).join("");
+}
+
+/* ---------- overview tiles ---------- */
+function tile(label, value, foot) {
+  return `<div class="tile"><span class="label">${label}</span><span class="value">${value}</span><span class="foot">${foot || "&nbsp;"}</span></div>`;
+}
+function renderTiles(s) {
+  const films = s.films.length;
+  const hours = s.minutes / 60;
+  const filmFoot = s.newReleases != null ? `${fmtN(s.newReleases)} released in ${s.scope}` :
+    state.lib.watchlist ? `${fmtN(state.lib.watchlist)} on watchlist` : `${fmtN(s.films.filter((f) => f.entries.length).length)} in your diary`;
+  const hoursVal = s.timed ? `${fmtN(Math.round(hours))}<small>h</small>` : "—";
+  const hoursFoot = !s.timed ? "after cast &amp; crew lookup" : s.timed < films ? `runtime known for ${fmtN(s.timed)}` : `${fmtN(s.minutes)} min`;
+  const pct = s.entries.length ? Math.round(s.rewatches / s.entries.length * 100) : 0;
+  $("#tiles").innerHTML = [
+    tile("Films", fmtN(films), filmFoot),
+    tile("Hours", hoursVal, hoursFoot),
+    tile("Diary entries", fmtN(s.entries.length), s.streak.days > 1 ? `longest streak ${s.streak.days} days` : "&nbsp;"),
+    tile("Average rating", s.avgRating ? s.avgRating.toFixed(2) + "<small>/ 5</small>" : "—", `${fmtN(s.rated)} rated`),
+    tile("Rewatches", fmtN(s.rewatches), s.entries.length ? `${pct}% of entries` : "&nbsp;"),
+    tile("Reviews", fmtN(s.reviews), `${fmtN(s.likes)} liked`),
+  ].join("");
+}
+
+/* ---------- cast & crew lookup panel ---------- */
+function renderLookup() {
+  const el = $("#lookup");
+  if (!state.lib) return;
+  if (state.mode === "example") {
+    el.innerHTML = `<div class="lookup-head"><h2 id="lookup-title">Cast &amp; crew</h2><span class="src-tag">Example data</span></div>
+      <p>Letterboxd's export lists your films, dates and ratings, but not who's in them. The example comes with cast and crew filled in.
+      After you import your own export, you can fill yours in from TMDB with your API key, or from Claude.</p>`;
+    return;
+  }
+  const lib = state.lib;
+  const total = lib.films.length;
+  const have = lib.films.filter((f) => metaOf(f)).length;
+  const fromTmdb = lib.films.filter((f) => META[f.key] && META[f.key].src === "tmdb" && !META[f.key].miss).length;
+  const pctHave = total ? Math.round(have / total * 100) : 0;
+  const head = `<div class="lookup-head"><h2 id="lookup-title">Cast &amp; crew</h2>
+    <span class="src-tag">${fromTmdb ? (fromTmdb === have ? "TMDB" : "TMDB + Claude") : have ? "Claude's film knowledge" : "Not looked up yet"}</span></div>`;
+  const meter = `<div class="meter" role="progressbar" aria-label="Films with cast and crew" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pctHave}"><span id="lookup-meter" style="width:${pctHave}%"></span></div>`;
+  const note = job.note ? `<div class="status${job.err ? " err" : ""}" role="status">${esc(job.note)}</div>` : "";
+  const saveNote = job.saveFailed ? `<div class="status err">This browser wouldn't save the results, so they'll be gone when you close the page.</div>` : "";
+
+  if (job.running) {
+    el.innerHTML = head + meter + `<div class="lookup-row"><span class="status" id="lookup-progress" role="status">${progressText()}</span>
+      <button class="btn small" type="button" id="btn-stop">Stop</button></div>`;
+    return;
+  }
+  const coverage = `<p><strong>${fmtN(have)} of ${plural(total, "film")}</strong> ${total === 1 ? "has" : "have"} cast and crew. `;
+  let body = "";
+  if (!IN_VIEWER) {
+    const key = tmdbKey();
+    const askKey = !key || editKey || job.badKey;
+    const todo = needsLookup(lib, "tmdb").length;
+    const missing = total - have, replace = Math.max(0, todo - missing);
+    body = coverage + (!todo ? (have < total ? `TMDB had no match for the other ${fmtN(total - have)}.</p>` : "All of them come from TMDB.</p>") :
+      `TMDB can fill in ${missing ? `the missing ${fmtN(missing)}` : ""}${missing && replace ? " and " : ""}${replace ? `replace Claude's details for ${plural(replace, "film")}` : ""}.</p>`) +
+      (todo && !askKey ? `<div class="lookup-row"><button class="btn primary" type="button" id="btn-tmdb">Look up ${plural(todo, "film")} on TMDB</button>
+        <span class="status">Using your saved TMDB key. <button class="linkish" type="button" id="btn-change-key">Change key</button></span></div>` :
+      todo ? `<div class="lookup-row">
+        <label class="sr-only" for="tmdb-key">TMDB API key or read access token</label>
+        <input id="tmdb-key" type="password" autocomplete="off" spellcheck="false" placeholder="Paste your TMDB API key or read access token" value="${esc(key)}">
+        <button class="btn primary" type="button" id="btn-tmdb">Look up ${plural(todo, "film")}</button>
+      </div>
+      <p class="status">Get a free key from <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener">themoviedb.org/settings/api</a>. The key is saved in this browser only and sent only to TMDB.</p>` : "");
+  } else {
+    const todo = needsLookup(lib, "claude").length;
+    const misses = lib.films.filter((f) => META[f.key] && META[f.key].miss && META[f.key].src === "claude").length;
+    const calls = Math.ceil(todo / CLAUDE_BATCH);
+    if (sampleState === "ready") {
+      body = coverage + `Pages inside Claude can't reach TMDB, so Claude fills in each film from what it knows.
+        That works well for most films, but can miss or confuse obscure ones. For TMDB's data, open the downloadable copy of this page in your browser.</p>` +
+        (todo ? `<div class="lookup-row"><button class="btn primary" type="button" id="btn-claude">Look up ${plural(todo, "film")} with Claude</button>
+          <span class="status">About ${plural(calls, "request")} on your Claude plan.</span></div>` :
+        misses ? `<div class="lookup-row"><button class="btn" type="button" id="btn-claude-retry">Try the ${plural(misses, "film")} Claude didn't recognise</button></div>` : "");
+    } else if (sampleState === "pending") {
+      body = coverage + "Connecting to Claude…</p>";
+    } else {
+      body = coverage + `Lookups aren't available in this view. Open the downloadable copy of this page in your browser and use a TMDB key instead.</p>`;
+    }
+  }
+  el.innerHTML = head + meter + body + note + saveNote;
+}
+function progressText() {
+  const what = job.kind === "tmdb" ? "on TMDB" : "with Claude";
+  return job.kind === "claude" && job.done === 0 ? `Asking Claude about ${plural(job.total, "film")}… the first batch takes up to a minute.`
+    : `Looked up ${fmtN(job.done)} of ${plural(job.total, "film")} ${what}…`;
+}
+function renderLookupProgress() {
+  const p = $("#lookup-progress");
+  if (p) p.textContent = progressText();
+  const m = $("#lookup-meter");
+  if (m && state.lib) {
+    const have = state.lib.films.filter((f) => metaOf(f)).length;
+    m.style.width = `${state.lib.films.length ? Math.round(have / state.lib.films.length * 100) : 0}%`;
+  }
+}
+</script>

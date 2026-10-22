@@ -1,0 +1,52 @@
+<header class="band">
+  <div class="sprockets" aria-hidden="true"></div>
+  <div class="wrap band-inner">
+    <div class="topline">
+      <div class="wordmark"><span class="reel" aria-hidden="true"></span>Credits Roll</div>
+      <div class="actions">
+        <button class="btn primary" id="btn-import" type="button">Import Letterboxd export</button>
+        <input id="file-input" type="file" accept=".zip,.csv,application/zip,text/csv" multiple hidden>
+        <button class="btn" id="btn-example" type="button" hidden>View example</button>
+        <button class="btn" id="btn-mine" type="button" hidden>Back to my diary</button>
+      </div>
+    </div>
+    <div class="hero">
+      <div class="eyebrow" id="hero-eyebrow">Example diary</div>
+      <h1 id="hero-title">All time</h1>
+      <p class="sub" id="hero-sub"></p>
+    </div>
+    <div class="notice" id="example-notice">
+      <p><strong>This is an example diary, not yours.</strong> To see your own stats, go to
+        <a href="https://letterboxd.com/settings/data/" target="_blank" rel="noopener">Letterboxd → Settings → Data</a>,
+        choose <em>Export your data</em>, then import the ZIP here or drop it anywhere on this page.
+        Your files stay in this browser.</p>
+      <button class="btn small" id="btn-import-2" type="button">Import export</button>
+    </div>
+    <div class="status err" id="import-error" role="alert" hidden></div>
+    <div class="scopes-row">
+      <span class="eyebrow">Showing</span>
+      <div class="scopes" id="scopes" role="group" aria-label="Time period"></div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <section class="tiles" id="tiles" aria-label="Overview"></section>
+  <section class="lookup" id="lookup" aria-labelledby="lookup-title"></section>
+  <main id="sections"></main>
+  <footer>
+    <p>Credits Roll reads the CSV files in a Letterboxd data export. It is not made by or affiliated with Letterboxd.</p>
+    <p>With your own TMDB key, film details come from The Movie Database. This product uses the TMDB API but is not endorsed or certified by TMDB.
+      Inside the Claude app, details come from Claude's knowledge of each film instead, so check anything surprising.</p>
+    <p>On a phone? <a href="https://claude.ai/artifact/2RUkgC4dsysdz66WjJ6gzb" target="_blank" rel="noopener">Open the phone version</a>. It keeps its own copy of your import, so import there too.</p>
+    <p><button class="btn small" id="btn-forget" type="button">Delete saved data from this browser</button>
+      <span class="status" id="forget-status"></span></p>
+  </footer>
+</div>
+
+<dialog id="dlg" aria-labelledby="dlg-title"></dialog>
+<div id="tip" role="tooltip" hidden></div>
+<div class="drop-veil" id="drop-veil" hidden>Drop your export</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>

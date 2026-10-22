@@ -1,0 +1,112 @@
+<script>
+/* Example diary shown before anyone imports an export. The films are real; the dates,
+   ratings and likes are invented for the example. Columns:
+   title, year, rating, liked, directors, cast, genres, countries, language, runtime, writers, cinematography, music */
+const EXAMPLE_FILMS = [
+  ["Parasite", 2019, 5, 1, "Bong Joon-ho", "Song Kang-ho|Lee Sun-kyun|Cho Yeo-jeong|Choi Woo-shik|Park So-dam|Lee Jung-eun", "Comedy|Thriller|Drama", "South Korea", "Korean", 133, "Bong Joon-ho|Han Jin-won", "Hong Kyung-pyo", "Jung Jae-il"],
+  ["Memories of Murder", 2003, 4.5, 1, "Bong Joon-ho", "Song Kang-ho|Kim Sang-kyung|Kim Roe-ha|Song Jae-ho|Byun Hee-bong", "Crime|Drama|Thriller", "South Korea", "Korean", 132, "Bong Joon-ho|Shim Sung-bo", "Kim Hyung-koo", "Taro Iwashiro"],
+  ["The Host", 2006, 3.5, 0, "Bong Joon-ho", "Song Kang-ho|Byun Hee-bong|Park Hae-il|Bae Doona|Go Ah-sung", "Horror|Drama|Science Fiction", "South Korea", "Korean", 120, "Bong Joon-ho|Ha Joon-won|Baek Chul-hyun", "Kim Hyung-koo", "Lee Byung-woo"],
+  ["Decision to Leave", 2022, 4.5, 1, "Park Chan-wook", "Park Hae-il|Tang Wei|Lee Jung-hyun|Go Kyung-pyo", "Mystery|Romance|Thriller", "South Korea", "Korean", 138, "Park Chan-wook|Jeong Seo-kyeong", "Kim Ji-yong", "Cho Young-wuk"],
+  ["Oldboy", 2003, 4, 0, "Park Chan-wook", "Choi Min-sik|Yoo Ji-tae|Kang Hye-jung", "Thriller|Mystery|Drama", "South Korea", "Korean", 120, "Park Chan-wook|Hwang Jo-yun|Lim Joon-hyung", "Chung Chung-hoon", "Cho Young-wuk"],
+  ["The Handmaiden", 2016, 4.5, 1, "Park Chan-wook", "Kim Min-hee|Kim Tae-ri|Ha Jung-woo|Cho Jin-woong", "Thriller|Drama|Romance", "South Korea", "Korean", 145, "Park Chan-wook|Jeong Seo-kyeong", "Chung Chung-hoon", "Cho Young-wuk"],
+  ["Past Lives", 2023, 4.5, 1, "Celine Song", "Greta Lee|Teo Yoo|John Magaro", "Drama|Romance", "USA|South Korea", "English", 106, "Celine Song", "Shabier Kirchner", "Christopher Bear|Daniel Rossen"],
+  ["In the Mood for Love", 2000, 5, 1, "Wong Kar-wai", "Tony Leung Chiu-wai|Maggie Cheung|Rebecca Pan|Lai Chen", "Drama|Romance", "Hong Kong", "Cantonese", 98, "Wong Kar-wai", "Christopher Doyle|Mark Lee Ping-bing", "Michael Galasso|Shigeru Umebayashi"],
+  ["Chungking Express", 1994, 4.5, 1, "Wong Kar-wai", "Brigitte Lin|Takeshi Kaneshiro|Tony Leung Chiu-wai|Faye Wong|Valerie Chow", "Drama|Romance|Comedy", "Hong Kong", "Cantonese", 102, "Wong Kar-wai", "Christopher Doyle|Andrew Lau", "Frankie Chan|Roel A. García"],
+  ["2046", 2004, 4, 0, "Wong Kar-wai", "Tony Leung Chiu-wai|Gong Li|Faye Wong|Takuya Kimura|Zhang Ziyi", "Drama|Romance|Science Fiction", "Hong Kong", "Cantonese", 129, "Wong Kar-wai", "Christopher Doyle", "Shigeru Umebayashi|Peer Raben"],
+  ["Fallen Angels", 1995, 4, 0, "Wong Kar-wai", "Leon Lai|Michelle Reis|Takeshi Kaneshiro|Charlie Yeung|Karen Mok", "Drama|Crime|Romance", "Hong Kong", "Cantonese", 99, "Wong Kar-wai", "Christopher Doyle", "Frankie Chan|Roel A. García"],
+  ["Infernal Affairs", 2002, 4, 0, "Andrew Lau|Alan Mak", "Andy Lau|Tony Leung Chiu-wai|Anthony Wong|Eric Tsang", "Crime|Thriller", "Hong Kong", "Cantonese", 101, "Alan Mak|Felix Chong", "Andrew Lau|Lai Yiu-fai", "Chan Kwong-wing"],
+  ["Lost in Translation", 2003, 4, 1, "Sofia Coppola", "Bill Murray|Scarlett Johansson|Giovanni Ribisi|Anna Faris", "Drama|Comedy|Romance", "USA|Japan", "English", 102, "Sofia Coppola", "Lance Acord", "Brian Reitzell|Kevin Shields"],
+  ["The Grand Budapest Hotel", 2014, 4.5, 1, "Wes Anderson", "Ralph Fiennes|Tony Revolori|F. Murray Abraham|Adrien Brody|Willem Dafoe|Saoirse Ronan", "Comedy|Drama", "USA|Germany|UK", "English", 100, "Wes Anderson", "Robert Yeoman", "Alexandre Desplat"],
+  ["Fantastic Mr. Fox", 2009, 4.5, 1, "Wes Anderson", "George Clooney|Meryl Streep|Jason Schwartzman|Bill Murray|Willem Dafoe", "Animation|Comedy|Family", "USA|UK", "English", 87, "Wes Anderson|Noah Baumbach", "Tristan Oliver", "Alexandre Desplat"],
+  ["The Royal Tenenbaums", 2001, 4, 0, "Wes Anderson", "Gene Hackman|Anjelica Huston|Ben Stiller|Gwyneth Paltrow|Luke Wilson|Owen Wilson|Bill Murray", "Comedy|Drama", "USA", "English", 110, "Wes Anderson|Owen Wilson", "Robert Yeoman", "Mark Mothersbaugh"],
+  ["Asteroid City", 2023, 3.5, 0, "Wes Anderson", "Jason Schwartzman|Scarlett Johansson|Tom Hanks|Jeffrey Wright|Tilda Swinton", "Comedy|Drama|Romance", "USA", "English", 105, "Wes Anderson", "Robert Yeoman", "Alexandre Desplat"],
+  ["Moonrise Kingdom", 2012, 4, 1, "Wes Anderson", "Jared Gilman|Kara Hayward|Bruce Willis|Edward Norton|Bill Murray|Frances McDormand", "Comedy|Drama|Romance", "USA", "English", 94, "Wes Anderson|Roman Coppola", "Robert Yeoman", "Alexandre Desplat"],
+  ["Rushmore", 1998, 3.5, 0, "Wes Anderson", "Jason Schwartzman|Bill Murray|Olivia Williams", "Comedy|Drama", "USA", "English", 93, "Wes Anderson|Owen Wilson", "Robert Yeoman", "Mark Mothersbaugh"],
+  ["Oppenheimer", 2023, 4, 0, "Christopher Nolan", "Cillian Murphy|Emily Blunt|Matt Damon|Robert Downey Jr.|Florence Pugh", "Drama|History", "USA|UK", "English", 181, "Christopher Nolan", "Hoyte van Hoytema", "Ludwig Göransson"],
+  ["Interstellar", 2014, 4.5, 1, "Christopher Nolan", "Matthew McConaughey|Anne Hathaway|Jessica Chastain|Michael Caine|Mackenzie Foy", "Science Fiction|Drama|Adventure", "USA|UK", "English", 169, "Jonathan Nolan|Christopher Nolan", "Hoyte van Hoytema", "Hans Zimmer"],
+  ["The Prestige", 2006, 4, 0, "Christopher Nolan", "Hugh Jackman|Christian Bale|Michael Caine|Scarlett Johansson|Rebecca Hall", "Drama|Mystery|Thriller", "USA|UK", "English", 130, "Jonathan Nolan|Christopher Nolan", "Wally Pfister", "David Julyan"],
+  ["Inception", 2010, 4, 0, "Christopher Nolan", "Leonardo DiCaprio|Joseph Gordon-Levitt|Elliot Page|Tom Hardy|Ken Watanabe|Cillian Murphy|Marion Cotillard|Michael Caine", "Action|Science Fiction|Adventure", "USA|UK", "English", 148, "Christopher Nolan", "Wally Pfister", "Hans Zimmer"],
+  ["Dune: Part Two", 2024, 4.5, 1, "Denis Villeneuve", "Timothée Chalamet|Zendaya|Rebecca Ferguson|Javier Bardem|Josh Brolin|Austin Butler|Florence Pugh", "Science Fiction|Adventure", "USA|Canada", "English", 167, "Denis Villeneuve|Jon Spaihts", "Greig Fraser", "Hans Zimmer"],
+  ["Dune", 2021, 4, 0, "Denis Villeneuve", "Timothée Chalamet|Rebecca Ferguson|Oscar Isaac|Josh Brolin|Stellan Skarsgård|Zendaya", "Science Fiction|Adventure", "USA|Canada", "English", 156, "Jon Spaihts|Denis Villeneuve|Eric Roth", "Greig Fraser", "Hans Zimmer"],
+  ["Arrival", 2016, 4.5, 1, "Denis Villeneuve", "Amy Adams|Jeremy Renner|Forest Whitaker|Michael Stuhlbarg", "Science Fiction|Drama", "USA|Canada", "English", 116, "Eric Heisserer", "Bradford Young", "Jóhann Jóhannsson"],
+  ["Blade Runner 2049", 2017, 4.5, 0, "Denis Villeneuve", "Ryan Gosling|Harrison Ford|Ana de Armas|Sylvia Hoeks|Robin Wright|Jared Leto", "Science Fiction|Drama", "USA|UK|Canada", "English", 164, "Hampton Fancher|Michael Green", "Roger Deakins", "Benjamin Wallfisch|Hans Zimmer"],
+  ["Prisoners", 2013, 4, 0, "Denis Villeneuve", "Hugh Jackman|Jake Gyllenhaal|Viola Davis|Maria Bello|Terrence Howard|Melissa Leo|Paul Dano", "Crime|Drama|Thriller", "USA", "English", 153, "Aaron Guzikowski", "Roger Deakins", "Jóhann Jóhannsson"],
+  ["Sicario", 2015, 4, 0, "Denis Villeneuve", "Emily Blunt|Benicio del Toro|Josh Brolin|Daniel Kaluuya", "Action|Crime|Thriller", "USA", "English", 121, "Taylor Sheridan", "Roger Deakins", "Jóhann Jóhannsson"],
+  ["Enemy", 2013, 3.5, 0, "Denis Villeneuve", "Jake Gyllenhaal|Mélanie Laurent|Sarah Gadon|Isabella Rossellini", "Mystery|Thriller", "Canada|Spain", "English", 91, "Javier Gullón", "Nicolas Bolduc", "Danny Bensi|Saunder Jurriaans"],
+  ["Nightcrawler", 2014, 4, 0, "Dan Gilroy", "Jake Gyllenhaal|Rene Russo|Riz Ahmed|Bill Paxton", "Crime|Thriller|Drama", "USA", "English", 117, "Dan Gilroy", "Robert Elswit", "James Newton Howard"],
+  ["Zodiac", 2007, 4.5, 1, "David Fincher", "Jake Gyllenhaal|Mark Ruffalo|Robert Downey Jr.|Anthony Edwards|Brian Cox", "Crime|Drama|Mystery", "USA", "English", 157, "James Vanderbilt", "Harris Savides", "David Shire"],
+  ["Brokeback Mountain", 2005, 4, 0, "Ang Lee", "Heath Ledger|Jake Gyllenhaal|Michelle Williams|Anne Hathaway|Randy Quaid", "Drama|Romance", "USA|Canada", "English", 134, "Larry McMurtry|Diana Ossana", "Rodrigo Prieto", "Gustavo Santaolalla"],
+  ["Donnie Darko", 2001, 3.5, 0, "Richard Kelly", "Jake Gyllenhaal|Jena Malone|Maggie Gyllenhaal|Drew Barrymore|Mary McDonnell|Patrick Swayze", "Drama|Mystery|Science Fiction", "USA", "English", 113, "Richard Kelly", "Steven Poster", "Michael Andrews"],
+  ["The Social Network", 2010, 4.5, 1, "David Fincher", "Jesse Eisenberg|Andrew Garfield|Justin Timberlake|Armie Hammer|Rooney Mara", "Drama", "USA", "English", 120, "Aaron Sorkin", "Jeff Cronenweth", "Trent Reznor|Atticus Ross"],
+  ["Gone Girl", 2014, 4, 0, "David Fincher", "Ben Affleck|Rosamund Pike|Neil Patrick Harris|Tyler Perry|Carrie Coon", "Mystery|Thriller|Drama", "USA", "English", 149, "Gillian Flynn", "Jeff Cronenweth", "Trent Reznor|Atticus Ross"],
+  ["Fight Club", 1999, 3.5, 0, "David Fincher", "Edward Norton|Brad Pitt|Helena Bonham Carter|Meat Loaf|Jared Leto", "Drama|Thriller", "USA|Germany", "English", 139, "Jim Uhls", "Jeff Cronenweth", "The Dust Brothers"],
+  ["La La Land", 2016, 4, 1, "Damien Chazelle", "Ryan Gosling|Emma Stone|John Legend|Rosemarie DeWitt|J.K. Simmons", "Comedy|Drama|Romance|Music", "USA", "English", 129, "Damien Chazelle", "Linus Sandgren", "Justin Hurwitz"],
+  ["Whiplash", 2014, 4.5, 1, "Damien Chazelle", "Miles Teller|J.K. Simmons|Melissa Benoist|Paul Reiser", "Drama|Music", "USA", "English", 107, "Damien Chazelle", "Sharone Meir", "Justin Hurwitz"],
+  ["Drive", 2011, 4, 0, "Nicolas Winding Refn", "Ryan Gosling|Carey Mulligan|Bryan Cranston|Albert Brooks|Oscar Isaac|Ron Perlman", "Crime|Drama|Thriller", "USA", "English", 100, "Hossein Amini", "Newton Thomas Sigel", "Cliff Martinez"],
+  ["Poor Things", 2023, 4, 1, "Yorgos Lanthimos", "Emma Stone|Mark Ruffalo|Willem Dafoe|Ramy Youssef", "Science Fiction|Romance|Comedy", "UK|USA|Ireland", "English", 141, "Tony McNamara", "Robbie Ryan", "Jerskin Fendrix"],
+  ["The Favourite", 2018, 4, 0, "Yorgos Lanthimos", "Olivia Colman|Emma Stone|Rachel Weisz|Nicholas Hoult|Joe Alwyn", "Drama|History|Comedy", "UK|Ireland|USA", "English", 119, "Deborah Davis|Tony McNamara", "Robbie Ryan", ""],
+  ["The Lobster", 2015, 3.5, 0, "Yorgos Lanthimos", "Colin Farrell|Rachel Weisz|Jessica Barden|Olivia Colman|Ben Whishaw|Léa Seydoux|John C. Reilly", "Comedy|Drama|Romance", "Ireland|UK|Greece|France|Netherlands", "English", 119, "Yorgos Lanthimos|Efthimis Filippou", "Thimios Bakatakis", ""],
+  ["Kinds of Kindness", 2024, 3, 0, "Yorgos Lanthimos", "Emma Stone|Jesse Plemons|Willem Dafoe|Margaret Qualley|Hong Chau", "Comedy|Drama", "Ireland|UK|USA", "English", 165, "Yorgos Lanthimos|Efthimis Filippou", "Robbie Ryan", "Jerskin Fendrix"],
+  ["Portrait of a Lady on Fire", 2019, 5, 1, "Céline Sciamma", "Noémie Merlant|Adèle Haenel|Luàna Bajrami|Valeria Golino", "Drama|Romance|History", "France", "French", 122, "Céline Sciamma", "Claire Mathon", "Para One|Arthur Simonini"],
+  ["Anatomy of a Fall", 2023, 4, 0, "Justine Triet", "Sandra Hüller|Swann Arlaud|Milo Machado-Graner|Antoine Reinartz", "Drama|Crime|Mystery", "France", "French", 151, "Justine Triet|Arthur Harari", "Simon Beaufils", ""],
+  ["The Zone of Interest", 2023, 4, 0, "Jonathan Glazer", "Christian Friedel|Sandra Hüller", "Drama|History|War", "UK|Poland|USA", "German", 105, "Jonathan Glazer", "Łukasz Żal", "Mica Levi"],
+  ["Spirited Away", 2001, 5, 1, "Hayao Miyazaki", "Rumi Hiiragi|Miyu Irino|Mari Natsuki|Takashi Naito|Yasuko Sawaguchi", "Animation|Family|Fantasy", "Japan", "Japanese", 125, "Hayao Miyazaki", "Atsushi Okui", "Joe Hisaishi"],
+  ["My Neighbor Totoro", 1988, 4.5, 1, "Hayao Miyazaki", "Noriko Hidaka|Chika Sakamoto|Shigesato Itoi|Sumi Shimamoto", "Animation|Family|Fantasy", "Japan", "Japanese", 86, "Hayao Miyazaki", "Hisao Shirai", "Joe Hisaishi"],
+  ["Princess Mononoke", 1997, 4.5, 0, "Hayao Miyazaki", "Yoji Matsuda|Yuriko Ishida|Yuko Tanaka|Kaoru Kobayashi|Masahiko Nishimura", "Animation|Fantasy|Adventure", "Japan", "Japanese", 134, "Hayao Miyazaki", "Atsushi Okui", "Joe Hisaishi"],
+  ["Perfect Days", 2023, 4.5, 1, "Wim Wenders", "Koji Yakusho|Tokio Emoto|Arisa Nakano|Aoi Yamada", "Drama", "Japan|Germany", "Japanese", 124, "Wim Wenders|Takuma Takasaki", "Franz Lustig", ""],
+  ["Drive My Car", 2021, 4, 0, "Ryusuke Hamaguchi", "Hidetoshi Nishijima|Toko Miura|Reika Kirishima|Masaki Okada", "Drama", "Japan", "Japanese", 179, "Ryusuke Hamaguchi|Takamasa Oe", "Hidetoshi Shinomiya", "Eiko Ishibashi"],
+  ["Aftersun", 2022, 4.5, 1, "Charlotte Wells", "Paul Mescal|Frankie Corio|Celia Rowlson-Hall", "Drama", "UK|USA", "English", 102, "Charlotte Wells", "Gregory Oke", "Oliver Coates"],
+  ["All of Us Strangers", 2023, 4, 0, "Andrew Haigh", "Andrew Scott|Paul Mescal|Jamie Bell|Claire Foy", "Drama|Romance|Fantasy", "UK|USA", "English", 105, "Andrew Haigh", "Jamie D. Ramsay", "Emilie Levienaise-Farrouch"],
+  ["Lady Bird", 2017, 4, 1, "Greta Gerwig", "Saoirse Ronan|Laurie Metcalf|Tracy Letts|Lucas Hedges|Timothée Chalamet|Beanie Feldstein", "Comedy|Drama", "USA", "English", 94, "Greta Gerwig", "Sam Levy", "Jon Brion"],
+  ["Little Women", 2019, 4, 0, "Greta Gerwig", "Saoirse Ronan|Emma Watson|Florence Pugh|Eliza Scanlen|Laura Dern|Timothée Chalamet|Meryl Streep", "Drama|Romance", "USA", "English", 135, "Greta Gerwig", "Yorick Le Saux", "Alexandre Desplat"],
+  ["Frances Ha", 2012, 4, 1, "Noah Baumbach", "Greta Gerwig|Mickey Sumner|Adam Driver|Michael Zegen", "Comedy|Drama|Romance", "USA", "English", 86, "Noah Baumbach|Greta Gerwig", "Sam Levy", ""],
+  ["Marriage Story", 2019, 4, 0, "Noah Baumbach", "Adam Driver|Scarlett Johansson|Laura Dern|Alan Alda|Ray Liotta", "Drama|Comedy|Romance", "USA|UK", "English", 137, "Noah Baumbach", "Robbie Ryan", "Randy Newman"],
+  ["Paterson", 2016, 4, 1, "Jim Jarmusch", "Adam Driver|Golshifteh Farahani|Barry Shabaka Henley", "Drama|Comedy|Romance", "USA|Germany|France", "English", 118, "Jim Jarmusch", "Frederick Elmes", "SQÜRL"],
+  ["Call Me by Your Name", 2017, 4, 0, "Luca Guadagnino", "Armie Hammer|Timothée Chalamet|Michael Stuhlbarg|Amira Casar|Esther Garrel", "Drama|Romance", "Italy|France|USA|Brazil", "English", 132, "James Ivory", "Sayombhu Mukdeeprom", ""],
+  ["Challengers", 2024, 4, 1, "Luca Guadagnino", "Zendaya|Josh O'Connor|Mike Faist", "Drama|Romance", "USA|Italy", "English", 131, "Justin Kuritzkes", "Sayombhu Mukdeeprom", "Trent Reznor|Atticus Ross"],
+  ["Mulholland Drive", 2001, 4.5, 1, "David Lynch", "Naomi Watts|Laura Harring|Justin Theroux|Ann Miller|Robert Forster", "Drama|Mystery|Thriller", "France|USA", "English", 147, "David Lynch", "Peter Deming", "Angelo Badalamenti"],
+  ["Perfect Blue", 1997, 4, 0, "Satoshi Kon", "Junko Iwao|Rica Matsumoto|Shinpachi Tsuji|Masaaki Okura", "Animation|Thriller|Horror", "Japan", "Japanese", 81, "Sadayuki Murai", "Hisao Shirai", "Masahiro Ikumi"],
+  ["Everything Everywhere All at Once", 2022, 4.5, 1, "Daniel Kwan|Daniel Scheinert", "Michelle Yeoh|Ke Huy Quan|Stephanie Hsu|Jamie Lee Curtis|James Hong", "Action|Adventure|Science Fiction|Comedy", "USA", "English", 140, "Daniel Kwan|Daniel Scheinert", "Larkin Seiple", "Son Lux"],
+  ["Crouching Tiger, Hidden Dragon", 2000, 4, 0, "Ang Lee", "Chow Yun-fat|Michelle Yeoh|Zhang Ziyi|Chang Chen", "Action|Drama|Romance", "Taiwan|Hong Kong|USA|China", "Mandarin", 120, "Wang Hui-ling|James Schamus|Tsai Kuo-jung", "Peter Pau", "Tan Dun"],
+  ["Burning", 2018, 4.5, 1, "Lee Chang-dong", "Yoo Ah-in|Steven Yeun|Jeon Jong-seo", "Mystery|Drama|Thriller", "South Korea", "Korean", 148, "Oh Jung-mi|Lee Chang-dong", "Hong Kyung-pyo", "Mowg"],
+  ["Minari", 2020, 4, 0, "Lee Isaac Chung", "Steven Yeun|Han Ye-ri|Alan Kim|Noel Kate Cho|Youn Yuh-jung|Will Patton", "Drama", "USA", "Korean", 115, "Lee Isaac Chung", "Lachlan Milne", "Emile Mosseri"],
+  ["Nope", 2022, 3.5, 0, "Jordan Peele", "Daniel Kaluuya|Keke Palmer|Steven Yeun|Brandon Perea|Michael Wincott", "Horror|Mystery|Science Fiction", "USA", "English", 130, "Jordan Peele", "Hoyte van Hoytema", "Michael Abels"],
+  ["Get Out", 2017, 4, 0, "Jordan Peele", "Daniel Kaluuya|Allison Williams|Bradley Whitford|Catherine Keener|Caleb Landry Jones|LilRel Howery", "Horror|Mystery|Thriller", "USA", "English", 104, "Jordan Peele", "Toby Oliver", "Michael Abels"],
+  ["Before Sunrise", 1995, 4.5, 1, "Richard Linklater", "Ethan Hawke|Julie Delpy", "Drama|Romance", "USA|Austria|Switzerland", "English", 101, "Richard Linklater|Kim Krizan", "Lee Daniel", "Fred Frith"],
+  ["Before Sunset", 2004, 5, 1, "Richard Linklater", "Ethan Hawke|Julie Delpy", "Drama|Romance", "USA", "English", 80, "Richard Linklater|Julie Delpy|Ethan Hawke|Kim Krizan", "Lee Daniel", ""],
+  ["Before Midnight", 2013, 4, 0, "Richard Linklater", "Ethan Hawke|Julie Delpy", "Drama|Romance", "USA|Greece", "English", 109, "Richard Linklater|Julie Delpy|Ethan Hawke", "Christos Voudouris", "Graham Reynolds"],
+];
+
+/* Turns the table above into the same shape an imported export produces:
+   a library of films plus diary entries, and a metadata map keyed by film. */
+function buildExample() {
+  let seed = 20261021;
+  const rand = () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const start = Date.UTC(2025, 0, 3), end = Date.UTC(2026, 9, 18), day = 864e5;
+  const span = (end - start) / day;
+  const iso = (t) => new Date(t).toISOString().slice(0, 10);
+  // weight later dates a little so 2026 reads busier than 2025
+  const pick = () => start + Math.floor(Math.pow(rand(), 0.8) * span) * day;
+  const rows = { profile: [{ Username: "example" }], watched: [], ratings: [], diary: [], likes: [], reviews: [] };
+  const meta = {};
+  const split = (s) => s ? s.split("|") : [];
+  EXAMPLE_FILMS.forEach((f, i) => {
+    const [name, year, rating, liked, d, c, g, k, l, r, w, p, m] = f;
+    const base = { Name: name, Year: String(year), "Letterboxd URI": "" };
+    rows.watched.push({ ...base, Date: iso(start) });
+    rows.ratings.push({ ...base, Rating: String(rating) });
+    if (liked) rows.likes.push(base);
+    meta[filmKey(name, year)] = { src: "example", d: split(d), c: split(c), g: split(g), k: split(k), l, r, w: split(w), p: split(p), m: split(m) };
+    if (i % 9 === 4) return; // logged as watched without a diary date
+    const first = pick();
+    rows.diary.push({ ...base, "Watched Date": iso(first), Rating: String(rating), Rewatch: "", Tags: "" });
+    if (rating >= 4.5 && rand() < 0.55) {
+      const again = first + Math.floor(rand() * (end - first) / day) * day;
+      if (again > first) rows.diary.push({ ...base, "Watched Date": iso(again), Rating: String(rating), Rewatch: "Yes", Tags: "" });
+    }
+    if (rand() < 0.3) rows.reviews.push({ ...base, "Watched Date": iso(first) });
+  });
+  return { rows, meta };
+}
+</script>
