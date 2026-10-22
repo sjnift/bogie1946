@@ -33,7 +33,9 @@ const LOOSE_LIKES = /^films\.csv$/i; // likes/films.csv dropped on its own
 
 function parseCsv(text) {
   const out = Papa.parse(text.replace(/^﻿/, ""), { header: true, skipEmptyLines: true });
-  return out.data.filter((r) => r && r.Name);
+  const rows = out.data.filter((r) => r && r.Name);
+  rows.fields = (out.meta && out.meta.fields) || Object.keys(out.data[0] || {});
+  return rows;
 }
 // Keep only the columns the stats use, so the saved copy stays small.
 function slim(kind, rows) {
@@ -51,14 +53,22 @@ function slim(kind, rows) {
 
 async function readExport(fileList) {
   if (!window.Papa) throw new Error("The CSV reader didn't load. Check your internet connection and reload the page.");
-  const rows = { diary: [], watched: [], ratings: [], reviews: [], likes: [], watchlist: [], profile: [] };
+  const rows = { diary: [], watched: [], ratings: [], reviews: [], likes: [], watchlist: [], profile: [], files: [] };
   let found = 0;
+  // Besides the files at the top, an export has lists/, deleted/, orphaned/ and likes/ folders, and
+  // likes/ holds a reviews.csv of other people's reviews you liked. Only likes/films.csv counts from those.
   const take = (path, text) => {
-    if (/(^|\/)(deleted|orphaned)\//i.test(path)) return;
+    if (/(^|\/)(deleted|orphaned|lists)\//i.test(path)) return;
+    const inLikes = /(^|\/)likes\//i.test(path);
     for (const [kind, re] of Object.entries(WANTED)) {
+      if (inLikes && kind !== "likes") continue;
       if (re.test(path) || (kind === "likes" && LOOSE_LIKES.test(path))) {
         const parsed = kind === "profile" ? Papa.parse(text.replace(/^﻿/, ""), { header: true, skipEmptyLines: true }).data : parseCsv(text);
-        rows[kind] = slim(kind, parsed); found++; return;
+        if (kind === "reviews" && !parsed.fields.includes("Review")) return; // not your own reviews
+        if (!parsed.length && rows[kind].length) return; // keep what an earlier copy of the file had
+        rows[kind] = slim(kind, parsed); found++;
+        rows.files.push((inLikes ? "likes/" : "") + path.split("/").pop().toLowerCase());
+        return;
       }
     }
   };
@@ -167,7 +177,9 @@ function buildLibrary(input) {
 // One line saying what an import brought in, so a missing part (say, reviews) is easy to spot.
 function importSummary(rows, lib) {
   const skipped = rows.reviews.length - lib.reviews.length;
-  const reviews = !rows.reviews.length ? "no reviews (this export has no reviews.csv)"
+  const files = rows.files || [];
+  const reviews = !rows.reviews.length ? (files.includes("reviews.csv") ? "no reviews (reviews.csv in this export is empty)"
+      : `no reviews, because there was no reviews.csv among the files read (${files.join(", ")})`)
     : `${plural(lib.reviews.length, "review")}${skipped > 0 ? ` (${plural(skipped, "review")} for films not in your watched list left out)` : ""}`;
   return `Imported ${plural(lib.films.length, "film")}, ${plural(lib.entries.length, "diary entry", "diary entries")} and ${reviews}.`;
 }
