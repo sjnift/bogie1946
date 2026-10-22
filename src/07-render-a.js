@@ -1,7 +1,7 @@
 <script>
 /* ---------- page state ---------- */
 const state = {
-  mode: "example", lib: null, scope: "all",
+  mode: "example", lib: null, scope: "all", page: "stats", crowd: null,
   tab: { cast: "most", directors: "most", crew: "w", cats: "most" },
   more: { cast: false, directors: false },
 };
@@ -21,7 +21,7 @@ function scheduleRender() {
   renderQueued = true;
   requestAnimationFrame(() => { renderQueued = false; render(); });
 }
-function saveView() { store.set(KEYS.view, { scope: state.scope, mode: state.mode }); }
+function saveView() { store.set(KEYS.view, { scope: state.scope, mode: state.mode, page: state.page }); }
 
 function render() {
   state.lib = state.mode === "mine" && MY_LIB ? MY_LIB : EXAMPLE_LIB;
@@ -30,6 +30,11 @@ function render() {
   if (state.scope !== "all" && !years.includes(state.scope)) state.scope = "all";
   STATS = computeStats(state.lib, metaOf, state.scope);
   renderHero(STATS, years);
+  const ins = state.page === "insights";
+  for (const sel of ["#tiles", "#lookup", "#sections", ".scopes-row"]) $(sel).hidden = ins;
+  $("#insights").hidden = !ins;
+  $("#btn-insights").textContent = ins ? "Back to stats" : "Insights";
+  if (ins) { renderInsights(); return; }
   renderTiles(STATS);
   renderLookup();
   renderSections(STATS);
@@ -139,7 +144,7 @@ function renderLookup() {
       body = coverage + `Lookups aren't available in this view. Open the downloadable copy of this page in your browser and use a TMDB key instead.</p>`;
     }
   }
-  el.innerHTML = head + meter + body + note + saveNote;
+  el.innerHTML = head + meter + body + note + saveNote + imdbBlock(lib, false);
 }
 function progressText() {
   const what = job.kind === "tmdb" ? "on TMDB" : "with Claude";
@@ -149,6 +154,8 @@ function progressText() {
 function renderLookupProgress() {
   const p = $("#lookup-progress");
   if (p) p.textContent = progressText();
+  const ip = $("#imdb-progress");
+  if (ip) ip.textContent = imdbProgressText();
   const m = $("#lookup-meter");
   if (m && state.lib) {
     const have = state.lib.films.filter((f) => metaOf(f)).length;

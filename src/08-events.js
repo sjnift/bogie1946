@@ -29,18 +29,22 @@ function bind() {
   $("#btn-import-2").addEventListener("click", () => fileInput.click());
   fileInput.addEventListener("change", () => { const files = [...fileInput.files]; fileInput.value = ""; if (files.length) importFiles(files); });
   $("#btn-example").addEventListener("click", () => { state.mode = "example"; state.scope = "all"; saveView(); render(); });
+  $("#btn-insights").addEventListener("click", () => { state.page = state.page === "insights" ? "stats" : "insights"; saveView(); render(); window.scrollTo(0, 0); });
   $("#btn-mine").addEventListener("click", () => { state.mode = "mine"; state.scope = "all"; saveView(); render(); });
 
   document.addEventListener("click", (e) => {
-    const t = e.target.closest("[data-scope],[data-tab],[data-more],[data-list],[data-close],#btn-tmdb,#btn-change-key,#btn-claude,#btn-claude-retry,#btn-stop");
+    const t = e.target.closest("[data-crowd],[data-scope],[data-tab],[data-more],[data-list],[data-close],#btn-tmdb,#btn-change-key,#btn-omdb,#btn-change-omdb,#btn-claude,#btn-claude-retry,#btn-stop");
     if (!t) return;
-    if (t.dataset.scope) { state.scope = t.dataset.scope; state.more = { cast: false, directors: false }; saveView(); render(); }
+    if (t.dataset.crowd) { state.crowd = t.dataset.crowd; renderInsights(); $(`[data-crowd="${t.dataset.crowd}"]`)?.focus(); }
+    else if (t.dataset.scope) { state.scope = t.dataset.scope; state.more = { cast: false, directors: false }; saveView(); render(); }
     else if (t.dataset.tab) { state.tab[t.dataset.tab] = t.dataset.val; renderSections(STATS); $(`[data-tab="${t.dataset.tab}"][data-val="${t.dataset.val}"]`)?.focus(); }
     else if (t.dataset.more) { state.more[t.dataset.more] = true; renderSections(STATS); }
     else if (t.dataset.list) openList(t.dataset.list);
     else if (t.hasAttribute("data-close")) $("#dlg").close();
     else if (t.id === "btn-tmdb") startTmdb(MY_LIB);
     else if (t.id === "btn-change-key") { editKey = true; renderLookup(); $("#tmdb-key")?.focus(); }
+    else if (t.id === "btn-omdb") startOmdb(MY_LIB);
+    else if (t.id === "btn-change-omdb") { editOmdb = true; renderLookup(); $("#omdb-key")?.focus(); }
     else if (t.id === "btn-claude") runClaude(MY_LIB);
     else if (t.id === "btn-claude-retry") retryClaudeMisses(MY_LIB);
     else if (t.id === "btn-stop") job.ctl && job.ctl.abort();
@@ -54,7 +58,7 @@ function bind() {
     const btn = e.currentTarget, status = $("#forget-status");
     if (!armed) {
       btn.textContent = "Click again to delete";
-      status.textContent = "Removes your imported export and looked-up details from this browser, plus any TMDB key you typed in.";
+      status.textContent = "Removes your imported export and looked-up details from this browser, plus any keys you typed in.";
       armed = setTimeout(() => { armed = null; btn.textContent = "Delete saved data from this browser"; status.textContent = ""; }, 6000);
       return;
     }
@@ -111,6 +115,7 @@ function init() {
   const view = store.get(KEYS.view, {});
   state.mode = MY_LIB && view.mode !== "example" ? "mine" : "example";
   if (view.scope) state.scope = view.scope;
+  if (view.page === "insights") state.page = "insights";
   bind();
   render();
   // A saved key picks up films not yet looked up, or matched before matching improved.

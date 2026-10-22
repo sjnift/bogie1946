@@ -252,6 +252,38 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .tabbar button[aria-current="page"] { color: var(--ink); }
 .tabbar button:focus-visible { outline: 2px solid var(--blue); outline-offset: -4px; border-radius: 8px; }
 
+/* ---------- insights ---------- */
+.icards { display: grid; gap: 8px; }
+.icard { background: var(--card); border-radius: 8px; padding: 12px 14px; display: grid; gap: 3px; }
+.icard .k { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); }
+.icard .big { color: var(--ink); font-size: 22px; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
+.icard p { margin: 0; font-size: 14px; }
+.mults { display: grid; gap: 14px; }
+.mult .mt { margin: 0 0 2px; font-size: 12px; color: var(--ink-2); }
+.tscroll { overflow-x: auto; margin-top: 14px; margin-inline: -16px; padding-inline: 16px; }
+.mtable { border-collapse: collapse; font-size: 13px; width: max-content; min-width: 100%; }
+.mtable th, .mtable td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.mtable th { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); }
+.mtable td { color: var(--ink-1); }
+.mtable .n { text-align: right; font-variant-numeric: tabular-nums; }
+.mtable.heat td.n { text-align: center; min-width: 40px; }
+.dim { color: var(--muted); }
+.tline { display: flex; gap: 10px; align-items: baseline; padding: 6px 0; color: var(--ink-1); font-size: 14.5px; }
+.tline .mk { font-size: 10px; flex: none; color: var(--ink-2); }
+.ghead { display: grid; grid-template-columns: minmax(0, 1fr) 84px 84px 16px; gap: 10px; font-size: 10.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); margin-top: 10px; }
+.grow { all: unset; box-sizing: border-box; width: 100%; cursor: pointer; display: grid; grid-template-columns: minmax(0, 1fr) 84px 84px 16px; gap: 10px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.grow .nm { display: block; color: var(--ink); font-weight: 600; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.grow .sub { font-size: 12px; }
+.gcol { display: grid; gap: 2px; justify-items: center; }
+.gcol .v { font-size: 11.5px; color: var(--ink-1); font-variant-numeric: tabular-nums; }
+.dbar { position: relative; display: block; width: 100%; height: 8px; }
+.dbar .mid { position: absolute; left: 50%; top: -3px; bottom: -3px; border-left: 1px solid var(--muted); }
+.dbar .fill { position: absolute; top: 0; bottom: 0; }
+.dbar .fill.pos { left: 50%; background: var(--green-mark); border-radius: 0 3px 3px 0; }
+.dbar .fill.neg { right: 50%; background: var(--blue-mark); border-radius: 3px 0 0 3px; }
+.lead { margin: 4px 0 0; color: var(--ink-1); font-size: 15px; }
+.fact .t { font-size: 12.5px; color: var(--ink-2); }
+.dv { color: var(--ink); font-weight: 600; }
 #tip { position: fixed; z-index: 50; pointer-events: none; background: var(--ink-1); color: var(--bg); font-size: 12.5px; padding: 6px 9px; border-radius: 6px; max-width: 240px; line-height: 1.35; }
 .foot { font-size: 12.5px; color: var(--muted); margin-top: 26px; display: grid; gap: 6px; }
 .foot p { margin: 0; }
@@ -326,7 +358,7 @@ const EXAMPLE_FILMS = [
   ["The Prestige", 2006, 4, 0, "Christopher Nolan", "Hugh Jackman|Christian Bale|Michael Caine|Scarlett Johansson|Rebecca Hall", "Drama|Mystery|Thriller", "USA|UK", "English", 130, "Jonathan Nolan|Christopher Nolan", "Wally Pfister", "David Julyan"],
   ["Inception", 2010, 4, 0, "Christopher Nolan", "Leonardo DiCaprio|Joseph Gordon-Levitt|Elliot Page|Tom Hardy|Ken Watanabe|Cillian Murphy|Marion Cotillard|Michael Caine", "Action|Science Fiction|Adventure", "USA|UK", "English", 148, "Christopher Nolan", "Wally Pfister", "Hans Zimmer"],
   ["Dune: Part Two", 2024, 4.5, 1, "Denis Villeneuve", "Timothée Chalamet|Zendaya|Rebecca Ferguson|Javier Bardem|Josh Brolin|Austin Butler|Florence Pugh", "Science Fiction|Adventure", "USA|Canada", "English", 167, "Denis Villeneuve|Jon Spaihts", "Greig Fraser", "Hans Zimmer"],
-  ["Dune", 2021, 4, 0, "Denis Villeneuve", "Timothée Chalamet|Rebecca Ferguson|Oscar Isaac|Josh Brolin|Stellan Skarsgård|Zendaya", "Science Fiction|Adventure", "USA|Canada", "English", 156, "Jon Spaihts|Denis Villeneuve|Eric Roth", "Greig Fraser", "Hans Zimmer"],
+  ["Dune", 2021, 3, 0, "Denis Villeneuve", "Timothée Chalamet|Rebecca Ferguson|Oscar Isaac|Josh Brolin|Stellan Skarsgård|Zendaya", "Science Fiction|Adventure", "USA|Canada", "English", 156, "Jon Spaihts|Denis Villeneuve|Eric Roth", "Greig Fraser", "Hans Zimmer"],
   ["Arrival", 2016, 4.5, 1, "Denis Villeneuve", "Amy Adams|Jeremy Renner|Forest Whitaker|Michael Stuhlbarg", "Science Fiction|Drama", "USA|Canada", "English", 116, "Eric Heisserer", "Bradford Young", "Jóhann Jóhannsson"],
   ["Blade Runner 2049", 2017, 4.5, 0, "Denis Villeneuve", "Ryan Gosling|Harrison Ford|Ana de Armas|Sylvia Hoeks|Robin Wright|Jared Leto", "Science Fiction|Drama", "USA|UK|Canada", "English", 164, "Hampton Fancher|Michael Green", "Roger Deakins", "Benjamin Wallfisch|Hans Zimmer"],
   ["Prisoners", 2013, 4, 0, "Denis Villeneuve", "Hugh Jackman|Jake Gyllenhaal|Viola Davis|Maria Bello|Terrence Howard|Melissa Leo|Paul Dano", "Crime|Drama|Thriller", "USA", "English", 153, "Aaron Guzikowski", "Roger Deakins", "Jóhann Jóhannsson"],
@@ -338,8 +370,8 @@ const EXAMPLE_FILMS = [
   ["Donnie Darko", 2001, 3.5, 0, "Richard Kelly", "Jake Gyllenhaal|Jena Malone|Maggie Gyllenhaal|Drew Barrymore|Mary McDonnell|Patrick Swayze", "Drama|Mystery|Science Fiction", "USA", "English", 113, "Richard Kelly", "Steven Poster", "Michael Andrews"],
   ["The Social Network", 2010, 4.5, 1, "David Fincher", "Jesse Eisenberg|Andrew Garfield|Justin Timberlake|Armie Hammer|Rooney Mara", "Drama", "USA", "English", 120, "Aaron Sorkin", "Jeff Cronenweth", "Trent Reznor|Atticus Ross"],
   ["Gone Girl", 2014, 4, 0, "David Fincher", "Ben Affleck|Rosamund Pike|Neil Patrick Harris|Tyler Perry|Carrie Coon", "Mystery|Thriller|Drama", "USA", "English", 149, "Gillian Flynn", "Jeff Cronenweth", "Trent Reznor|Atticus Ross"],
-  ["Fight Club", 1999, 3.5, 0, "David Fincher", "Edward Norton|Brad Pitt|Helena Bonham Carter|Meat Loaf|Jared Leto", "Drama|Thriller", "USA|Germany", "English", 139, "Jim Uhls", "Jeff Cronenweth", "The Dust Brothers"],
-  ["La La Land", 2016, 4, 1, "Damien Chazelle", "Ryan Gosling|Emma Stone|John Legend|Rosemarie DeWitt|J.K. Simmons", "Comedy|Drama|Romance|Music", "USA", "English", 129, "Damien Chazelle", "Linus Sandgren", "Justin Hurwitz"],
+  ["Fight Club", 1999, 3, 0, "David Fincher", "Edward Norton|Brad Pitt|Helena Bonham Carter|Meat Loaf|Jared Leto", "Drama|Thriller", "USA|Germany", "English", 139, "Jim Uhls", "Jeff Cronenweth", "The Dust Brothers"],
+  ["La La Land", 2016, 3, 0, "Damien Chazelle", "Ryan Gosling|Emma Stone|John Legend|Rosemarie DeWitt|J.K. Simmons", "Comedy|Drama|Romance|Music", "USA", "English", 129, "Damien Chazelle", "Linus Sandgren", "Justin Hurwitz"],
   ["Whiplash", 2014, 4.5, 1, "Damien Chazelle", "Miles Teller|J.K. Simmons|Melissa Benoist|Paul Reiser", "Drama|Music", "USA", "English", 107, "Damien Chazelle", "Sharone Meir", "Justin Hurwitz"],
   ["Drive", 2011, 4, 0, "Nicolas Winding Refn", "Ryan Gosling|Carey Mulligan|Bryan Cranston|Albert Brooks|Oscar Isaac|Ron Perlman", "Crime|Drama|Thriller", "USA", "English", 100, "Hossein Amini", "Newton Thomas Sigel", "Cliff Martinez"],
   ["Poor Things", 2023, 4, 1, "Yorgos Lanthimos", "Emma Stone|Mark Ruffalo|Willem Dafoe|Ramy Youssef", "Science Fiction|Romance|Comedy", "UK|USA|Ireland", "English", 141, "Tony McNamara", "Robbie Ryan", "Jerskin Fendrix"],
@@ -376,17 +408,45 @@ const EXAMPLE_FILMS = [
   ["Before Midnight", 2013, 4, 0, "Richard Linklater", "Ethan Hawke|Julie Delpy", "Drama|Romance", "USA|Greece", "English", 109, "Richard Linklater|Julie Delpy|Ethan Hawke", "Christos Voudouris", "Graham Reynolds"],
 ];
 
+/* Example crowd scores, roughly what TMDB users give these films (out of 10, then how many votes). */
+const EXAMPLE_CROWD = {
+  "Parasite": [8.5, 19000], "Memories of Murder": [8.1, 3700], "The Host": [6.9, 2600], "Decision to Leave": [7.3, 1300],
+  "Oldboy": [8.2, 8800], "The Handmaiden": [8.2, 3600], "Past Lives": [7.7, 1700], "In the Mood for Love": [8.1, 3100],
+  "Chungking Express": [7.9, 1900], "2046": [7.4, 900], "Fallen Angels": [7.5, 800], "Infernal Affairs": [7.8, 1800],
+  "Lost in Translation": [7.4, 7600], "The Grand Budapest Hotel": [8.0, 15000], "Fantastic Mr. Fox": [7.8, 5900],
+  "The Royal Tenenbaums": [7.3, 3300], "Asteroid City": [6.4, 1500], "Moonrise Kingdom": [7.6, 6900], "Rushmore": [7.1, 1900],
+  "Oppenheimer": [8.1, 10000], "Interstellar": [8.4, 37000], "The Prestige": [8.2, 16000], "Inception": [8.4, 37000],
+  "Dune: Part Two": [8.1, 7500], "Dune": [7.8, 13000], "Arrival": [7.6, 18000], "Blade Runner 2049": [7.6, 14000],
+  "Prisoners": [8.1, 12000], "Sicario": [7.4, 9000], "Enemy": [6.9, 4600], "Nightcrawler": [7.7, 11000], "Zodiac": [7.5, 11000],
+  "Brokeback Mountain": [7.8, 6500], "Donnie Darko": [7.8, 12000], "The Social Network": [7.4, 13000], "Gone Girl": [7.9, 19000],
+  "Fight Club": [8.4, 30000], "La La Land": [7.9, 17000], "Whiplash": [8.4, 15000], "Drive": [7.6, 13000], "Poor Things": [7.7, 4500],
+  "The Favourite": [7.1, 6000], "The Lobster": [6.7, 5500], "Kinds of Kindness": [6.6, 900], "Portrait of a Lady on Fire": [8.1, 2700],
+  "Anatomy of a Fall": [7.7, 2000], "The Zone of Interest": [7.0, 1700], "Spirited Away": [8.5, 17000], "My Neighbor Totoro": [8.1, 8500],
+  "Princess Mononoke": [8.3, 8200], "Perfect Days": [7.8, 900], "Drive My Car": [7.4, 1000], "Aftersun": [7.6, 1500],
+  "All of Us Strangers": [7.4, 900], "Lady Bird": [7.3, 9200], "Little Women": [7.9, 7000], "Frances Ha": [7.2, 1600],
+  "Marriage Story": [7.7, 7400], "Paterson": [7.1, 1600], "Call Me by Your Name": [8.1, 12000], "Challengers": [7.0, 1600],
+  "Mulholland Drive": [7.7, 5000], "Perfect Blue": [8.3, 2500], "Everything Everywhere All at Once": [7.8, 7000],
+  "Crouching Tiger, Hidden Dragon": [7.3, 3900], "Burning": [7.2, 1600], "Minari": [7.2, 1700], "Nope": [6.8, 5000],
+  "Get Out": [7.6, 17000], "Before Sunrise": [7.9, 4400], "Before Sunset": [7.8, 3200], "Before Midnight": [7.6, 2500],
+};
+
 /* Turns the table above into the same shape an imported export produces:
    a library of films plus diary entries, and a metadata map keyed by film. */
 function buildExample() {
   let seed = 20261021;
   const rand = () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
     t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
-  const start = Date.UTC(2025, 0, 3), end = Date.UTC(2026, 9, 18), day = 864e5;
-  const span = (end - start) / day;
+  const start = Date.UTC(2021, 0, 4), end = Date.UTC(2026, 9, 18), day = 864e5;
   const iso = (t) => new Date(t).toISOString().slice(0, 10);
-  // weight later dates a little so 2026 reads busier than 2025
-  const pick = () => start + Math.floor(Math.pow(rand(), 0.8) * span) * day;
+  // Never before a film came out; later years a little busier; and the example's taste drifts
+  // from English-language films toward world cinema, so Insights has a change to find.
+  const pick = (year, lang) => {
+    const lo = Math.max(start, Date.UTC(year, 2, 1));
+    let p = Math.pow(rand(), 0.8);
+    p = lang === "English" ? p * 0.8 : 0.35 + 0.65 * p;
+    return lo + Math.floor(p * (end - lo) / day) * day;
+  };
+  const logDate = (t) => iso(t + (rand() < 0.25 ? (1 + Math.floor(rand() * 5)) * day : 0));
   const rows = { profile: [{ Username: "example" }], watched: [], ratings: [], diary: [], likes: [], reviews: [] };
   const meta = {};
   const split = (s) => s ? s.split("|") : [];
@@ -396,13 +456,14 @@ function buildExample() {
     rows.watched.push({ ...base, Date: iso(start) });
     rows.ratings.push({ ...base, Rating: String(rating) });
     if (liked) rows.likes.push(base);
-    meta[filmKey(name, year)] = { src: "example", d: split(d), c: split(c), g: split(g), k: split(k), l, r, w: split(w), p: split(p), m: split(m) };
+    const crowd = EXAMPLE_CROWD[name] || [];
+    meta[filmKey(name, year)] = { src: "example", d: split(d), c: split(c), g: split(g), k: split(k), l, r, w: split(w), p: split(p), m: split(m), va: crowd[0], vc: crowd[1] };
     if (i % 9 === 4) return; // logged as watched without a diary date
-    const first = pick();
-    rows.diary.push({ ...base, "Watched Date": iso(first), Rating: String(rating), Rewatch: "", Tags: "" });
+    const first = pick(year, l);
+    rows.diary.push({ ...base, Date: logDate(first), "Watched Date": iso(first), Rating: String(rating), Rewatch: "", Tags: "" });
     if (rating >= 4.5 && rand() < 0.55) {
       const again = first + Math.floor(rand() * (end - first) / day) * day;
-      if (again > first) rows.diary.push({ ...base, "Watched Date": iso(again), Rating: String(rating), Rewatch: "Yes", Tags: "" });
+      if (again > first) rows.diary.push({ ...base, Date: logDate(again), "Watched Date": iso(again), Rating: String(rating), Rewatch: "Yes", Tags: "" });
     }
     if (rand() < 0.3) rows.reviews.push({ ...base, "Watched Date": iso(first) });
   });
@@ -432,7 +493,7 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } },
   del(k) { try { localStorage.removeItem(k); } catch {} },
 };
-const KEYS = { rows: "cr-rows-v1", meta: "cr-meta-v1", photos: "cr-photos-v1", tmdb: "cr-tmdb-key", view: "cr-view-v1" };
+const KEYS = { rows: "cr-rows-v1", meta: "cr-meta-v1", photos: "cr-photos-v1", tmdb: "cr-tmdb-key", omdb: "cr-omdb-key", view: "cr-view-v1" };
 
 /* ---------- reading a Letterboxd export ---------- */
 const WANTED = {
@@ -568,6 +629,7 @@ function cleanMeta(m) {
     k: list((m.k || []).map(country), 6), l: language(m.l), r: Math.round(Number(m.r)) || null,
     va: Number(m.va) || null, vc: Number(m.vc) || null, // TMDB audience score out of 10, and how many votes
     im: /^tt\d+$/.test(m.im || "") ? m.im : null, // IMDb id, for IMDb scores from OMDb
+    ir: Number(m.ir) || null, iv: Number(m.iv) || null, mc: Number(m.mc) || null, rt: Number(m.rt) || null, om: m.om || null, // IMDb, Metacritic, Rotten Tomatoes
   };
 }
 
@@ -792,7 +854,12 @@ async function runTmdb(lib, key) {
       try {
         const m = await tmdbFilm(f, key, signal);
         if (m.miss) { if (!META[f.key] || META[f.key].src === "tmdb") META[f.key] = m; else META[f.key].tmdbMiss = TMDB_MATCH_VERSION; job.failed++; }
-        else META[f.key] = m;
+        else {
+          // keep IMDb scores already fetched for the same film, so OMDb's daily allowance isn't spent twice
+          const prev = META[f.key];
+          if (prev && prev.om && prev.im === m.im) for (const k of ["ir", "iv", "mc", "rt", "om"]) m[k] = prev[k];
+          META[f.key] = m;
+        }
       } catch (e) {
         if (signal.aborted) return;
         if (e && e.code === "auth") { job.badKey = true; fatal = "TMDB didn't accept that key. Copy the API Key (v3) or the API Read Access Token from your TMDB account settings and try again."; return; }
@@ -822,12 +889,93 @@ function startTmdb(lib) {
   if (typed && typed !== BUILT_IN_TMDB_KEY) store.set(KEYS.tmdb, typed);
   else if (typed) store.del(KEYS.tmdb);
   editKey = false;
-  runTmdb(lib, key);
+  runTmdb(lib, key).then(() => { if (omdbKey()) runOmdb(lib, omdbKey()); });
 }
 // After an import, a copy that already knows a key looks films up without being asked.
-function autoLookup(lib) {
-  if (!IN_VIEWER && tmdbKey() && needsLookup(lib, "tmdb").length) runTmdb(lib, tmdbKey());
+async function autoLookup(lib) {
+  if (IN_VIEWER) return;
+  if (tmdbKey() && needsLookup(lib, "tmdb").length) await runTmdb(lib, tmdbKey());
+  if (omdbKey() && !imdbJob.badKey && needsImdb(lib).length) runOmdb(lib, omdbKey());
 }
+
+/* ----- IMDb, Metacritic and Rotten Tomatoes scores, through OMDb -----
+   TMDB gives each film's IMDb id; OMDb turns it into scores. Its free key allows 1,000 films a day,
+   so a big library fills in over a few days, picking up where it stopped each time the page opens. */
+const omdbKey = () => store.get(KEYS.omdb, "");
+const imdbJob = { running: false, ctl: null, done: 0, total: 0, note: "", err: false, badKey: false };
+let editOmdb = false;
+const needsImdb = (lib) => lib.films.filter((f) => { const m = META[f.key]; return m && !m.miss && m.im && !m.om; });
+async function runOmdb(lib, key) {
+  const queue = needsImdb(lib);
+  if (!queue.length || imdbJob.running) return;
+  Object.assign(imdbJob, { running: true, ctl: new AbortController(), done: 0, total: queue.length, note: "", err: false, badKey: false });
+  renderLookup();
+  const signal = imdbJob.ctl.signal, today = new Date().toISOString().slice(0, 10);
+  const num = (s) => { const n = parseFloat(String(s || "").replace(/,/g, "")); return isFinite(n) ? n : null; };
+  let stop = null, sinceSave = 0;
+  const worker = async () => {
+    while (queue.length && !signal.aborted && !stop) {
+      const f = queue.shift(), m = META[f.key];
+      try {
+        const res = await fetch(`https://www.omdbapi.com/?i=${encodeURIComponent(m.im)}&apikey=${encodeURIComponent(key)}`, { signal });
+        const d = await res.json();
+        if (d.Response === "False") {
+          if (/limit/i.test(d.Error || "")) { stop = "limit"; return; }
+          if (/api key/i.test(d.Error || "") || res.status === 401) { stop = "key"; return; }
+          m.om = today; // OMDb doesn't know this film; don't ask again
+        } else {
+          const rt = (d.Ratings || []).find((x) => x.Source === "Rotten Tomatoes");
+          Object.assign(m, { ir: num(d.imdbRating), iv: num(d.imdbVotes), mc: num(d.Metascore), rt: rt ? num(rt.Value) : null, om: today });
+        }
+      } catch (e) {
+        if (signal.aborted) return;
+        stop = "network"; return;
+      }
+      imdbJob.done++;
+      if (++sinceSave >= 25) { sinceSave = 0; saveMeta(); scheduleRender(); }
+      renderLookupProgress();
+    }
+  };
+  await Promise.all(Array.from({ length: 4 }, worker));
+  saveMeta();
+  const left = needsImdb(lib).length;
+  imdbJob.running = false;
+  imdbJob.badKey = stop === "key";
+  imdbJob.err = stop === "key" || stop === "network";
+  imdbJob.note = stop === "limit" ? `OMDb's free allowance of 1,000 films a day is used up. The other ${fmtN(left)} fill in when you open the page tomorrow.`
+    : stop === "key" ? "OMDb didn't accept that key. Use the key from OMDb's email, after clicking the activation link in it."
+    : stop === "network" ? "Couldn't reach OMDb. The rest fill in the next time you open the page."
+    : signal.aborted ? "Stopped. Progress is saved." : "";
+  scheduleRender();
+}
+function startOmdb(lib) {
+  const input = $("#omdb-key");
+  const key = input ? input.value.trim() : omdbKey();
+  if (!key) { imdbJob.note = "Paste your OMDb key first."; imdbJob.err = true; renderLookup(); return; }
+  store.set(KEYS.omdb, key);
+  editOmdb = false; imdbJob.badKey = false;
+  runOmdb(lib, key);
+}
+// The IMDb part of the Cast & crew box, for both layouts.
+function imdbBlock(lib, phone) {
+  if (IN_VIEWER || !lib) return "";
+  const total = lib.films.length;
+  const withId = lib.films.filter((f) => META[f.key] && META[f.key].im).length;
+  const have = lib.films.filter((f) => META[f.key] && META[f.key].ir).length;
+  const note = imdbJob.note ? `<p class="status${imdbJob.err ? " err" : ""}" role="status">${esc(imdbJob.note)}</p>` : "";
+  const title = phone ? `<p class="title" style="margin-top:6px">IMDb scores</p>` : `<h3 class="sub-h">IMDb scores</h3>`;
+  if (!withId) return title + `<p class="status">IMDb, Metacritic and Rotten Tomatoes scores can be added once films have TMDB details.</p>`;
+  if (imdbJob.running) return title + `<p class="status" id="imdb-progress" role="status">${imdbProgressText()}</p>`;
+  if (!omdbKey() || editOmdb || imdbJob.badKey) {
+    const input = `<label class="sr-only" for="omdb-key">OMDb API key</label><input ${phone ? 'class="key" ' : ""}id="omdb-key" type="password" autocomplete="off" spellcheck="false" placeholder="OMDb key (optional)" value="${esc(omdbKey())}">`;
+    const btn = phone ? `<button class="btn green block" type="button" data-act="omdb">Add IMDb scores</button>` : `<button class="btn" type="button" id="btn-omdb">Add IMDb scores</button>`;
+    return title + (phone ? input + btn : `<div class="lookup-row">${input}${btn}</div>`) +
+      `<p class="status">Adds IMDb, Metacritic and Rotten Tomatoes scores for comparing your ratings. Get a free key at <a href="https://www.omdbapi.com/apikey.aspx" target="_blank" rel="noopener">omdbapi.com</a> (1,000 films a day) and click the activation link in its email.</p>` + note;
+  }
+  const change = phone ? `<button class="linkish" type="button" data-act="change-omdb">Change key</button>` : `<button class="linkish" type="button" id="btn-change-omdb">Change key</button>`;
+  return title + `<p class="status">${fmtN(have)} of ${plural(total, "film")} have IMDb scores. ${change}</p>` + note;
+}
+const imdbProgressText = () => `Getting IMDb scores: ${fmtN(imdbJob.done)} of ${plural(imdbJob.total, "film")}…`;
 
 /* ----- Claude ----- */
 const CLAUDE_BATCH = 40;
@@ -991,10 +1139,247 @@ function heatmap(s) {
 
 </script>
 <script>
+/* ---------- insights: patterns across the whole diary, shared by both layouts ----------
+   Year trends come from diary dates. Crowd comparisons need a crowd score per film:
+   TMDB users (from the TMDB lookup), IMDb users and critics (from OMDb). */
+const CROWDS = {
+  imdb: { label: "IMDb users", short: "IMDb", score: (m) => m && m.ir && (m.iv || 0) >= 100 ? m.ir : null, votes: (m) => m.iv },
+  tmdb: { label: "TMDB users", short: "TMDB", score: (m) => m && m.va && (m.vc || 0) >= 25 ? m.va : null, votes: (m) => m.vc },
+  critics: { label: "Critics (Metacritic)", short: "Critics", score: (m) => m && m.mc ? m.mc / 10 : null, votes: () => null },
+};
+const pctOf = (n, d) => d ? Math.round(n / d * 100) : 0;
+const starsNum = (x) => `${x.toFixed(1)}★`;
+const signed = (x, digits = 1) => Math.abs(x) < 0.5 * Math.pow(10, -digits) ? (0).toFixed(digits) : `${x >= 0 ? "+" : "−"}${Math.abs(x).toFixed(digits)}`;
+function pearson(xs, ys) {
+  const n = xs.length; if (n < 3) return null;
+  const mx = avg(xs), my = avg(ys);
+  let sxy = 0, sxx = 0, syy = 0;
+  for (let i = 0; i < n; i++) { const dx = xs[i] - mx, dy = ys[i] - my; sxy += dx * dy; sxx += dx * dx; syy += dy * dy; }
+  return sxx && syy ? sxy / Math.sqrt(sxx * syy) : null;
+}
+const topOf = (map) => { let best = null; for (const [k, v] of map) if (!best || v > best[1]) best = [k, v]; return best; };
+const bump = (map, k, n = 1) => map.set(k, (map.get(k) || 0) + n);
+
+// "…, and your taste follows theirs closely (correlation 0.71)", or nothing when it can't be measured.
+const followText = (r) => r == null ? "" : `, and your taste follows theirs ${r >= 0.6 ? "closely" : r >= 0.35 ? "loosely" : "hardly at all"} (correlation ${r.toFixed(2)})`;
+
+function computeInsights(lib, metaOf, crowdKey) {
+  const E = lib.entries, rated = lib.films.filter((f) => f.rating);
+  const overallAvg = avg(rated.map((f) => f.rating));
+  const today = new Date(), thisYear = String(today.getFullYear());
+  const dayOfYear = Math.floor((today - new Date(today.getFullYear(), 0, 1)) / 864e5) + 1;
+
+  /* ----- year by year ----- */
+  const years = [...new Set(E.map((e) => e.date.slice(0, 4)))].sort();
+  const perYear = years.map((y) => {
+    const es = E.filter((e) => e.date.startsWith(y));
+    const films = [...new Set(es.map((e) => e.film))];
+    let minutes = 0;
+    for (const e of es) { const m = metaOf(e.film); if (m && m.r) minutes += m.r; }
+    const ratings = es.map((e) => e.rating || e.film.rating).filter(Boolean);
+    const dated = films.filter((f) => f.year);
+    const langs = films.map(metaOf).filter((m) => m && m.l);
+    const genres = new Map(), directors = new Map(), actors = new Map(), countries = new Set();
+    let withMeta = 0;
+    for (const f of films) {
+      const m = metaOf(f); if (!m) continue; withMeta++;
+      m.g.forEach((g) => bump(genres, g)); m.d.forEach((d) => bump(directors, d));
+      m.c.slice(0, CAST_DEPTH).forEach((c) => bump(actors, c)); m.k.forEach((k) => countries.add(k));
+    }
+    const pace = y === thisYear && dayOfYear > 30 && dayOfYear < 360 ? Math.round(films.length / dayOfYear * 365) : null;
+    return {
+      year: y, films: films.length, entries: es.length, rewatches: es.filter((e) => e.rewatch).length, hours: minutes / 60, pace,
+      avgRating: avg(ratings), age: dated.length ? avg(dated.map((f) => +y - f.year)) : null,
+      newShare: dated.length ? pctOf(dated.filter((f) => f.year >= +y - 1).length, dated.length) : null,
+      nonEnglish: langs.length >= 3 ? pctOf(langs.filter((m) => m.l !== "English").length, langs.length) : null,
+      genres, withMeta, countries: countries.size,
+      topGenre: topOf(genres), topDirector: topOf(directors), topActor: topOf(actors),
+    };
+  });
+  const usable = perYear.filter((p) => p.films >= 5);
+  const busiest = perYear.reduce((a, p) => !a || p.films > a.films ? p : a, null);
+
+  /* ----- changing tastes: the earliest years against the latest ----- */
+  const tastes = { lines: [], table: null };
+  if (usable.length >= 2) {
+    const span = usable.length >= 4 ? 2 : 1;
+    const early = usable.slice(0, span), late = usable.slice(-span);
+    const label = (g) => g.length > 1 ? `${g[0].year}–${g[g.length - 1].year.slice(2)}` : g[0].year;
+    const share = (group, genre) => { const n = group.reduce((s, p) => s + (p.genres.get(genre) || 0), 0), d = group.reduce((s, p) => s + p.withMeta, 0); return d ? n / d * 100 : null; };
+    const mean = (group, k) => { const v = group.map((p) => p[k]).filter((x) => x != null); return v.length ? avg(v) : null; };
+    const E0 = label(early), L0 = label(late);
+    const allGenres = new Map();
+    for (const p of perYear) for (const [g, n] of p.genres) bump(allGenres, g, n);
+    const top = [...allGenres].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([g]) => g);
+    const moves = top.map((g) => ({ g, from: share(early, g), to: share(late, g) })).filter((x) => x.from != null && x.to != null).map((x) => ({ ...x, d: x.to - x.from }));
+    const risers = moves.filter((x) => x.d >= 5).sort((a, b) => b.d - a.d).slice(0, 2);
+    const fallers = moves.filter((x) => x.d <= -5).sort((a, b) => a.d - b.d).slice(0, 2);
+    for (const x of risers) tastes.lines.push({ dir: "up", big: x.g, text: `${x.g} grew from ${Math.round(x.from)}% of your films in ${E0} to ${Math.round(x.to)}% in ${L0}.` });
+    for (const x of fallers) tastes.lines.push({ dir: "down", big: `Less ${x.g}`, text: `${x.g} fell from ${Math.round(x.from)}% of your films in ${E0} to ${Math.round(x.to)}% in ${L0}.` });
+    const a0 = mean(early, "age"), a1 = mean(late, "age");
+    if (a0 != null && a1 != null && Math.abs(a1 - a0) >= 3) tastes.lines.push({ dir: a1 > a0 ? "up" : "down", big: a1 > a0 ? "Older films" : "Newer films",
+      text: a1 > a0 ? `You're watching older films: on average ${Math.round(a1)} years old when you saw them in ${L0}, against ${Math.round(a0)} in ${E0}.`
+        : `You're watching newer films: on average ${Math.round(a1)} years old when you saw them in ${L0}, against ${Math.round(a0)} in ${E0}.` });
+    const n0 = mean(early, "nonEnglish"), n1 = mean(late, "nonEnglish");
+    if (n0 != null && n1 != null && Math.abs(n1 - n0) >= 10) tastes.lines.push({ dir: n1 > n0 ? "up" : "down", big: n1 > n0 ? "World cinema" : "More English",
+      text: `Films not in English went from ${Math.round(n0)}% of your watching in ${E0} to ${Math.round(n1)}% in ${L0}.` });
+    const r0 = mean(early, "avgRating"), r1 = mean(late, "avgRating");
+    if (r0 != null && r1 != null && Math.abs(r1 - r0) >= 0.2) tastes.lines.push({ dir: r1 > r0 ? "up" : "down", big: r1 > r0 ? "Kinder" : "Tougher",
+      text: r1 > r0 ? `You've grown more generous: your average rating rose from ${starsNum(r0)} in ${E0} to ${starsNum(r1)} in ${L0}.`
+        : `You've grown tougher: your average rating fell from ${starsNum(r0)} in ${E0} to ${starsNum(r1)} in ${L0}.` });
+    const w0 = mean(early, "films"), w1 = mean(late, "films");
+    if (w0 && w1 && Math.abs(w1 - w0) / w0 >= 0.25) tastes.lines.push({ dir: w1 > w0 ? "up" : "down", big: w1 > w0 ? "More films" : "Fewer films",
+      text: `You watch ${w1 > w0 ? "more" : "fewer"} films than you used to: about ${Math.round(w1)} a year in ${L0}, against ${Math.round(w0)} in ${E0}.` });
+    tastes.table = { genres: top, years: usable.map((p) => ({ year: p.year, shares: top.map((g) => p.withMeta ? Math.round((p.genres.get(g) || 0) / p.withMeta * 100) : null) })) };
+  }
+
+  /* ----- genres: what you watch, how you rate it, and how the crowd does ----- */
+  const crowd = CROWDS[crowdKey] || CROWDS.tmdb;
+  const gmap = new Map();
+  for (const f of lib.films) {
+    const m = metaOf(f); if (!m) continue;
+    for (const g of m.g) {
+      let x = gmap.get(g); if (!x) { x = { name: g, films: [], mine: [], vsCrowd: [] }; gmap.set(g, x); }
+      x.films.push(f);
+      if (f.rating) { x.mine.push(f.rating); const c = crowd.score(m); if (c) x.vsCrowd.push(f.rating - c / 2); }
+    }
+  }
+  const withMetaCount = lib.films.filter((f) => metaOf(f)).length;
+  const genres = [...gmap.values()].filter((g) => g.mine.length >= 3).map((g) => ({
+    name: g.name, films: g.films, count: g.films.length, share: pctOf(g.films.length, withMetaCount), mine: avg(g.mine),
+    vsMe: avg(g.mine) - overallAvg, vsCrowd: g.vsCrowd.length >= 3 ? avg(g.vsCrowd) : null,
+  })).sort((a, b) => b.count - a.count);
+  const genreLines = [];
+  const solid = genres.filter((g) => g.mine.length >= 5 || g.count >= 5);
+  const loved = [...solid].sort((a, b) => b.vsMe - a.vsMe)[0];
+  if (loved && loved.vsMe >= 0.15) genreLines.push(`You rate ${loved.name} ${loved.vsMe.toFixed(1)}★ above your average, more than any other genre.`);
+  const lukewarm = solid.slice(0, 5).filter((g) => g.vsMe <= -0.15).sort((a, b) => a.vsMe - b.vsMe)[0];
+  if (lukewarm) genreLines.push(`${lukewarm.name} is among the genres you watch most (${lukewarm.share}% of your films), but you rate it ${Math.abs(lukewarm.vsMe).toFixed(1)}★ below your average.`);
+  const withCrowd = genres.filter((g) => g.vsCrowd != null);
+  const above = [...withCrowd].sort((a, b) => b.vsCrowd - a.vsCrowd)[0], below = [...withCrowd].sort((a, b) => a.vsCrowd - b.vsCrowd)[0];
+  if (above && above.vsCrowd >= 0.2) genreLines.push(`Next to ${crowd.label}, you're kindest to ${above.name}: ${above.vsCrowd.toFixed(1)}★ above them on average.`);
+  if (below && below !== above && below.vsCrowd <= -0.2) genreLines.push(`You're harshest on ${below.name}: ${Math.abs(below.vsCrowd).toFixed(1)}★ below ${crowd.label} on average.`);
+
+  /* ----- people: obsessions, companions, binges, discoveries ----- */
+  const peopleFrom = (role) => {
+    const map = new Map();
+    for (const e of E) {
+      const m = metaOf(e.film); if (!m) continue;
+      const names = role === "c" ? m.c.slice(0, CAST_DEPTH) : m[role];
+      for (const n of names) {
+        const k = personKey(n);
+        let p = map.get(k); if (!p) { p = { key: k, name: n, firstSeen: new Map(), years: new Set() }; map.set(k, p); }
+        if (!p.firstSeen.has(e.film)) p.firstSeen.set(e.film, e.date);
+        p.years.add(e.date.slice(0, 4));
+      }
+    }
+    return [...map.values()].map((p) => ({ ...p, films: [...p.firstSeen.keys()], count: p.firstSeen.size }));
+  };
+  const directors = peopleFrom("d"), actors = peopleFrom("c");
+  const latest = usable.length ? usable[usable.length - 1].year : years[years.length - 1];
+  const obsessions = (list) => list.map((p) => {
+    const inLatest = [...p.firstSeen.values()].filter((d) => d.startsWith(latest)).length;
+    return { ...p, inLatest, before: p.count - inLatest };
+  }).filter((p) => p.inLatest >= 2 && p.before === 0).sort((a, b) => b.inLatest - a.inLatest || a.name.localeCompare(b.name)).slice(0, 6);
+  const companions = (list) => list.filter((p) => p.years.size >= 3).sort((a, b) => b.years.size - a.years.size || b.count - a.count).slice(0, 6);
+  const binges = directors.map((p) => {
+    const dates = [...p.firstSeen.values()].sort();
+    let best = null;
+    for (let i = 0; i < dates.length; i++) {
+      let j = i;
+      while (j + 1 < dates.length && dayIndex(dates[j + 1]) - dayIndex(dates[i]) <= 30) j++;
+      const n = j - i + 1;
+      if (n >= 3 && (!best || n > best.n)) best = { n, from: dates[i], to: dates[j] };
+    }
+    return best ? { ...p, binge: best } : null;
+  }).filter(Boolean).sort((a, b) => b.binge.n - a.binge.n || (b.binge.to > a.binge.to ? 1 : -1)).slice(0, 5);
+  const firstYear = new Map();
+  for (const p of directors) { const y = [...p.firstSeen.values()].sort()[0].slice(0, 4); bump(firstYear, y); }
+  const discoveries = years.slice(1).map((y) => ({ year: y, count: firstYear.get(y) || 0 }));
+
+  /* ----- against the crowd ----- */
+  const pairs = rated.map((f) => { const m = metaOf(f), c = crowd.score(m); return c ? { f, you: f.rating, crowd: c / 2, diff: f.rating - c / 2, votes: crowd.votes(m) } : null; }).filter(Boolean);
+  const crowdOut = { key: crowdKey, label: crowd.label, short: crowd.short, n: pairs.length, available: {} };
+  for (const k of Object.keys(CROWDS)) crowdOut.available[k] = rated.filter((f) => CROWDS[k].score(metaOf(f))).length;
+  if (pairs.length >= 5) {
+    crowdOut.r = pearson(pairs.map((p) => p.you), pairs.map((p) => p.crowd));
+    crowdOut.meanDiff = avg(pairs.map((p) => p.diff));
+    crowdOut.higher = pairs.filter((p) => p.diff >= 0.75).sort((a, b) => b.diff - a.diff || b.you - a.you).slice(0, 12);
+    crowdOut.lower = pairs.filter((p) => p.diff <= -0.75).sort((a, b) => a.diff - b.diff || a.you - b.you).slice(0, 12);
+  }
+  const popularity = (f) => { const m = metaOf(f); return m ? (m.iv ? { n: m.iv, src: "IMDb" } : m.vc ? { n: m.vc, src: "TMDB" } : null) : null; };
+  crowdOut.gems = rated.filter((f) => f.rating >= 4.5).map((f) => ({ f, pop: popularity(f) }))
+    .filter((x) => x.pop && (x.pop.src === "IMDb" ? x.pop.n < 25000 : x.pop.n < 1000))
+    .sort((a, b) => b.f.rating - a.f.rating || a.pop.n - b.pop.n).slice(0, 12);
+
+  /* ----- habits ----- */
+  const habits = [];
+  if (E.length) {
+    const weekend = E.filter((e) => weekdayOf(e.date) >= 5).length;
+    const wk = pctOf(weekend, E.length);
+    habits.push({ k: wk >= 36 ? "Weekend watcher" : wk <= 22 ? "Weeknight watcher" : "Weekends", v: `${wk}%`, notable: wk >= 36 || wk <= 22,
+      text: `of your diary falls on a Saturday or Sunday, against 29% if you watched evenly through the week.` });
+    const months = Array(12).fill(0), seen = Array(12).fill(0);
+    for (const e of E) months[+e.date.slice(5, 7) - 1]++;
+    const first = E[0].date, last = E[E.length - 1].date;
+    for (let y = +first.slice(0, 4); y <= +last.slice(0, 4); y++) for (let m = 0; m < 12; m++) {
+      const k = `${y}-${String(m + 1).padStart(2, "0")}`;
+      if (k >= first.slice(0, 7) && k <= last.slice(0, 7)) seen[m]++;
+    }
+    const rates = months.map((n, i) => seen[i] ? n / seen[i] : 0), mean = avg(rates.filter((_, i) => seen[i]));
+    const best = rates.indexOf(Math.max(...rates));
+    if (mean && rates[best] / mean >= 1.15) habits.push({ k: "Film month", v: MONTHS_LONG[best], notable: rates[best] / mean >= 1.3, text: `is when you watch most: ${Math.round((rates[best] / mean - 1) * 100)}% more films than an average month.` });
+    const loggedKnown = E.filter((e) => e.logged);
+    if (loggedKnown.length >= 10) habits.push({ k: "Same-day logging", v: `${pctOf(loggedKnown.filter((e) => e.logged === e.date).length, loggedKnown.length)}%`, text: "of films are logged on the day you watch them." });
+    const perDay = new Map(); for (const e of E) bump(perDay, e.date);
+    const bingeDays = [...perDay.values()].filter((n) => n >= 3).length;
+    if (bingeDays) habits.push({ k: "Marathon days", v: fmtN(bingeDays), text: `${bingeDays === 1 ? "day" : "days"} with three or more films.` });
+    const catches = E.filter((e) => !e.rewatch && e.film.year && +e.date.slice(0, 4) <= e.film.year + 0).length;
+    habits.push({ k: "Same-year catches", v: fmtN(catches), text: `${catches === 1 ? "film" : "films"} seen in the year ${catches === 1 ? "it" : "they"} came out.` });
+    const rw = pctOf(E.filter((e) => e.rewatch).length, E.length);
+    habits.push({ k: "Rewatches", v: `${rw}%`, text: "of your diary entries are rewatches." });
+    const runtimes = lib.films.map(metaOf).filter((m) => m && m.r).map((m) => m.r);
+    if (runtimes.length >= 10) habits.push({ k: "Typical length", v: `${Math.round(avg(runtimes))} min`, text: `is your average film; ${pctOf(runtimes.filter((r) => r >= 150).length, runtimes.length)}% run 2½ hours or more.` });
+  }
+
+  /* ----- at a glance: the strongest few findings ----- */
+  const glance = [];
+  if (busiest) {
+    const cur = perYear.find((p) => p.year === thisYear);
+    glance.push({ k: "Busiest year", big: busiest.year, text: `${plural(busiest.films, "film")} that year${cur && cur.pace && cur !== busiest ? `. ${thisYear} is on pace for about ${fmtN(cur.pace)}.` : "."}` });
+  }
+  if (overallAvg) {
+    const high = pctOf(rated.filter((f) => f.rating >= 4).length, rated.length);
+    const style = overallAvg >= 3.75 ? "a generous rater" : overallAvg <= 3 ? "a tough rater" : "a middle-of-the-road rater";
+    glance.push({ k: "Rating style", big: starsNum(overallAvg), text: `average makes you ${style}: ${high}% of your rated films get 4★ or more.` });
+  }
+  if (crowdOut.meanDiff != null) glance.push({ k: `You vs ${crowd.label}`, big: `${signed(crowdOut.meanDiff)}★`, text: `on average against ${crowd.label}${followText(crowdOut.r)}, across ${plural(pairs.length, "film")}.` });
+  if (tastes.lines.length) glance.push({ k: "Changing taste", big: tastes.lines[0].big, text: tastes.lines[0].text });
+  if (loved && loved.vsMe >= 0.15) glance.push({ k: "Best-loved genre", big: loved.name, text: `gets ${loved.vsMe.toFixed(1)}★ more from you than your average film.` });
+  const obsD = obsessions(directors);
+  if (obsD.length) glance.push({ k: `New in ${latest}`, big: obsD[0].name, text: `${obsD[0].inLatest} films in ${latest}, none before. Your newest director obsession.` });
+  else { const comp = companions(directors)[0]; if (comp) glance.push({ k: "Constant companion", big: comp.name, text: `turns up in your diary in ${comp.years.size} different years.` }); }
+  const habit = habits.find((h) => h.notable);
+  if (habit) glance.push({ k: habit.k, big: habit.v, text: habit.text });
+
+  return {
+    years: perYear, usable, latest, tastes, genres, genreLines, overallAvg,
+    people: { obsDirectors: obsD, obsActors: obsessions(actors), compDirectors: companions(directors), compActors: companions(actors), binges, discoveries },
+    crowd: crowdOut, habits, glance,
+  };
+}
+// The crowd score to compare with: IMDb when most rated films have it, else TMDB.
+function defaultCrowd(lib, metaOf) {
+  const rated = lib.films.filter((f) => f.rating);
+  const n = (k) => rated.filter((f) => CROWDS[k].score(metaOf(f))).length;
+  return n("imdb") >= Math.max(5, n("tmdb") * 0.5) ? "imdb" : "tmdb";
+}
+</script>
+<script>
 /* ---------- app state ---------- */
 const state = {
   mode: "example", lib: null, scope: "all", view: "profile", stack: [],
-  role: "c", crew: "w", sort: "most", catSort: "most", peopleLimit: 50, diaryLimit: 60,
+  role: "c", crew: "w", sort: "most", catSort: "most", peopleLimit: 50, diaryLimit: 60, crowd: null,
 };
 let MY_LIB = null, EXAMPLE_LIB = null, STATS = null;
 const IMG = "https://image.tmdb.org/t/p/w185";
@@ -1039,7 +1424,7 @@ function renderTop(years, d) {
   $("#nav-left").innerHTML = d ? `<button class="nav-btn" type="button" data-act="back">${BACK}<span class="sr-only">Back</span></button>` : "";
   const who = state.mode === "example" ? "Example diary" : state.lib.profile.username || "Your diary";
   $("#nav-title").textContent = d ? d.title : state.view === "profile" ? who : TITLES[state.view];
-  $("#nav-right").innerHTML = !d && state.view !== "data" ? `<button class="nav-btn" type="button" data-act="import">Import</button>` : "";
+  $("#nav-right").innerHTML = !d ? `<button class="nav-btn" type="button" data-act="insights">Insights</button>` : "";
   $("#scopes").innerHTML = ["all", ...years].map((y) =>
     `<button class="scope" type="button" data-scope="${y}" aria-pressed="${y === state.scope}">${y === "all" ? "All time" : y}</button>`).join("");
 }
@@ -1131,7 +1516,9 @@ function profileScreen(s) {
   ].map(([k, n, attrs]) => `<li><button class="row" type="button" ${attrs}><span>${k}</span><span class="count">${fmtN(n)}</span>${CHEV}</button></li>`).join("");
   return `<div class="profile">${avatar({ name: ex ? "Example" : lib.profile.username || "You" }, "xl")}
       <div class="name">${esc(name)}</div><div class="handle">${handle}</div></div>
-    ${notice}${strip}${fill}${topRated}${ratings}${people}
+    ${notice}${strip}
+    <button class="row" type="button" data-act="insights"><span>Insights</span><span class="count">Trends, tastes, the crowd</span>${CHEV}</button>
+    ${fill}${topRated}${ratings}${people}
     ${sh(state.scope === "all" ? "All time" : state.scope)}<ul class="menu">${rows}</ul>`;
 }
 
@@ -1291,7 +1678,7 @@ function lookupInner() {
   } else {
     body = `<p>Lookups aren't available in this view. Open the downloadable copy of this page in a browser and use a TMDB key.</p>`;
   }
-  return head + body + note + saveNote;
+  return head + body + note + saveNote + imdbBlock(MY_LIB, true);
 }
 function progressText() {
   return job.kind === "claude" && job.done === 0 ? `Asking Claude about ${plural(job.total, "film")}… the first batch takes up to a minute.`
@@ -1301,6 +1688,8 @@ function renderLookup() { const el = $("#lookup"); if (el) el.innerHTML = lookup
 function renderLookupProgress() {
   const p = $("#lookup-progress");
   if (p) p.textContent = progressText();
+  const ip = $("#imdb-progress");
+  if (ip) ip.textContent = imdbProgressText();
   const m = $("#lookup-meter");
   if (m && MY_LIB) m.style.width = `${Math.round(MY_LIB.films.filter((f) => metaOf(f)).length / Math.max(1, MY_LIB.films.length) * 100)}%`;
 }
@@ -1320,16 +1709,17 @@ function dataScreen() {
       ${state.importError ? `<p class="status err" role="alert">${esc(state.importError)}</p>` : ""}</div>
     <div class="card" id="lookup" style="margin-top:12px">${lookupInner()}</div>
     ${sh("This browser")}<ul class="menu">${rows.join("")}</ul>
-    ${state.forgetArmed ? `<p class="status">Removes your imported export and looked-up details, plus any TMDB key you typed in.</p>` : ""}
+    ${state.forgetArmed ? `<p class="status">Removes your imported export and looked-up details, plus any keys you typed in.</p>` : ""}
     <div class="foot"><p>Credits Roll reads the CSV files in a Letterboxd data export. It is not made by or affiliated with Letterboxd.</p>
       <p>With your own TMDB key, film details come from The Movie Database. This product uses the TMDB API but is not endorsed or certified by TMDB.
       Inside the Claude app, details come from Claude's knowledge of each film instead, so check anything surprising.</p>
       <p>On a computer? <a href="desktop.html">Open the desktop version</a>. It uses the same import.</p>
-      <p>Updated 22 Oct 2026, 08:35 UTC</p></div>`;
+      <p>Updated 22 Oct 2026, 08:48 UTC</p></div>`;
 }
 
 /* ---------- pushed detail screens ---------- */
 function detailScreen(d, s) {
+  if (d.type === "insights") return insightsScreen();
   if (d.type === "cat") {
     const data = s[d.field], best = state.catSort === "best";
     const list = best ? data.best : data.most;
@@ -1343,6 +1733,106 @@ function detailScreen(d, s) {
 }
 
 const SCREENS = { profile: profileScreen, people: peopleScreen, diary: diaryScreen, films: filmsScreen, data: dataScreen };
+</script>
+<script>
+/* ---------- phone: the Insights screen, pushed from the nav bar or Profile ---------- */
+function insightsScreen() {
+  const lib = state.lib;
+  const I = computeInsights(lib, metaOf, state.crowd || defaultCrowd(lib, metaOf));
+  if (!lib.entries.length) return `<div class="empty" style="padding-top:28px">Insights come from your diary dates, and this diary has none yet.</div>`;
+  const first = lib.entries[0].date, last = lib.entries[lib.entries.length - 1].date;
+  const intro = `<p class="status" style="margin:16px 0 0">Patterns across ${plural(I.years.length, "year")} of diary, ${fmtDate(first)} to ${fmtDate(last)}.</p>`;
+  return intro + mGlance(I) + mYears(I) + mTastes(I) + mGenres(I) + mPeople(I) + mCrowd(I) + mHabits(I);
+}
+const twoYears = (what) => `<div class="empty">${what} need diary entries from at least two years, with five or more films in each.</div>`;
+
+function mGlance(I) {
+  if (!I.glance.length) return "";
+  return sh("At a glance") + `<div class="icards">${I.glance.map((g) => `<div class="icard"><span class="k">${esc(g.k)}</span><span class="big">${esc(g.big)}</span><p>${esc(g.text)}</p></div>`).join("")}</div>`;
+}
+
+function mYears(I) {
+  if (I.years.length < 2) return sh("Year by year") + twoYears("Year-by-year trends");
+  const mult = (title, value, tip, extra) => `<div class="mult"><p class="mt">${title}</p>${colChart(I.years.map((p) => ({ a: Math.max(0, value(p) || 0), b: extra ? extra(p) : 0, label: `’${p.year.slice(2)}`, tip: tip(p) })), title + " by year", "", 64)}</div>`;
+  const anyPace = I.years.some((p) => p.pace && p.pace > p.films);
+  const legend = anyPace ? `<div class="legend" style="margin-top:2px"><span><i style="background:var(--green-mark)"></i>Watched</span><span><i style="background:var(--blue-mark)"></i>Rest of this year at your pace</span></div>` : "";
+  const rows = [...I.years].reverse().map((p) => `<tr><td>${p.year}</td><td class="n">${fmtN(p.films)}${p.pace ? ` <span class="dim">→${fmtN(p.pace)}</span>` : ""}</td><td class="n">${fmtN(Math.round(p.hours))}</td>
+    <td class="n">${p.avgRating ? p.avgRating.toFixed(2) : "—"}</td><td class="n">${p.nonEnglish != null ? p.nonEnglish + "%" : "—"}</td>
+    <td>${p.topGenre ? esc(p.topGenre[0]) : "—"}</td><td>${p.topDirector && p.topDirector[1] > 1 ? esc(p.topDirector[0]) : "—"}</td></tr>`).join("");
+  return sh("Year by year") + legend + `<div class="mults">
+    ${mult("Films", (p) => p.films, (p) => `${p.year}: ${plural(p.films, "film")}${p.pace ? `, on pace for about ${fmtN(p.pace)}` : ""}`, (p) => p.pace && p.pace > p.films ? p.pace - p.films : 0)}
+    ${mult("Hours", (p) => Math.round(p.hours), (p) => `${p.year}: ${fmtN(Math.round(p.hours))} hours`)}
+    ${mult("Average rating", (p) => p.avgRating, (p) => `${p.year}: ${p.avgRating ? starsNum(p.avgRating) : "no ratings"}`)}
+    ${mult("Film age when watched", (p) => p.age, (p) => `${p.year}: ${p.age != null ? Math.round(p.age) + " years old on average" : "—"}`)}
+    ${mult("Not in English (%)", (p) => p.nonEnglish, (p) => `${p.year}: ${p.nonEnglish != null ? p.nonEnglish + "%" : "not enough details"}`)}
+    ${mult("Rewatches (%)", (p) => pctOf(p.rewatches, p.entries), (p) => `${p.year}: ${pctOf(p.rewatches, p.entries)}% of entries`)}</div>
+    <div class="tscroll"><table class="mtable"><thead><tr><th>Year</th><th class="n">Films</th><th class="n">Hours</th><th class="n">Avg</th><th class="n">Not Eng.</th><th>Top genre</th><th>Top director</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+function mTastes(I) {
+  if (!I.tastes.table) return sh("Changing tastes") + twoYears("Changes in taste");
+  const lines = I.tastes.lines.length ? I.tastes.lines.map((l) => `<div class="tline"><span class="mk ${l.dir}" aria-hidden="true">${l.dir === "up" ? "▲" : "▼"}</span><span>${esc(l.text)}</span></div>`).join("")
+    : `<p style="margin:0">Your taste has held steady between your earliest and latest years.</p>`;
+  const t = I.tastes.table;
+  const heat = `<div class="tscroll"><table class="mtable heat"><thead><tr><th>Genre</th>${t.years.map((y) => `<th class="n">’${y.year.slice(2)}</th>`).join("")}</tr></thead>
+    <tbody>${t.genres.map((g, gi) => `<tr><td>${esc(g)}</td>${t.years.map((y) => { const v = y.shares[gi];
+      return `<td class="n" style="background:color-mix(in srgb, var(--green-mark) ${v == null ? 0 : Math.min(65, v * 1.5)}%, transparent)">${v == null ? "—" : v}</td>`; }).join("")}</tr>`).join("")}</tbody></table></div>
+    <p class="status">Percent of each year's films in the genre.</p>`;
+  return sh("Changing tastes") + lines + heat;
+}
+
+function mGenres(I) {
+  if (!I.genres.length) return sh("Genres") + needMeta();
+  const max = Math.max(0.5, ...I.genres.map((g) => Math.abs(g.vsCrowd || 0)), ...I.genres.map((g) => Math.abs(g.vsMe)));
+  const bar = (d) => d == null ? `<span class="dim">—</span>` : `<span class="dbar" aria-hidden="true"><span class="mid"></span><span class="fill ${d >= 0 ? "pos" : "neg"}" style="width:${Math.min(50, Math.abs(d) / max * 50).toFixed(1)}%"></span></span>`;
+  const lines = I.genreLines.map((t) => `<div class="tline"><span class="mk" aria-hidden="true">●</span><span>${esc(t)}</span></div>`).join("");
+  const rows = I.genres.map((g) => `<button class="grow" type="button" data-push="${reg(g.name, `${plural(g.count, "film")} · ${g.mine.toFixed(2)} average`, g.films)}">
+    <span style="min-width:0"><span class="nm">${esc(g.name)}</span><span class="sub">${plural(g.count, "film")} · ★ ${g.mine.toFixed(2)}</span></span>
+    <span class="gcol">${bar(g.vsMe)}<span class="v">${signed(g.vsMe)}</span></span><span class="gcol">${bar(g.vsCrowd)}<span class="v">${g.vsCrowd == null ? "" : signed(g.vsCrowd)}</span></span>${CHEV}</button>`).join("");
+  return sh("Genres") + lines + `<div class="ghead"><span></span><span>vs your avg</span><span>vs ${esc(I.crowd.short)}</span><span></span></div>${rows}
+    <div class="legend" style="margin-top:8px"><span><i style="background:var(--green-mark)"></i>Higher</span><span><i style="background:var(--blue-mark)"></i>Lower</span><span>in stars</span></div>`;
+}
+
+function mPeople(I) {
+  const P = I.people;
+  const row = (p, i, value, sub) => `<button class="prow" type="button" data-push="${reg(p.name, sub(p), p.films, p)}">
+    <span class="rk">${i + 1}</span>${avatar(p, "md")}<span style="min-width:0"><span class="nm" style="display:block">${esc(p.name)}</span><span class="sub">${esc(sub(p))}</span></span>
+    <span class="val">${value}</span>${CHEV}</button>`;
+  const obs = [...P.obsDirectors.map((p) => ({ ...p, role: "Director" })), ...P.obsActors.map((p) => ({ ...p, role: "Actor" }))].sort((a, b) => b.inLatest - a.inLatest).slice(0, 6);
+  const comp = [...P.compDirectors.map((p) => ({ ...p, role: "Director" })), ...P.compActors.map((p) => ({ ...p, role: "Actor" }))].sort((a, b) => b.years.size - a.years.size || b.count - a.count).slice(0, 6);
+  if (!obs.length && !comp.length && !P.binges.length) return sh("People") + `<div class="empty">People trends need cast &amp; crew details and a few years of diary.</div>`;
+  let html = "";
+  if (obs.length) html += sh(`New in ${I.latest}`) + obs.map((p, i) => row(p, i, `${p.inLatest}`, (q) => `${q.role} · ${plural(q.inLatest, "film")} in ${I.latest}, none before`)).join("");
+  if (comp.length) html += sh("Long-time companions") + comp.map((p, i) => row(p, i, `${p.years.size}y`, (q) => `${q.role} · ${plural(q.years.size, "year")} of your diary`)).join("");
+  if (P.binges.length) html += sh("Director binges") + P.binges.map((p, i) => row(p, i, `${p.binge.n}`, (q) => `${q.binge.n} films, ${fmtDate(q.binge.from)} – ${fmtDate(q.binge.to)}`)).join("");
+  if (P.discoveries.length >= 2) html += sh("Directors discovered each year") +
+    colChart(P.discoveries.map((d) => ({ a: d.count, b: 0, label: `’${d.year.slice(2)}`, tip: `${d.year}: ${plural(d.count, "new director")}` })), "New directors by year", "", 64);
+  return html;
+}
+
+function mCrowd(I) {
+  const C = I.crowd;
+  const toggles = `<div class="toggles">${Object.entries(CROWDS).map(([k, c]) => (C.available[k] || 0) >= 5 || k === C.key
+    ? `<button class="toggle" type="button" data-crowdsel="${k}" aria-pressed="${k === C.key}">${c.short}</button>` : "").join("")}</div>`;
+  if (C.n < 5) {
+    const why = IN_VIEWER ? `Crowd scores come from TMDB and OMDb, which pages inside Claude can't reach. Open <a href="https://sjnift.github.io/credits-roll/" target="_blank" rel="noopener">the web version</a>.`
+      : C.key === "tmdb" ? "Crowd scores come with TMDB details. Look your films up in the Import tab." : "IMDb and critics' scores need a free OMDb key, added in the Import tab.";
+    return sh("Against the crowd") + toggles + `<div class="empty">${why}</div>`;
+  }
+  const grid = (items) => `<div class="pgrid">${items.map((p) => `<div class="pitem" title="You ${p.you}★ · ${C.label} ${(p.crowd * 2).toFixed(1)}/10">${poster(p.f)}
+    <span class="pmeta"><span class="stars">${stars(p.you)}</span></span><span class="mdate">${C.short} ${(p.crowd * 2).toFixed(1)} · <b class="dv">${signed(p.diff)}★</b></span></div>`).join("")}</div>`;
+  let html = sh("Against the crowd") + toggles + `<p class="lead">You give ${Math.abs(C.meanDiff).toFixed(2)}★ ${C.meanDiff >= 0 ? "more" : "less"} than ${esc(C.label)} on average${followText(C.r)}, across ${plural(C.n, "film")}.</p>`;
+  html += sh(`Liked more than ${esc(C.short)}`) + (C.higher.length ? grid(C.higher) : `<div class="empty">No film you rated ¾★ or more above them.</div>`);
+  html += sh(`Liked less than ${esc(C.short)}`) + (C.lower.length ? grid(C.lower) : `<div class="empty">No film you rated ¾★ or more below them.</div>`);
+  if (C.gems.length) html += sh("Hidden gems") + `<p class="status" style="margin:-2px 0 10px">Rated 4½★ or more by you, and by few others.</p><div class="pgrid">${C.gems.map((g) => `<div class="pitem">${poster(g.f)}
+    <span class="pmeta"><span class="stars">${stars(g.f.rating)}</span></span><span class="mdate">${fmtN(g.pop.n)} ${g.pop.src} votes</span></div>`).join("")}</div>`;
+  return html;
+}
+
+function mHabits(I) {
+  if (!I.habits.length) return "";
+  return sh("Habits") + `<div class="facts" style="margin-top:0">${I.habits.map((h) => `<div class="fact"><span class="k">${esc(h.k)}</span><span class="v">${esc(h.v)}</span><span class="t">${esc(h.text)}</span></div>`).join("")}</div>`;
+}
 </script>
 <script>
 /* ---------- importing ---------- */
@@ -1370,6 +1860,7 @@ let forgetTimer = null;
 function act(t) {
   const a = t.dataset.act;
   if (a === "import") $("#file-input").click();
+  else if (a === "insights") push({ type: "insights", title: "Insights" });
   else if (a === "back") pop();
   else if (a === "people") { Object.assign(state, { view: "people", role: t.dataset.role || "c", stack: [], peopleLimit: 50 }); saveView(); render(); window.scrollTo(0, 0); }
   else if (a === "cat") push({ type: "cat", field: t.dataset.field, title: t.dataset.field[0].toUpperCase() + t.dataset.field.slice(1) });
@@ -1396,6 +1887,8 @@ function act(t) {
   }
   else if (a === "tmdb") startTmdb(MY_LIB);
   else if (a === "change-key") { editKey = true; renderLookup(); $("#tmdb-key")?.focus(); }
+  else if (a === "omdb") startOmdb(MY_LIB);
+  else if (a === "change-omdb") { editOmdb = true; renderLookup(); $("#omdb-key")?.focus(); }
   else if (a === "claude") runClaude(MY_LIB);
   else if (a === "claude-retry") retryClaudeMisses(MY_LIB);
   else if (a === "stop") job.ctl && job.ctl.abort();
@@ -1405,8 +1898,9 @@ function bind() {
   const fileInput = $("#file-input");
   fileInput.addEventListener("change", () => { const files = [...fileInput.files]; fileInput.value = ""; if (files.length) importFiles(files); });
   document.addEventListener("click", (e) => {
-    const t = e.target.closest("[data-act],[data-view],[data-scope],[data-push],[data-role],[data-crew],[data-sort],[data-catsort]");
+    const t = e.target.closest("[data-crowdsel],[data-act],[data-view],[data-scope],[data-push],[data-role],[data-crew],[data-sort],[data-catsort]");
     if (!t) return;
+    if (t.dataset.crowdsel) { state.crowd = t.dataset.crowdsel; render(); return; }
     if (t.dataset.act) return act(t);
     if (t.dataset.view) {
       const same = state.view === t.dataset.view && !state.stack.length;

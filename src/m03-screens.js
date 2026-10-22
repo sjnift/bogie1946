@@ -2,7 +2,7 @@
 /* ---------- app state ---------- */
 const state = {
   mode: "example", lib: null, scope: "all", view: "profile", stack: [],
-  role: "c", crew: "w", sort: "most", catSort: "most", peopleLimit: 50, diaryLimit: 60,
+  role: "c", crew: "w", sort: "most", catSort: "most", peopleLimit: 50, diaryLimit: 60, crowd: null,
 };
 let MY_LIB = null, EXAMPLE_LIB = null, STATS = null;
 const IMG = "https://image.tmdb.org/t/p/w185";
@@ -47,7 +47,7 @@ function renderTop(years, d) {
   $("#nav-left").innerHTML = d ? `<button class="nav-btn" type="button" data-act="back">${BACK}<span class="sr-only">Back</span></button>` : "";
   const who = state.mode === "example" ? "Example diary" : state.lib.profile.username || "Your diary";
   $("#nav-title").textContent = d ? d.title : state.view === "profile" ? who : TITLES[state.view];
-  $("#nav-right").innerHTML = !d && state.view !== "data" ? `<button class="nav-btn" type="button" data-act="import">Import</button>` : "";
+  $("#nav-right").innerHTML = !d ? `<button class="nav-btn" type="button" data-act="insights">Insights</button>` : "";
   $("#scopes").innerHTML = ["all", ...years].map((y) =>
     `<button class="scope" type="button" data-scope="${y}" aria-pressed="${y === state.scope}">${y === "all" ? "All time" : y}</button>`).join("");
 }
@@ -139,7 +139,9 @@ function profileScreen(s) {
   ].map(([k, n, attrs]) => `<li><button class="row" type="button" ${attrs}><span>${k}</span><span class="count">${fmtN(n)}</span>${CHEV}</button></li>`).join("");
   return `<div class="profile">${avatar({ name: ex ? "Example" : lib.profile.username || "You" }, "xl")}
       <div class="name">${esc(name)}</div><div class="handle">${handle}</div></div>
-    ${notice}${strip}${fill}${topRated}${ratings}${people}
+    ${notice}${strip}
+    <button class="row" type="button" data-act="insights"><span>Insights</span><span class="count">Trends, tastes, the crowd</span>${CHEV}</button>
+    ${fill}${topRated}${ratings}${people}
     ${sh(state.scope === "all" ? "All time" : state.scope)}<ul class="menu">${rows}</ul>`;
 }
 

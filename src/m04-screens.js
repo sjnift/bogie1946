@@ -131,7 +131,7 @@ function lookupInner() {
   } else {
     body = `<p>Lookups aren't available in this view. Open the downloadable copy of this page in a browser and use a TMDB key.</p>`;
   }
-  return head + body + note + saveNote;
+  return head + body + note + saveNote + imdbBlock(MY_LIB, true);
 }
 function progressText() {
   return job.kind === "claude" && job.done === 0 ? `Asking Claude about ${plural(job.total, "film")}… the first batch takes up to a minute.`
@@ -141,6 +141,8 @@ function renderLookup() { const el = $("#lookup"); if (el) el.innerHTML = lookup
 function renderLookupProgress() {
   const p = $("#lookup-progress");
   if (p) p.textContent = progressText();
+  const ip = $("#imdb-progress");
+  if (ip) ip.textContent = imdbProgressText();
   const m = $("#lookup-meter");
   if (m && MY_LIB) m.style.width = `${Math.round(MY_LIB.films.filter((f) => metaOf(f)).length / Math.max(1, MY_LIB.films.length) * 100)}%`;
 }
@@ -160,7 +162,7 @@ function dataScreen() {
       ${state.importError ? `<p class="status err" role="alert">${esc(state.importError)}</p>` : ""}</div>
     <div class="card" id="lookup" style="margin-top:12px">${lookupInner()}</div>
     ${sh("This browser")}<ul class="menu">${rows.join("")}</ul>
-    ${state.forgetArmed ? `<p class="status">Removes your imported export and looked-up details, plus any TMDB key you typed in.</p>` : ""}
+    ${state.forgetArmed ? `<p class="status">Removes your imported export and looked-up details, plus any keys you typed in.</p>` : ""}
     <div class="foot"><p>Credits Roll reads the CSV files in a Letterboxd data export. It is not made by or affiliated with Letterboxd.</p>
       <p>With your own TMDB key, film details come from The Movie Database. This product uses the TMDB API but is not endorsed or certified by TMDB.
       Inside the Claude app, details come from Claude's knowledge of each film instead, so check anything surprising.</p>
@@ -170,6 +172,7 @@ function dataScreen() {
 
 /* ---------- pushed detail screens ---------- */
 function detailScreen(d, s) {
+  if (d.type === "insights") return insightsScreen();
   if (d.type === "cat") {
     const data = s[d.field], best = state.catSort === "best";
     const list = best ? data.best : data.most;

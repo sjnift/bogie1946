@@ -24,6 +24,7 @@ let forgetTimer = null;
 function act(t) {
   const a = t.dataset.act;
   if (a === "import") $("#file-input").click();
+  else if (a === "insights") push({ type: "insights", title: "Insights" });
   else if (a === "back") pop();
   else if (a === "people") { Object.assign(state, { view: "people", role: t.dataset.role || "c", stack: [], peopleLimit: 50 }); saveView(); render(); window.scrollTo(0, 0); }
   else if (a === "cat") push({ type: "cat", field: t.dataset.field, title: t.dataset.field[0].toUpperCase() + t.dataset.field.slice(1) });
@@ -50,6 +51,8 @@ function act(t) {
   }
   else if (a === "tmdb") startTmdb(MY_LIB);
   else if (a === "change-key") { editKey = true; renderLookup(); $("#tmdb-key")?.focus(); }
+  else if (a === "omdb") startOmdb(MY_LIB);
+  else if (a === "change-omdb") { editOmdb = true; renderLookup(); $("#omdb-key")?.focus(); }
   else if (a === "claude") runClaude(MY_LIB);
   else if (a === "claude-retry") retryClaudeMisses(MY_LIB);
   else if (a === "stop") job.ctl && job.ctl.abort();
@@ -59,8 +62,9 @@ function bind() {
   const fileInput = $("#file-input");
   fileInput.addEventListener("change", () => { const files = [...fileInput.files]; fileInput.value = ""; if (files.length) importFiles(files); });
   document.addEventListener("click", (e) => {
-    const t = e.target.closest("[data-act],[data-view],[data-scope],[data-push],[data-role],[data-crew],[data-sort],[data-catsort]");
+    const t = e.target.closest("[data-crowdsel],[data-act],[data-view],[data-scope],[data-push],[data-role],[data-crew],[data-sort],[data-catsort]");
     if (!t) return;
+    if (t.dataset.crowdsel) { state.crowd = t.dataset.crowdsel; render(); return; }
     if (t.dataset.act) return act(t);
     if (t.dataset.view) {
       const same = state.view === t.dataset.view && !state.stack.length;

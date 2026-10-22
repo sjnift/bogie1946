@@ -27,7 +27,7 @@ const EXAMPLE_FILMS = [
   ["The Prestige", 2006, 4, 0, "Christopher Nolan", "Hugh Jackman|Christian Bale|Michael Caine|Scarlett Johansson|Rebecca Hall", "Drama|Mystery|Thriller", "USA|UK", "English", 130, "Jonathan Nolan|Christopher Nolan", "Wally Pfister", "David Julyan"],
   ["Inception", 2010, 4, 0, "Christopher Nolan", "Leonardo DiCaprio|Joseph Gordon-Levitt|Elliot Page|Tom Hardy|Ken Watanabe|Cillian Murphy|Marion Cotillard|Michael Caine", "Action|Science Fiction|Adventure", "USA|UK", "English", 148, "Christopher Nolan", "Wally Pfister", "Hans Zimmer"],
   ["Dune: Part Two", 2024, 4.5, 1, "Denis Villeneuve", "Timothée Chalamet|Zendaya|Rebecca Ferguson|Javier Bardem|Josh Brolin|Austin Butler|Florence Pugh", "Science Fiction|Adventure", "USA|Canada", "English", 167, "Denis Villeneuve|Jon Spaihts", "Greig Fraser", "Hans Zimmer"],
-  ["Dune", 2021, 4, 0, "Denis Villeneuve", "Timothée Chalamet|Rebecca Ferguson|Oscar Isaac|Josh Brolin|Stellan Skarsgård|Zendaya", "Science Fiction|Adventure", "USA|Canada", "English", 156, "Jon Spaihts|Denis Villeneuve|Eric Roth", "Greig Fraser", "Hans Zimmer"],
+  ["Dune", 2021, 3, 0, "Denis Villeneuve", "Timothée Chalamet|Rebecca Ferguson|Oscar Isaac|Josh Brolin|Stellan Skarsgård|Zendaya", "Science Fiction|Adventure", "USA|Canada", "English", 156, "Jon Spaihts|Denis Villeneuve|Eric Roth", "Greig Fraser", "Hans Zimmer"],
   ["Arrival", 2016, 4.5, 1, "Denis Villeneuve", "Amy Adams|Jeremy Renner|Forest Whitaker|Michael Stuhlbarg", "Science Fiction|Drama", "USA|Canada", "English", 116, "Eric Heisserer", "Bradford Young", "Jóhann Jóhannsson"],
   ["Blade Runner 2049", 2017, 4.5, 0, "Denis Villeneuve", "Ryan Gosling|Harrison Ford|Ana de Armas|Sylvia Hoeks|Robin Wright|Jared Leto", "Science Fiction|Drama", "USA|UK|Canada", "English", 164, "Hampton Fancher|Michael Green", "Roger Deakins", "Benjamin Wallfisch|Hans Zimmer"],
   ["Prisoners", 2013, 4, 0, "Denis Villeneuve", "Hugh Jackman|Jake Gyllenhaal|Viola Davis|Maria Bello|Terrence Howard|Melissa Leo|Paul Dano", "Crime|Drama|Thriller", "USA", "English", 153, "Aaron Guzikowski", "Roger Deakins", "Jóhann Jóhannsson"],
@@ -39,8 +39,8 @@ const EXAMPLE_FILMS = [
   ["Donnie Darko", 2001, 3.5, 0, "Richard Kelly", "Jake Gyllenhaal|Jena Malone|Maggie Gyllenhaal|Drew Barrymore|Mary McDonnell|Patrick Swayze", "Drama|Mystery|Science Fiction", "USA", "English", 113, "Richard Kelly", "Steven Poster", "Michael Andrews"],
   ["The Social Network", 2010, 4.5, 1, "David Fincher", "Jesse Eisenberg|Andrew Garfield|Justin Timberlake|Armie Hammer|Rooney Mara", "Drama", "USA", "English", 120, "Aaron Sorkin", "Jeff Cronenweth", "Trent Reznor|Atticus Ross"],
   ["Gone Girl", 2014, 4, 0, "David Fincher", "Ben Affleck|Rosamund Pike|Neil Patrick Harris|Tyler Perry|Carrie Coon", "Mystery|Thriller|Drama", "USA", "English", 149, "Gillian Flynn", "Jeff Cronenweth", "Trent Reznor|Atticus Ross"],
-  ["Fight Club", 1999, 3.5, 0, "David Fincher", "Edward Norton|Brad Pitt|Helena Bonham Carter|Meat Loaf|Jared Leto", "Drama|Thriller", "USA|Germany", "English", 139, "Jim Uhls", "Jeff Cronenweth", "The Dust Brothers"],
-  ["La La Land", 2016, 4, 1, "Damien Chazelle", "Ryan Gosling|Emma Stone|John Legend|Rosemarie DeWitt|J.K. Simmons", "Comedy|Drama|Romance|Music", "USA", "English", 129, "Damien Chazelle", "Linus Sandgren", "Justin Hurwitz"],
+  ["Fight Club", 1999, 3, 0, "David Fincher", "Edward Norton|Brad Pitt|Helena Bonham Carter|Meat Loaf|Jared Leto", "Drama|Thriller", "USA|Germany", "English", 139, "Jim Uhls", "Jeff Cronenweth", "The Dust Brothers"],
+  ["La La Land", 2016, 3, 0, "Damien Chazelle", "Ryan Gosling|Emma Stone|John Legend|Rosemarie DeWitt|J.K. Simmons", "Comedy|Drama|Romance|Music", "USA", "English", 129, "Damien Chazelle", "Linus Sandgren", "Justin Hurwitz"],
   ["Whiplash", 2014, 4.5, 1, "Damien Chazelle", "Miles Teller|J.K. Simmons|Melissa Benoist|Paul Reiser", "Drama|Music", "USA", "English", 107, "Damien Chazelle", "Sharone Meir", "Justin Hurwitz"],
   ["Drive", 2011, 4, 0, "Nicolas Winding Refn", "Ryan Gosling|Carey Mulligan|Bryan Cranston|Albert Brooks|Oscar Isaac|Ron Perlman", "Crime|Drama|Thriller", "USA", "English", 100, "Hossein Amini", "Newton Thomas Sigel", "Cliff Martinez"],
   ["Poor Things", 2023, 4, 1, "Yorgos Lanthimos", "Emma Stone|Mark Ruffalo|Willem Dafoe|Ramy Youssef", "Science Fiction|Romance|Comedy", "UK|USA|Ireland", "English", 141, "Tony McNamara", "Robbie Ryan", "Jerskin Fendrix"],
@@ -77,17 +77,45 @@ const EXAMPLE_FILMS = [
   ["Before Midnight", 2013, 4, 0, "Richard Linklater", "Ethan Hawke|Julie Delpy", "Drama|Romance", "USA|Greece", "English", 109, "Richard Linklater|Julie Delpy|Ethan Hawke", "Christos Voudouris", "Graham Reynolds"],
 ];
 
+/* Example crowd scores, roughly what TMDB users give these films (out of 10, then how many votes). */
+const EXAMPLE_CROWD = {
+  "Parasite": [8.5, 19000], "Memories of Murder": [8.1, 3700], "The Host": [6.9, 2600], "Decision to Leave": [7.3, 1300],
+  "Oldboy": [8.2, 8800], "The Handmaiden": [8.2, 3600], "Past Lives": [7.7, 1700], "In the Mood for Love": [8.1, 3100],
+  "Chungking Express": [7.9, 1900], "2046": [7.4, 900], "Fallen Angels": [7.5, 800], "Infernal Affairs": [7.8, 1800],
+  "Lost in Translation": [7.4, 7600], "The Grand Budapest Hotel": [8.0, 15000], "Fantastic Mr. Fox": [7.8, 5900],
+  "The Royal Tenenbaums": [7.3, 3300], "Asteroid City": [6.4, 1500], "Moonrise Kingdom": [7.6, 6900], "Rushmore": [7.1, 1900],
+  "Oppenheimer": [8.1, 10000], "Interstellar": [8.4, 37000], "The Prestige": [8.2, 16000], "Inception": [8.4, 37000],
+  "Dune: Part Two": [8.1, 7500], "Dune": [7.8, 13000], "Arrival": [7.6, 18000], "Blade Runner 2049": [7.6, 14000],
+  "Prisoners": [8.1, 12000], "Sicario": [7.4, 9000], "Enemy": [6.9, 4600], "Nightcrawler": [7.7, 11000], "Zodiac": [7.5, 11000],
+  "Brokeback Mountain": [7.8, 6500], "Donnie Darko": [7.8, 12000], "The Social Network": [7.4, 13000], "Gone Girl": [7.9, 19000],
+  "Fight Club": [8.4, 30000], "La La Land": [7.9, 17000], "Whiplash": [8.4, 15000], "Drive": [7.6, 13000], "Poor Things": [7.7, 4500],
+  "The Favourite": [7.1, 6000], "The Lobster": [6.7, 5500], "Kinds of Kindness": [6.6, 900], "Portrait of a Lady on Fire": [8.1, 2700],
+  "Anatomy of a Fall": [7.7, 2000], "The Zone of Interest": [7.0, 1700], "Spirited Away": [8.5, 17000], "My Neighbor Totoro": [8.1, 8500],
+  "Princess Mononoke": [8.3, 8200], "Perfect Days": [7.8, 900], "Drive My Car": [7.4, 1000], "Aftersun": [7.6, 1500],
+  "All of Us Strangers": [7.4, 900], "Lady Bird": [7.3, 9200], "Little Women": [7.9, 7000], "Frances Ha": [7.2, 1600],
+  "Marriage Story": [7.7, 7400], "Paterson": [7.1, 1600], "Call Me by Your Name": [8.1, 12000], "Challengers": [7.0, 1600],
+  "Mulholland Drive": [7.7, 5000], "Perfect Blue": [8.3, 2500], "Everything Everywhere All at Once": [7.8, 7000],
+  "Crouching Tiger, Hidden Dragon": [7.3, 3900], "Burning": [7.2, 1600], "Minari": [7.2, 1700], "Nope": [6.8, 5000],
+  "Get Out": [7.6, 17000], "Before Sunrise": [7.9, 4400], "Before Sunset": [7.8, 3200], "Before Midnight": [7.6, 2500],
+};
+
 /* Turns the table above into the same shape an imported export produces:
    a library of films plus diary entries, and a metadata map keyed by film. */
 function buildExample() {
   let seed = 20261021;
   const rand = () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
     t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
-  const start = Date.UTC(2025, 0, 3), end = Date.UTC(2026, 9, 18), day = 864e5;
-  const span = (end - start) / day;
+  const start = Date.UTC(2021, 0, 4), end = Date.UTC(2026, 9, 18), day = 864e5;
   const iso = (t) => new Date(t).toISOString().slice(0, 10);
-  // weight later dates a little so 2026 reads busier than 2025
-  const pick = () => start + Math.floor(Math.pow(rand(), 0.8) * span) * day;
+  // Never before a film came out; later years a little busier; and the example's taste drifts
+  // from English-language films toward world cinema, so Insights has a change to find.
+  const pick = (year, lang) => {
+    const lo = Math.max(start, Date.UTC(year, 2, 1));
+    let p = Math.pow(rand(), 0.8);
+    p = lang === "English" ? p * 0.8 : 0.35 + 0.65 * p;
+    return lo + Math.floor(p * (end - lo) / day) * day;
+  };
+  const logDate = (t) => iso(t + (rand() < 0.25 ? (1 + Math.floor(rand() * 5)) * day : 0));
   const rows = { profile: [{ Username: "example" }], watched: [], ratings: [], diary: [], likes: [], reviews: [] };
   const meta = {};
   const split = (s) => s ? s.split("|") : [];
@@ -97,13 +125,14 @@ function buildExample() {
     rows.watched.push({ ...base, Date: iso(start) });
     rows.ratings.push({ ...base, Rating: String(rating) });
     if (liked) rows.likes.push(base);
-    meta[filmKey(name, year)] = { src: "example", d: split(d), c: split(c), g: split(g), k: split(k), l, r, w: split(w), p: split(p), m: split(m) };
+    const crowd = EXAMPLE_CROWD[name] || [];
+    meta[filmKey(name, year)] = { src: "example", d: split(d), c: split(c), g: split(g), k: split(k), l, r, w: split(w), p: split(p), m: split(m), va: crowd[0], vc: crowd[1] };
     if (i % 9 === 4) return; // logged as watched without a diary date
-    const first = pick();
-    rows.diary.push({ ...base, "Watched Date": iso(first), Rating: String(rating), Rewatch: "", Tags: "" });
+    const first = pick(year, l);
+    rows.diary.push({ ...base, Date: logDate(first), "Watched Date": iso(first), Rating: String(rating), Rewatch: "", Tags: "" });
     if (rating >= 4.5 && rand() < 0.55) {
       const again = first + Math.floor(rand() * (end - first) / day) * day;
-      if (again > first) rows.diary.push({ ...base, "Watched Date": iso(again), Rating: String(rating), Rewatch: "Yes", Tags: "" });
+      if (again > first) rows.diary.push({ ...base, Date: logDate(again), "Watched Date": iso(again), Rating: String(rating), Rewatch: "Yes", Tags: "" });
     }
     if (rand() < 0.3) rows.reviews.push({ ...base, "Watched Date": iso(first) });
   });

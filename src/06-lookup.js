@@ -109,7 +109,12 @@ async function runTmdb(lib, key) {
       try {
         const m = await tmdbFilm(f, key, signal);
         if (m.miss) { if (!META[f.key] || META[f.key].src === "tmdb") META[f.key] = m; else META[f.key].tmdbMiss = TMDB_MATCH_VERSION; job.failed++; }
-        else META[f.key] = m;
+        else {
+          // keep IMDb scores already fetched for the same film, so OMDb's daily allowance isn't spent twice
+          const prev = META[f.key];
+          if (prev && prev.om && prev.im === m.im) for (const k of ["ir", "iv", "mc", "rt", "om"]) m[k] = prev[k];
+          META[f.key] = m;
+        }
       } catch (e) {
         if (signal.aborted) return;
         if (e && e.code === "auth") { job.badKey = true; fatal = "TMDB didn't accept that key. Copy the API Key (v3) or the API Read Access Token from your TMDB account settings and try again."; return; }
@@ -139,12 +144,93 @@ function startTmdb(lib) {
   if (typed && typed !== BUILT_IN_TMDB_KEY) store.set(KEYS.tmdb, typed);
   else if (typed) store.del(KEYS.tmdb);
   editKey = false;
-  runTmdb(lib, key);
+  runTmdb(lib, key).then(() => { if (omdbKey()) runOmdb(lib, omdbKey()); });
 }
 // After an import, a copy that already knows a key looks films up without being asked.
-function autoLookup(lib) {
-  if (!IN_VIEWER && tmdbKey() && needsLookup(lib, "tmdb").length) runTmdb(lib, tmdbKey());
+async function autoLookup(lib) {
+  if (IN_VIEWER) return;
+  if (tmdbKey() && needsLookup(lib, "tmdb").length) await runTmdb(lib, tmdbKey());
+  if (omdbKey() && !imdbJob.badKey && needsImdb(lib).length) runOmdb(lib, omdbKey());
 }
+
+/* ----- IMDb, Metacritic and Rotten Tomatoes scores, through OMDb -----
+   TMDB gives each film's IMDb id; OMDb turns it into scores. Its free key allows 1,000 films a day,
+   so a big library fills in over a few days, picking up where it stopped each time the page opens. */
+const omdbKey = () => store.get(KEYS.omdb, "");
+const imdbJob = { running: false, ctl: null, done: 0, total: 0, note: "", err: false, badKey: false };
+let editOmdb = false;
+const needsImdb = (lib) => lib.films.filter((f) => { const m = META[f.key]; return m && !m.miss && m.im && !m.om; });
+async function runOmdb(lib, key) {
+  const queue = needsImdb(lib);
+  if (!queue.length || imdbJob.running) return;
+  Object.assign(imdbJob, { running: true, ctl: new AbortController(), done: 0, total: queue.length, note: "", err: false, badKey: false });
+  renderLookup();
+  const signal = imdbJob.ctl.signal, today = new Date().toISOString().slice(0, 10);
+  const num = (s) => { const n = parseFloat(String(s || "").replace(/,/g, "")); return isFinite(n) ? n : null; };
+  let stop = null, sinceSave = 0;
+  const worker = async () => {
+    while (queue.length && !signal.aborted && !stop) {
+      const f = queue.shift(), m = META[f.key];
+      try {
+        const res = await fetch(`https://www.omdbapi.com/?i=${encodeURIComponent(m.im)}&apikey=${encodeURIComponent(key)}`, { signal });
+        const d = await res.json();
+        if (d.Response === "False") {
+          if (/limit/i.test(d.Error || "")) { stop = "limit"; return; }
+          if (/api key/i.test(d.Error || "") || res.status === 401) { stop = "key"; return; }
+          m.om = today; // OMDb doesn't know this film; don't ask again
+        } else {
+          const rt = (d.Ratings || []).find((x) => x.Source === "Rotten Tomatoes");
+          Object.assign(m, { ir: num(d.imdbRating), iv: num(d.imdbVotes), mc: num(d.Metascore), rt: rt ? num(rt.Value) : null, om: today });
+        }
+      } catch (e) {
+        if (signal.aborted) return;
+        stop = "network"; return;
+      }
+      imdbJob.done++;
+      if (++sinceSave >= 25) { sinceSave = 0; saveMeta(); scheduleRender(); }
+      renderLookupProgress();
+    }
+  };
+  await Promise.all(Array.from({ length: 4 }, worker));
+  saveMeta();
+  const left = needsImdb(lib).length;
+  imdbJob.running = false;
+  imdbJob.badKey = stop === "key";
+  imdbJob.err = stop === "key" || stop === "network";
+  imdbJob.note = stop === "limit" ? `OMDb's free allowance of 1,000 films a day is used up. The other ${fmtN(left)} fill in when you open the page tomorrow.`
+    : stop === "key" ? "OMDb didn't accept that key. Use the key from OMDb's email, after clicking the activation link in it."
+    : stop === "network" ? "Couldn't reach OMDb. The rest fill in the next time you open the page."
+    : signal.aborted ? "Stopped. Progress is saved." : "";
+  scheduleRender();
+}
+function startOmdb(lib) {
+  const input = $("#omdb-key");
+  const key = input ? input.value.trim() : omdbKey();
+  if (!key) { imdbJob.note = "Paste your OMDb key first."; imdbJob.err = true; renderLookup(); return; }
+  store.set(KEYS.omdb, key);
+  editOmdb = false; imdbJob.badKey = false;
+  runOmdb(lib, key);
+}
+// The IMDb part of the Cast & crew box, for both layouts.
+function imdbBlock(lib, phone) {
+  if (IN_VIEWER || !lib) return "";
+  const total = lib.films.length;
+  const withId = lib.films.filter((f) => META[f.key] && META[f.key].im).length;
+  const have = lib.films.filter((f) => META[f.key] && META[f.key].ir).length;
+  const note = imdbJob.note ? `<p class="status${imdbJob.err ? " err" : ""}" role="status">${esc(imdbJob.note)}</p>` : "";
+  const title = phone ? `<p class="title" style="margin-top:6px">IMDb scores</p>` : `<h3 class="sub-h">IMDb scores</h3>`;
+  if (!withId) return title + `<p class="status">IMDb, Metacritic and Rotten Tomatoes scores can be added once films have TMDB details.</p>`;
+  if (imdbJob.running) return title + `<p class="status" id="imdb-progress" role="status">${imdbProgressText()}</p>`;
+  if (!omdbKey() || editOmdb || imdbJob.badKey) {
+    const input = `<label class="sr-only" for="omdb-key">OMDb API key</label><input ${phone ? 'class="key" ' : ""}id="omdb-key" type="password" autocomplete="off" spellcheck="false" placeholder="OMDb key (optional)" value="${esc(omdbKey())}">`;
+    const btn = phone ? `<button class="btn green block" type="button" data-act="omdb">Add IMDb scores</button>` : `<button class="btn" type="button" id="btn-omdb">Add IMDb scores</button>`;
+    return title + (phone ? input + btn : `<div class="lookup-row">${input}${btn}</div>`) +
+      `<p class="status">Adds IMDb, Metacritic and Rotten Tomatoes scores for comparing your ratings. Get a free key at <a href="https://www.omdbapi.com/apikey.aspx" target="_blank" rel="noopener">omdbapi.com</a> (1,000 films a day) and click the activation link in its email.</p>` + note;
+  }
+  const change = phone ? `<button class="linkish" type="button" data-act="change-omdb">Change key</button>` : `<button class="linkish" type="button" id="btn-change-omdb">Change key</button>`;
+  return title + `<p class="status">${fmtN(have)} of ${plural(total, "film")} have IMDb scores. ${change}</p>` + note;
+}
+const imdbProgressText = () => `Getting IMDb scores: ${fmtN(imdbJob.done)} of ${plural(imdbJob.total, "film")}…`;
 
 /* ----- Claude ----- */
 const CLAUDE_BATCH = 40;

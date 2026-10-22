@@ -246,6 +246,38 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .tabbar button[aria-current="page"] { color: var(--ink); }
 .tabbar button:focus-visible { outline: 2px solid var(--blue); outline-offset: -4px; border-radius: 8px; }
 
+/* ---------- insights ---------- */
+.icards { display: grid; gap: 8px; }
+.icard { background: var(--card); border-radius: 8px; padding: 12px 14px; display: grid; gap: 3px; }
+.icard .k { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); }
+.icard .big { color: var(--ink); font-size: 22px; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
+.icard p { margin: 0; font-size: 14px; }
+.mults { display: grid; gap: 14px; }
+.mult .mt { margin: 0 0 2px; font-size: 12px; color: var(--ink-2); }
+.tscroll { overflow-x: auto; margin-top: 14px; margin-inline: -16px; padding-inline: 16px; }
+.mtable { border-collapse: collapse; font-size: 13px; width: max-content; min-width: 100%; }
+.mtable th, .mtable td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.mtable th { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); }
+.mtable td { color: var(--ink-1); }
+.mtable .n { text-align: right; font-variant-numeric: tabular-nums; }
+.mtable.heat td.n { text-align: center; min-width: 40px; }
+.dim { color: var(--muted); }
+.tline { display: flex; gap: 10px; align-items: baseline; padding: 6px 0; color: var(--ink-1); font-size: 14.5px; }
+.tline .mk { font-size: 10px; flex: none; color: var(--ink-2); }
+.ghead { display: grid; grid-template-columns: minmax(0, 1fr) 84px 84px 16px; gap: 10px; font-size: 10.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); margin-top: 10px; }
+.grow { all: unset; box-sizing: border-box; width: 100%; cursor: pointer; display: grid; grid-template-columns: minmax(0, 1fr) 84px 84px 16px; gap: 10px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.grow .nm { display: block; color: var(--ink); font-weight: 600; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.grow .sub { font-size: 12px; }
+.gcol { display: grid; gap: 2px; justify-items: center; }
+.gcol .v { font-size: 11.5px; color: var(--ink-1); font-variant-numeric: tabular-nums; }
+.dbar { position: relative; display: block; width: 100%; height: 8px; }
+.dbar .mid { position: absolute; left: 50%; top: -3px; bottom: -3px; border-left: 1px solid var(--muted); }
+.dbar .fill { position: absolute; top: 0; bottom: 0; }
+.dbar .fill.pos { left: 50%; background: var(--green-mark); border-radius: 0 3px 3px 0; }
+.dbar .fill.neg { right: 50%; background: var(--blue-mark); border-radius: 3px 0 0 3px; }
+.lead { margin: 4px 0 0; color: var(--ink-1); font-size: 15px; }
+.fact .t { font-size: 12.5px; color: var(--ink-2); }
+.dv { color: var(--ink); font-weight: 600; }
 #tip { position: fixed; z-index: 50; pointer-events: none; background: var(--ink-1); color: var(--bg); font-size: 12.5px; padding: 6px 9px; border-radius: 6px; max-width: 240px; line-height: 1.35; }
 .foot { font-size: 12.5px; color: var(--muted); margin-top: 26px; display: grid; gap: 6px; }
 .foot p { margin: 0; }
