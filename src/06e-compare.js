@@ -33,6 +33,8 @@ function comparePeople() {
 function allFilmsLib() {
   const seen = new Map();
   for (const lib of [MY_LIB, ...FRIENDS.map((f) => f.lib)]) if (lib) for (const f of lib.films) if (!seen.has(f.key)) seen.set(f.key, f);
+  // your watchlist too, for Watch next
+  if (MY_LIB) for (const w of MY_LIB.watchlistFilms) if (!seen.has(w.key)) seen.set(w.key, w);
   return { films: [...seen.values()], profile: (MY_LIB || {}).profile || {} };
 }
 

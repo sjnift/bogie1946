@@ -5,9 +5,18 @@ async function importFiles(files) {
   err.hidden = true; done.hidden = true;
   btn.disabled = true; btn.textContent = "Reading export…";
   try {
+    // a backup from another device restores everything it holds
+    if (isBackupFile(files)) {
+      done.textContent = await restoreBackup(files[0]);
+      MY_LIB = myLibrary();
+      Object.assign(state, { mode: "mine", scope: "all" });
+      saveView(); render(); done.hidden = false;
+      await refreshFeed(); autoLookup(allFilmsLib());
+      return;
+    }
     const rows = await readExport(files);
     const saved = store.set(KEYS.rows, rows);
-    MY_LIB = buildLibrary(rows);
+    MY_LIB = myLibrary();
     Object.assign(state, { mode: "mine", scope: "all", more: { cast: false, directors: false } });
     job.note = saved ? "" : "This browser wouldn't save your export, so you'll need to import it again next time.";
     job.err = !saved;
@@ -15,6 +24,7 @@ async function importFiles(files) {
     render();
     done.innerHTML = `${esc(importSummary(rows, MY_LIB))}${MY_LIB.reviews.length ? ' <a href="#reviews">See your reviews</a>' : ""}`;
     done.hidden = false;
+    await refreshFeed();
     autoLookup(allFilmsLib());
   } catch (e) {
     err.textContent = (e && e.message) || "Couldn't read that file. Import the ZIP from Letterboxd → Settings → Data.";
@@ -47,7 +57,7 @@ function bind() {
   $("#btn-mine").addEventListener("click", () => { state.mode = "mine"; state.scope = "all"; saveView(); render(); });
 
   document.addEventListener("click", (e) => {
-    const t = e.target.closest("[data-expand],[data-more-reviews],[data-reimport],[data-insyear],#btn-add-friend,[data-cmp],[data-unfriend],[data-lb],[data-crowd],[data-scope],[data-tab],[data-more],[data-list],[data-close],[data-dback],[data-drillpage],[data-drillback],[data-drillmore],#btn-tmdb,#btn-change-key,#btn-omdb,#btn-change-omdb,#btn-claude,#btn-claude-retry,#btn-stop");
+    const t = e.target.closest("[data-expand],[data-more-reviews],[data-reimport],[data-insyear],#btn-add-friend,[data-cmp],[data-unfriend],[data-lb],[data-crowd],[data-scope],[data-tab],[data-more],[data-list],[data-close],[data-dback],[data-drillpage],[data-drillback],[data-drillmore],[data-fix],[data-fixsave],[data-fixcancel],[data-wn],#btn-search,#btn-backup,[data-sharego],#btn-tmdb,#btn-change-key,#btn-omdb,#btn-change-omdb,#btn-claude,#btn-claude-retry,#btn-stop");
     if (!t) return;
     if (t.hasAttribute("data-expand")) {
       const text = t.previousElementSibling, open = text.classList.toggle("clamp") === false;
@@ -55,7 +65,7 @@ function bind() {
     }
     else if (t.hasAttribute("data-more-reviews")) { state.reviewLimit += 20; refreshReviewList(); }
     else if (t.hasAttribute("data-reimport")) $("#file-input").click();
-    else if (t.dataset.insyear) { state.insYear = t.dataset.insyear; renderInsights(); $(`[data-insyear="${t.dataset.insyear}"]`)?.focus(); }
+    else if (t.dataset.insyear) { state.insYear = t.dataset.insyear; routeReplace = true; renderInsights(); routeReplace = false; $(`[data-insyear="${t.dataset.insyear}"]`)?.focus(); }
     else if (t.id === "btn-add-friend") $("#friend-input").click();
     else if (t.dataset.cmp) { state.cmp = t.dataset.cmp; state.unfriend = null; renderCompare(); $(`[data-cmp="${t.dataset.cmp}"]`)?.focus(); }
     else if (t.dataset.unfriend) {
@@ -65,15 +75,22 @@ function bind() {
     }
     else if (t.dataset.lb) lbAction(t.dataset.lb, MY_LIB);
     else if (t.dataset.crowd) { state.crowd = t.dataset.crowd; renderInsights(); $(`[data-crowd="${t.dataset.crowd}"]`)?.focus(); }
-    else if (t.dataset.scope) { state.scope = t.dataset.scope; state.more = { cast: false, directors: false }; state.reviewLimit = 20; saveView(); render(); }
+    else if (t.dataset.scope) { state.scope = t.dataset.scope; state.more = { cast: false, directors: false }; state.reviewLimit = 20; saveView(); routeReplace = true; render(); routeReplace = false; }
     else if (t.dataset.tab) { state.tab[t.dataset.tab] = t.dataset.val; renderSections(STATS); $(`[data-tab="${t.dataset.tab}"][data-val="${t.dataset.val}"]`)?.focus(); }
     else if (t.dataset.more) { state.more[t.dataset.more] = true; renderSections(STATS); }
     else if (t.dataset.list) { const dlg = $("#dlg"); openDrill(drillGet(t.dataset.list), dlg.open && dlg.contains(t)); }
     else if (t.hasAttribute("data-close")) $("#dlg").close();
-    else if (t.hasAttribute("data-dback")) { DSTACK.pop(); paintPanel(); }
+    else if (t.hasAttribute("data-dback")) history.back();
     else if (t.hasAttribute("data-drillpage")) openDrillPage(DSTACK[DSTACK.length - 1]);
-    else if (t.hasAttribute("data-drillback")) { if (state.drillPushed) history.back(); else leaveDrillPage(); }
+    else if (t.hasAttribute("data-drillback")) history.back();
     else if (t.hasAttribute("data-drillmore")) { state.drillLimit += 300; renderDrillPage(); }
+    else if (t.dataset.fix) { FIXING = t.dataset.fix; FIX_NOTE = { key: null, text: "" }; repaintDrill(); $("#fix-input")?.focus(); }
+    else if (t.dataset.fixsave) runFix(t.dataset.fixsave, repaintDrill);
+    else if (t.hasAttribute("data-fixcancel")) { FIXING = null; repaintDrill(); }
+    else if (t.dataset.wn) { state.wn = t.dataset.wn; renderSections(STATS); $(`[data-wn="${t.dataset.wn}"]`)?.focus(); }
+    else if (t.id === "btn-search") openSearch();
+    else if (t.dataset.sharego) shareGo(t.dataset.sharego);
+    else if (t.id === "btn-backup") downloadBackup($("#backup-keys")?.checked);
     else if (t.id === "btn-tmdb") startTmdb(MY_LIB);
     else if (t.id === "btn-change-key") { editKey = true; renderLookup(); $("#tmdb-key")?.focus(); }
     else if (t.id === "btn-omdb") startOmdb(MY_LIB);
@@ -83,13 +100,24 @@ function bind() {
     else if (t.id === "btn-stop") job.ctl && job.ctl.abort();
   });
   document.addEventListener("input", (e) => {
+    if (e.target.id === "search-q") {
+      const d = DSTACK[DSTACK.length - 1];
+      if (d && d.kind === "search") { d.q = e.target.value; $("#search-results").innerHTML = inPanel(() => searchResultsHtml(d)); }
+      return;
+    }
     if (e.target.id !== "review-search") return;
     state.reviewQuery = e.target.value; state.reviewLimit = 20; refreshReviewList();
   });
+  document.addEventListener("keydown", (e) => {
+    // "/" searches from anywhere but a text box; Enter in search opens the first result
+    if (e.key === "/" && !e.target.closest("input, textarea, select, [contenteditable]")) { e.preventDefault(); openSearch(); }
+    else if (e.key === "Enter" && e.target.id === "search-q") { const first = $("#search-results [data-list]"); if (first) first.click(); }
+    else if (e.key === "Enter" && e.target.id === "fix-input") { const b = $("[data-fixsave]"); if (b) b.click(); }
+  });
   const dlg = $("#dlg");
   dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });
-  dlg.addEventListener("close", () => { DSTACK = []; PANEL = new Map(); });
-  window.addEventListener("popstate", leaveDrillPage);
+  dlg.addEventListener("close", onPanelClosed);
+  window.addEventListener("popstate", onPopState);
 
   // forgetting everything takes two clicks
   let armed = null;
@@ -145,22 +173,35 @@ function bind() {
   });
 }
 
-function init() {
+async function init() {
+  await store.init();
+  META = store.get(KEYS.meta, {}); PHOTOS = store.get(KEYS.photos, {}); LBX = store.get(KEYS.lbx, {});
   const ex = buildExample();
   EXAMPLE_FRIENDS = buildExampleFriends().map((f) => ({ ...f, lib: buildLibrary(f.rows) }));
   loadFriends();
   EXAMPLE_META = Object.fromEntries(Object.entries(ex.meta).map(([k, m]) => [k, cleanMeta(m)]));
   EXAMPLE_LIB = buildLibrary(ex.rows);
-  const saved = store.get(KEYS.rows, null);
-  if (saved) { try { MY_LIB = buildLibrary(saved); } catch { MY_LIB = null; } }
+  try { MY_LIB = myLibrary(); } catch { MY_LIB = null; }
   const view = store.get(KEYS.view, {});
   state.mode = MY_LIB && view.mode !== "example" ? "mine" : "example";
   if (view.scope) state.scope = view.scope;
   if (view.page === "insights" || view.page === "compare") state.page = view.page;
   bind();
+  routeFromHash(true);
   render();
-  // A saved key picks up films not yet looked up, or matched before matching improved.
-  if (MY_LIB) { autoLookup(allFilmsLib()); pollLetterboxd(MY_LIB); }
+  const film = hashParts().film;
+  try { history.replaceState(null, "", film ? filmHash(film) : routeBase()); } catch {}
+  routeReady = true;
+  openRouteFilm();
+  // New diary entries from the daily feed, then a saved key picks up films not yet looked up.
+  if (MY_LIB) { await refreshFeed(); autoLookup(allFilmsLib()); pollLetterboxd(MY_LIB); }
+}
+// Loads the feed for the imported member and redraws with any entries it adds.
+async function refreshFeed() {
+  const feed = MY_LIB && await loadFeed(MY_LIB.profile.username);
+  if (!feed) return;
+  FEED = feed; MY_LIB = myLibrary(); SEARCH_INDEX = null;
+  render();
 }
 init();
 </script>

@@ -4,10 +4,11 @@
     <div class="topline">
       <div class="wordmark"><span class="reel" aria-hidden="true"></span>Credits Roll</div>
       <div class="actions">
+        <button class="btn" id="btn-search" type="button" title="Search your diary (press /)"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" style="vertical-align:-2px; margin-right:5px"><circle cx="8.5" cy="8.5" r="5.5"/><path d="M13 13l4.5 4.5"/></svg>Search</button>
         <button class="btn" id="btn-insights" type="button">Insights</button>
         <button class="btn" id="btn-compare" type="button">Compare</button>
         <button class="btn primary" id="btn-import" type="button">Import Letterboxd export</button>
-        <input id="file-input" type="file" accept=".zip,.csv,application/zip,text/csv" multiple hidden>
+        <input id="file-input" type="file" accept=".zip,.csv,.json,application/zip,text/csv,application/json" multiple hidden>
         <button class="btn" id="btn-example" type="button" hidden>View example</button>
         <button class="btn" id="btn-mine" type="button" hidden>Back to my diary</button>
       </div>
@@ -46,6 +47,9 @@
       Inside the Claude app, details come from Claude's knowledge of each film instead, so check anything surprising.</p>
     <p>On a phone? <a href="https://claude.ai/artifact/2RUkgC4dsysdz66WjJ6gzb" target="_blank" rel="noopener">Open the phone version</a>. It keeps its own copy of your import, so import there too.</p>
     <p>Updated <!--BUILD--></p>
+    <p id="backup" hidden><button class="btn small" id="btn-backup" type="button">Back up to a file</button>
+      <label class="status backup-keys"><input type="checkbox" id="backup-keys"> with my API keys</label><br>
+      <span class="status">To use your diary on another device, import the backup file there like an export. It carries your import, film details, Letterboxd averages and friends.</span></p>
     <p><button class="btn small" id="btn-forget" type="button">Delete saved data from this browser</button>
       <span class="status" id="forget-status"></span></p>
   </footer>

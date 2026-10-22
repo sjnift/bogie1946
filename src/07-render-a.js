@@ -1,7 +1,7 @@
 <script>
 /* ---------- page state ---------- */
 const state = {
-  mode: "example", lib: null, scope: "all", page: "stats", crowd: null, insYear: "all", reviewQuery: "", reviewLimit: 20, cmp: null, cmpError: "", unfriend: null,
+  mode: "example", lib: null, scope: "all", page: "stats", crowd: null, wn: "any", insYear: "all", reviewQuery: "", reviewLimit: 20, cmp: null, cmpError: "", unfriend: null,
   tab: { cast: "most", directors: "most", crew: "w", cats: "most" },
   more: { cast: false, directors: false },
 };
@@ -38,12 +38,20 @@ function render() {
   $("#drillpage").hidden = page !== "drill";
   $("#btn-insights").textContent = page === "insights" ? "Back to stats" : "Insights";
   $("#btn-compare").textContent = page === "compare" ? "Back to stats" : "Compare";
-  if (page === "drill") { $(".scopes-row").hidden = true; renderDrillPage(); return; }
+  $("#backup").hidden = IN_VIEWER || !MY_LIB;
+  if (page === "drill") { $(".scopes-row").hidden = true; renderDrillPage(); syncHash(); return; }
   if (page === "insights") { renderInsights(); return; }
   if (page === "compare") { renderCompare(); return; }
   renderTiles(STATS);
   renderLookup();
   renderSections(STATS);
+  syncHash();
+}
+// Search opens over whatever is on screen.
+function openSearch() {
+  const top = DSTACK[DSTACK.length - 1];
+  if ($("#dlg").open && top && top.kind === "search") { $("#search-q")?.focus(); return; }
+  openDrill({ kind: "search", title: "Search your diary", sub: "", q: "" }, $("#dlg").open);
 }
 
 /* ---------- title band ---------- */
@@ -64,6 +72,7 @@ function renderHero(s, years) {
   if (star && star.count > 1) line += ` ${dlink(DR.person(star), esc(star.name))} turns up most, in ${star.count} of them.`;
   if (dir && dir.count > 1) line += ` ${dlink(DR.person(dir), esc(dir.name))} directed the most, with ${dir.count}.`;
   if (!s.withMeta && s.films.length) line += " Look up cast and crew below to see who you watch most.";
+  if (state.scope !== "all" && s.entries.length) line += ` ${dlink(D.share(state.scope), `Share ${state.scope} as an image`)}.`;
   $("#hero-sub").innerHTML = line;
   $("#scopes").innerHTML = ["all", ...years].map((y) =>
     `<button class="chip" type="button" data-scope="${y}" aria-pressed="${y === state.scope}">${y === "all" ? "All time" : y}</button>`).join("");
@@ -155,7 +164,7 @@ function renderLookup() {
       body = coverage + `Lookups aren't available in this view. Open the downloadable copy of this page in your browser and use a TMDB key instead.</p>`;
     }
   }
-  el.innerHTML = head + meter + body + note + saveNote + imdbBlock(lib, false) + letterboxdBlock(lib, false);
+  el.innerHTML = head + meter + body + note + saveNote + imdbBlock(lib, false) + letterboxdBlock(lib, false) + feedBlock(lib, false);
 }
 function progressText() {
   const what = job.kind === "tmdb" ? "on TMDB" : "with Claude";

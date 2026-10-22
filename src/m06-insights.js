@@ -123,7 +123,8 @@ function mYearInsights(Y) {
   const lib = state.lib;
   const R = computeYearInsights(lib, metaOf, Y, state.crowd || defaultCrowd(lib, metaOf));
   const prevY = String(+Y - 1), first = R.firstYear === Y;
-  let h = `<p class="status" style="margin:14px 0 0">${dlink(DR.films(R.S), plural(R.S.films.length, "film"))} and ${dlink(DR.diary(R.S), plural(R.S.entries.length, "diary entry", "diary entries"))} in ${esc(Y)}.</p>`;
+  let h = `<p class="status" style="margin:14px 0 0">${dlink(DR.films(R.S), plural(R.S.films.length, "film"))} and ${dlink(DR.diary(R.S), plural(R.S.entries.length, "diary entry", "diary entries"))} in ${esc(Y)}.</p>` +
+    (R.S.entries.length ? `<button class="btn block" type="button" ${dl(D.share(Y))} style="margin-top:12px">Share ${esc(Y)} as an image</button>` : "");
   h += mGlance(R.glance, `${esc(Y)} at a glance`);
   h += sh(`Against ${prevY}`) + (R.changes.length ? `<div class="tscroll" style="margin-top:0"><table class="mtable"><thead><tr><th></th><th class="n">${esc(Y)}</th><th class="n">${prevY}</th><th class="n"></th></tr></thead>
     <tbody>${R.changes.map((c) => `<tr><td>${dlink(c.to, c.label)}</td><td class="n">${dlink(c.to.groups[0], c.now)}</td><td class="n">${dlink(c.to.groups[1], c.before)}</td><td class="n dim">${Math.abs(c.d) < 1e-9 ? "=" : c.d > 0 ? "▲" : "▼"}</td></tr>`).join("")}</tbody></table></div><p class="status">Tap any number to see what's behind it.</p>` +

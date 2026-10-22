@@ -16,12 +16,70 @@ const personKey = (n) => String(n).normalize("NFD").replace(/[̀-ͯ]/g, "").toLo
 const dayIndex = (iso) => Math.floor(Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10)) / 864e5);
 const weekdayOf = (iso) => (new Date(iso + "T00:00:00Z").getUTCDay() + 6) % 7; // Monday = 0
 
-const store = {
+const KEYS = { rows: "cr-rows-v1", meta: "cr-meta-v1", photos: "cr-photos-v1", tmdb: "cr-tmdb-key", omdb: "cr-omdb-key", apify: "cr-apify-key", lbx: "cr-letterboxd-v1", lbRun: "cr-letterboxd-run", friends: "cr-friends-v1", view: "cr-view-v1", filmo: "cr-filmo-v1" };
+/* Small things (keys, the view) live in localStorage. The big ones (the export, film details, Letterboxd
+   averages, friends' exports) live in IndexedDB, which holds far more than localStorage's few megabytes.
+   store.init() reads them into memory once at start; after that reads are instant and writes go to the
+   database in the background. Without IndexedDB everything stays in localStorage, as before. */
+const BIG_KEYS = new Set([KEYS.rows, KEYS.meta, KEYS.photos, KEYS.lbx, KEYS.friends, KEYS.filmo]);
+const MEM = new Map();
+let IDB = null, idbFailed = false;
+const ls = {
   get(k, fallback) { try { const v = localStorage.getItem(k); return v == null ? fallback : JSON.parse(v); } catch { return fallback; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } },
   del(k) { try { localStorage.removeItem(k); } catch {} },
 };
-const KEYS = { rows: "cr-rows-v1", meta: "cr-meta-v1", photos: "cr-photos-v1", tmdb: "cr-tmdb-key", omdb: "cr-omdb-key", apify: "cr-apify-key", lbx: "cr-letterboxd-v1", lbRun: "cr-letterboxd-run", friends: "cr-friends-v1", view: "cr-view-v1" };
+function idbReq(mode, fn) {
+  return new Promise((resolve, reject) => {
+    const tx = IDB.transaction("kv", mode), req = fn(tx.objectStore("kv"));
+    tx.oncomplete = () => resolve(req && req.result);
+    tx.onerror = tx.onabort = () => reject(tx.error);
+  });
+}
+const pending = new Map();
+// Writes for one key are coalesced, so a lookup saving every few films writes once.
+function idbWrite(k) {
+  if (pending.has(k)) return;
+  pending.set(k, setTimeout(async () => {
+    pending.delete(k);
+    try { MEM.has(k) ? await idbReq("readwrite", (s) => s.put(MEM.get(k), k)) : await idbReq("readwrite", (s) => s.delete(k)); idbFailed = false; }
+    catch { idbFailed = true; if (MEM.has(k)) ls.set(k, MEM.get(k)); }
+  }, 250));
+}
+const store = {
+  get(k, fallback) { return IDB && BIG_KEYS.has(k) ? (MEM.has(k) ? MEM.get(k) : fallback) : ls.get(k, fallback); },
+  set(k, v) {
+    if (!(IDB && BIG_KEYS.has(k))) return ls.set(k, v);
+    MEM.set(k, v); idbWrite(k);
+    return !idbFailed;
+  },
+  del(k) { if (IDB && BIG_KEYS.has(k)) { MEM.delete(k); idbWrite(k); } ls.del(k); },
+  // Opens the database and moves anything still in localStorage into it.
+  async init() {
+    try {
+      IDB = await new Promise((resolve, reject) => {
+        const req = indexedDB.open("credits-roll", 1);
+        req.onupgradeneeded = () => req.result.createObjectStore("kv");
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+        setTimeout(() => reject(new Error("timeout")), 4000);
+      });
+      for (const k of BIG_KEYS) {
+        let v = await idbReq("readonly", (s) => s.get(k));
+        // a copy in localStorage is newer: only an older version of the page (or a failed write) puts one there
+        const old = ls.get(k, undefined);
+        if (old !== undefined) { await idbReq("readwrite", (s) => s.put(old, k)); v = old; ls.del(k); }
+        if (v !== undefined) MEM.set(k, v);
+      }
+      // ask the browser not to clear the database when space runs short (Safari otherwise can after a week away)
+      if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+    } catch {
+      // put back anything already moved, and carry on with localStorage
+      for (const [k, v] of MEM) ls.set(k, v);
+      MEM.clear(); IDB = null;
+    }
+  },
+};
 
 /* ---------- reading a Letterboxd export ---------- */
 const WANTED = {
@@ -46,7 +104,8 @@ function slim(kind, rows) {
     case "watched": return rows.map((r) => pick(r, [...base, "Date", "Letterboxd URI"]));
     case "ratings": return rows.map((r) => pick(r, [...base, "Rating"]));
     case "reviews": return rows.map((r) => pick(r, [...base, "Date", "Watched Date", "Rating", "Rewatch", "Review", "Tags"]));
-    case "likes": case "watchlist": return rows.map((r) => pick(r, base));
+    case "likes": return rows.map((r) => pick(r, base));
+    case "watchlist": return rows.map((r) => pick(r, [...base, "Letterboxd URI"]));
     default: return rows;
   }
 }
@@ -171,7 +230,8 @@ function buildLibrary(input) {
     reviewTextMissing: reviews.length > 0 && reviews.every((r) => !r.text),
     profile: { username: p.Username || "", joined: (p["Date Joined"] || "").slice(0, 10), name: [p["Given Name"], p["Family Name"]].filter(Boolean).join(" ") },
     watchlist: rows.watchlist.length,
-    watchlistFilms: rows.watchlist.map((r) => ({ key: filmKey(r.Name, r.Year), name: String(r.Name).trim(), year: parseInt(r.Year, 10) || null })),
+    watchlistFilms: rows.watchlist.map((r) => ({ key: filmKey(r.Name, r.Year), name: String(r.Name).trim(), year: parseInt(r.Year, 10) || null,
+      rating: null, liked: false, entries: [], reviews: 0, uri: /^https?:\/\//.test(r["Letterboxd URI"] || "") ? r["Letterboxd URI"] : "", watchlist: true })),
   };
 }
 
@@ -214,6 +274,7 @@ function cleanMeta(m) {
     k: list((m.k || []).map(country), 6), l: language(m.l), r: Math.round(Number(m.r)) || null,
     va: Number(m.va) || null, vc: Number(m.vc) || null, // TMDB audience score out of 10, and how many votes
     im: /^tt\d+$/.test(m.im || "") ? m.im : null, // IMDb id, for IMDb scores from OMDb
+    pin: m.pin || undefined, // matched by hand, so lookups leave it alone
     ir: Number(m.ir) || null, iv: Number(m.iv) || null, mc: Number(m.mc) || null, rt: Number(m.rt) || null, om: m.om || null, // IMDb, Metacritic, Rotten Tomatoes
   };
 }

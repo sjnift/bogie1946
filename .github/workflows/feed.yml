@@ -1,5 +1,5 @@
-# Once a day, collect the latest diary entries from each member's public Letterboxd feed into
-# docs/feed/, so the site shows new logs without a fresh export.
+# Once a day, collect the latest diary entries from the public Letterboxd feed of each member
+# listed in feed-users.txt into docs/feed/, so the site shows new logs without a fresh export.
 name: Letterboxd feed
 
 on:
@@ -16,22 +16,20 @@ concurrency:
   group: feed
   cancel-in-progress: false
 
-env:
-  LETTERBOXD_USERS: sjnift
-
 jobs:
   feed:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
       - name: Read the feeds
-        run: node scripts/feed.mjs $LETTERBOXD_USERS
+        run: node scripts/feed.mjs
       - name: Save new entries
         id: save
         run: |
+          if [ ! -d docs/feed ]; then echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0; fi
           git add docs/feed
           if git diff --cached --quiet; then echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0; fi
           git config user.name "github-actions[bot]"

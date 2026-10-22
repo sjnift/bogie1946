@@ -23,7 +23,7 @@ const dlink = (d, html) => d ? `<button class="dlink" type="button" ${dl(d)}>${h
 const dline = (d, html) => d ? `<button class="dline" type="button" ${dl(d)}>${html}<span class="go" aria-hidden="true"> ›</span></button>` : html;
 
 const PANEL_CAP = 25;
-const drillSize = (d) => d.kind === "film" ? 1 : d.kind === "groups" ? d.groups.reduce((s, g) => s + drillSize(g), 0)
+const drillSize = (d) => d.kind === "film" ? 1 : d.kind === "search" || d.kind === "share" ? 0 : d.kind === "groups" ? d.groups.reduce((s, g) => s + drillSize(g), 0)
   : (d.films || d.entries || d.reviews || d.items || []).length;
 
 /* ----- sub-lines ----- */
@@ -164,6 +164,8 @@ const plainRowHtml = (x) => `<div class="drill-row plain"><span class="dr-main">
 // The body of a drill, showing at most `cap` items in each list. Returns how many it left out.
 function drillBody(d, cap = Infinity) {
   if (d.kind === "film") return { html: filmCardHtml(d), hidden: 0 };
+  if (d.kind === "search") return { html: searchBodyHtml(d), hidden: 0 };
+  if (d.kind === "share") return { html: shareBodyHtml(d), hidden: 0 };
   if (d.kind === "groups") {
     let html = "", hidden = 0;
     for (const g of d.groups) {
@@ -175,8 +177,8 @@ function drillBody(d, cap = Infinity) {
   }
   const all = itemsOf(d), shown = all.slice(0, cap);
   if (!all.length) return { html: `<div class="empty">${esc(d.empty || "Nothing here.")}</div>`, hidden: 0 };
-  const html = d.kind === "entries" ? entryRowsHtml(shown, all, d)
-    : shown.map((x) => d.kind === "films" ? filmRowHtml(x, d) : d.kind === "reviews" ? reviewRowHtml(x, d) : d.kind === "names" ? nameRowHtml(x, d) : plainRowHtml(x)).join("");
+  const html = (d.kind === "films" ? filmoPlaceholder(d) : "") + (d.kind === "entries" ? entryRowsHtml(shown, all, d)
+    : shown.map((x) => d.kind === "films" ? filmRowHtml(x, d) : d.kind === "reviews" ? reviewRowHtml(x, d) : d.kind === "names" ? nameRowHtml(x, d) : plainRowHtml(x)).join(""));
   return { html, hidden: all.length - shown.length };
 }
 
@@ -219,6 +221,32 @@ function filmCardHtml(d) {
   return `<div class="fcard">${d.badge ? `<p class="fc-badge">${esc(d.badge)}</p>` : ""}<div class="fc-top">${thumb(f, true)}<div class="fc-facts">
       ${facts.join("")}${m ? "" : `<p class="dr-s">No cast &amp; crew details yet.</p>`}
       ${crowd.length ? `<p class="fc-crowd">${crowd.join('<span class="sep"> · </span>')}</p>` : ""}${tags.length ? `<p class="fc-tags">${tags.join("")}</p>` : ""}</div></div>
-    ${who.map((p) => recordHtml(p, d, !d.people)).join("")}${cast}<p class="fc-links">${links}</p></div>`;
+    ${who.map((p) => recordHtml(p, d, !d.people)).join("")}${cast}<p class="fc-links">${links}</p>${fixHtml(f)}</div>`;
+}
+// "Wrong film?" under a card: paste the right film's TMDB or IMDb link and the match is kept from then on.
+let FIXING = null, FIX_NOTE = { key: null, text: "" };
+function fixHtml(f) {
+  if (IN_VIEWER || state.mode !== "mine" || !MY_LIB || !(MY_LIB.films.some((x) => x.key === f.key) || MY_LIB.watchlistFilms.some((x) => x.key === f.key))) return "";
+  const note = FIX_NOTE.key === f.key && FIX_NOTE.text ? `<p class="dr-s fix-note" role="status">${esc(FIX_NOTE.text)}</p>` : "";
+  if (FIXING !== f.key) return `<div class="fc-fix"><button class="linkish" type="button" data-fix="${esc(f.key)}">${META[f.key] && META[f.key].pin ? "Matched by hand. Change it?" : "Wrong film?"}</button>${note}</div>`;
+  return `<div class="fc-fix open"><label for="fix-input">Paste the right film's link from themoviedb.org or imdb.com</label>
+    <div class="fix-row"><input id="fix-input" type="url" autocomplete="off" spellcheck="false" placeholder="https://www.themoviedb.org/movie/…">
+    <button class="btn small" type="button" data-fixsave="${esc(f.key)}">Use this film</button><button class="linkish" type="button" data-fixcancel>Cancel</button></div>${note}</div>`;
+}
+// Runs a fix from the card; the page and the open card are drawn again after.
+async function runFix(key, repaint) {
+  const f = MY_LIB.films.find((x) => x.key === key) || MY_LIB.watchlistFilms.find((x) => x.key === key);
+  const input = document.getElementById("fix-input");
+  if (!f || !input) return;
+  const text = input.value;
+  FIX_NOTE = { key, text: "Looking it up on TMDB…" }; repaint();
+  try {
+    const m = await fixMatch(f, text);
+    FIXING = null; FIX_NOTE = { key, text: `Matched to TMDB film ${m.id}${m.d.length ? `, directed by ${m.d.join(" and ")}` : ""}. Every stat uses it now.` };
+    SEARCH_INDEX = null; render(); repaint();
+  } catch (e) {
+    FIX_NOTE = { key, text: (e && e.message) || "Couldn't reach TMDB." }; repaint();
+    const again = document.getElementById("fix-input"); if (again) { again.value = text; again.focus(); }
+  }
 }
 </script>

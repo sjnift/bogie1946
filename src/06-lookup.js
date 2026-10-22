@@ -25,10 +25,14 @@ function saveMeta() {
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// TMDB ids known for sure: from the Letterboxd feed. A film matched to another id is looked up again.
+let KNOWN_IDS = {};
 function needsLookup(lib, kind) {
   return lib.films.filter((f) => {
     const m = META[f.key];
     if (kind === "tmdb") {
+      if (m && m.pin) return false;
+      if (KNOWN_IDS[f.key] && (!m || m.id !== KNOWN_IDS[f.key])) return true;
       if (!m) return true;
       if (m.src === "tmdb") return (m.v || 1) < TMDB_MATCH_VERSION;
       return !(m.tmdbMiss >= TMDB_MATCH_VERSION);
@@ -72,6 +76,7 @@ function pickHit(results, f, tolerance, needTitle) {
   return best.r;
 }
 async function tmdbFilm(f, key, signal) {
+  if (KNOWN_IDS[f.key]) { const m = await tmdbDetails(KNOWN_IDS[f.key], key, signal); if (!m.miss) return m; }
   let s = await tmdbGet("/search/movie", { query: f.name, year: f.year || "", include_adult: "false" }, key, signal);
   let hit = pickHit(s && s.results, f, 2, false);
   if (!hit && f.year) {
@@ -79,7 +84,11 @@ async function tmdbFilm(f, key, signal) {
     hit = pickHit(s && s.results, f, 2, true);
   }
   if (!hit) return { src: "tmdb", miss: true, v: TMDB_MATCH_VERSION };
-  const d = await tmdbGet(`/movie/${hit.id}`, { append_to_response: "credits" }, key, signal);
+  return tmdbDetails(hit.id, key, signal);
+}
+// One TMDB film's details and credits, by its id.
+async function tmdbDetails(id, key, signal) {
+  const d = await tmdbGet(`/movie/${id}`, { append_to_response: "credits" }, key, signal);
   if (!d) return { src: "tmdb", miss: true, v: TMDB_MATCH_VERSION };
   const crew = (d.credits && d.credits.crew) || [];
   const cast = ((d.credits && d.credits.cast) || []).slice().sort((a, b) => a.order - b.order).slice(0, CAST_DEPTH);
@@ -296,6 +305,29 @@ async function runClaude(lib) {
   else job.note = job.failed ? `Done. ${plural(job.failed, "film")} came back without details. Try those again, or use TMDB.` : "Done. Every film has cast and crew.";
   scheduleRender();
 }
+/* ----- putting right a wrong match ----- */
+// A TMDB or IMDb link (or bare id) for the film this one really is. The match is then kept, whatever later lookups find.
+async function fixMatch(f, text) {
+  const key = tmdbKey();
+  if (!key) throw new Error("Add your TMDB key in the Cast & crew box first.");
+  const t = String(text || "").trim();
+  let id = (t.match(/themoviedb\.org\/movie\/(\d+)/) || t.match(/^(\d+)$/) || [])[1];
+  const imdb = (t.match(/\b(tt\d{5,})\b/) || [])[1];
+  if (!id && imdb) {
+    const r = await tmdbGet(`/find/${imdb}`, { external_source: "imdb_id" }, key);
+    id = r && r.movie_results && r.movie_results[0] && r.movie_results[0].id;
+    if (!id) throw new Error("TMDB doesn't know a film with that IMDb link.");
+  }
+  if (!id) throw new Error("Paste a link to the film on themoviedb.org or imdb.com.");
+  const m = await tmdbDetails(id, key);
+  if (!m || m.miss) throw new Error("TMDB has no film with that id.");
+  m.pin = true;
+  META[f.key] = m;
+  saveMeta();
+  if (omdbKey() && needsImdb({ films: [f] }).length) runOmdb({ films: [f] }, omdbKey());
+  return m;
+}
+
 function retryClaudeMisses(lib) {
   for (const f of lib.films) { const m = META[f.key]; if (m && m.miss && m.src === "claude") delete META[f.key]; }
   return runClaude(lib);

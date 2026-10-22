@@ -1,7 +1,7 @@
 // Reads a Letterboxd member's public RSS feed (their latest diary entries) and adds them to
 // docs/feed/<username>.json, which the site merges into that member's imported diary.
 // The feed only shows about 50 recent entries, so each run keeps what earlier runs collected.
-// Usage: node scripts/feed.mjs <username> [<username> ...]
+// Usage: node scripts/feed.mjs [<username> ...]   (with no names, the ones in feed-users.txt)
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 
 const KEEP = 1000; // entries kept per member, newest first
@@ -45,6 +45,7 @@ async function update(user) {
   const res = await fetch(`https://letterboxd.com/${encodeURIComponent(user)}/rss/`, {
     headers: { "User-Agent": "Mozilla/5.0 (compatible; CreditsRollFeed/1.0; +https://github.com/sjnift/credits-roll)", Accept: "application/rss+xml, application/xml" },
   });
+  if (res.status === 404) throw new Error(`${user}: Letterboxd has no public profile with this username. Check the spelling in feed-users.txt.`);
   if (!res.ok) throw new Error(`${user}: Letterboxd answered ${res.status} ${res.statusText} (${res.headers.get("server") || "?"}, ${res.headers.get("cf-mitigated") || "no challenge"})`);
   const fresh = parse(await res.text());
   const file = `docs/feed/${user.toLowerCase()}.json`;
@@ -63,8 +64,11 @@ async function update(user) {
   console.log(`${user}: ${fresh.length} entries in the feed, ${added} new, ${items.length} kept`);
 }
 
-const users = process.argv.slice(2);
-if (!users.length) { console.error("usage: node scripts/feed.mjs <username> ..."); process.exit(2); }
+let users = process.argv.slice(2);
+if (!users.length) {
+  try { users = (await readFile("feed-users.txt", "utf8")).split("\n").map((l) => l.replace(/#.*/, "").trim()).filter(Boolean); } catch {}
+}
+if (!users.length) { console.log("No Letterboxd usernames in feed-users.txt yet."); process.exit(0); }
 let failed = 0;
 for (const u of users) {
   try { await update(u); } catch (e) {

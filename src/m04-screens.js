@@ -133,7 +133,7 @@ function lookupInner() {
   } else {
     body = `<p>Lookups aren't available in this view. Open the downloadable copy of this page in a browser and use a TMDB key.</p>`;
   }
-  return head + body + note + saveNote + imdbBlock(MY_LIB, true) + letterboxdBlock(MY_LIB, true);
+  return head + body + note + saveNote + imdbBlock(MY_LIB, true) + letterboxdBlock(MY_LIB, true) + feedBlock(MY_LIB, true);
 }
 function progressText() {
   return job.kind === "claude" && job.done === 0 ? `Asking Claude about ${plural(job.total, "film")}… the first batch takes up to a minute.`
@@ -156,6 +156,10 @@ function dataScreen() {
   const rows = [];
   if (state.mode === "mine") rows.push(`<li><button class="row" type="button" data-act="example"><span>View the example diary</span>${CHEV}</button></li>`);
   else if (lib) rows.push(`<li><button class="row" type="button" data-act="mine"><span>Back to my diary</span>${CHEV}</button></li>`);
+  if (lib && !IN_VIEWER) {
+    rows.push(`<li><button class="row" type="button" data-act="backup"><span>Back up to a file</span><span class="count">for another device</span>${CHEV}</button></li>`);
+    rows.push(`<li><button class="row" type="button" data-act="backup-keys" role="switch" aria-checked="${!!state.backupKeys}"><span>Include API keys in the backup</span><span class="count">${state.backupKeys ? "On" : "Off"}</span></button></li>`);
+  }
   rows.push(`<li><button class="row danger" type="button" data-act="forget"><span>${state.forgetArmed ? "Tap again to delete" : "Delete saved data from this browser"}</span></button></li>`);
   return `<div class="card" style="margin-top:18px"><p class="title">Your Letterboxd export</p><p>${status}</p>
       <ol style="margin:0; padding-left:18px; display:grid; gap:4px">
@@ -167,6 +171,7 @@ function dataScreen() {
     <div class="card" id="lookup" style="margin-top:12px">${lookupInner()}</div>
     ${sh("This browser")}<ul class="menu">${rows.join("")}</ul>
     ${state.forgetArmed ? `<p class="status">Removes your imported export and looked-up details, plus any keys you typed in.</p>` : ""}
+    ${lib && !IN_VIEWER ? `<p class="status">To use your diary on another device, import the backup file there the same way as an export.</p>` : ""}
     <div class="foot"><p>Credits Roll reads the CSV files in a Letterboxd data export. It is not made by or affiliated with Letterboxd.</p>
       <p>With your own TMDB key, film details come from The Movie Database. This product uses the TMDB API but is not endorsed or certified by TMDB.
       Inside the Claude app, details come from Claude's knowledge of each film instead, so check anything surprising.</p>
@@ -180,6 +185,7 @@ function detailScreen(d, s) {
   if (d.type === "compare") return compareScreen();
   if (d.type === "reviews") return reviewsScreen();
   if (d.type === "drill") return drillScreen(d.d);
+  if (d.type === "watchnext") return watchNextScreen();
   if (d.type === "cat") {
     const data = s[d.field], best = state.catSort === "best";
     const list = best ? data.best : data.most;
@@ -192,5 +198,15 @@ function detailScreen(d, s) {
     sh("Films", `<span class="num">${fmtN(films.length)}</span>`) + posterGrid(films);
 }
 
+// The watchlist, likeliest favourites first, with why.
+function watchNextScreen() {
+  const W = watchNext(state.lib);
+  if (!W) return `<div class="empty" style="padding-top:28px">Watch next needs a watchlist in your export and five or more rated films.</div>`;
+  const list = W.picks.filter((p) => p.known && wnFits(p, state.wn));
+  const chips = `<div class="toggles" style="margin-top:16px;flex-wrap:wrap">${WN_LENGTHS.map(([v, l]) => `<button class="toggle" type="button" data-wn="${v}" aria-pressed="${v === state.wn}">${l}</button>`).join("")}</div>`;
+  const rows = list.length ? drillBody(wnDrill(list, "Watch next"), 60).html : `<div class="empty">${W.picks.some((p) => p.known) ? "Nothing on your watchlist fits that length." : "Your watchlist films need cast &amp; crew details first, looked up in the Import tab."}</div>`;
+  return chips + `<p class="status" style="margin:12px 0 0">Best bets first: a guess at your rating from how you rate each film's director, leads and genres, and its crowd score.</p>` + rows +
+    (W.missing ? `<p class="status">${plural(W.missing, "film")} on your watchlist ${W.missing === 1 ? "has" : "have"} no details yet.</p>` : "");
+}
 const SCREENS = { profile: profileScreen, people: peopleScreen, diary: diaryScreen, films: filmsScreen, data: dataScreen };
 </script>

@@ -12,6 +12,7 @@ function renderCompare() {
   if (state.cmp === "all") parts.push(...groupSections(profiles));
   else if (state.cmp) parts.push(...pairSections(comparePair(profiles[0], friends.find((f) => f.id === state.cmp), metaOf)));
   $("#compare").innerHTML = parts.join("");
+  syncHash();
 }
 
 function whoBlock(friends) {

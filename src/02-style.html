@@ -406,6 +406,31 @@ button.drill-row.name { cursor: pointer; }
 .fc-links a { color: var(--gold-ink); text-decoration: none; }
 .fc-links a:hover { text-decoration: underline; text-underline-offset: 4px; }
 
+/* ---------- search, filmographies, fixing a match, watch next, backups ---------- */
+.search-box { position: sticky; top: -8px; background: var(--surface); padding: 6px 0 10px; z-index: 1; }
+.search-box input { width: 100%; font: inherit; font-size: 16px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
+.search-box input:focus { outline: 2px solid var(--gold-ink); outline-offset: 0; }
+.search-hint { margin: 6px 0; }
+.filmo { margin: 8px 0 14px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); }
+.filmo .dr-s { margin: 0; }
+.filmo-head { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; }
+.filmo-bar { height: 6px; border-radius: 3px; background: var(--line); margin: 8px 0 4px; overflow: hidden; }
+.filmo-bar i { display: block; height: 100%; background: var(--gold); border-radius: 3px; }
+.filmo-left summary { cursor: pointer; font-size: 13px; color: var(--gold-ink); margin-top: 6px; }
+.filmo-left .drill-row { border-bottom-color: color-mix(in srgb, var(--line) 70%, transparent); }
+.fc-fix { font-size: 13px; }
+.fc-fix label { display: block; color: var(--muted); margin-bottom: 6px; }
+.fix-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.fix-row input { flex: 1 1 260px; min-width: 0; font: inherit; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
+.fix-note { margin: 6px 0 0; }
+.posters.wn .cap .pred { color: var(--gold-ink); font-weight: 600; }
+.posters.wn .cap .why { font-size: 12px; line-height: 1.3; }
+.backup-keys { margin-left: 10px; }
+dialog.tall { width: min(520px, calc(100vw - 32px)); max-height: 94vh; }
+.share-img { display: block; width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--line); margin-top: 6px; }
+.share-row { display: flex; gap: 8px; margin: 12px 0 6px; flex-wrap: wrap; }
+.btn.green { background: var(--gold); border-color: var(--gold); color: var(--on-gold); }
+
 #tip {
   position: fixed; z-index: 50; pointer-events: none; background: var(--ink); color: var(--bg);
   font-size: 12.5px; padding: 6px 9px; border-radius: 6px; max-width: 240px; line-height: 1.35; box-shadow: var(--shadow);

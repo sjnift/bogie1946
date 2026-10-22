@@ -1,7 +1,7 @@
 <script>
 /* ---------- app state ---------- */
 const state = {
-  mode: "example", lib: null, scope: "all", view: "profile", stack: [],
+  mode: "example", lib: null, scope: "all", view: "profile", stack: [], wn: "any", backupKeys: false,
   role: "c", crew: "w", sort: "most", catSort: "most", peopleLimit: 50, diaryLimit: 60, crowd: null, insYear: "all", reviewQuery: "", reviewLimit: 30, cmp: null, cmpError: "", unfriend: null,
 };
 let MY_LIB = null, EXAMPLE_LIB = null, STATS = null;
@@ -10,6 +10,7 @@ const showImages = !IN_VIEWER; // pages inside Claude can't load outside images
 const VIEW_KEY = "cr-mview-v1";
 const TITLES = { profile: "Profile", people: "People", diary: "Diary", films: "Films", data: "Import" };
 const CHEV = `<svg class="chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg>`;
+const SEARCH_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5l5 5"/></svg>`;
 const BACK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>`;
 
 function metaOf(f) {
@@ -41,10 +42,13 @@ function render() {
   }
   const cal = $(".cal-wrap");
   if (cal) cal.scrollLeft = cal.scrollWidth;
+  fillFilmo($("#screen"));
+  syncHash();
 }
 function renderTop(years, d) {
   $("#top").classList.toggle("detail", !!d);
-  $("#nav-left").innerHTML = d ? `<button class="nav-btn" type="button" data-act="back">${BACK}<span class="sr-only">Back</span></button>` : "";
+  $("#nav-left").innerHTML = d ? `<button class="nav-btn" type="button" data-act="back">${BACK}<span class="sr-only">Back</span></button>`
+    : `<button class="nav-btn" type="button" data-act="search">${SEARCH_ICON}<span class="sr-only">Search</span></button>`;
   const who = state.mode === "example" ? "Example diary" : state.lib.profile.username || "Your diary";
   $("#nav-title").textContent = d ? d.title : state.view === "profile" ? who : TITLES[state.view];
   $("#nav-right").innerHTML = !d ? `<button class="nav-btn" type="button" data-act="insights">Insights</button>` : "";
@@ -136,11 +140,17 @@ function profileScreen(s) {
     ["Rewatches", s.rewatches, s.rewatches ? dl(DR.rewatches(s)) : `data-view="diary"`],
     ["Liked", s.likes, `data-act="liked"`],
   ].map(([k, n, attrs]) => `<li><button class="row" type="button" ${attrs}><span>${k}</span><span class="count">${fmtN(n)}</span>${CHEV}</button></li>`).join("");
+  const T = s.scope === "all" ? onThisDay(lib) : null;
+  const otd = T && T.entries.length ? sh(esc(T.title), T.entries.length > 4 ? `<button class="more" type="button" ${dl(T.to)}>See all</button>` : "") +
+    `<div class="scroller otd">${T.entries.slice(0, 12).map((e) => `<button class="pitem" type="button" ${dl(D.film(e.film, { entry: e }))}>${poster(e.film)}
+      <span class="pmeta"><span class="stars">${stars(e.rating)}</span></span><span class="mdate">${T.week ? fmtDate(e.date) : e.date.slice(0, 4)}</span></button>`).join("")}</div>` : "";
   return `<div class="profile">${avatar({ name: ex ? "Example" : lib.profile.username || "You" }, "xl")}
       <div class="name">${esc(name)}</div><div class="handle">${handle}</div></div>
     ${state.importNote ? `<div class="card notice"><p>${esc(state.importNote)}</p>${MY_LIB && MY_LIB.reviews.length ? `<button class="btn block" type="button" data-act="reviews">See your reviews</button>` : ""}</div>` : ""}${notice}${strip}
     <button class="row" type="button" data-act="insights"><span>Insights</span><span class="count">Trends, tastes, the crowd</span>${CHEV}</button>
     <button class="row" type="button" data-act="compare"><span>Compare</span><span class="count">You and friends</span>${CHEV}</button>
+    ${lib.watchlistFilms.length ? `<button class="row" type="button" data-act="watchnext"><span>Watch next</span><span class="count">From your watchlist</span>${CHEV}</button>` : ""}
+    ${otd}
     ${fill}${topRated}${ratings}${people}
     ${sh(state.scope === "all" ? "All time" : state.scope)}<ul class="menu">${rows}</ul>`;
 }

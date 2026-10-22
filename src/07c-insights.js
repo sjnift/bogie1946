@@ -22,6 +22,7 @@ function renderInsights() {
     section("i-reviews", "Your reviews", "What you write, and when you bother.", reviewInsightsBlock(lib, null)),
     section("i-habits", "Habits", "When and how you watch.", habitsBlock(I.habits)),
   ].join("");
+  syncHash();
 }
 const needYears = (what) => `<div class="empty">${what} need diary entries from at least two years, with five or more films in each.</div>`;
 // a sentence that opens the data it describes
@@ -185,7 +186,7 @@ function renderYearInsights(Y) {
     <div class="crowd"><h3>You liked more</h3>${prow(C.higher, "Nothing ¾★ or more above them.")}<h3>You liked less</h3>${prow(C.lower, "Nothing ¾★ or more below them.")}</div>`
     : `<div class="empty">Not enough crowd scores for ${Y}'s films yet.</div>`);
   $("#insights").innerHTML = [
-    section("y-glance", `${esc(Y)} at a glance`, "The year's headlines.", glanceBlock(R.glance, `Not enough diary entries in ${Y}.`)),
+    section("y-glance", `${esc(Y)} at a glance`, `The year's headlines. ${dlink(R.S.entries.length && D.share(Y), "Share them as an image")}`, glanceBlock(R.glance, `Not enough diary entries in ${Y}.`)),
     section("y-prev", `Against ${prevY}`, "This year next to the one before.", vsPrev),
     section("y-months", "Month by month", `Diary entries through ${esc(Y)}.`, monthChart),
     section("y-best", `Best of ${esc(Y)}`, "Your highest-rated films that year.", posterRow(R.best, "No rated films.") +
@@ -195,5 +196,6 @@ function renderYearInsights(Y) {
     section("y-reviews", `Reviews in ${esc(Y)}`, "What you wrote that year.", reviewInsightsBlock(lib, Y)),
     section("y-habits", `Habits in ${esc(Y)}`, "When and how you watched.", habitsBlock(R.habits, "No diary entries.")),
   ].join("");
+  syncHash();
 }
 </script>

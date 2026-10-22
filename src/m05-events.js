@@ -3,14 +3,23 @@
 async function importFiles(files) {
   state.importError = "";
   try {
+    // a backup from another device restores everything it holds
+    if (isBackupFile(files)) {
+      const note = await restoreBackup(files[0]);
+      MY_LIB = myLibrary();
+      Object.assign(state, { mode: "mine", scope: "all", view: "profile", stack: [], importNote: note });
+      saveView(); render(); window.scrollTo(0, 0);
+      await refreshFeed(); autoLookup(allFilmsLib());
+      return;
+    }
     const rows = await readExport(files);
     const saved = store.set(KEYS.rows, rows);
-    MY_LIB = buildLibrary(rows);
+    MY_LIB = myLibrary();
     Object.assign(state, { mode: "mine", scope: "all", view: "profile", stack: [], peopleLimit: 50, diaryLimit: 60 });
     job.note = saved ? "" : "This browser wouldn't save your export, so you'll need to import it again next time.";
     job.err = !saved;
     state.importNote = importSummary(rows, MY_LIB);
-    setTimeout(() => autoLookup(allFilmsLib()));
+    setTimeout(async () => { await refreshFeed(); autoLookup(allFilmsLib()); });
   } catch (e) {
     state.importError = (e && e.message) || "Couldn't read that file. Import the ZIP from Letterboxd → Settings → Data.";
     Object.assign(state, { view: "data", stack: [] });
@@ -29,7 +38,12 @@ function act(t) {
   else if (a === "compare") push({ type: "compare", title: "Compare" });
   else if (a === "reviews") { state.reviewLimit = 30; push({ type: "reviews", title: "Reviews" }); }
   else if (a === "add-friend") $("#friend-input").click();
-  else if (a === "back") pop();
+  // back through history when this screen was reached in the app, otherwise straight to the one under it
+  else if (a === "back") { if (history.state && history.state.app) history.back(); else { routeReplace = true; pop(); routeReplace = false; } }
+  else if (a === "search") openSearch();
+  else if (a === "watchnext") push({ type: "watchnext", title: "Watch next" });
+  else if (a === "backup") downloadBackup(state.backupKeys);
+  else if (a === "backup-keys") { state.backupKeys = !state.backupKeys; render(); }
   else if (a === "people") { Object.assign(state, { view: "people", role: t.dataset.role || "c", stack: [], peopleLimit: 50 }); saveView(); render(); window.scrollTo(0, 0); }
   else if (a === "cat") push({ type: "cat", field: t.dataset.field, title: t.dataset.field[0].toUpperCase() + t.dataset.field.slice(1) });
   else if (a === "all-rated" || a === "liked") openSheet(a === "liked" ? DR.liked(STATS) : D.films("Highest rated", filmsSub(STATS.films.filter((f) => f.rating)), STATS.films.filter((f) => f.rating), { scope: STATS.scope }));
@@ -74,6 +88,11 @@ function bind() {
   const fileInput = $("#file-input");
   fileInput.addEventListener("change", () => { const files = [...fileInput.files]; fileInput.value = ""; if (files.length) importFiles(files); });
   document.addEventListener("input", (e) => {
+    if (e.target.id === "search-q") {
+      const d = SSTACK[SSTACK.length - 1];
+      if (d && d.kind === "search") { d.q = e.target.value; $("#search-results").innerHTML = inPanel(() => searchResultsHtml(d)); }
+      return;
+    }
     if (e.target.id !== "review-search") return;
     state.reviewQuery = e.target.value; state.reviewLimit = 30; refreshReviewList();
   });
@@ -85,19 +104,33 @@ function bind() {
   // the sheet: Back, Done, a tap outside it, and "See all"
   const sheet = $("#sheet");
   sheet.addEventListener("click", (e) => { if (e.target === sheet) sheet.close(); });
-  sheet.addEventListener("close", () => { SSTACK = []; PANEL = new Map(); });
+  sheet.addEventListener("close", onSheetClosed);
+  window.addEventListener("popstate", onPopState);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && e.target.id === "search-q") { const first = $("#search-results [data-list]"); if (first) first.click(); }
+    else if (e.key === "Enter" && e.target.id === "fix-input") { const b = $("[data-fixsave]"); if (b) b.click(); }
+  });
   document.addEventListener("click", (e) => {
     const x = e.target.closest("[data-sback],[data-sclose],[data-drillpage],[data-drillmore]");
     if (!x) return;
-    if (x.hasAttribute("data-sback")) { SSTACK.pop(); paintSheet(); }
+    if (x.hasAttribute("data-sback")) history.back();
     else if (x.hasAttribute("data-sclose")) sheet.close();
     else if (x.hasAttribute("data-drillpage")) sheetToPage();
     else { state.drillLimit += 200; render(); }
   });
   document.addEventListener("click", (e) => {
+    const t = e.target.closest("[data-fix],[data-fixsave],[data-fixcancel],[data-wn],[data-sharego]");
+    if (!t) return;
+    if (t.dataset.sharego) { shareGo(t.dataset.sharego); return; }
+    if (t.dataset.fix) { FIXING = t.dataset.fix; FIX_NOTE = { key: null, text: "" }; repaintDrill(); $("#fix-input")?.focus(); }
+    else if (t.dataset.fixsave) runFix(t.dataset.fixsave, repaintDrill);
+    else if (t.hasAttribute("data-fixcancel")) { FIXING = null; repaintDrill(); }
+    else if (t.dataset.wn) { state.wn = t.dataset.wn; render(); }
+  });
+  document.addEventListener("click", (e) => {
     const t = e.target.closest("[data-insyear],[data-cmp],[data-unfriend],[data-lb],[data-crowdsel],[data-act],[data-view],[data-scope],[data-list],[data-role],[data-crew],[data-sort],[data-catsort]");
     if (!t) return;
-    if (t.dataset.insyear) { state.insYear = t.dataset.insyear; render(); return; }
+    if (t.dataset.insyear) { state.insYear = t.dataset.insyear; routeReplace = true; render(); routeReplace = false; return; }
     if (t.dataset.cmp) { Object.assign(state, { cmp: t.dataset.cmp, unfriend: null }); render(); return; }
     if (t.dataset.unfriend) {
       if (state.unfriend === t.dataset.unfriend) { removeFriend(t.dataset.unfriend); state.unfriend = null; } else state.unfriend = t.dataset.unfriend;
@@ -109,6 +142,7 @@ function bind() {
     if (t.dataset.view) {
       const same = state.view === t.dataset.view && !state.stack.length;
       Object.assign(state, { view: t.dataset.view, stack: [], forgetArmed: false, importNote: "" });
+      if ($("#sheet").open) closeSheetThen();
       saveView(); render();
       if (!same) window.scrollTo(0, 0);
     }
@@ -143,22 +177,33 @@ function bind() {
   window.addEventListener("drop", (e) => { if (!hasFiles(e)) return; e.preventDefault(); const files = [...e.dataTransfer.files]; if (files.length) importFiles(files); });
 }
 
-function init() {
+async function init() {
+  await store.init();
+  META = store.get(KEYS.meta, {}); PHOTOS = store.get(KEYS.photos, {}); LBX = store.get(KEYS.lbx, {});
   const ex = buildExample();
   EXAMPLE_FRIENDS = buildExampleFriends().map((f) => ({ ...f, lib: buildLibrary(f.rows) }));
   loadFriends();
   EXAMPLE_META = Object.fromEntries(Object.entries(ex.meta).map(([k, m]) => [k, cleanMeta(m)]));
   EXAMPLE_LIB = buildLibrary(ex.rows);
-  const saved = store.get(KEYS.rows, null);
-  if (saved) { try { MY_LIB = buildLibrary(saved); } catch { MY_LIB = null; } }
+  try { MY_LIB = myLibrary(); } catch { MY_LIB = null; }
   const view = store.get(VIEW_KEY, {});
   state.mode = MY_LIB && view.mode !== "example" ? "mine" : "example";
   if (view.scope) state.scope = view.scope;
   if (SCREENS[view.view]) state.view = view.view;
   bind();
+  routeFromHash();
   render();
-  // A saved key picks up films not yet looked up, or matched before matching improved.
-  if (MY_LIB) { autoLookup(allFilmsLib()); pollLetterboxd(MY_LIB); }
+  routeReady = true;
+  syncHash(true);
+  openRouteFilm();
+  // New diary entries from the daily feed, then a saved key picks up films not yet looked up.
+  if (MY_LIB) { await refreshFeed(); autoLookup(allFilmsLib()); pollLetterboxd(MY_LIB); }
+}
+async function refreshFeed() {
+  const feed = MY_LIB && await loadFeed(MY_LIB.profile.username);
+  if (!feed) return;
+  FEED = feed; MY_LIB = myLibrary(); SEARCH_INDEX = null;
+  render();
 }
 init();
 </script>

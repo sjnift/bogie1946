@@ -15,19 +15,21 @@ function paintSheet() {
   if (!sheet.open) { if (typeof sheet.showModal === "function") sheet.showModal(); else sheet.setAttribute("open", ""); }
   const body = sheet.querySelector(".sheet-body");
   if (body) body.scrollTop = 0;
+  const q = $("#search-q");
+  if (q && d.kind === "search") { q.focus(); q.setSelectionRange(q.value.length, q.value.length); }
+  fillFilmo(sheet); fillShare(sheet);
 }
 // From a screen a drill opens the sheet; from inside the sheet it stacks, with Back.
 function openSheet(d, inside) {
   if (!d) return;
   SSTACK = inside ? [...SSTACK, d] : [d];
   paintSheet();
+  pushSheetState();
 }
 // "See all" turns the sheet into a screen of its own, pushed like any other.
 function sheetToPage() {
   const d = SSTACK[SSTACK.length - 1];
-  $("#sheet").close();
-  state.drillLimit = 200;
-  push({ type: "drill", title: d.title, d });
+  closeSheetThen(() => { state.drillLimit = 200; push({ type: "drill", title: d.title, d }); });
 }
 function drillScreen(d) {
   const { html, hidden } = drillBody(d, state.drillLimit);

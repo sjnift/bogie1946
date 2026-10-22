@@ -434,6 +434,26 @@ button.gpair { border-bottom: 1px solid var(--line); padding: 6px 0; }
 .venn [data-list] { cursor: pointer; }
 button.kv { all: unset; box-sizing: border-box; width: 100%; display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line); color: var(--ink-1); font-size: 14.5px; cursor: pointer; }
 button.kv span:last-child { color: var(--ink-2); font-size: 13px; white-space: nowrap; }
+.search-box { position: sticky; top: 0; background: var(--bar); padding: 10px 0; z-index: 1; }
+.search-box input { width: 100%; box-sizing: border-box; font: inherit; font-size: 16px; padding: 10px 12px; border-radius: 8px; border: 0; background: var(--card); color: var(--ink); }
+.search-hint { margin: 6px 0; }
+.filmo { margin: 10px 0 12px; padding: 12px; border-radius: 8px; background: var(--card); }
+.filmo .dr-s { margin: 0; }
+.filmo-head { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; color: var(--ink-1); }
+.filmo-head b { color: var(--ink); }
+.filmo-bar { height: 5px; border-radius: 3px; background: var(--card-2); margin: 8px 0 4px; overflow: hidden; }
+.filmo-bar i { display: block; height: 100%; background: var(--green-mark); }
+.filmo-left summary { color: var(--green); font-size: 13.5px; margin-top: 6px; }
+.fc-fix { font-size: 13.5px; }
+.fc-fix label { display: block; color: var(--ink-2); margin-bottom: 6px; }
+.fix-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.fix-row input { flex: 1 1 200px; min-width: 0; font: inherit; font-size: 16px; padding: 8px 10px; border-radius: 6px; border: 0; background: var(--card); color: var(--ink); }
+.fix-row .btn { padding: 8px 12px; }
+.fix-note { margin: 6px 0 0; }
+.scroller.otd .pitem { width: 72px; flex: none; }
+.share-img { display: block; width: 100%; height: auto; border-radius: 8px; margin-top: 8px; }
+.share-row { display: flex; gap: 8px; margin: 12px 0 6px; }
+.share-row .btn { flex: 1; text-align: center; text-decoration: none; }
 </style>
 </head>
 <body>
@@ -470,7 +490,7 @@ button.kv span:last-child { color: var(--ink-2); font-size: 13px; white-space: n
 </div>
 
 <input id="friend-input" type="file" accept=".zip,.csv,application/zip,text/csv" multiple hidden>
-<input id="file-input" type="file" accept=".zip,.csv,application/zip,text/csv" multiple hidden>
+<input id="file-input" type="file" accept=".zip,.csv,.json,application/zip,text/csv,application/json" multiple hidden>
 <dialog class="sheet" id="sheet" aria-labelledby="sheet-title"></dialog>
 <div id="tip" role="tooltip" hidden></div>
 
@@ -710,12 +730,70 @@ const personKey = (n) => String(n).normalize("NFD").replace(/[̀-ͯ]/g, "").toLo
 const dayIndex = (iso) => Math.floor(Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10)) / 864e5);
 const weekdayOf = (iso) => (new Date(iso + "T00:00:00Z").getUTCDay() + 6) % 7; // Monday = 0
 
-const store = {
+const KEYS = { rows: "cr-rows-v1", meta: "cr-meta-v1", photos: "cr-photos-v1", tmdb: "cr-tmdb-key", omdb: "cr-omdb-key", apify: "cr-apify-key", lbx: "cr-letterboxd-v1", lbRun: "cr-letterboxd-run", friends: "cr-friends-v1", view: "cr-view-v1", filmo: "cr-filmo-v1" };
+/* Small things (keys, the view) live in localStorage. The big ones (the export, film details, Letterboxd
+   averages, friends' exports) live in IndexedDB, which holds far more than localStorage's few megabytes.
+   store.init() reads them into memory once at start; after that reads are instant and writes go to the
+   database in the background. Without IndexedDB everything stays in localStorage, as before. */
+const BIG_KEYS = new Set([KEYS.rows, KEYS.meta, KEYS.photos, KEYS.lbx, KEYS.friends, KEYS.filmo]);
+const MEM = new Map();
+let IDB = null, idbFailed = false;
+const ls = {
   get(k, fallback) { try { const v = localStorage.getItem(k); return v == null ? fallback : JSON.parse(v); } catch { return fallback; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } },
   del(k) { try { localStorage.removeItem(k); } catch {} },
 };
-const KEYS = { rows: "cr-rows-v1", meta: "cr-meta-v1", photos: "cr-photos-v1", tmdb: "cr-tmdb-key", omdb: "cr-omdb-key", apify: "cr-apify-key", lbx: "cr-letterboxd-v1", lbRun: "cr-letterboxd-run", friends: "cr-friends-v1", view: "cr-view-v1" };
+function idbReq(mode, fn) {
+  return new Promise((resolve, reject) => {
+    const tx = IDB.transaction("kv", mode), req = fn(tx.objectStore("kv"));
+    tx.oncomplete = () => resolve(req && req.result);
+    tx.onerror = tx.onabort = () => reject(tx.error);
+  });
+}
+const pending = new Map();
+// Writes for one key are coalesced, so a lookup saving every few films writes once.
+function idbWrite(k) {
+  if (pending.has(k)) return;
+  pending.set(k, setTimeout(async () => {
+    pending.delete(k);
+    try { MEM.has(k) ? await idbReq("readwrite", (s) => s.put(MEM.get(k), k)) : await idbReq("readwrite", (s) => s.delete(k)); idbFailed = false; }
+    catch { idbFailed = true; if (MEM.has(k)) ls.set(k, MEM.get(k)); }
+  }, 250));
+}
+const store = {
+  get(k, fallback) { return IDB && BIG_KEYS.has(k) ? (MEM.has(k) ? MEM.get(k) : fallback) : ls.get(k, fallback); },
+  set(k, v) {
+    if (!(IDB && BIG_KEYS.has(k))) return ls.set(k, v);
+    MEM.set(k, v); idbWrite(k);
+    return !idbFailed;
+  },
+  del(k) { if (IDB && BIG_KEYS.has(k)) { MEM.delete(k); idbWrite(k); } ls.del(k); },
+  // Opens the database and moves anything still in localStorage into it.
+  async init() {
+    try {
+      IDB = await new Promise((resolve, reject) => {
+        const req = indexedDB.open("credits-roll", 1);
+        req.onupgradeneeded = () => req.result.createObjectStore("kv");
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+        setTimeout(() => reject(new Error("timeout")), 4000);
+      });
+      for (const k of BIG_KEYS) {
+        let v = await idbReq("readonly", (s) => s.get(k));
+        // a copy in localStorage is newer: only an older version of the page (or a failed write) puts one there
+        const old = ls.get(k, undefined);
+        if (old !== undefined) { await idbReq("readwrite", (s) => s.put(old, k)); v = old; ls.del(k); }
+        if (v !== undefined) MEM.set(k, v);
+      }
+      // ask the browser not to clear the database when space runs short (Safari otherwise can after a week away)
+      if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+    } catch {
+      // put back anything already moved, and carry on with localStorage
+      for (const [k, v] of MEM) ls.set(k, v);
+      MEM.clear(); IDB = null;
+    }
+  },
+};
 
 /* ---------- reading a Letterboxd export ---------- */
 const WANTED = {
@@ -740,7 +818,8 @@ function slim(kind, rows) {
     case "watched": return rows.map((r) => pick(r, [...base, "Date", "Letterboxd URI"]));
     case "ratings": return rows.map((r) => pick(r, [...base, "Rating"]));
     case "reviews": return rows.map((r) => pick(r, [...base, "Date", "Watched Date", "Rating", "Rewatch", "Review", "Tags"]));
-    case "likes": case "watchlist": return rows.map((r) => pick(r, base));
+    case "likes": return rows.map((r) => pick(r, base));
+    case "watchlist": return rows.map((r) => pick(r, [...base, "Letterboxd URI"]));
     default: return rows;
   }
 }
@@ -865,7 +944,8 @@ function buildLibrary(input) {
     reviewTextMissing: reviews.length > 0 && reviews.every((r) => !r.text),
     profile: { username: p.Username || "", joined: (p["Date Joined"] || "").slice(0, 10), name: [p["Given Name"], p["Family Name"]].filter(Boolean).join(" ") },
     watchlist: rows.watchlist.length,
-    watchlistFilms: rows.watchlist.map((r) => ({ key: filmKey(r.Name, r.Year), name: String(r.Name).trim(), year: parseInt(r.Year, 10) || null })),
+    watchlistFilms: rows.watchlist.map((r) => ({ key: filmKey(r.Name, r.Year), name: String(r.Name).trim(), year: parseInt(r.Year, 10) || null,
+      rating: null, liked: false, entries: [], reviews: 0, uri: /^https?:\/\//.test(r["Letterboxd URI"] || "") ? r["Letterboxd URI"] : "", watchlist: true })),
   };
 }
 
@@ -908,6 +988,7 @@ function cleanMeta(m) {
     k: list((m.k || []).map(country), 6), l: language(m.l), r: Math.round(Number(m.r)) || null,
     va: Number(m.va) || null, vc: Number(m.vc) || null, // TMDB audience score out of 10, and how many votes
     im: /^tt\d+$/.test(m.im || "") ? m.im : null, // IMDb id, for IMDb scores from OMDb
+    pin: m.pin || undefined, // matched by hand, so lookups leave it alone
     ir: Number(m.ir) || null, iv: Number(m.iv) || null, mc: Number(m.mc) || null, rt: Number(m.rt) || null, om: m.om || null, // IMDb, Metacritic, Rotten Tomatoes
   };
 }
@@ -1049,10 +1130,14 @@ function saveMeta() {
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// TMDB ids known for sure: from the Letterboxd feed. A film matched to another id is looked up again.
+let KNOWN_IDS = {};
 function needsLookup(lib, kind) {
   return lib.films.filter((f) => {
     const m = META[f.key];
     if (kind === "tmdb") {
+      if (m && m.pin) return false;
+      if (KNOWN_IDS[f.key] && (!m || m.id !== KNOWN_IDS[f.key])) return true;
       if (!m) return true;
       if (m.src === "tmdb") return (m.v || 1) < TMDB_MATCH_VERSION;
       return !(m.tmdbMiss >= TMDB_MATCH_VERSION);
@@ -1096,6 +1181,7 @@ function pickHit(results, f, tolerance, needTitle) {
   return best.r;
 }
 async function tmdbFilm(f, key, signal) {
+  if (KNOWN_IDS[f.key]) { const m = await tmdbDetails(KNOWN_IDS[f.key], key, signal); if (!m.miss) return m; }
   let s = await tmdbGet("/search/movie", { query: f.name, year: f.year || "", include_adult: "false" }, key, signal);
   let hit = pickHit(s && s.results, f, 2, false);
   if (!hit && f.year) {
@@ -1103,7 +1189,11 @@ async function tmdbFilm(f, key, signal) {
     hit = pickHit(s && s.results, f, 2, true);
   }
   if (!hit) return { src: "tmdb", miss: true, v: TMDB_MATCH_VERSION };
-  const d = await tmdbGet(`/movie/${hit.id}`, { append_to_response: "credits" }, key, signal);
+  return tmdbDetails(hit.id, key, signal);
+}
+// One TMDB film's details and credits, by its id.
+async function tmdbDetails(id, key, signal) {
+  const d = await tmdbGet(`/movie/${id}`, { append_to_response: "credits" }, key, signal);
   if (!d) return { src: "tmdb", miss: true, v: TMDB_MATCH_VERSION };
   const crew = (d.credits && d.credits.crew) || [];
   const cast = ((d.credits && d.credits.cast) || []).slice().sort((a, b) => a.order - b.order).slice(0, CAST_DEPTH);
@@ -1320,6 +1410,29 @@ async function runClaude(lib) {
   else job.note = job.failed ? `Done. ${plural(job.failed, "film")} came back without details. Try those again, or use TMDB.` : "Done. Every film has cast and crew.";
   scheduleRender();
 }
+/* ----- putting right a wrong match ----- */
+// A TMDB or IMDb link (or bare id) for the film this one really is. The match is then kept, whatever later lookups find.
+async function fixMatch(f, text) {
+  const key = tmdbKey();
+  if (!key) throw new Error("Add your TMDB key in the Cast & crew box first.");
+  const t = String(text || "").trim();
+  let id = (t.match(/themoviedb\.org\/movie\/(\d+)/) || t.match(/^(\d+)$/) || [])[1];
+  const imdb = (t.match(/\b(tt\d{5,})\b/) || [])[1];
+  if (!id && imdb) {
+    const r = await tmdbGet(`/find/${imdb}`, { external_source: "imdb_id" }, key);
+    id = r && r.movie_results && r.movie_results[0] && r.movie_results[0].id;
+    if (!id) throw new Error("TMDB doesn't know a film with that IMDb link.");
+  }
+  if (!id) throw new Error("Paste a link to the film on themoviedb.org or imdb.com.");
+  const m = await tmdbDetails(id, key);
+  if (!m || m.miss) throw new Error("TMDB has no film with that id.");
+  m.pin = true;
+  META[f.key] = m;
+  saveMeta();
+  if (omdbKey() && needsImdb({ films: [f] }).length) runOmdb({ films: [f] }, omdbKey());
+  return m;
+}
+
 function retryClaudeMisses(lib) {
   for (const f of lib.films) { const m = META[f.key]; if (m && m.miss && m.src === "claude") delete META[f.key]; }
   return runClaude(lib);
@@ -2025,6 +2138,8 @@ function comparePeople() {
 function allFilmsLib() {
   const seen = new Map();
   for (const lib of [MY_LIB, ...FRIENDS.map((f) => f.lib)]) if (lib) for (const f of lib.films) if (!seen.has(f.key)) seen.set(f.key, f);
+  // your watchlist too, for Watch next
+  if (MY_LIB) for (const w of MY_LIB.watchlistFilms) if (!seen.has(w.key)) seen.set(w.key, w);
   return { films: [...seen.values()], profile: (MY_LIB || {}).profile || {} };
 }
 
@@ -2284,7 +2399,7 @@ const dlink = (d, html) => d ? `<button class="dlink" type="button" ${dl(d)}>${h
 const dline = (d, html) => d ? `<button class="dline" type="button" ${dl(d)}>${html}<span class="go" aria-hidden="true"> ›</span></button>` : html;
 
 const PANEL_CAP = 25;
-const drillSize = (d) => d.kind === "film" ? 1 : d.kind === "groups" ? d.groups.reduce((s, g) => s + drillSize(g), 0)
+const drillSize = (d) => d.kind === "film" ? 1 : d.kind === "search" || d.kind === "share" ? 0 : d.kind === "groups" ? d.groups.reduce((s, g) => s + drillSize(g), 0)
   : (d.films || d.entries || d.reviews || d.items || []).length;
 
 /* ----- sub-lines ----- */
@@ -2425,6 +2540,8 @@ const plainRowHtml = (x) => `<div class="drill-row plain"><span class="dr-main">
 // The body of a drill, showing at most `cap` items in each list. Returns how many it left out.
 function drillBody(d, cap = Infinity) {
   if (d.kind === "film") return { html: filmCardHtml(d), hidden: 0 };
+  if (d.kind === "search") return { html: searchBodyHtml(d), hidden: 0 };
+  if (d.kind === "share") return { html: shareBodyHtml(d), hidden: 0 };
   if (d.kind === "groups") {
     let html = "", hidden = 0;
     for (const g of d.groups) {
@@ -2436,8 +2553,8 @@ function drillBody(d, cap = Infinity) {
   }
   const all = itemsOf(d), shown = all.slice(0, cap);
   if (!all.length) return { html: `<div class="empty">${esc(d.empty || "Nothing here.")}</div>`, hidden: 0 };
-  const html = d.kind === "entries" ? entryRowsHtml(shown, all, d)
-    : shown.map((x) => d.kind === "films" ? filmRowHtml(x, d) : d.kind === "reviews" ? reviewRowHtml(x, d) : d.kind === "names" ? nameRowHtml(x, d) : plainRowHtml(x)).join("");
+  const html = (d.kind === "films" ? filmoPlaceholder(d) : "") + (d.kind === "entries" ? entryRowsHtml(shown, all, d)
+    : shown.map((x) => d.kind === "films" ? filmRowHtml(x, d) : d.kind === "reviews" ? reviewRowHtml(x, d) : d.kind === "names" ? nameRowHtml(x, d) : plainRowHtml(x)).join(""));
   return { html, hidden: all.length - shown.length };
 }
 
@@ -2480,13 +2597,452 @@ function filmCardHtml(d) {
   return `<div class="fcard">${d.badge ? `<p class="fc-badge">${esc(d.badge)}</p>` : ""}<div class="fc-top">${thumb(f, true)}<div class="fc-facts">
       ${facts.join("")}${m ? "" : `<p class="dr-s">No cast &amp; crew details yet.</p>`}
       ${crowd.length ? `<p class="fc-crowd">${crowd.join('<span class="sep"> · </span>')}</p>` : ""}${tags.length ? `<p class="fc-tags">${tags.join("")}</p>` : ""}</div></div>
-    ${who.map((p) => recordHtml(p, d, !d.people)).join("")}${cast}<p class="fc-links">${links}</p></div>`;
+    ${who.map((p) => recordHtml(p, d, !d.people)).join("")}${cast}<p class="fc-links">${links}</p>${fixHtml(f)}</div>`;
+}
+// "Wrong film?" under a card: paste the right film's TMDB or IMDb link and the match is kept from then on.
+let FIXING = null, FIX_NOTE = { key: null, text: "" };
+function fixHtml(f) {
+  if (IN_VIEWER || state.mode !== "mine" || !MY_LIB || !(MY_LIB.films.some((x) => x.key === f.key) || MY_LIB.watchlistFilms.some((x) => x.key === f.key))) return "";
+  const note = FIX_NOTE.key === f.key && FIX_NOTE.text ? `<p class="dr-s fix-note" role="status">${esc(FIX_NOTE.text)}</p>` : "";
+  if (FIXING !== f.key) return `<div class="fc-fix"><button class="linkish" type="button" data-fix="${esc(f.key)}">${META[f.key] && META[f.key].pin ? "Matched by hand. Change it?" : "Wrong film?"}</button>${note}</div>`;
+  return `<div class="fc-fix open"><label for="fix-input">Paste the right film's link from themoviedb.org or imdb.com</label>
+    <div class="fix-row"><input id="fix-input" type="url" autocomplete="off" spellcheck="false" placeholder="https://www.themoviedb.org/movie/…">
+    <button class="btn small" type="button" data-fixsave="${esc(f.key)}">Use this film</button><button class="linkish" type="button" data-fixcancel>Cancel</button></div>${note}</div>`;
+}
+// Runs a fix from the card; the page and the open card are drawn again after.
+async function runFix(key, repaint) {
+  const f = MY_LIB.films.find((x) => x.key === key) || MY_LIB.watchlistFilms.find((x) => x.key === key);
+  const input = document.getElementById("fix-input");
+  if (!f || !input) return;
+  const text = input.value;
+  FIX_NOTE = { key, text: "Looking it up on TMDB…" }; repaint();
+  try {
+    const m = await fixMatch(f, text);
+    FIXING = null; FIX_NOTE = { key, text: `Matched to TMDB film ${m.id}${m.d.length ? `, directed by ${m.d.join(" and ")}` : ""}. Every stat uses it now.` };
+    SEARCH_INDEX = null; render(); repaint();
+  } catch (e) {
+    FIX_NOTE = { key, text: (e && e.message) || "Couldn't reach TMDB." }; repaint();
+    const again = document.getElementById("fix-input"); if (again) { again.value = text; again.focus(); }
+  }
+}
+</script>
+<script>
+/* ---------- the daily Letterboxd feed ----------
+   A GitHub workflow reads the member's public RSS feed each day into feed/<username>.json on this site.
+   Entries the export doesn't have yet are added to the diary when the page opens; the export itself is
+   left as it was, so a fresh import simply takes over. */
+let FEED = null, FEED_ADDED = [];
+// The repository a GitHub Pages copy is published from, for the link that adds a username to the feed.
+const SITE_REPO = (() => { const m = location.hostname.match(/^([\w-]+)\.github\.io$/); const repo = location.pathname.split("/")[1]; return m && repo ? `https://github.com/${m[1]}/${repo}` : null; })();
+async function loadFeed(user) {
+  if (IN_VIEWER || !user || !/^https?:$/.test(location.protocol)) return null;
+  try {
+    const r = await fetch(`feed/${encodeURIComponent(user.toLowerCase())}.json`, { cache: "no-cache" });
+    const feed = r.ok ? await r.json() : null;
+    return feed && Array.isArray(feed.items) ? feed : null;
+  } catch { return null; }
+}
+// The export's rows plus the feed's entries it doesn't have: diary, watched, rating, like and review.
+function withFeed(rows, feed) {
+  if (!rows || !feed) return { rows, added: [] };
+  const out = { ...rows, diary: [...(rows.diary || [])], watched: [...(rows.watched || [])], ratings: [...(rows.ratings || [])], reviews: [...(rows.reviews || [])], likes: [...(rows.likes || [])] };
+  const k = (r) => filmKey(r.Name, r.Year);
+  const inDiary = new Set(out.diary.map((r) => `${k(r)}|${r["Watched Date"] || r.Date}`));
+  const watched = new Set(out.watched.map(k)), rated = new Set(out.ratings.map(k)), liked = new Set(out.likes.map(k));
+  const added = [];
+  for (const x of [...feed.items].sort((a, b) => a.watched.localeCompare(b.watched))) {
+    const base = { Name: x.title, Year: x.year ? String(x.year) : "" }, fk = k(base);
+    if (x.tmdb) KNOWN_IDS[fk] = x.tmdb;
+    if (inDiary.has(`${fk}|${x.watched}`)) continue;
+    inDiary.add(`${fk}|${x.watched}`);
+    const entry = { ...base, Date: x.logged || x.watched, "Watched Date": x.watched, Rating: x.rating ? String(x.rating) : "", Rewatch: x.rewatch ? "Yes" : "", Tags: "" };
+    out.diary.push(entry);
+    if (!watched.has(fk)) { out.watched.push({ ...base, Date: x.logged || x.watched, "Letterboxd URI": "" }); watched.add(fk); }
+    if (x.rating && !rated.has(fk)) { out.ratings.push({ ...base, Rating: String(x.rating) }); rated.add(fk); }
+    if (x.liked && !liked.has(fk)) { out.likes.push(base); liked.add(fk); }
+    if (x.review) out.reviews.push({ ...entry, Review: x.review });
+    added.push(x);
+  }
+  return { rows: out, added };
+}
+// Builds your library from the saved export and whatever the feed adds.
+function myLibrary() {
+  const saved = store.get(KEYS.rows, null);
+  if (!saved) return null;
+  const user = ((saved.profile || [])[0] || {}).Username || "";
+  const fit = FEED && user && FEED.user.toLowerCase() === user.toLowerCase();
+  const { rows, added } = withFeed(saved, fit ? FEED : null);
+  FEED_ADDED = added;
+  return buildLibrary(rows);
+}
+// The feed's line in the Cast & crew box, or how to switch it on.
+function feedBlock(lib, phone) {
+  if (IN_VIEWER || !lib || state.mode !== "mine") return "";
+  const title = phone ? `<p class="title" style="margin-top:6px">Daily diary updates</p>` : `<h3 class="sub-h">Daily diary updates</h3>`;
+  const user = lib.profile.username;
+  if (FEED && user && FEED.user.toLowerCase() === user.toLowerCase()) {
+    const newest = FEED.items[0];
+    const es = lib.entries.filter((e) => FEED_ADDED.some((x) => filmKey(x.title, x.year) === e.film.key && x.watched === e.date));
+    return title + `<p class="status">Your Letterboxd feed is read once a day.${newest ? ` Newest entry: ${esc(newest.title)}, ${fmtDate(newest.watched)}.` : ""}
+      ${es.length ? `${dlink(D.entries("From your Letterboxd feed", `${entriesSub(es)} logged since your export`, es), plural(es.length, "diary entry", "diary entries"))} came from it since your export.` : "Your export already has everything in it."}</p>`;
+  }
+  if (!user || !SITE_REPO) return "";
+  return title + `<p class="status">New diary entries can show up here each day without a fresh export. Add <b>${esc(user)}</b> on a line of its own to
+    <a href="${SITE_REPO}/edit/main/feed-users.txt" target="_blank" rel="noopener">feed-users.txt</a> in your GitHub repository and commit it.
+    Your diary must be public on Letterboxd; the entries are then also public on this site.</p>`;
+}
+
+/* ---------- backups: the same diary on another device ---------- */
+function backupData(withKeys) {
+  const b = { app: "credits-roll", v: 1, at: new Date().toISOString(), rows: store.get(KEYS.rows, null), meta: META, photos: PHOTOS, lbx: LBX, friends: store.get(KEYS.friends, []) };
+  if (withKeys) b.keys = { tmdb: store.get(KEYS.tmdb, ""), omdb: store.get(KEYS.omdb, ""), apify: store.get(KEYS.apify, "") };
+  return b;
+}
+function downloadBackup(withKeys) {
+  const blob = new Blob([JSON.stringify(backupData(withKeys))], { type: "application/json" });
+  const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: `credits-roll-backup-${new Date().toISOString().slice(0, 10)}.json` });
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+const isBackupFile = (files) => files.length === 1 && /\.json$/i.test(files[0].name);
+// Restores a backup made on another device: its export replaces this one; details and averages are added.
+async function restoreBackup(file) {
+  let b;
+  try { b = JSON.parse(await file.text()); } catch { throw new Error("That file isn't a Credits Roll backup."); }
+  if (!b || b.app !== "credits-roll" || !b.rows) throw new Error("That file isn't a Credits Roll backup.");
+  store.set(KEYS.rows, b.rows);
+  META = { ...META, ...(b.meta || {}) }; PHOTOS = { ...PHOTOS, ...(b.photos || {}) }; LBX = { ...LBX, ...(b.lbx || {}) };
+  saveMeta(); store.set(KEYS.lbx, LBX);
+  if (Array.isArray(b.friends) && b.friends.length) { store.set(KEYS.friends, b.friends); loadFriends(); }
+  for (const [k, v] of Object.entries(b.keys || {})) if (v && KEYS[k]) store.set(KEYS[k], v);
+  return `Restored the backup from ${fmtDate(String(b.at || "").slice(0, 10))}${b.keys ? ", keys included" : ""}.`;
+}
+
+/* ---------- search ---------- */
+let SEARCH_INDEX = null;
+function searchIndex(lib) {
+  if (SEARCH_INDEX && SEARCH_INDEX.lib === lib && SEARCH_INDEX.n === Object.keys(META).length) return SEARCH_INDEX;
+  const people = new Map(), cats = new Map();
+  const ROLE = { d: "Director", c: "Actor", w: "Writer", p: "Cinematographer", m: "Composer" };
+  for (const f of lib.films) {
+    const m = metaOf(f);
+    if (!m) continue;
+    for (const role of ["d", "c", "w", "p", "m"]) for (const name of role === "c" ? m.c.slice(0, CAST_DEPTH) : m[role]) {
+      const k = personKey(name);
+      let p = people.get(k);
+      if (!p) { p = { key: k, name, films: new Set(), roles: new Map(), k }; people.set(k, p); }
+      p.films.add(f); p.roles.set(role, (p.roles.get(role) || 0) + 1);
+    }
+    for (const [field, vals] of [["g", m.g], ["k", m.k], ["l", m.l ? [m.l] : []]]) for (const v of vals) {
+      let c = cats.get(v);
+      if (!c) { c = { name: v, field, films: [], k: personKey(v) }; cats.set(v, c); }
+      c.films.push(f);
+    }
+  }
+  SEARCH_INDEX = { lib, n: Object.keys(META).length, films: lib.films.map((f) => ({ f, k: personKey(f.name) })),
+    people: [...people.values()].map((p) => ({ ...p, films: [...p.films], role: [...p.roles].sort((a, b) => b[1] - a[1])[0][0], roleName: ROLE })), cats: [...cats.values()] };
+  return SEARCH_INDEX;
+}
+function searchResultsHtml(d) {
+  const lib = state.lib, q = personKey(d.q || "");
+  if (!q) return `<p class="dr-s search-hint">Type a film's title, or the name of a director, actor, writer, genre, country or language.</p>`;
+  const score = (k) => k === q ? 4 : k.startsWith(q) ? 3 : (" " + k).includes(" " + q) ? 2 : k.includes(q) ? 1 : 0;
+  const I = searchIndex(lib);
+  const films = I.films.map((x) => ({ f: x.f, s: score(x.k) })).filter((x) => x.s).sort((a, b) => b.s - a.s || b.f.entries.length - a.f.entries.length || (b.f.rating || 0) - (a.f.rating || 0)).slice(0, 12).map((x) => x.f);
+  const people = I.people.map((p) => ({ p, s: score(p.k) })).filter((x) => x.s).sort((a, b) => b.s - a.s || b.p.films.length - a.p.films.length).slice(0, 8).map((x) => x.p);
+  const cats = I.cats.map((c) => ({ c, s: score(c.k) })).filter((x) => x.s).sort((a, b) => b.s - a.s || b.c.films.length - a.c.films.length).slice(0, 5).map((x) => x.c);
+  if (!films.length && !people.length && !cats.length) return `<div class="empty">Nothing in your diary matches “${esc(d.q)}”.</div>`;
+  const group = (title, html) => html ? `<section class="drill-group"><h4><span>${title}</span></h4>${html}</section>` : "";
+  return group("Films", films.map((f) => filmRowHtml(f, {})).join("")) +
+    group("People", people.map((p) => { const ratings = p.films.filter((f) => f.rating).map((f) => f.rating);
+      const person = { key: p.key, name: p.name, films: p.films, ratings, count: p.films.length, avg: avg(ratings) };
+      return nameRowHtml({ ...person, note: `${p.roleName[p.role]} · ${personSub(person)}`, to: { ...DR.person(person), role: p.role } }, {}); }).join("")) +
+    group("Genres and places", cats.map((c) => nameRowHtml({ name: c.name, films: c.films, note: `${{ g: "Genre", k: "Country", l: "Language" }[c.field]} · ${filmsSub(c.films)}` }, {})).join(""));
+}
+const searchBodyHtml = (d) => `<div class="search-box"><label class="sr-only" for="search-q">Search your diary</label>
+  <input id="search-q" type="search" autocomplete="off" spellcheck="false" placeholder="Films, people, genres…" value="${esc(d.q || "")}"></div>
+  <div id="search-results">${searchResultsHtml(d)}</div>`;
+
+/* ---------- on this day ---------- */
+// Films watched on today's date in earlier years, or within three days of it when there are none.
+function onThisDay(lib, now = new Date()) {
+  const y = now.getFullYear(), iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const today = iso(now), md = today.slice(5);
+  const past = lib.entries.filter((e) => +e.date.slice(0, 4) < y);
+  let es = past.filter((e) => e.date.slice(5) === md), week = false;
+  if (!es.length) {
+    week = true;
+    es = past.filter((e) => { const same = `${y}${e.date.slice(4)}`; return /^\d{4}-\d{2}-\d{2}$/.test(same) && Math.abs(dayIndex(same) - dayIndex(today)) <= 3; });
+  }
+  es = es.sort((a, b) => b.date.localeCompare(a.date));
+  const when = `${now.getDate()} ${MONTHS_LONG[now.getMonth()]}`;
+  return { entries: es, week, title: week ? "This week in past years" : `On ${when}`,
+    sub: week ? `Films you watched within three days of ${when} in earlier years` : `Films you watched on ${when} in earlier years`,
+    to: es.length ? D.entries(week ? "This week in past years" : `On ${when}`, entriesSub(es), es) : null };
+}
+
+/* ---------- watch next: your watchlist, ranked by how much you'd likely enjoy each film ----------
+   Starts from your average rating, then moves it by how you rate the film's director, its leads and its
+   genres (small samples count for less), and by its crowd score as far as your ratings follow the crowd. */
+function watchNext(lib) {
+  const rated = lib.films.filter((f) => f.rating);
+  if (!lib.watchlistFilms.length || rated.length < 5) return null;
+  const base = avg(rated.map((f) => f.rating));
+  const dirs = new Map(), cast = new Map(), genres = new Map();
+  const add = (map, k, name, r) => { let x = map.get(k); if (!x) map.set(k, x = { name, n: 0, sum: 0 }); x.n++; x.sum += r; };
+  for (const f of rated) {
+    const m = metaOf(f); if (!m) continue;
+    m.d.forEach((n) => add(dirs, personKey(n), n, f.rating)); m.c.slice(0, 6).forEach((n) => add(cast, personKey(n), n, f.rating)); m.g.forEach((g) => add(genres, g, g, f.rating));
+  }
+  const lean = (x, k) => x ? (x.sum - x.n * base) / (x.n + k) : 0; // pulled towards your average when there are few films
+  const crowdOf = (f, m) => { const lb = LBX[f.key]; return lb && lb.r ? lb.r : m && m.ir && (m.iv || 0) >= 100 ? m.ir / 2 : m && m.va && (m.vc || 0) >= 25 ? m.va / 2 : null; };
+  const pairs = rated.map((f) => ({ you: f.rating, c: crowdOf(f, metaOf(f)) })).filter((x) => x.c);
+  const follow = pairs.length >= 10 ? Math.max(0, pearson(pairs.map((x) => x.you), pairs.map((x) => x.c)) || 0) : 0.3;
+  const crowdMean = pairs.length ? avg(pairs.map((x) => x.c)) : null;
+  const picks = lib.watchlistFilms.map((w) => {
+    const m = metaOf(w), parts = [];
+    if (m) {
+      const ds = m.d.map((n) => ({ n, x: dirs.get(personKey(n)) })).filter((d) => d.x);
+      if (ds.length) { const v = avg(ds.map((d) => lean(d.x, 2))); parts.push({ v, why: `You rate ${ds[0].n}'s films ${(ds[0].x.sum / ds[0].x.n).toFixed(1)}★ on average (${plural(ds[0].x.n, "film")})` }); }
+      const cs = m.c.slice(0, 4).map((n) => ({ n, x: cast.get(personKey(n)) })).filter((c) => c.x && c.x.n >= 2);
+      if (cs.length) { const best = cs.sort((a, b) => b.x.n - a.x.n)[0]; parts.push({ v: avg(cs.map((c) => lean(c.x, 3))) * 0.6, why: `${best.n} is in ${plural(best.x.n, "film")} you've rated, ${(best.x.sum / best.x.n).toFixed(1)}★ on average` }); }
+      const gs = m.g.map((g) => genres.get(g)).filter(Boolean);
+      if (gs.length) { const v = avg(gs.map((g) => lean(g, 5))) * 0.8, top = [...gs].sort((a, b) => Math.abs(lean(b, 5)) - Math.abs(lean(a, 5)))[0];
+        parts.push({ v, why: `You rate ${top.name} ${(top.sum / top.n).toFixed(1)}★ on average` }); }
+      const c = crowdOf(w, m);
+      if (c && crowdMean) parts.push({ v: (c - crowdMean) * follow * 0.8, why: `${LBX[w.key] && LBX[w.key].r ? "Letterboxd members" : m.ir ? "IMDb users" : "TMDB users"} give it ${(c).toFixed(1)}★ out of 5` });
+    }
+    const pred = Math.max(0.5, Math.min(5, base + parts.reduce((s, p) => s + p.v, 0)));
+    const why = parts.filter((p) => Math.abs(p.v) >= 0.05).sort((a, b) => Math.abs(b.v) - Math.abs(a.v)).slice(0, 2).map((p) => p.why);
+    return { f: w, m, pred, why, known: !!m, runtime: m && m.r };
+  }).sort((a, b) => b.known - a.known || b.pred - a.pred);
+  return { base, picks, missing: picks.filter((p) => !p.known).length };
+}
+const WN_LENGTHS = [["any", "Any length"], ["100", "Under 1¾ hours"], ["130", "Under 2¼ hours"], ["long", "Long ones"]];
+const wnFits = (p, len) => len === "any" || (p.runtime ? (len === "long" ? p.runtime >= 140 : p.runtime <= +len) : false);
+const wnDrill = (list, title) => { const by = new Map(list.map((p) => [p.f, p]));
+  return D.films(title, `${plural(list.length, "film")} from your watchlist, the likeliest favourites first`, list.map((p) => p.f), { sort: "given", ratingOf: (f) => Math.round(by.get(f).pred * 2) / 2,
+    note: (f) => { const p = by.get(f); return p.known ? `About ${p.pred.toFixed(1)}★ for you${p.runtime ? ` · ${p.runtime} min` : ""}${p.why[0] ? ` · ${p.why[0]}` : ""}` : "No details yet"; } }); };
+
+/* ---------- filmographies: how much of a director's or actor's work you've seen ---------- */
+// The role a person mostly has in your diary: directing, acting, writing, camera or music.
+function roleIn(lib, name) {
+  const k = personKey(name), n = { d: 0, c: 0, w: 0, p: 0, m: 0 };
+  for (const f of lib.films) { const m = metaOf(f); if (!m) continue; for (const r of Object.keys(n)) if ((r === "c" ? m.c.slice(0, CAST_DEPTH) : m[r]).some((x) => personKey(x) === k)) n[r]++; }
+  return Object.keys(n).sort((a, b) => n[b] - n[a] || (a === "d" ? -1 : 0))[0];
+}
+const filmoBusy = new Set();
+async function filmography(name, role) {
+  const ck = `${personKey(name)}|${role}`, cache = store.get(KEYS.filmo, {}), c = cache[ck];
+  if (c && Date.now() - c.at < 30 * 864e5) return c;
+  const key = tmdbKey();
+  const s = await tmdbGet("/search/person", { query: name, include_adult: "false" }, key);
+  const dept = { d: "Directing", c: "Acting", w: "Writing", p: "Camera", m: "Sound" }[role];
+  const person = ((s && s.results) || []).filter((p) => personKey(p.name) === personKey(name))
+    .sort((a, b) => (b.known_for_department === dept) - (a.known_for_department === dept) || (b.popularity || 0) - (a.popularity || 0))[0];
+  let out = { at: Date.now(), none: true };
+  if (person) {
+    const cr = await tmdbGet(`/person/${person.id}/movie_credits`, {}, key);
+    const jobs = { d: ["Director"], w: ["Screenplay", "Writer", "Story"], p: ["Director of Photography"], m: ["Original Music Composer", "Music"] }[role];
+    const today = new Date().toISOString().slice(0, 10);
+    const list = role === "c" ? ((cr && cr.cast) || []).filter((x) => !/\b(self|himself|herself|themselves)\b|uncredited|archive/i.test(x.character || ""))
+      : ((cr && cr.crew) || []).filter((x) => jobs.includes(x.job));
+    const seen = new Set(), credits = [];
+    for (const x of list.sort((a, b) => (b.release_date || "").localeCompare(a.release_date || ""))) {
+      if (seen.has(x.id) || x.video || !x.release_date || x.release_date > today || (x.vote_count || 0) < (role === "c" ? 10 : 3)) continue;
+      seen.add(x.id); credits.push({ id: x.id, title: x.title, year: +x.release_date.slice(0, 4) });
+    }
+    out = { at: Date.now(), id: person.id, credits };
+  }
+  cache[ck] = out; store.set(KEYS.filmo, cache);
+  return out;
+}
+const filmoPlaceholder = (d) => {
+  if (IN_VIEWER || state.mode !== "mine" || !tmdbKey() || !d.person || !d.person.name || (d.lib && d.lib !== MY_LIB)) return "";
+  return `<div class="filmo" data-filmo="${esc(d.person.name)}" data-role="${d.role || roleIn(MY_LIB, d.person.name)}"><p class="dr-s">Checking TMDB for the full filmography…</p></div>`;
+};
+// Fills in any filmography placeholders on screen, once TMDB answers.
+function fillFilmo(root) {
+  for (const el of (root || document).querySelectorAll(".filmo[data-filmo]:not([data-busy])")) {
+    el.dataset.busy = "1";
+    const name = el.dataset.filmo, role = el.dataset.role;
+    filmography(name, role).then((c) => {
+      if (!el.isConnected) return;
+      if (c.none || !c.credits || !c.credits.length) { el.innerHTML = `<p class="dr-s">TMDB has no filmography to compare with.</p>`; return; }
+      const lib = MY_LIB, ids = new Map(), byTitle = new Map();
+      for (const f of lib.films) { const m = META[f.key]; if (m && m.id) ids.set(m.id, f); byTitle.set(`${personKey(f.name)}|${f.year}`, f); }
+      const seen = (x) => ids.get(x.id) || byTitle.get(`${personKey(x.title)}|${x.year}`) || byTitle.get(`${personKey(x.title)}|${x.year - 1}`) || byTitle.get(`${personKey(x.title)}|${x.year + 1}`);
+      const have = c.credits.filter(seen), left = c.credits.filter((x) => !seen(x));
+      const wl = new Set(lib.watchlistFilms.map((w) => `${personKey(w.name)}|${w.year}`));
+      const roleWord = { d: "directed", c: "acted in", w: "written", p: "shot", m: "scored" }[role];
+      const pct = Math.round(have.length / c.credits.length * 100);
+      el.innerHTML = `<div class="filmo-head"><span><b>Seen ${fmtN(have.length)} of ${fmtN(c.credits.length)}</b> films ${esc(name)} has ${roleWord}</span><span class="num">${pct}%</span></div>
+        <div class="filmo-bar" aria-hidden="true"><i style="width:${pct}%"></i></div>
+        ${left.length ? `<details class="filmo-left"><summary>${plural(left.length, "film")} you haven't seen</summary>${left.map((x) => `<div class="drill-row plain"><span class="dr-main"><span class="dr-t">${esc(x.title)} <span class="dr-y">${x.year}</span></span>${wl.has(`${personKey(x.title)}|${x.year}`) ? `<span class="dr-s">On your watchlist</span>` : ""}</span>
+          <a class="dr-r" href="https://www.themoviedb.org/movie/${x.id}" target="_blank" rel="noopener">TMDB ↗</a></div>`).join("")}</details>` : `<p class="dr-s">You've seen every one.</p>`}`;
+    }).catch(() => { if (el.isConnected) el.innerHTML = `<p class="dr-s">Couldn't reach TMDB for the filmography.</p>`; });
+  }
+}
+</script>
+<script>
+/* ---------- a year in film, as a picture to share ----------
+   Drawn on a canvas at 1080 × 1350 (the shape Instagram and most feeds show whole), in the desktop page's
+   colours: the year, the numbers, the four best-rated films with posters, and the year's headlines. */
+const SHARE = { w: 1080, h: 1350, bg: "#141017", band: "#0C090E", hole: "#2B2331", surface: "#221B28", line: "#3A3042",
+  ink: "#F3EEF4", ink2: "#C2B8C6", muted: "#8E8394", gold: "#BE8722", goldInk: "#E6B65A" };
+const SHARE_FONTS = { display: '"Big Shoulders Display", "Arial Narrow", sans-serif', mono: '"IBM Plex Mono", ui-monospace, monospace', sans: '"Schibsted Grotesk", system-ui, sans-serif' };
+const shareCache = new Map();
+// older Safari has no rounded rectangles on a canvas; square corners will do there
+if (typeof CanvasRenderingContext2D !== "undefined" && !CanvasRenderingContext2D.prototype.roundRect) CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h) { this.rect(x, y, w, h); };
+D.share = (Y) => ({ kind: "share", year: Y, title: `${Y} in film`, sub: "A picture of your year to share" });
+const shareBodyHtml = (d) => `<div class="share" data-share="${esc(d.year)}"><p class="dr-s">Drawing your year…</p></div>`;
+
+async function shareFonts() {
+  // the phone page doesn't load these fonts; its stylesheet has to arrive before the fonts can be asked for
+  if (!document.querySelector('link[href*="Big+Shoulders"]')) {
+    const link = Object.assign(document.createElement("link"), { rel: "stylesheet",
+      href: "https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800&family=IBM+Plex+Mono:wght@500&family=Schibsted+Grotesk:wght@500;700&display=swap" });
+    await Promise.race([new Promise((resolve) => { link.onload = link.onerror = resolve; document.head.append(link); }), sleep(2500)]);
+  }
+  try { await Promise.race([Promise.all([`800 100px ${SHARE_FONTS.display}`, `500 20px ${SHARE_FONTS.mono}`, `700 30px ${SHARE_FONTS.sans}`].map((f) => document.fonts.load(f))), sleep(2500)]); } catch {}
+}
+const loadImg = (src) => new Promise((resolve) => {
+  const img = new Image();
+  img.crossOrigin = "anonymous";
+  img.onload = () => resolve(img); img.onerror = () => resolve(null);
+  img.src = src;
+  setTimeout(() => resolve(null), 6000);
+});
+// Words wrapped to a width, at most `lines` lines, the last cut with an ellipsis.
+function wrapText(ctx, text, width, lines) {
+  const words = String(text).split(/\s+/), out = [];
+  let cur = "";
+  for (const w of words) {
+    const next = cur ? `${cur} ${w}` : w;
+    if (ctx.measureText(next).width <= width || !cur) cur = next; else { out.push(cur); cur = w; }
+  }
+  if (cur) out.push(cur);
+  if (out.length > lines) { out.length = lines; let last = out[lines - 1]; while (last && ctx.measureText(last + "…").width > width) last = last.slice(0, -1); out[lines - 1] = last + "…"; }
+  return out;
+}
+function fitText(ctx, text, width) {
+  let t = String(text);
+  if (ctx.measureText(t).width <= width) return t;
+  while (t && ctx.measureText(t + "…").width > width) t = t.slice(0, -1);
+  return t + "…";
+}
+
+async function drawYear(lib, Y, withPosters) {
+  const R = computeYearInsights(lib, metaOf, Y, state.crowd || defaultCrowd(lib, metaOf)), S = R.S, C = SHARE, F = SHARE_FONTS;
+  const cv = Object.assign(document.createElement("canvas"), { width: C.w, height: C.h }), ctx = cv.getContext("2d");
+  const M = 72;
+  ctx.fillStyle = C.bg; ctx.fillRect(0, 0, C.w, C.h);
+  // sprocket bands top and bottom, as on the page
+  for (const y0 of [0, C.h - 44]) {
+    ctx.fillStyle = C.band; ctx.fillRect(0, y0, C.w, 44);
+    ctx.fillStyle = C.hole;
+    for (let x = 18; x < C.w; x += 54) { ctx.beginPath(); ctx.roundRect(x, y0 + 14, 30, 16, 4); ctx.fill(); }
+  }
+  ctx.textBaseline = "alphabetic";
+  // wordmark and member
+  ctx.fillStyle = C.goldInk; ctx.font = `500 22px ${F.mono}`; ctx.letterSpacing = "6px";
+  ctx.fillText("CREDITS ROLL", M, 108);
+  ctx.textAlign = "right"; ctx.fillStyle = C.muted;
+  const who = state.mode === "example" ? "EXAMPLE DIARY" : lib.profile.username ? `@${lib.profile.username.toUpperCase()}` : "";
+  ctx.fillText(who, C.w - M, 108);
+  ctx.textAlign = "left"; ctx.letterSpacing = "0px";
+  // the year
+  ctx.fillStyle = C.goldInk; ctx.font = `800 290px ${F.display}`;
+  ctx.fillText(Y, M - 8, 385);
+  ctx.fillStyle = C.ink; ctx.font = `800 86px ${F.display}`;
+  ctx.fillText("IN FILM", M, 470);
+  // the numbers
+  const hours = S.timed ? fmtN(Math.round(S.minutes / 60)) : "—";
+  const avgR = R.cur && R.cur.avgRating ? R.cur.avgRating : S.avgRating;
+  const nums = [["FILMS", fmtN(S.films.length)], ["HOURS", hours], ["AVERAGE", avgR ? `${avgR.toFixed(1)}★` : "—"], ["DIARY ENTRIES", fmtN(S.entries.length)]];
+  const colW = (C.w - 2 * M) / 4;
+  ctx.strokeStyle = C.line; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(M, 520); ctx.lineTo(C.w - M, 520); ctx.stroke();
+  nums.forEach(([k, v], i) => {
+    const x = M + i * colW;
+    ctx.fillStyle = C.ink; ctx.font = `800 78px ${F.display}`; ctx.fillText(fitText(ctx, v, colW - 16), x, 610);
+    ctx.fillStyle = C.muted; ctx.font = `500 19px ${F.mono}`; ctx.letterSpacing = "2px"; ctx.fillText(k, x, 646); ctx.letterSpacing = "0px";
+  });
+  ctx.beginPath(); ctx.moveTo(M, 680); ctx.lineTo(C.w - M, 680); ctx.stroke();
+  // the four best-rated films
+  ctx.fillStyle = C.goldInk; ctx.font = `500 20px ${F.mono}`; ctx.letterSpacing = "4px"; ctx.fillText("HIGHEST RATED", M, 730); ctx.letterSpacing = "0px";
+  // where it came from
+  if (SITE_REPO) { ctx.fillStyle = C.muted; ctx.font = `500 17px ${F.mono}`; ctx.textAlign = "right"; ctx.fillText(location.host + location.pathname.replace(/[^/]*$/, ""), C.w - M, 730); ctx.textAlign = "left"; }
+  const best = R.best.slice(0, 4), pw = 216, ph = 324, gap = (C.w - 2 * M - 4 * pw) / 3;
+  const imgs = await Promise.all(best.map((x) => { const m = metaOf(x.f); return withPosters && showImages && m && m.poster ? loadImg(`https://image.tmdb.org/t/p/w342${m.poster}`) : null; }));
+  best.forEach((x, i) => {
+    const px = M + i * (pw + gap), py = 752;
+    ctx.save(); ctx.beginPath(); ctx.roundRect(px, py, pw, ph, 10); ctx.clip();
+    ctx.fillStyle = C.surface; ctx.fillRect(px, py, pw, ph);
+    if (imgs[i]) ctx.drawImage(imgs[i], px, py, pw, ph);
+    else {
+      ctx.fillStyle = C.ink; ctx.font = `800 34px ${F.display}`;
+      wrapText(ctx, x.f.name.toUpperCase(), pw - 32, 5).forEach((l, j) => ctx.fillText(l, px + 16, py + 54 + j * 36));
+      ctx.fillStyle = C.muted; ctx.font = `500 18px ${F.mono}`; ctx.fillText(String(x.f.year || ""), px + 16, py + ph - 20);
+    }
+    ctx.restore();
+    ctx.strokeStyle = C.line; ctx.beginPath(); ctx.roundRect(px, py, pw, ph, 10); ctx.stroke();
+    ctx.fillStyle = C.goldInk; ctx.font = `700 26px ${F.sans}`; ctx.fillText(stars(x.r), px, py + ph + 38);
+  });
+  if (!best.length) { ctx.fillStyle = C.muted; ctx.font = `500 26px ${F.sans}`; ctx.fillText("No rated films this year.", M, 800); }
+  // the year's headlines
+  const dir = S.directors.most[0], star = S.cast.most[0], top = R.cur && R.cur.topGenre, bm = S.busiestMonth;
+  const facts = [
+    dir && dir.count > 1 && ["DIRECTOR OF THE YEAR", `${dir.name} · ${dir.count}`],
+    star && star.count > 1 && ["MOST SEEN ACTOR", `${star.name} · ${star.count}`],
+    top && R.cur.withMeta && ["TOP GENRE", `${top[0]} · ${pctOf(top[1], R.cur.withMeta)}%`],
+    bm && ["BUSIEST MONTH", `${MONTHS_LONG[+bm.key.slice(5, 7) - 1]} · ${plural(bm.count, "film")}`],
+    S.streak.days > 1 && ["LONGEST STREAK", `${S.streak.days} days in a row`],
+    S.rewatches && ["REWATCHES", fmtN(S.rewatches)],
+  ].filter(Boolean).slice(0, 4);
+  const fw = (C.w - 2 * M - 40) / 2;
+  facts.forEach(([k, v], i) => {
+    const x = M + (i % 2) * (fw + 40), y = 1170 + Math.floor(i / 2) * 82;
+    ctx.fillStyle = C.muted; ctx.font = `500 17px ${F.mono}`; ctx.letterSpacing = "2px"; ctx.fillText(k, x, y); ctx.letterSpacing = "0px";
+    ctx.fillStyle = C.ink; ctx.font = `700 31px ${F.sans}`; ctx.fillText(fitText(ctx, v, fw), x, y + 38);
+  });
+  return cv;
+}
+// Draws the year (posters if their server allows it) and shows it with ways to keep it.
+async function makeShareImage(lib, Y) {
+  const ck = `${state.mode}|${Y}|${Object.keys(META).length}`;
+  if (shareCache.has(ck)) return shareCache.get(ck);
+  await shareFonts();
+  const toBlob = (cv) => new Promise((resolve, reject) => { try { cv.toBlob((b) => b ? resolve(b) : reject(new Error("no image")), "image/png"); } catch (e) { reject(e); } });
+  let blob;
+  try { blob = await toBlob(await drawYear(lib, Y, true)); } catch { blob = await toBlob(await drawYear(lib, Y, false)); } // posters that can't be copied leave title cards
+  const out = { blob, url: URL.createObjectURL(blob), name: `credits-roll-${Y}.png` };
+  shareCache.set(ck, out);
+  return out;
+}
+function fillShare(root) {
+  for (const el of (root || document).querySelectorAll(".share[data-share]:not([data-busy])")) {
+    el.dataset.busy = "1";
+    const Y = el.dataset.share;
+    makeShareImage(state.lib, Y).then((img) => {
+      if (!el.isConnected) return;
+      const canShare = !!(navigator.canShare && navigator.canShare({ files: [new File([img.blob], img.name, { type: "image/png" })] }));
+      el.innerHTML = `<img class="share-img" src="${img.url}" alt="${esc(Y)} in film: films, hours, highest-rated films and the year's headlines">
+        <div class="share-row">${canShare ? `<button class="btn small primary green" type="button" data-sharego="${esc(Y)}">Share</button>` : ""}
+        <a class="btn small${canShare ? "" : " primary green"}" href="${img.url}" download="${img.name}">Download the image</a></div>
+        <p class="dr-s">${IN_VIEWER ? "If the download doesn't start here, right-click or long-press the picture to save it." : "1080 × 1350 pixels, the size most feeds show whole."}</p>`;
+    }).catch(() => { if (el.isConnected) el.innerHTML = `<p class="dr-s">Couldn't draw the image in this browser.</p>`; });
+  }
+}
+async function shareGo(Y) {
+  const img = await makeShareImage(state.lib, Y);
+  try { await navigator.share({ files: [new File([img.blob], img.name, { type: "image/png" })], title: `${Y} in film` }); } catch {}
 }
 </script>
 <script>
 /* ---------- app state ---------- */
 const state = {
-  mode: "example", lib: null, scope: "all", view: "profile", stack: [],
+  mode: "example", lib: null, scope: "all", view: "profile", stack: [], wn: "any", backupKeys: false,
   role: "c", crew: "w", sort: "most", catSort: "most", peopleLimit: 50, diaryLimit: 60, crowd: null, insYear: "all", reviewQuery: "", reviewLimit: 30, cmp: null, cmpError: "", unfriend: null,
 };
 let MY_LIB = null, EXAMPLE_LIB = null, STATS = null;
@@ -2495,6 +3051,7 @@ const showImages = !IN_VIEWER; // pages inside Claude can't load outside images
 const VIEW_KEY = "cr-mview-v1";
 const TITLES = { profile: "Profile", people: "People", diary: "Diary", films: "Films", data: "Import" };
 const CHEV = `<svg class="chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg>`;
+const SEARCH_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5l5 5"/></svg>`;
 const BACK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>`;
 
 function metaOf(f) {
@@ -2526,10 +3083,13 @@ function render() {
   }
   const cal = $(".cal-wrap");
   if (cal) cal.scrollLeft = cal.scrollWidth;
+  fillFilmo($("#screen"));
+  syncHash();
 }
 function renderTop(years, d) {
   $("#top").classList.toggle("detail", !!d);
-  $("#nav-left").innerHTML = d ? `<button class="nav-btn" type="button" data-act="back">${BACK}<span class="sr-only">Back</span></button>` : "";
+  $("#nav-left").innerHTML = d ? `<button class="nav-btn" type="button" data-act="back">${BACK}<span class="sr-only">Back</span></button>`
+    : `<button class="nav-btn" type="button" data-act="search">${SEARCH_ICON}<span class="sr-only">Search</span></button>`;
   const who = state.mode === "example" ? "Example diary" : state.lib.profile.username || "Your diary";
   $("#nav-title").textContent = d ? d.title : state.view === "profile" ? who : TITLES[state.view];
   $("#nav-right").innerHTML = !d ? `<button class="nav-btn" type="button" data-act="insights">Insights</button>` : "";
@@ -2621,11 +3181,17 @@ function profileScreen(s) {
     ["Rewatches", s.rewatches, s.rewatches ? dl(DR.rewatches(s)) : `data-view="diary"`],
     ["Liked", s.likes, `data-act="liked"`],
   ].map(([k, n, attrs]) => `<li><button class="row" type="button" ${attrs}><span>${k}</span><span class="count">${fmtN(n)}</span>${CHEV}</button></li>`).join("");
+  const T = s.scope === "all" ? onThisDay(lib) : null;
+  const otd = T && T.entries.length ? sh(esc(T.title), T.entries.length > 4 ? `<button class="more" type="button" ${dl(T.to)}>See all</button>` : "") +
+    `<div class="scroller otd">${T.entries.slice(0, 12).map((e) => `<button class="pitem" type="button" ${dl(D.film(e.film, { entry: e }))}>${poster(e.film)}
+      <span class="pmeta"><span class="stars">${stars(e.rating)}</span></span><span class="mdate">${T.week ? fmtDate(e.date) : e.date.slice(0, 4)}</span></button>`).join("")}</div>` : "";
   return `<div class="profile">${avatar({ name: ex ? "Example" : lib.profile.username || "You" }, "xl")}
       <div class="name">${esc(name)}</div><div class="handle">${handle}</div></div>
     ${state.importNote ? `<div class="card notice"><p>${esc(state.importNote)}</p>${MY_LIB && MY_LIB.reviews.length ? `<button class="btn block" type="button" data-act="reviews">See your reviews</button>` : ""}</div>` : ""}${notice}${strip}
     <button class="row" type="button" data-act="insights"><span>Insights</span><span class="count">Trends, tastes, the crowd</span>${CHEV}</button>
     <button class="row" type="button" data-act="compare"><span>Compare</span><span class="count">You and friends</span>${CHEV}</button>
+    ${lib.watchlistFilms.length ? `<button class="row" type="button" data-act="watchnext"><span>Watch next</span><span class="count">From your watchlist</span>${CHEV}</button>` : ""}
+    ${otd}
     ${fill}${topRated}${ratings}${people}
     ${sh(state.scope === "all" ? "All time" : state.scope)}<ul class="menu">${rows}</ul>`;
 }
@@ -2788,7 +3354,7 @@ function lookupInner() {
   } else {
     body = `<p>Lookups aren't available in this view. Open the downloadable copy of this page in a browser and use a TMDB key.</p>`;
   }
-  return head + body + note + saveNote + imdbBlock(MY_LIB, true) + letterboxdBlock(MY_LIB, true);
+  return head + body + note + saveNote + imdbBlock(MY_LIB, true) + letterboxdBlock(MY_LIB, true) + feedBlock(MY_LIB, true);
 }
 function progressText() {
   return job.kind === "claude" && job.done === 0 ? `Asking Claude about ${plural(job.total, "film")}… the first batch takes up to a minute.`
@@ -2811,6 +3377,10 @@ function dataScreen() {
   const rows = [];
   if (state.mode === "mine") rows.push(`<li><button class="row" type="button" data-act="example"><span>View the example diary</span>${CHEV}</button></li>`);
   else if (lib) rows.push(`<li><button class="row" type="button" data-act="mine"><span>Back to my diary</span>${CHEV}</button></li>`);
+  if (lib && !IN_VIEWER) {
+    rows.push(`<li><button class="row" type="button" data-act="backup"><span>Back up to a file</span><span class="count">for another device</span>${CHEV}</button></li>`);
+    rows.push(`<li><button class="row" type="button" data-act="backup-keys" role="switch" aria-checked="${!!state.backupKeys}"><span>Include API keys in the backup</span><span class="count">${state.backupKeys ? "On" : "Off"}</span></button></li>`);
+  }
   rows.push(`<li><button class="row danger" type="button" data-act="forget"><span>${state.forgetArmed ? "Tap again to delete" : "Delete saved data from this browser"}</span></button></li>`);
   return `<div class="card" style="margin-top:18px"><p class="title">Your Letterboxd export</p><p>${status}</p>
       <ol style="margin:0; padding-left:18px; display:grid; gap:4px">
@@ -2822,11 +3392,12 @@ function dataScreen() {
     <div class="card" id="lookup" style="margin-top:12px">${lookupInner()}</div>
     ${sh("This browser")}<ul class="menu">${rows.join("")}</ul>
     ${state.forgetArmed ? `<p class="status">Removes your imported export and looked-up details, plus any keys you typed in.</p>` : ""}
+    ${lib && !IN_VIEWER ? `<p class="status">To use your diary on another device, import the backup file there the same way as an export.</p>` : ""}
     <div class="foot"><p>Credits Roll reads the CSV files in a Letterboxd data export. It is not made by or affiliated with Letterboxd.</p>
       <p>With your own TMDB key, film details come from The Movie Database. This product uses the TMDB API but is not endorsed or certified by TMDB.
       Inside the Claude app, details come from Claude's knowledge of each film instead, so check anything surprising.</p>
       <p>On a computer? <a href="desktop.html">Open the desktop version</a>. It uses the same import.</p>
-      <p>Updated 22 Oct 2026, 17:29 UTC</p></div>`;
+      <p>Updated 22 Oct 2026, 20:13 UTC</p></div>`;
 }
 
 /* ---------- pushed detail screens ---------- */
@@ -2835,6 +3406,7 @@ function detailScreen(d, s) {
   if (d.type === "compare") return compareScreen();
   if (d.type === "reviews") return reviewsScreen();
   if (d.type === "drill") return drillScreen(d.d);
+  if (d.type === "watchnext") return watchNextScreen();
   if (d.type === "cat") {
     const data = s[d.field], best = state.catSort === "best";
     const list = best ? data.best : data.most;
@@ -2847,6 +3419,16 @@ function detailScreen(d, s) {
     sh("Films", `<span class="num">${fmtN(films.length)}</span>`) + posterGrid(films);
 }
 
+// The watchlist, likeliest favourites first, with why.
+function watchNextScreen() {
+  const W = watchNext(state.lib);
+  if (!W) return `<div class="empty" style="padding-top:28px">Watch next needs a watchlist in your export and five or more rated films.</div>`;
+  const list = W.picks.filter((p) => p.known && wnFits(p, state.wn));
+  const chips = `<div class="toggles" style="margin-top:16px;flex-wrap:wrap">${WN_LENGTHS.map(([v, l]) => `<button class="toggle" type="button" data-wn="${v}" aria-pressed="${v === state.wn}">${l}</button>`).join("")}</div>`;
+  const rows = list.length ? drillBody(wnDrill(list, "Watch next"), 60).html : `<div class="empty">${W.picks.some((p) => p.known) ? "Nothing on your watchlist fits that length." : "Your watchlist films need cast &amp; crew details first, looked up in the Import tab."}</div>`;
+  return chips + `<p class="status" style="margin:12px 0 0">Best bets first: a guess at your rating from how you rate each film's director, leads and genres, and its crowd score.</p>` + rows +
+    (W.missing ? `<p class="status">${plural(W.missing, "film")} on your watchlist ${W.missing === 1 ? "has" : "have"} no details yet.</p>` : "");
+}
 const SCREENS = { profile: profileScreen, people: peopleScreen, diary: diaryScreen, films: filmsScreen, data: dataScreen };
 </script>
 <script>
@@ -2974,7 +3556,8 @@ function mYearInsights(Y) {
   const lib = state.lib;
   const R = computeYearInsights(lib, metaOf, Y, state.crowd || defaultCrowd(lib, metaOf));
   const prevY = String(+Y - 1), first = R.firstYear === Y;
-  let h = `<p class="status" style="margin:14px 0 0">${dlink(DR.films(R.S), plural(R.S.films.length, "film"))} and ${dlink(DR.diary(R.S), plural(R.S.entries.length, "diary entry", "diary entries"))} in ${esc(Y)}.</p>`;
+  let h = `<p class="status" style="margin:14px 0 0">${dlink(DR.films(R.S), plural(R.S.films.length, "film"))} and ${dlink(DR.diary(R.S), plural(R.S.entries.length, "diary entry", "diary entries"))} in ${esc(Y)}.</p>` +
+    (R.S.entries.length ? `<button class="btn block" type="button" ${dl(D.share(Y))} style="margin-top:12px">Share ${esc(Y)} as an image</button>` : "");
   h += mGlance(R.glance, `${esc(Y)} at a glance`);
   h += sh(`Against ${prevY}`) + (R.changes.length ? `<div class="tscroll" style="margin-top:0"><table class="mtable"><thead><tr><th></th><th class="n">${esc(Y)}</th><th class="n">${prevY}</th><th class="n"></th></tr></thead>
     <tbody>${R.changes.map((c) => `<tr><td>${dlink(c.to, c.label)}</td><td class="n">${dlink(c.to.groups[0], c.now)}</td><td class="n">${dlink(c.to.groups[1], c.before)}</td><td class="n dim">${Math.abs(c.d) < 1e-9 ? "=" : c.d > 0 ? "▲" : "▼"}</td></tr>`).join("")}</tbody></table></div><p class="status">Tap any number to see what's behind it.</p>` +
@@ -3172,19 +3755,21 @@ function paintSheet() {
   if (!sheet.open) { if (typeof sheet.showModal === "function") sheet.showModal(); else sheet.setAttribute("open", ""); }
   const body = sheet.querySelector(".sheet-body");
   if (body) body.scrollTop = 0;
+  const q = $("#search-q");
+  if (q && d.kind === "search") { q.focus(); q.setSelectionRange(q.value.length, q.value.length); }
+  fillFilmo(sheet); fillShare(sheet);
 }
 // From a screen a drill opens the sheet; from inside the sheet it stacks, with Back.
 function openSheet(d, inside) {
   if (!d) return;
   SSTACK = inside ? [...SSTACK, d] : [d];
   paintSheet();
+  pushSheetState();
 }
 // "See all" turns the sheet into a screen of its own, pushed like any other.
 function sheetToPage() {
   const d = SSTACK[SSTACK.length - 1];
-  $("#sheet").close();
-  state.drillLimit = 200;
-  push({ type: "drill", title: d.title, d });
+  closeSheetThen(() => { state.drillLimit = 200; push({ type: "drill", title: d.title, d }); });
 }
 function drillScreen(d) {
   const { html, hidden } = drillBody(d, state.drillLimit);
@@ -3194,18 +3779,118 @@ function drillScreen(d) {
 }
 </script>
 <script>
+/* ---------- phone: addresses you can bookmark, and the back button ----------
+   #/diary, #/films and the other tabs; #/insights/2024, #/compare/<friend>, #/reviews and #/watchnext for
+   pushed screens; /film/<film> on the end opens that film's card. Every screen and sheet is a history
+   entry, so the phone's back gesture steps back the way it came. */
+let sheetDepth = 0, closingByHistory = false, afterClose = null, routeReady = false, routeReplace = false;
+const PUSHED = { insights: "Insights", compare: "Compare", reviews: "Reviews", watchnext: "Watch next" };
+function routeBase() {
+  const top = state.stack[state.stack.length - 1];
+  if (!top) return `#/${state.view}`;
+  if (top.type === "insights") return `#/insights${state.insYear !== "all" ? "/" + state.insYear : ""}`;
+  if (top.type === "compare") return `#/compare${state.cmp ? "/" + encodeURIComponent(state.cmp) : ""}`;
+  return PUSHED[top.type] ? `#/${top.type}` : "#/list";
+}
+const hashParts = () => {
+  const h = decodeURIComponent(location.hash.replace(/^#\/?/, "")), m = h.match(/^(.*?)\/?film\/(.+)$/);
+  return m ? { base: m[1], film: m[2] } : { base: h, film: null };
+};
+const filmHash = (key) => `${routeBase().replace(/\/$/, "")}/film/${encodeURIComponent(key)}`;
+function routeFromHash() {
+  const [a, b] = hashParts().base.split("/");
+  if (!a) return;
+  if (SCREENS[a]) { Object.assign(state, { view: a, stack: [] }); return; }
+  if (PUSHED[a]) {
+    if (a === "insights") state.insYear = b || "all";
+    if (a === "compare" && b) state.cmp = b;
+    const top = state.stack[state.stack.length - 1];
+    if (!top || top.type !== a) state.stack = [{ type: a, title: PUSHED[a], ret: 0 }];
+  } else if (a === "list" && !(state.stack.length && state.stack[state.stack.length - 1].type === "drill")) state.stack = [];
+}
+// After a render: a new tab, screen or year becomes a history entry.
+function syncHash(replace) {
+  if (!routeReady || sheetDepth) return;
+  const want = routeBase();
+  if (`#/${hashParts().base}` === want) return;
+  try { replace || routeReplace ? history.replaceState(history.state, "", want) : history.pushState({ app: 1 }, "", want); } catch {}
+}
+function pushSheetState() {
+  const d = SSTACK[SSTACK.length - 1];
+  try { history.pushState({ sheet: SSTACK.length }, "", d.kind === "film" && d.film ? filmHash(d.film.key) : routeBase()); sheetDepth = SSTACK.length; } catch { sheetDepth = 0; }
+}
+// Closes the sheet and takes its history entries with it, then runs `next`.
+function closeSheetThen(next) {
+  const sheet = $("#sheet");
+  if (!sheet.open) { next && next(); return; }
+  const n = sheetDepth;
+  closingByHistory = true; sheet.close();
+  if (n) { afterClose = next || null; history.go(-n); } else { closingByHistory = false; next && next(); }
+}
+function onSheetClosed() {
+  SSTACK = []; PANEL = new Map();
+  if (!closingByHistory && sheetDepth) { const n = sheetDepth; sheetDepth = 0; closingByHistory = true; history.go(-n); return; }
+  if (!closingByHistory) sheetDepth = 0;
+}
+function onPopState() {
+  const depth = (history.state && history.state.sheet) || 0, sheet = $("#sheet");
+  if (closingByHistory) {
+    if (depth) return;
+    closingByHistory = false; sheetDepth = 0;
+    const next = afterClose; afterClose = null;
+    if (next) next();
+    return;
+  }
+  if (sheet.open && depth && depth < SSTACK.length) { SSTACK = SSTACK.slice(0, depth); sheetDepth = depth; paintSheet(); return; }
+  if (sheet.open) { closingByHistory = true; sheet.close(); closingByHistory = false; sheetDepth = 0; }
+  // back out of a pushed screen to whatever is under it, where it was scrolled to
+  const a = hashParts().base.split("/")[0], top = state.stack[state.stack.length - 1], under = state.stack[state.stack.length - 2];
+  routeReplace = true;
+  if (top && (under ? under.type === a || (under.type === "insights" && a === "insights") : !PUSHED[a] && a !== "list")) {
+    const d = state.stack.pop();
+    if (!state.stack.length && SCREENS[a]) state.view = a;
+    if (a === "insights") state.insYear = hashParts().base.split("/")[1] || "all";
+    render(); window.scrollTo(0, d.ret || 0);
+  } else { routeFromHash(); render(); window.scrollTo(0, 0); }
+  routeReplace = false;
+  if (!depth) openRouteFilm();
+}
+function openRouteFilm() {
+  const { film } = hashParts();
+  if (!film) return;
+  const f = state.lib.films.find((x) => x.key === film) || (MY_LIB && MY_LIB.watchlistFilms.find((x) => x.key === film));
+  try { history.replaceState(null, "", routeBase()); } catch {}
+  if (f) openSheet(D.film(f));
+}
+function openSearch() {
+  const top = SSTACK[SSTACK.length - 1];
+  if ($("#sheet").open && top && top.kind === "search") { $("#search-q")?.focus(); return; }
+  openSheet({ kind: "search", title: "Search your diary", sub: "", q: "" }, $("#sheet").open);
+}
+const repaintDrill = () => { if ($("#sheet").open) paintSheet(); else render(); };
+</script>
+<script>
 /* ---------- importing ---------- */
 async function importFiles(files) {
   state.importError = "";
   try {
+    // a backup from another device restores everything it holds
+    if (isBackupFile(files)) {
+      const note = await restoreBackup(files[0]);
+      MY_LIB = myLibrary();
+      Object.assign(state, { mode: "mine", scope: "all", view: "profile", stack: [], importNote: note });
+      saveView(); render(); window.scrollTo(0, 0);
+      await refreshFeed(); autoLookup(allFilmsLib());
+      return;
+    }
     const rows = await readExport(files);
     const saved = store.set(KEYS.rows, rows);
-    MY_LIB = buildLibrary(rows);
+    MY_LIB = myLibrary();
     Object.assign(state, { mode: "mine", scope: "all", view: "profile", stack: [], peopleLimit: 50, diaryLimit: 60 });
     job.note = saved ? "" : "This browser wouldn't save your export, so you'll need to import it again next time.";
     job.err = !saved;
     state.importNote = importSummary(rows, MY_LIB);
-    setTimeout(() => autoLookup(allFilmsLib()));
+    setTimeout(async () => { await refreshFeed(); autoLookup(allFilmsLib()); });
   } catch (e) {
     state.importError = (e && e.message) || "Couldn't read that file. Import the ZIP from Letterboxd → Settings → Data.";
     Object.assign(state, { view: "data", stack: [] });
@@ -3224,7 +3909,12 @@ function act(t) {
   else if (a === "compare") push({ type: "compare", title: "Compare" });
   else if (a === "reviews") { state.reviewLimit = 30; push({ type: "reviews", title: "Reviews" }); }
   else if (a === "add-friend") $("#friend-input").click();
-  else if (a === "back") pop();
+  // back through history when this screen was reached in the app, otherwise straight to the one under it
+  else if (a === "back") { if (history.state && history.state.app) history.back(); else { routeReplace = true; pop(); routeReplace = false; } }
+  else if (a === "search") openSearch();
+  else if (a === "watchnext") push({ type: "watchnext", title: "Watch next" });
+  else if (a === "backup") downloadBackup(state.backupKeys);
+  else if (a === "backup-keys") { state.backupKeys = !state.backupKeys; render(); }
   else if (a === "people") { Object.assign(state, { view: "people", role: t.dataset.role || "c", stack: [], peopleLimit: 50 }); saveView(); render(); window.scrollTo(0, 0); }
   else if (a === "cat") push({ type: "cat", field: t.dataset.field, title: t.dataset.field[0].toUpperCase() + t.dataset.field.slice(1) });
   else if (a === "all-rated" || a === "liked") openSheet(a === "liked" ? DR.liked(STATS) : D.films("Highest rated", filmsSub(STATS.films.filter((f) => f.rating)), STATS.films.filter((f) => f.rating), { scope: STATS.scope }));
@@ -3269,6 +3959,11 @@ function bind() {
   const fileInput = $("#file-input");
   fileInput.addEventListener("change", () => { const files = [...fileInput.files]; fileInput.value = ""; if (files.length) importFiles(files); });
   document.addEventListener("input", (e) => {
+    if (e.target.id === "search-q") {
+      const d = SSTACK[SSTACK.length - 1];
+      if (d && d.kind === "search") { d.q = e.target.value; $("#search-results").innerHTML = inPanel(() => searchResultsHtml(d)); }
+      return;
+    }
     if (e.target.id !== "review-search") return;
     state.reviewQuery = e.target.value; state.reviewLimit = 30; refreshReviewList();
   });
@@ -3280,19 +3975,33 @@ function bind() {
   // the sheet: Back, Done, a tap outside it, and "See all"
   const sheet = $("#sheet");
   sheet.addEventListener("click", (e) => { if (e.target === sheet) sheet.close(); });
-  sheet.addEventListener("close", () => { SSTACK = []; PANEL = new Map(); });
+  sheet.addEventListener("close", onSheetClosed);
+  window.addEventListener("popstate", onPopState);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && e.target.id === "search-q") { const first = $("#search-results [data-list]"); if (first) first.click(); }
+    else if (e.key === "Enter" && e.target.id === "fix-input") { const b = $("[data-fixsave]"); if (b) b.click(); }
+  });
   document.addEventListener("click", (e) => {
     const x = e.target.closest("[data-sback],[data-sclose],[data-drillpage],[data-drillmore]");
     if (!x) return;
-    if (x.hasAttribute("data-sback")) { SSTACK.pop(); paintSheet(); }
+    if (x.hasAttribute("data-sback")) history.back();
     else if (x.hasAttribute("data-sclose")) sheet.close();
     else if (x.hasAttribute("data-drillpage")) sheetToPage();
     else { state.drillLimit += 200; render(); }
   });
   document.addEventListener("click", (e) => {
+    const t = e.target.closest("[data-fix],[data-fixsave],[data-fixcancel],[data-wn],[data-sharego]");
+    if (!t) return;
+    if (t.dataset.sharego) { shareGo(t.dataset.sharego); return; }
+    if (t.dataset.fix) { FIXING = t.dataset.fix; FIX_NOTE = { key: null, text: "" }; repaintDrill(); $("#fix-input")?.focus(); }
+    else if (t.dataset.fixsave) runFix(t.dataset.fixsave, repaintDrill);
+    else if (t.hasAttribute("data-fixcancel")) { FIXING = null; repaintDrill(); }
+    else if (t.dataset.wn) { state.wn = t.dataset.wn; render(); }
+  });
+  document.addEventListener("click", (e) => {
     const t = e.target.closest("[data-insyear],[data-cmp],[data-unfriend],[data-lb],[data-crowdsel],[data-act],[data-view],[data-scope],[data-list],[data-role],[data-crew],[data-sort],[data-catsort]");
     if (!t) return;
-    if (t.dataset.insyear) { state.insYear = t.dataset.insyear; render(); return; }
+    if (t.dataset.insyear) { state.insYear = t.dataset.insyear; routeReplace = true; render(); routeReplace = false; return; }
     if (t.dataset.cmp) { Object.assign(state, { cmp: t.dataset.cmp, unfriend: null }); render(); return; }
     if (t.dataset.unfriend) {
       if (state.unfriend === t.dataset.unfriend) { removeFriend(t.dataset.unfriend); state.unfriend = null; } else state.unfriend = t.dataset.unfriend;
@@ -3304,6 +4013,7 @@ function bind() {
     if (t.dataset.view) {
       const same = state.view === t.dataset.view && !state.stack.length;
       Object.assign(state, { view: t.dataset.view, stack: [], forgetArmed: false, importNote: "" });
+      if ($("#sheet").open) closeSheetThen();
       saveView(); render();
       if (!same) window.scrollTo(0, 0);
     }
@@ -3338,22 +4048,33 @@ function bind() {
   window.addEventListener("drop", (e) => { if (!hasFiles(e)) return; e.preventDefault(); const files = [...e.dataTransfer.files]; if (files.length) importFiles(files); });
 }
 
-function init() {
+async function init() {
+  await store.init();
+  META = store.get(KEYS.meta, {}); PHOTOS = store.get(KEYS.photos, {}); LBX = store.get(KEYS.lbx, {});
   const ex = buildExample();
   EXAMPLE_FRIENDS = buildExampleFriends().map((f) => ({ ...f, lib: buildLibrary(f.rows) }));
   loadFriends();
   EXAMPLE_META = Object.fromEntries(Object.entries(ex.meta).map(([k, m]) => [k, cleanMeta(m)]));
   EXAMPLE_LIB = buildLibrary(ex.rows);
-  const saved = store.get(KEYS.rows, null);
-  if (saved) { try { MY_LIB = buildLibrary(saved); } catch { MY_LIB = null; } }
+  try { MY_LIB = myLibrary(); } catch { MY_LIB = null; }
   const view = store.get(VIEW_KEY, {});
   state.mode = MY_LIB && view.mode !== "example" ? "mine" : "example";
   if (view.scope) state.scope = view.scope;
   if (SCREENS[view.view]) state.view = view.view;
   bind();
+  routeFromHash();
   render();
-  // A saved key picks up films not yet looked up, or matched before matching improved.
-  if (MY_LIB) { autoLookup(allFilmsLib()); pollLetterboxd(MY_LIB); }
+  routeReady = true;
+  syncHash(true);
+  openRouteFilm();
+  // New diary entries from the daily feed, then a saved key picks up films not yet looked up.
+  if (MY_LIB) { await refreshFeed(); autoLookup(allFilmsLib()); pollLetterboxd(MY_LIB); }
+}
+async function refreshFeed() {
+  const feed = MY_LIB && await loadFeed(MY_LIB.profile.username);
+  if (!feed) return;
+  FEED = feed; MY_LIB = myLibrary(); SEARCH_INDEX = null;
+  render();
 }
 init();
 </script>

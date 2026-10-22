@@ -1,0 +1,2 @@
+# Letterboxd usernames whose public diary feed is collected each day into docs/feed/, one per line.
+# The site merges a feed into an imported diary when the export's username matches.
