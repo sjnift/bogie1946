@@ -295,8 +295,20 @@ dialog::backdrop { background: rgba(10, 6, 12, .6); }
 .film-row .fr { text-align: right; }
 
 /* ---------- links into the data ---------- */
-.dlink { all: unset; cursor: pointer; border-bottom: 1px dotted color-mix(in srgb, currentColor 60%, transparent); }
-.dlink:hover { color: var(--gold-ink); border-bottom: 1px solid var(--gold-ink); }
+/* A number that opens its data carries a fine gold underline (none in tables); in a sentence the link is simply gold,
+   and names, titles and tags read as what they are. */
+.dlink { all: unset; cursor: pointer; text-decoration: underline 1px; text-underline-offset: 4px;
+  text-decoration-color: color-mix(in srgb, var(--gold) 40%, transparent); transition: color .15s, text-decoration-color .15s; }
+.dlink:hover { color: var(--gold-ink); text-decoration-color: var(--gold-ink); }
+.sub .dlink, .lead .dlink, .status .dlink, .hint .dlink, .tile .foot .dlink, .lookup p .dlink, .legend .dlink, .decade .lbl .dlink, .trend-lines .dlink {
+  color: var(--gold-ink); text-decoration-color: transparent; }
+.sub .dlink:hover, .lead .dlink:hover, .status .dlink:hover, .hint .dlink:hover, .tile .foot .dlink:hover, .lookup p .dlink:hover, .legend .dlink:hover,
+  .decade .lbl .dlink:hover, .trend-lines .dlink:hover { text-decoration-color: currentColor; }
+.rv-title .dlink, .crowd h3 .dlink, .match .score .dlink, .plain-list .dlink { text-decoration: none; }
+.fact .v .dlink, table.data .dlink { text-decoration: none; }
+.fact .v .dlink::after { content: "›"; margin-left: 6px; color: var(--gold-ink); font-weight: 400; }
+.fact .v .dlink:hover { color: var(--ink); }
+.fact .v .dlink:hover::after { margin-left: 9px; }
 .dlink:focus-visible, .dline:focus-visible { outline: 2px solid var(--gold-ink); outline-offset: 2px; border-radius: 2px; }
 .dline { all: unset; cursor: pointer; display: block; }
 .trend-lines li:has(.dline) { align-items: flex-start; }
@@ -327,7 +339,7 @@ button.gpair:hover .gname { color: var(--gold-ink); }
 .venn [data-list]:hover { filter: brightness(1.2); }
 a.chiplet { color: inherit; text-decoration: none; }
 a.chiplet:hover { border-color: var(--gold); }
-.match .score .dlink { border-bottom-width: 2px; }
+.match .score .dlink:hover { color: var(--ink); }
 .cal i[data-list]:hover { outline: 1px solid var(--ink); }
 td .dlink { font-variant-numeric: tabular-nums; }
 
@@ -383,9 +395,16 @@ button.drill-row.name { cursor: pointer; }
 .fc-entry.on { background: color-mix(in srgb, var(--gold) 16%, transparent); }
 .fc-review { margin-top: 10px; }
 .fc-review .dr-s { margin: 0 0 2px; }
-.fc-chips { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 14px; }
+.fc-dir .dlink { text-decoration: none; color: var(--ink); font-weight: 600; }
+.fc-dir .dlink:hover { color: var(--gold-ink); }
+.fc-tags, .fc-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.fc-tags { margin-top: 6px !important; }
+.fc-tags .dlink, .fc-chips .dlink { text-decoration: none; padding: 3px 11px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-2);
+  font-size: 12.5px; color: var(--ink-2); line-height: 1.5; }
+.fc-tags .dlink:hover, .fc-chips .dlink:hover { color: var(--ink); border-color: var(--gold); }
 .fc-links { display: flex; gap: 16px; margin: 0; font-size: 13.5px; }
-.fc-links a { color: var(--gold-ink); }
+.fc-links a { color: var(--gold-ink); text-decoration: none; }
+.fc-links a:hover { text-decoration: underline; text-underline-offset: 4px; }
 
 #tip {
   position: fixed; z-index: 50; pointer-events: none; background: var(--ink); color: var(--bg);

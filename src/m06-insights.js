@@ -47,7 +47,7 @@ function mYears(I) {
     ${mult("Film age when watched", "age", (p) => p.age, (p) => `${p.year}: ${p.age != null ? Math.round(p.age) + " years old on average" : "—"}`)}
     ${mult("Not in English (%)", "nonEnglish", (p) => p.nonEnglish, (p) => `${p.year}: ${p.nonEnglish != null ? p.nonEnglish + "%" : "not enough details"}`)}
     ${mult("Rewatches (%)", "rewatches", (p) => pctOf(p.rewatches, p.entries), (p) => `${p.year}: ${pctOf(p.rewatches, p.entries)}% of entries`)}</div>
-    <div class="tscroll"><table class="mtable"><thead><tr><th>Year</th><th class="n">Films</th><th class="n">Hours</th><th class="n">Avg</th><th class="n">Not Eng.</th><th>Top genre</th><th>Top director</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    <div class="tscroll"><table class="mtable"><thead><tr><th>Year</th><th class="n">Films</th><th class="n">Hours</th><th class="n">Avg</th><th class="n">Not Eng.</th><th>Top genre</th><th>Top director</th></tr></thead><tbody>${rows}</tbody></table></div><p class="status">Tap any number to see what's behind it.</p>`;
 }
 
 function mTastes(I) {
@@ -58,7 +58,7 @@ function mTastes(I) {
   const heat = `<div class="tscroll"><table class="mtable heat"><thead><tr><th>Genre</th>${t.years.map((y) => `<th class="n">’${y.year.slice(2)}</th>`).join("")}</tr></thead>
     <tbody>${t.genres.map((g, gi) => `<tr><td>${dlink(catDrill(state.lib, g, "g"), esc(g))}</td>${t.years.map((y) => { const v = y.shares[gi], fs = y.p.F.filter(hasGenre(g));
       return `<td class="n" style="background:color-mix(in srgb, var(--green-mark) ${v == null ? 0 : Math.min(65, v * 1.5)}%, transparent)">${v == null ? "—" : dlink(fs.length && D.films(`${g} in ${y.year}`, filmsSub(fs, `${v}% of the year's films`), fs, { scope: y.year }), v)}</td>`; }).join("")}</tr>`).join("")}</tbody></table></div>
-    <p class="status">Percent of each year's films in the genre.</p>`;
+    <p class="status">Percent of each year's films in the genre. Tap one to see those films.</p>`;
   return sh("Changing tastes") + lines + heat;
 }
 
@@ -126,7 +126,7 @@ function mYearInsights(Y) {
   let h = `<p class="status" style="margin:14px 0 0">${dlink(DR.films(R.S), plural(R.S.films.length, "film"))} and ${dlink(DR.diary(R.S), plural(R.S.entries.length, "diary entry", "diary entries"))} in ${esc(Y)}.</p>`;
   h += mGlance(R.glance, `${esc(Y)} at a glance`);
   h += sh(`Against ${prevY}`) + (R.changes.length ? `<div class="tscroll" style="margin-top:0"><table class="mtable"><thead><tr><th></th><th class="n">${esc(Y)}</th><th class="n">${prevY}</th><th class="n"></th></tr></thead>
-    <tbody>${R.changes.map((c) => `<tr><td>${dlink(c.to, c.label)}</td><td class="n">${dlink(c.to.groups[0], c.now)}</td><td class="n">${dlink(c.to.groups[1], c.before)}</td><td class="n dim">${Math.abs(c.d) < 1e-9 ? "=" : c.d > 0 ? "▲" : "▼"}</td></tr>`).join("")}</tbody></table></div>` +
+    <tbody>${R.changes.map((c) => `<tr><td>${dlink(c.to, c.label)}</td><td class="n">${dlink(c.to.groups[0], c.now)}</td><td class="n">${dlink(c.to.groups[1], c.before)}</td><td class="n dim">${Math.abs(c.d) < 1e-9 ? "=" : c.d > 0 ? "▲" : "▼"}</td></tr>`).join("")}</tbody></table></div><p class="status">Tap any number to see what's behind it.</p>` +
     mLines(R.genreLines, (l) => l.dir === "up" ? "▲" : "▼")
     : `<div class="empty">No diary entries in ${prevY} to compare with.</div>`);
   const months = MONTHS.map((m, i) => {

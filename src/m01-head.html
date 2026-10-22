@@ -322,8 +322,17 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 input.key { width: 100%; padding: 11px 12px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); font-family: var(--mono); font-size: 13px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 /* ---------- links into the data ---------- */
-.dlink { all: unset; cursor: pointer; border-bottom: 1px dotted color-mix(in srgb, currentColor 55%, transparent); }
-.dlink:active, .dlink:hover { color: var(--green); border-bottom-color: var(--green); }
+/* A number that opens its data carries a fine grey underline (none in tables); in a sentence the link is white
+   against the grey text, as Letterboxd does it, and tags are grey pills. */
+.dlink { all: unset; cursor: pointer; text-decoration: underline 1px; text-underline-offset: 4px;
+  text-decoration-color: color-mix(in srgb, var(--ink-2) 45%, transparent); -webkit-tap-highlight-color: transparent; }
+.mtable .dlink { text-decoration: none; }
+.dlink:active { color: var(--green); }
+.status .dlink, .lead .dlink, .tline .dlink, .legend .dlink, .fc-dir .dlink, .mrev .t .dlink { text-decoration: none; color: var(--ink); font-weight: 600; }
+.fc-tags, .fc-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.fc-tags { margin-top: 6px !important; }
+.fc-tags .dlink, .fc-chips .dlink { text-decoration: none; background: var(--card); color: var(--ink-2); border-radius: 4px; padding: 4px 9px; font-size: 13px; line-height: 1.35; }
+.fc-tags .dlink:active, .fc-chips .dlink:active { background: var(--card-2); color: var(--ink); }
 .dline { all: unset; cursor: pointer; display: block; }
 .tline:has(.dline) { align-items: flex-start; }
 .tline:has(.dline) .mk { line-height: 1.4; padding-top: .25em; }
@@ -402,7 +411,6 @@ dialog.sheet::backdrop { background: rgba(0, 0, 0, .55); }
 .fc-review { margin-top: 10px; }
 .fc-review .dr-s { margin: 0 0 2px; }
 .fc-review .rv-text { color: var(--ink-1); }
-.fc-chips { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 14px; color: var(--ink-1); }
 .fc-links { display: flex; gap: 18px; margin: 0; font-size: 14px; }
 .icard .p { display: block; margin: 0; font-size: 14px; }
 button.mrev-head { all: unset; box-sizing: border-box; display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 12px; align-items: center; cursor: pointer; }

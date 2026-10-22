@@ -463,8 +463,20 @@ dialog::backdrop { background: rgba(10, 6, 12, .6); }
 .film-row .fr { text-align: right; }
 
 /* ---------- links into the data ---------- */
-.dlink { all: unset; cursor: pointer; border-bottom: 1px dotted color-mix(in srgb, currentColor 60%, transparent); }
-.dlink:hover { color: var(--gold-ink); border-bottom: 1px solid var(--gold-ink); }
+/* A number that opens its data carries a fine gold underline (none in tables); in a sentence the link is simply gold,
+   and names, titles and tags read as what they are. */
+.dlink { all: unset; cursor: pointer; text-decoration: underline 1px; text-underline-offset: 4px;
+  text-decoration-color: color-mix(in srgb, var(--gold) 40%, transparent); transition: color .15s, text-decoration-color .15s; }
+.dlink:hover { color: var(--gold-ink); text-decoration-color: var(--gold-ink); }
+.sub .dlink, .lead .dlink, .status .dlink, .hint .dlink, .tile .foot .dlink, .lookup p .dlink, .legend .dlink, .decade .lbl .dlink, .trend-lines .dlink {
+  color: var(--gold-ink); text-decoration-color: transparent; }
+.sub .dlink:hover, .lead .dlink:hover, .status .dlink:hover, .hint .dlink:hover, .tile .foot .dlink:hover, .lookup p .dlink:hover, .legend .dlink:hover,
+  .decade .lbl .dlink:hover, .trend-lines .dlink:hover { text-decoration-color: currentColor; }
+.rv-title .dlink, .crowd h3 .dlink, .match .score .dlink, .plain-list .dlink { text-decoration: none; }
+.fact .v .dlink, table.data .dlink { text-decoration: none; }
+.fact .v .dlink::after { content: "›"; margin-left: 6px; color: var(--gold-ink); font-weight: 400; }
+.fact .v .dlink:hover { color: var(--ink); }
+.fact .v .dlink:hover::after { margin-left: 9px; }
 .dlink:focus-visible, .dline:focus-visible { outline: 2px solid var(--gold-ink); outline-offset: 2px; border-radius: 2px; }
 .dline { all: unset; cursor: pointer; display: block; }
 .trend-lines li:has(.dline) { align-items: flex-start; }
@@ -495,7 +507,7 @@ button.gpair:hover .gname { color: var(--gold-ink); }
 .venn [data-list]:hover { filter: brightness(1.2); }
 a.chiplet { color: inherit; text-decoration: none; }
 a.chiplet:hover { border-color: var(--gold); }
-.match .score .dlink { border-bottom-width: 2px; }
+.match .score .dlink:hover { color: var(--ink); }
 .cal i[data-list]:hover { outline: 1px solid var(--ink); }
 td .dlink { font-variant-numeric: tabular-nums; }
 
@@ -551,9 +563,16 @@ button.drill-row.name { cursor: pointer; }
 .fc-entry.on { background: color-mix(in srgb, var(--gold) 16%, transparent); }
 .fc-review { margin-top: 10px; }
 .fc-review .dr-s { margin: 0 0 2px; }
-.fc-chips { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 14px; }
+.fc-dir .dlink { text-decoration: none; color: var(--ink); font-weight: 600; }
+.fc-dir .dlink:hover { color: var(--gold-ink); }
+.fc-tags, .fc-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.fc-tags { margin-top: 6px !important; }
+.fc-tags .dlink, .fc-chips .dlink { text-decoration: none; padding: 3px 11px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-2);
+  font-size: 12.5px; color: var(--ink-2); line-height: 1.5; }
+.fc-tags .dlink:hover, .fc-chips .dlink:hover { color: var(--ink); border-color: var(--gold); }
 .fc-links { display: flex; gap: 16px; margin: 0; font-size: 13.5px; }
-.fc-links a { color: var(--gold-ink); }
+.fc-links a { color: var(--gold-ink); text-decoration: none; }
+.fc-links a:hover { text-decoration: underline; text-underline-offset: 4px; }
 
 #tip {
   position: fixed; z-index: 50; pointer-events: none; background: var(--ink); color: var(--bg);
@@ -617,7 +636,7 @@ footer p { margin: 0 0 6px; max-width: 80ch; }
     <p>With your own TMDB key, film details come from The Movie Database. This product uses the TMDB API but is not endorsed or certified by TMDB.
       Inside the Claude app, details come from Claude's knowledge of each film instead, so check anything surprising.</p>
     <p>On a phone? <a href="mobile.html">Open the phone version</a>. It uses the same import.</p>
-    <p>Updated 22 Oct 2026, 16:10 UTC</p>
+    <p>Updated 22 Oct 2026, 17:12 UTC</p>
     <p><button class="btn small" id="btn-forget" type="button">Delete saved data from this browser</button>
       <span class="status" id="forget-status"></span></p>
   </footer>
@@ -2594,12 +2613,11 @@ function recordHtml(p, d, solo) {
 function filmCardHtml(d) {
   const f = d.film, m = metaOf(f), lib = d.lib || state.lib;
   const who = d.people || [{ lib, film: lib.films.includes(f) ? f : lib.films.find((x) => x.key === f.key) }];
-  const facts = [];
+  const facts = [], tags = [];
   if (m) {
-    if (m.d.length) facts.push(`Directed by ${m.d.map((n) => dlink(personDrill(lib, n, "d"), esc(n))).join(", ")}`);
-    facts.push([m.r ? `${m.r} min` : "", m.l ? dlink(catDrill(lib, m.l, "l"), esc(m.l)) : ""].filter(Boolean).join(" · "));
-    if (m.g.length) facts.push(m.g.map((g) => dlink(catDrill(lib, g, "g"), esc(g))).join(", "));
-    if (m.k.length) facts.push(m.k.map((k) => dlink(catDrill(lib, k, "k"), esc(k))).join(", "));
+    if (m.d.length) facts.push(`<p class="fc-dir">Directed by ${m.d.map((n) => dlink(personDrill(lib, n, "d"), esc(n))).join(", ")}</p>`);
+    if (m.r) facts.push(`<p>${m.r} min</p>`);
+    tags.push(...m.g.map((g) => dlink(catDrill(lib, g, "g"), esc(g))), ...m.k.map((k) => dlink(catDrill(lib, k, "k"), esc(k))), ...(m.l ? [dlink(catDrill(lib, m.l, "l"), esc(m.l))] : []));
   }
   const crowd = crowdBits(f, m);
   const cast = m && m.c.length ? `<section class="fc-sec"><h4>Cast</h4><div class="fc-chips">${m.c.slice(0, 12).map((n) => dlink(personDrill(lib, n, "c"), esc(n))).join("")}</div></section>` : "";
@@ -2608,8 +2626,8 @@ function filmCardHtml(d) {
     tm && tm.src === "tmdb" && tm.id && !IN_VIEWER ? `<a href="https://www.themoviedb.org/movie/${tm.id}" target="_blank" rel="noopener">TMDB ↗</a>` : "",
     m && m.im ? `<a href="https://www.imdb.com/title/${m.im}/" target="_blank" rel="noopener">IMDb ↗</a>` : ""].filter(Boolean).join("");
   return `<div class="fcard">${d.badge ? `<p class="fc-badge">${esc(d.badge)}</p>` : ""}<div class="fc-top">${thumb(f, true)}<div class="fc-facts">
-      ${facts.filter(Boolean).map((x) => `<p>${x}</p>`).join("")}${m ? "" : `<p class="dr-s">No cast &amp; crew details yet.</p>`}
-      ${crowd.length ? `<p class="fc-crowd">${crowd.join('<span class="sep"> · </span>')}</p>` : ""}</div></div>
+      ${facts.join("")}${m ? "" : `<p class="dr-s">No cast &amp; crew details yet.</p>`}
+      ${crowd.length ? `<p class="fc-crowd">${crowd.join('<span class="sep"> · </span>')}</p>` : ""}${tags.length ? `<p class="fc-tags">${tags.join("")}</p>` : ""}</div></div>
     ${who.map((p) => recordHtml(p, d, !d.people)).join("")}${cast}<p class="fc-links">${links}</p></div>`;
 }
 </script>
@@ -3022,7 +3040,7 @@ function yearsBlock(I) {
     <td>${p.topGenre ? dlink(D.films(`${p.topGenre[0]} in ${p.year}`, filmsSub(p.F.filter(hasGenre(p.topGenre[0]))), p.F.filter(hasGenre(p.topGenre[0])), { scope: p.year }), esc(p.topGenre[0])) : "—"}</td>
     <td>${top(p, p.topDirector, "d")}</td><td>${top(p, p.topActor, "c")}</td></tr>`; }).join("");
   return legend + charts + `<div class="tbl-wrap"><table class="data"><thead><tr><th>Year</th><th class="n">Films</th><th class="n">Hours</th><th class="n">Avg ★</th>
-    <th class="n">New releases</th><th class="n">Not English</th><th class="n">Countries</th><th>Top genre</th><th>Top director</th><th>Top actor</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    <th class="n">New releases</th><th class="n">Not English</th><th class="n">Countries</th><th>Top genre</th><th>Top director</th><th>Top actor</th></tr></thead><tbody>${rows}</tbody></table></div><p class="status">Click any number to see the films or diary entries behind it.</p>`;
 }
 
 function tastesBlock(I) {
@@ -3034,7 +3052,7 @@ function tastesBlock(I) {
     <thead><tr><th>Genre</th>${t.years.map((y) => `<th class="n">${y.year}</th>`).join("")}</tr></thead>
     <tbody>${t.genres.map((g, gi) => `<tr><td>${dlink(catDrill(state.lib, g, "g"), esc(g))}</td>${t.years.map((y) => { const v = y.shares[gi], fs = y.p.F.filter(hasGenre(g));
       return `<td class="n cell" style="background:color-mix(in srgb, var(--gold) ${v == null ? 0 : Math.min(70, v * 1.6)}%, transparent)">${v == null ? "—" : dlink(fs.length && D.films(`${g} in ${y.year}`, filmsSub(fs, `${v}% of the year's films`), fs, { scope: y.year }), v + "%")}</td>`; }).join("")}</tr>`).join("")}</tbody></table></div>
-    <p class="status">Share of each year's films in the genre. A film can have several genres.</p>`;
+    <p class="status">Share of each year's films in the genre. A film can have several genres. Click a share to see those films.</p>`;
   return lines + heat;
 }
 
@@ -3117,7 +3135,7 @@ function renderYearInsights(Y) {
   $("#hero-sub").innerHTML = `${dlink(DR.films(R.S), plural(R.S.films.length, "film"))} and ${dlink(DR.diary(R.S), plural(R.S.entries.length, "diary entry", "diary entries"))} in ${Y}, against ${prevY} and against your whole diary.`;
   const arrow = (c) => Math.abs(c.d) < 1e-9 ? `<span class="muted">same</span>` : `<span aria-hidden="true">${c.d > 0 ? "▲" : "▼"}</span> <span class="sr-only">${c.d > 0 ? "up" : "down"}</span>`;
   const vsPrev = R.changes.length ? `<div class="tbl-wrap"><table class="data"><thead><tr><th></th><th class="n">${esc(Y)}</th><th class="n">${prevY}</th><th class="n">Change</th></tr></thead>
-      <tbody>${R.changes.map((c) => `<tr><td>${dlink(c.to, c.label)}</td><td class="n">${dlink(c.to.groups[0], c.now)}</td><td class="n">${dlink(c.to.groups[1], c.before)}</td><td class="n">${arrow(c)}</td></tr>`).join("")}</tbody></table></div>` +
+      <tbody>${R.changes.map((c) => `<tr><td>${dlink(c.to, c.label)}</td><td class="n">${dlink(c.to.groups[0], c.now)}</td><td class="n">${dlink(c.to.groups[1], c.before)}</td><td class="n">${arrow(c)}</td></tr>`).join("")}</tbody></table></div><p class="status">Click any number to see the films or diary entries behind it.</p>` +
       (R.genreLines.length ? lineItems(R.genreLines, (l) => l.dir === "up" ? "▲" : "▼") : "")
     : `<div class="empty">No diary entries in ${prevY} to compare with.</div>`;
   const months = MONTHS.map((m, i) => {
@@ -3227,7 +3245,7 @@ function pairSections(C) {
   const together = C.together.length ? `<div class="chiplets">${C.together.map((w) => `<a class="chiplet" href="${esc(lbUrl(w))}" target="_blank" rel="noopener">${esc(w.name)} <span class="muted">${w.year || ""}</span></a>`).join("")}</div>`
     : `<div class="empty">No film is on both of your watchlists${A.watchlist.size && B.watchlist.size ? "" : " (watchlists come from each export's watchlist.csv)"}.</div>`;
   const habits = `<div class="tbl-wrap"><table class="data"><thead><tr><th></th><th class="n">You</th><th class="n">${esc(B.name)}</th></tr></thead><tbody>${habitRows(C).map(([k, a, b]) =>
-    `<tr><td>${k}</td><td class="n">${a}</td><td class="n">${b}</td></tr>`).join("")}</tbody></table></div>`;
+    `<tr><td>${k}</td><td class="n">${a}</td><td class="n">${b}</td></tr>`).join("")}</tbody></table></div><p class="status">Click any number to see the films or diary entries behind it.</p>`;
   return [
     section("c-match", "Taste match", `You and ${esc(B.name)}.`, score + lines),
     section("c-overlap", "Overlap", "Films each of you has logged.", venn),
@@ -3261,7 +3279,7 @@ function groupSections(profiles) {
     { text: `${plural(G.everyone, "film")} everyone has seen.`, to: G.everyone && G.everyoneTo }].filter(Boolean), () => "●") : "";
   const matrix = `<div class="tbl-wrap"><table class="data heat"><thead><tr><th></th>${names.map((n) => `<th class="n">${esc(n)}</th>`).join("")}</tr></thead>
     <tbody>${profiles.map((P, i) => `<tr><td>${esc(P.name)}</td>${profiles.map((_, j) => cell(G.matrix[i][j], i, j)).join("")}</tr>`).join("")}</tbody></table></div>
-    <p class="status">Taste match out of 100 for each pair, from films both have rated.</p>`;
+    <p class="status">Taste match out of 100 for each pair, from films both have rated. Click a score to see those films.</p>`;
   const rated = (x) => `<span class="cap">${x.by.map((b) => `<span><span class="muted">${esc(b.name)}</span> <span class="stars">${stars(b.r)}</span></span>`).join("")}</span>`;
   const pickName = (p) => p.f ? dlink(G.card(p.f), `<b>${esc(p.name)}</b>`) : `<a href="${esc(lbUrl(p))}" target="_blank" rel="noopener"><b>${esc(p.name)}</b></a>`;
   const picks = G.picks.length ? `<ul class="trend-lines">${G.picks.map((p) => `<li><span class="mk">●</span><span>${pickName(p)} <span class="muted">${p.year || ""}</span>. ${esc(p.why)}.</span></li>`).join("")}</ul>` : `<div class="empty">No pick yet: nothing is on two watchlists or loved by one of you and unseen by most.</div>`;

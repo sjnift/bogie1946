@@ -204,12 +204,11 @@ function recordHtml(p, d, solo) {
 function filmCardHtml(d) {
   const f = d.film, m = metaOf(f), lib = d.lib || state.lib;
   const who = d.people || [{ lib, film: lib.films.includes(f) ? f : lib.films.find((x) => x.key === f.key) }];
-  const facts = [];
+  const facts = [], tags = [];
   if (m) {
-    if (m.d.length) facts.push(`Directed by ${m.d.map((n) => dlink(personDrill(lib, n, "d"), esc(n))).join(", ")}`);
-    facts.push([m.r ? `${m.r} min` : "", m.l ? dlink(catDrill(lib, m.l, "l"), esc(m.l)) : ""].filter(Boolean).join(" · "));
-    if (m.g.length) facts.push(m.g.map((g) => dlink(catDrill(lib, g, "g"), esc(g))).join(", "));
-    if (m.k.length) facts.push(m.k.map((k) => dlink(catDrill(lib, k, "k"), esc(k))).join(", "));
+    if (m.d.length) facts.push(`<p class="fc-dir">Directed by ${m.d.map((n) => dlink(personDrill(lib, n, "d"), esc(n))).join(", ")}</p>`);
+    if (m.r) facts.push(`<p>${m.r} min</p>`);
+    tags.push(...m.g.map((g) => dlink(catDrill(lib, g, "g"), esc(g))), ...m.k.map((k) => dlink(catDrill(lib, k, "k"), esc(k))), ...(m.l ? [dlink(catDrill(lib, m.l, "l"), esc(m.l))] : []));
   }
   const crowd = crowdBits(f, m);
   const cast = m && m.c.length ? `<section class="fc-sec"><h4>Cast</h4><div class="fc-chips">${m.c.slice(0, 12).map((n) => dlink(personDrill(lib, n, "c"), esc(n))).join("")}</div></section>` : "";
@@ -218,8 +217,8 @@ function filmCardHtml(d) {
     tm && tm.src === "tmdb" && tm.id && !IN_VIEWER ? `<a href="https://www.themoviedb.org/movie/${tm.id}" target="_blank" rel="noopener">TMDB ↗</a>` : "",
     m && m.im ? `<a href="https://www.imdb.com/title/${m.im}/" target="_blank" rel="noopener">IMDb ↗</a>` : ""].filter(Boolean).join("");
   return `<div class="fcard">${d.badge ? `<p class="fc-badge">${esc(d.badge)}</p>` : ""}<div class="fc-top">${thumb(f, true)}<div class="fc-facts">
-      ${facts.filter(Boolean).map((x) => `<p>${x}</p>`).join("")}${m ? "" : `<p class="dr-s">No cast &amp; crew details yet.</p>`}
-      ${crowd.length ? `<p class="fc-crowd">${crowd.join('<span class="sep"> · </span>')}</p>` : ""}</div></div>
+      ${facts.join("")}${m ? "" : `<p class="dr-s">No cast &amp; crew details yet.</p>`}
+      ${crowd.length ? `<p class="fc-crowd">${crowd.join('<span class="sep"> · </span>')}</p>` : ""}${tags.length ? `<p class="fc-tags">${tags.join("")}</p>` : ""}</div></div>
     ${who.map((p) => recordHtml(p, d, !d.people)).join("")}${cast}<p class="fc-links">${links}</p></div>`;
 }
 </script>

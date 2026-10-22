@@ -66,7 +66,7 @@ function pairSections(C) {
   const together = C.together.length ? `<div class="chiplets">${C.together.map((w) => `<a class="chiplet" href="${esc(lbUrl(w))}" target="_blank" rel="noopener">${esc(w.name)} <span class="muted">${w.year || ""}</span></a>`).join("")}</div>`
     : `<div class="empty">No film is on both of your watchlists${A.watchlist.size && B.watchlist.size ? "" : " (watchlists come from each export's watchlist.csv)"}.</div>`;
   const habits = `<div class="tbl-wrap"><table class="data"><thead><tr><th></th><th class="n">You</th><th class="n">${esc(B.name)}</th></tr></thead><tbody>${habitRows(C).map(([k, a, b]) =>
-    `<tr><td>${k}</td><td class="n">${a}</td><td class="n">${b}</td></tr>`).join("")}</tbody></table></div>`;
+    `<tr><td>${k}</td><td class="n">${a}</td><td class="n">${b}</td></tr>`).join("")}</tbody></table></div><p class="status">Click any number to see the films or diary entries behind it.</p>`;
   return [
     section("c-match", "Taste match", `You and ${esc(B.name)}.`, score + lines),
     section("c-overlap", "Overlap", "Films each of you has logged.", venn),
@@ -100,7 +100,7 @@ function groupSections(profiles) {
     { text: `${plural(G.everyone, "film")} everyone has seen.`, to: G.everyone && G.everyoneTo }].filter(Boolean), () => "●") : "";
   const matrix = `<div class="tbl-wrap"><table class="data heat"><thead><tr><th></th>${names.map((n) => `<th class="n">${esc(n)}</th>`).join("")}</tr></thead>
     <tbody>${profiles.map((P, i) => `<tr><td>${esc(P.name)}</td>${profiles.map((_, j) => cell(G.matrix[i][j], i, j)).join("")}</tr>`).join("")}</tbody></table></div>
-    <p class="status">Taste match out of 100 for each pair, from films both have rated.</p>`;
+    <p class="status">Taste match out of 100 for each pair, from films both have rated. Click a score to see those films.</p>`;
   const rated = (x) => `<span class="cap">${x.by.map((b) => `<span><span class="muted">${esc(b.name)}</span> <span class="stars">${stars(b.r)}</span></span>`).join("")}</span>`;
   const pickName = (p) => p.f ? dlink(G.card(p.f), `<b>${esc(p.name)}</b>`) : `<a href="${esc(lbUrl(p))}" target="_blank" rel="noopener"><b>${esc(p.name)}</b></a>`;
   const picks = G.picks.length ? `<ul class="trend-lines">${G.picks.map((p) => `<li><span class="mk">●</span><span>${pickName(p)} <span class="muted">${p.year || ""}</span>. ${esc(p.why)}.</span></li>`).join("")}</ul>` : `<div class="empty">No pick yet: nothing is on two watchlists or loved by one of you and unseen by most.</div>`;

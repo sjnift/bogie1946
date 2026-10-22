@@ -60,7 +60,7 @@ function yearsBlock(I) {
     <td>${p.topGenre ? dlink(D.films(`${p.topGenre[0]} in ${p.year}`, filmsSub(p.F.filter(hasGenre(p.topGenre[0]))), p.F.filter(hasGenre(p.topGenre[0])), { scope: p.year }), esc(p.topGenre[0])) : "—"}</td>
     <td>${top(p, p.topDirector, "d")}</td><td>${top(p, p.topActor, "c")}</td></tr>`; }).join("");
   return legend + charts + `<div class="tbl-wrap"><table class="data"><thead><tr><th>Year</th><th class="n">Films</th><th class="n">Hours</th><th class="n">Avg ★</th>
-    <th class="n">New releases</th><th class="n">Not English</th><th class="n">Countries</th><th>Top genre</th><th>Top director</th><th>Top actor</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    <th class="n">New releases</th><th class="n">Not English</th><th class="n">Countries</th><th>Top genre</th><th>Top director</th><th>Top actor</th></tr></thead><tbody>${rows}</tbody></table></div><p class="status">Click any number to see the films or diary entries behind it.</p>`;
 }
 
 function tastesBlock(I) {
@@ -72,7 +72,7 @@ function tastesBlock(I) {
     <thead><tr><th>Genre</th>${t.years.map((y) => `<th class="n">${y.year}</th>`).join("")}</tr></thead>
     <tbody>${t.genres.map((g, gi) => `<tr><td>${dlink(catDrill(state.lib, g, "g"), esc(g))}</td>${t.years.map((y) => { const v = y.shares[gi], fs = y.p.F.filter(hasGenre(g));
       return `<td class="n cell" style="background:color-mix(in srgb, var(--gold) ${v == null ? 0 : Math.min(70, v * 1.6)}%, transparent)">${v == null ? "—" : dlink(fs.length && D.films(`${g} in ${y.year}`, filmsSub(fs, `${v}% of the year's films`), fs, { scope: y.year }), v + "%")}</td>`; }).join("")}</tr>`).join("")}</tbody></table></div>
-    <p class="status">Share of each year's films in the genre. A film can have several genres.</p>`;
+    <p class="status">Share of each year's films in the genre. A film can have several genres. Click a share to see those films.</p>`;
   return lines + heat;
 }
 
@@ -155,7 +155,7 @@ function renderYearInsights(Y) {
   $("#hero-sub").innerHTML = `${dlink(DR.films(R.S), plural(R.S.films.length, "film"))} and ${dlink(DR.diary(R.S), plural(R.S.entries.length, "diary entry", "diary entries"))} in ${Y}, against ${prevY} and against your whole diary.`;
   const arrow = (c) => Math.abs(c.d) < 1e-9 ? `<span class="muted">same</span>` : `<span aria-hidden="true">${c.d > 0 ? "▲" : "▼"}</span> <span class="sr-only">${c.d > 0 ? "up" : "down"}</span>`;
   const vsPrev = R.changes.length ? `<div class="tbl-wrap"><table class="data"><thead><tr><th></th><th class="n">${esc(Y)}</th><th class="n">${prevY}</th><th class="n">Change</th></tr></thead>
-      <tbody>${R.changes.map((c) => `<tr><td>${dlink(c.to, c.label)}</td><td class="n">${dlink(c.to.groups[0], c.now)}</td><td class="n">${dlink(c.to.groups[1], c.before)}</td><td class="n">${arrow(c)}</td></tr>`).join("")}</tbody></table></div>` +
+      <tbody>${R.changes.map((c) => `<tr><td>${dlink(c.to, c.label)}</td><td class="n">${dlink(c.to.groups[0], c.now)}</td><td class="n">${dlink(c.to.groups[1], c.before)}</td><td class="n">${arrow(c)}</td></tr>`).join("")}</tbody></table></div><p class="status">Click any number to see the films or diary entries behind it.</p>` +
       (R.genreLines.length ? lineItems(R.genreLines, (l) => l.dir === "up" ? "▲" : "▼") : "")
     : `<div class="empty">No diary entries in ${prevY} to compare with.</div>`;
   const months = MONTHS.map((m, i) => {

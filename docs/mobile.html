@@ -336,8 +336,17 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 input.key { width: 100%; padding: 11px 12px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); font-family: var(--mono); font-size: 13px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 /* ---------- links into the data ---------- */
-.dlink { all: unset; cursor: pointer; border-bottom: 1px dotted color-mix(in srgb, currentColor 55%, transparent); }
-.dlink:active, .dlink:hover { color: var(--green); border-bottom-color: var(--green); }
+/* A number that opens its data carries a fine grey underline (none in tables); in a sentence the link is white
+   against the grey text, as Letterboxd does it, and tags are grey pills. */
+.dlink { all: unset; cursor: pointer; text-decoration: underline 1px; text-underline-offset: 4px;
+  text-decoration-color: color-mix(in srgb, var(--ink-2) 45%, transparent); -webkit-tap-highlight-color: transparent; }
+.mtable .dlink { text-decoration: none; }
+.dlink:active { color: var(--green); }
+.status .dlink, .lead .dlink, .tline .dlink, .legend .dlink, .fc-dir .dlink, .mrev .t .dlink { text-decoration: none; color: var(--ink); font-weight: 600; }
+.fc-tags, .fc-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.fc-tags { margin-top: 6px !important; }
+.fc-tags .dlink, .fc-chips .dlink { text-decoration: none; background: var(--card); color: var(--ink-2); border-radius: 4px; padding: 4px 9px; font-size: 13px; line-height: 1.35; }
+.fc-tags .dlink:active, .fc-chips .dlink:active { background: var(--card-2); color: var(--ink); }
 .dline { all: unset; cursor: pointer; display: block; }
 .tline:has(.dline) { align-items: flex-start; }
 .tline:has(.dline) .mk { line-height: 1.4; padding-top: .25em; }
@@ -416,7 +425,6 @@ dialog.sheet::backdrop { background: rgba(0, 0, 0, .55); }
 .fc-review { margin-top: 10px; }
 .fc-review .dr-s { margin: 0 0 2px; }
 .fc-review .rv-text { color: var(--ink-1); }
-.fc-chips { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 14px; color: var(--ink-1); }
 .fc-links { display: flex; gap: 18px; margin: 0; font-size: 14px; }
 .icard .p { display: block; margin: 0; font-size: 14px; }
 button.mrev-head { all: unset; box-sizing: border-box; display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 12px; align-items: center; cursor: pointer; }
@@ -2432,12 +2440,11 @@ function recordHtml(p, d, solo) {
 function filmCardHtml(d) {
   const f = d.film, m = metaOf(f), lib = d.lib || state.lib;
   const who = d.people || [{ lib, film: lib.films.includes(f) ? f : lib.films.find((x) => x.key === f.key) }];
-  const facts = [];
+  const facts = [], tags = [];
   if (m) {
-    if (m.d.length) facts.push(`Directed by ${m.d.map((n) => dlink(personDrill(lib, n, "d"), esc(n))).join(", ")}`);
-    facts.push([m.r ? `${m.r} min` : "", m.l ? dlink(catDrill(lib, m.l, "l"), esc(m.l)) : ""].filter(Boolean).join(" · "));
-    if (m.g.length) facts.push(m.g.map((g) => dlink(catDrill(lib, g, "g"), esc(g))).join(", "));
-    if (m.k.length) facts.push(m.k.map((k) => dlink(catDrill(lib, k, "k"), esc(k))).join(", "));
+    if (m.d.length) facts.push(`<p class="fc-dir">Directed by ${m.d.map((n) => dlink(personDrill(lib, n, "d"), esc(n))).join(", ")}</p>`);
+    if (m.r) facts.push(`<p>${m.r} min</p>`);
+    tags.push(...m.g.map((g) => dlink(catDrill(lib, g, "g"), esc(g))), ...m.k.map((k) => dlink(catDrill(lib, k, "k"), esc(k))), ...(m.l ? [dlink(catDrill(lib, m.l, "l"), esc(m.l))] : []));
   }
   const crowd = crowdBits(f, m);
   const cast = m && m.c.length ? `<section class="fc-sec"><h4>Cast</h4><div class="fc-chips">${m.c.slice(0, 12).map((n) => dlink(personDrill(lib, n, "c"), esc(n))).join("")}</div></section>` : "";
@@ -2446,8 +2453,8 @@ function filmCardHtml(d) {
     tm && tm.src === "tmdb" && tm.id && !IN_VIEWER ? `<a href="https://www.themoviedb.org/movie/${tm.id}" target="_blank" rel="noopener">TMDB ↗</a>` : "",
     m && m.im ? `<a href="https://www.imdb.com/title/${m.im}/" target="_blank" rel="noopener">IMDb ↗</a>` : ""].filter(Boolean).join("");
   return `<div class="fcard">${d.badge ? `<p class="fc-badge">${esc(d.badge)}</p>` : ""}<div class="fc-top">${thumb(f, true)}<div class="fc-facts">
-      ${facts.filter(Boolean).map((x) => `<p>${x}</p>`).join("")}${m ? "" : `<p class="dr-s">No cast &amp; crew details yet.</p>`}
-      ${crowd.length ? `<p class="fc-crowd">${crowd.join('<span class="sep"> · </span>')}</p>` : ""}</div></div>
+      ${facts.join("")}${m ? "" : `<p class="dr-s">No cast &amp; crew details yet.</p>`}
+      ${crowd.length ? `<p class="fc-crowd">${crowd.join('<span class="sep"> · </span>')}</p>` : ""}${tags.length ? `<p class="fc-tags">${tags.join("")}</p>` : ""}</div></div>
     ${who.map((p) => recordHtml(p, d, !d.people)).join("")}${cast}<p class="fc-links">${links}</p></div>`;
 }
 </script>
@@ -2794,7 +2801,7 @@ function dataScreen() {
       <p>With your own TMDB key, film details come from The Movie Database. This product uses the TMDB API but is not endorsed or certified by TMDB.
       Inside the Claude app, details come from Claude's knowledge of each film instead, so check anything surprising.</p>
       <p>On a computer? <a href="desktop.html">Open the desktop version</a>. It uses the same import.</p>
-      <p>Updated 22 Oct 2026, 16:10 UTC</p></div>`;
+      <p>Updated 22 Oct 2026, 17:12 UTC</p></div>`;
 }
 
 /* ---------- pushed detail screens ---------- */
@@ -2866,7 +2873,7 @@ function mYears(I) {
     ${mult("Film age when watched", "age", (p) => p.age, (p) => `${p.year}: ${p.age != null ? Math.round(p.age) + " years old on average" : "—"}`)}
     ${mult("Not in English (%)", "nonEnglish", (p) => p.nonEnglish, (p) => `${p.year}: ${p.nonEnglish != null ? p.nonEnglish + "%" : "not enough details"}`)}
     ${mult("Rewatches (%)", "rewatches", (p) => pctOf(p.rewatches, p.entries), (p) => `${p.year}: ${pctOf(p.rewatches, p.entries)}% of entries`)}</div>
-    <div class="tscroll"><table class="mtable"><thead><tr><th>Year</th><th class="n">Films</th><th class="n">Hours</th><th class="n">Avg</th><th class="n">Not Eng.</th><th>Top genre</th><th>Top director</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    <div class="tscroll"><table class="mtable"><thead><tr><th>Year</th><th class="n">Films</th><th class="n">Hours</th><th class="n">Avg</th><th class="n">Not Eng.</th><th>Top genre</th><th>Top director</th></tr></thead><tbody>${rows}</tbody></table></div><p class="status">Tap any number to see what's behind it.</p>`;
 }
 
 function mTastes(I) {
@@ -2877,7 +2884,7 @@ function mTastes(I) {
   const heat = `<div class="tscroll"><table class="mtable heat"><thead><tr><th>Genre</th>${t.years.map((y) => `<th class="n">’${y.year.slice(2)}</th>`).join("")}</tr></thead>
     <tbody>${t.genres.map((g, gi) => `<tr><td>${dlink(catDrill(state.lib, g, "g"), esc(g))}</td>${t.years.map((y) => { const v = y.shares[gi], fs = y.p.F.filter(hasGenre(g));
       return `<td class="n" style="background:color-mix(in srgb, var(--green-mark) ${v == null ? 0 : Math.min(65, v * 1.5)}%, transparent)">${v == null ? "—" : dlink(fs.length && D.films(`${g} in ${y.year}`, filmsSub(fs, `${v}% of the year's films`), fs, { scope: y.year }), v)}</td>`; }).join("")}</tr>`).join("")}</tbody></table></div>
-    <p class="status">Percent of each year's films in the genre.</p>`;
+    <p class="status">Percent of each year's films in the genre. Tap one to see those films.</p>`;
   return sh("Changing tastes") + lines + heat;
 }
 
@@ -2945,7 +2952,7 @@ function mYearInsights(Y) {
   let h = `<p class="status" style="margin:14px 0 0">${dlink(DR.films(R.S), plural(R.S.films.length, "film"))} and ${dlink(DR.diary(R.S), plural(R.S.entries.length, "diary entry", "diary entries"))} in ${esc(Y)}.</p>`;
   h += mGlance(R.glance, `${esc(Y)} at a glance`);
   h += sh(`Against ${prevY}`) + (R.changes.length ? `<div class="tscroll" style="margin-top:0"><table class="mtable"><thead><tr><th></th><th class="n">${esc(Y)}</th><th class="n">${prevY}</th><th class="n"></th></tr></thead>
-    <tbody>${R.changes.map((c) => `<tr><td>${dlink(c.to, c.label)}</td><td class="n">${dlink(c.to.groups[0], c.now)}</td><td class="n">${dlink(c.to.groups[1], c.before)}</td><td class="n dim">${Math.abs(c.d) < 1e-9 ? "=" : c.d > 0 ? "▲" : "▼"}</td></tr>`).join("")}</tbody></table></div>` +
+    <tbody>${R.changes.map((c) => `<tr><td>${dlink(c.to, c.label)}</td><td class="n">${dlink(c.to.groups[0], c.now)}</td><td class="n">${dlink(c.to.groups[1], c.before)}</td><td class="n dim">${Math.abs(c.d) < 1e-9 ? "=" : c.d > 0 ? "▲" : "▼"}</td></tr>`).join("")}</tbody></table></div><p class="status">Tap any number to see what's behind it.</p>` +
     mLines(R.genreLines, (l) => l.dir === "up" ? "▲" : "▼")
     : `<div class="empty">No diary entries in ${prevY} to compare with.</div>`);
   const months = MONTHS.map((m, i) => {
@@ -3040,7 +3047,7 @@ function mPair(C) {
   h += sh(`For ${esc(B.name)}, from you`) + mFilms(C.forB, `Nothing you rated 4★ or more that ${esc(B.name)} hasn't seen.`, recCap("You"), to.card);
   h += sh("Watch together") + (C.together.length ? C.together.map((w) => `<a class="kv" href="${esc(lbUrl(w))}" target="_blank" rel="noopener"><span>${esc(w.name)}</span><span>${w.year || ""} ↗</span></a>`).join("") : `<div class="empty">No film is on both of your watchlists.</div>`);
   h += sh("Habits") + `<div class="tscroll" style="margin-top:0"><table class="mtable"><thead><tr><th></th><th class="n">You</th><th class="n">${esc(B.name)}</th></tr></thead><tbody>${habitRows(C).map(([k, a, b]) =>
-    `<tr><td>${k}</td><td class="n">${a}</td><td class="n">${b}</td></tr>`).join("")}</tbody></table></div>`;
+    `<tr><td>${k}</td><td class="n">${a}</td><td class="n">${b}</td></tr>`).join("")}</tbody></table></div><p class="status">Tap any number to see what's behind it.</p>`;
   return h;
 }
 

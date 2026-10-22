@@ -61,7 +61,7 @@ function mPair(C) {
   h += sh(`For ${esc(B.name)}, from you`) + mFilms(C.forB, `Nothing you rated 4★ or more that ${esc(B.name)} hasn't seen.`, recCap("You"), to.card);
   h += sh("Watch together") + (C.together.length ? C.together.map((w) => `<a class="kv" href="${esc(lbUrl(w))}" target="_blank" rel="noopener"><span>${esc(w.name)}</span><span>${w.year || ""} ↗</span></a>`).join("") : `<div class="empty">No film is on both of your watchlists.</div>`);
   h += sh("Habits") + `<div class="tscroll" style="margin-top:0"><table class="mtable"><thead><tr><th></th><th class="n">You</th><th class="n">${esc(B.name)}</th></tr></thead><tbody>${habitRows(C).map(([k, a, b]) =>
-    `<tr><td>${k}</td><td class="n">${a}</td><td class="n">${b}</td></tr>`).join("")}</tbody></table></div>`;
+    `<tr><td>${k}</td><td class="n">${a}</td><td class="n">${b}</td></tr>`).join("")}</tbody></table></div><p class="status">Tap any number to see what's behind it.</p>`;
   return h;
 }
 
