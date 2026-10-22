@@ -39,6 +39,7 @@ function mPair(C) {
   h += sh("You both loved") + mFilms(C.bothLoved, "No film you both rated 4½★ or more.", twoStars(B));
   h += sh("You rated higher") + mFilms(C.aHigher, `Nothing you rated 1½★ or more above ${esc(B.name)}.`, twoStars(B));
   h += sh(`${esc(B.name)} rated higher`) + mFilms(C.bHigher, `Nothing ${esc(B.name)} rated 1½★ or more above you.`, twoStars(B));
+  h += mBothReviewed(A, B);
   if (A.rated.length && B.rated.length) {
     const mx = Math.max(1, ...A.spread, ...B.spread);
     h += sh("Rating style") + `<div class="legend" style="flex-wrap:wrap"><span><i style="background:var(--green-mark)"></i>You · ${A.avg.toFixed(2)} avg</span><span><i style="background:var(--blue-mark)"></i>${esc(B.name)} · ${B.avg.toFixed(2)} avg</span></div>

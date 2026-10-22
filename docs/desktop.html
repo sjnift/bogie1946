@@ -257,6 +257,28 @@ main { padding-block: 8px 64px; }
 .habit .v { font-weight: 700; font-size: 24px; color: var(--ink); line-height: 1.15; }
 .habit .t { color: var(--ink-2); font-size: 14px; }
 
+/* ---------- reviews ---------- */
+.review-tools input { width: min(100%, 420px); padding: 9px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); }
+.review { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 18px; padding: 18px 0; border-bottom: 1px solid var(--line); }
+.review .rv-art .art { padding: 7px; }
+.review .rv-art .art .t { font-size: 12px; }
+.rv-title { font-size: 17px; font-weight: 700; margin: 0; }
+.rv-meta { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; font-size: 13px; margin: 2px 0 8px; }
+.rv-text { color: var(--ink); line-height: 1.6; max-width: 72ch; overflow-wrap: anywhere; margin: 0; }
+.rv-text p { margin: 0 0 .8em; } .rv-text p:last-child { margin-bottom: 0; }
+.rv-text blockquote { margin: .3em 0 .8em; padding-left: 12px; border-left: 2px solid var(--line); color: var(--ink-2); }
+.rv-text ul, .rv-text ol { margin: .3em 0 .8em; padding-left: 1.3em; }
+.rv-text a { color: var(--gold-ink); }
+.rv-text.clamp { max-height: 9.6em; overflow: hidden; -webkit-mask-image: linear-gradient(#000 60%, transparent); mask-image: linear-gradient(#000 60%, transparent); }
+.rv-more { margin-top: 6px; font-size: 13.5px; }
+.rv-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.rv-tags .chiplet { font-size: 12px; padding: 3px 8px; }
+.wordcloud { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; max-width: 80ch; }
+.wordcloud .w { color: var(--ink); font-weight: 600; line-height: 1.3; }
+.pair-rev { padding: 14px 0; border-bottom: 1px solid var(--line); display: grid; gap: 8px; }
+.sub-h { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin: 14px 0 6px; }
+@media (max-width: 520px) { .review { grid-template-columns: 64px minmax(0, 1fr); gap: 12px; } }
+
 /* ---------- compare ---------- */
 .who-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
 .who { display: inline-flex; align-items: center; gap: 2px; }
@@ -494,7 +516,7 @@ footer p { margin: 0 0 6px; max-width: 80ch; }
     <p>With your own TMDB key, film details come from The Movie Database. This product uses the TMDB API but is not endorsed or certified by TMDB.
       Inside the Claude app, details come from Claude's knowledge of each film instead, so check anything surprising.</p>
     <p>On a phone? <a href="mobile.html">Open the phone version</a>. It uses the same import.</p>
-    <p>Updated 22 Oct 2026, 10:25 UTC</p>
+    <p>Updated 22 Oct 2026, 15:11 UTC</p>
     <p><button class="btn small" id="btn-forget" type="button">Delete saved data from this browser</button>
       <span class="status" id="forget-status"></span></p>
   </footer>
@@ -622,6 +644,27 @@ const EXAMPLE_EXTRA = [
   ["Superbad", 2007, "Greg Mottola", "Jonah Hill|Michael Cera|Christopher Mintz-Plasse|Seth Rogen|Bill Hader", "Comedy", "USA", "English", 113, "Seth Rogen|Evan Goldberg", "Russ T. Alsobrook", "Lyle Workman", 7.2, 8000],
   ["Paddington 2", 2017, "Paul King", "Ben Whishaw|Hugh Grant|Hugh Bonneville|Sally Hawkins|Brendan Gleeson", "Family|Comedy|Adventure", "UK|France|USA", "English", 104, "Paul King|Simon Farnaby", "Erik Wilson", "Dario Marianelli", 7.6, 3200],
 ];
+// Sample reviews for the example diary, in a casual Letterboxd voice. Invented for the example.
+const EXAMPLE_REVIEWS = {
+  "Parasite": "Every staircase in this house is doing work. The swerve in the last act still knocks the air out of me.",
+  "In the Mood for Love": "Corridors, cigarette smoke and the same waltz again and again. Longing has never looked this beautiful.",
+  "Portrait of a Lady on Fire": "Turn around.\n\nThe final shot is one of the most beautiful endings I've seen. Patient, precise and burning underneath.",
+  "Before Sunset": "Eighty minutes of walking and talking, and I wanted eighty more. The ending is perfect.",
+  "Spirited Away": "Pure imagination. The train across the water is the most peaceful scene I know, and I cried again.",
+  "Fight Club": "Loud, smug and tiresome on a rewatch. Great score, though, and the cast is having fun.",
+  "La La Land": "Gorgeous to look at, but the songs left me cold and the romance felt thin.",
+  "Dune": "Beautiful, but it's half a story and it feels like it. Loud and slow at the same time.",
+  "Asteroid City": "Pretty dioramas with very little underneath. Beautiful, but cold.",
+  "Aftersun": "Quietly devastating. That last dance under the strobe lights wrecked me. Paul Mescal is perfect.",
+  "Burning": "A slow burn that never lets you look away. Steven Yeun is unsettling and perfect.",
+  "Interstellar": "Big, earnest and very loud. The docking scene still works on me every time.",
+  "Kinds of Kindness": "Three stories, one too many. Strange for the sake of strange, and tiresome by the end.",
+  "Prisoners": "Grim, gripping, and two and a half hours that fly by. Gyllenhaal's blinking detective is a great creation.",
+  "Drive My Car": "Three hours of grief, theatre and long drives, and I didn't want it to end. Patient and beautiful.",
+  "Decision to Leave": "Sly, romantic and endlessly clever. Park Chan-wook at his most playful, and the ending is devastating.",
+  "Chungking Express": "California Dreamin' forever. Pure joy, and Faye Wong is perfect.",
+  "Whiplash": "Not quite my tempo. Tense as a thriller, and that finale is perfect.",
+};
 const EXAMPLE_WATCHLIST = [["Seven Samurai", 1954], ["The Thing", 1982], ["Amélie", 2001]];
 
 /* Turns the table above into the same shape an imported export produces:
@@ -659,7 +702,7 @@ function buildExample() {
       const again = first + Math.floor(rand() * (end - first) / day) * day;
       if (again > first) rows.diary.push({ ...base, Date: logDate(again), "Watched Date": iso(again), Rating: String(rating), Rewatch: "Yes", Tags: "" });
     }
-    if (rand() < 0.3) rows.reviews.push({ ...base, "Watched Date": iso(first) });
+    if (EXAMPLE_REVIEWS[name]) rows.reviews.push({ ...base, Date: logDate(first), "Watched Date": iso(first), Rating: String(rating), Review: EXAMPLE_REVIEWS[name] });
   });
   for (const [name, year, d, c, g, k, l, r, w, p, m, va, vc] of EXAMPLE_EXTRA)
     meta[filmKey(name, year)] = { src: "example", d: split(d), c: split(c), g: split(g), k: split(k), l, r, w: split(w), p: split(p), m: split(m), va, vc };
@@ -747,7 +790,7 @@ function slim(kind, rows) {
     case "diary": return rows.map((r) => pick(r, [...base, "Date", "Watched Date", "Rating", "Rewatch", "Tags"]));
     case "watched": return rows.map((r) => pick(r, [...base, "Date", "Letterboxd URI"]));
     case "ratings": return rows.map((r) => pick(r, [...base, "Rating"]));
-    case "reviews": return rows.map((r) => pick(r, [...base, "Date", "Watched Date"]));
+    case "reviews": return rows.map((r) => pick(r, [...base, "Date", "Watched Date", "Rating", "Rewatch", "Review", "Tags"]));
     case "likes": case "watchlist": return rows.map((r) => pick(r, base));
     default: return rows;
   }
@@ -785,6 +828,34 @@ async function readExport(fileList) {
   return rows;
 }
 
+// Letterboxd keeps reviews with some HTML. Keep the formatting people use (paragraphs, line breaks,
+// italics, bold, quotes, lists, links) and drop everything else but its text, so a review shows as
+// written and nothing in it can run. A plain-text copy is kept for search and word counts.
+const REVIEW_TAGS = new Set(["P", "BR", "I", "EM", "B", "STRONG", "U", "S", "STRIKE", "BLOCKQUOTE", "UL", "OL", "LI", "A"]);
+function reviewParts(raw) {
+  if (!raw) return { html: "", text: "" };
+  const doc = new DOMParser().parseFromString(String(raw).replace(/\r\n?/g, "\n"), "text/html");
+  const clean = (node) => {
+    let out = "";
+    for (const n of node.childNodes) {
+      if (n.nodeType === 3) { out += esc(n.nodeValue).replace(/\n/g, "<br>"); continue; }
+      if (n.nodeType !== 1) continue;
+      const tag = n.tagName;
+      if (tag === "SCRIPT" || tag === "STYLE") continue;
+      const inner = clean(n);
+      if (tag === "BR") out += "<br>";
+      else if (!REVIEW_TAGS.has(tag)) out += inner;
+      else if (tag === "A") { const href = n.getAttribute("href") || ""; out += /^https?:\/\//i.test(href) ? `<a href="${esc(href)}" target="_blank" rel="noopener nofollow">${inner}</a>` : inner; }
+      else { const t = tag === "STRIKE" ? "s" : tag.toLowerCase(); out += `<${t}>${inner}</${t}>`; }
+    }
+    return out;
+  };
+  const html = clean(doc.body).replace(/^(<br>)+|(<br>)+$/g, "").trim();
+  const text = html.replace(/<br>/g, "\n").replace(/<\/(p|blockquote|li)>/g, "\n\n").replace(/<[^>]+>/g, "")
+    .replace(/&(amp|lt|gt|quot|#39);/g, (m, e) => ({ amp: "&", lt: "<", gt: ">", quot: '"', "#39": "'" }[e])).replace(/\n{3,}/g, "\n\n").trim();
+  return { html, text };
+}
+
 /* ---------- the library: one record per film, one per diary entry ---------- */
 function buildLibrary(input) {
   const rows = { diary: [], watched: [], ratings: [], reviews: [], likes: [], watchlist: [], profile: [], ...input };
@@ -811,6 +882,7 @@ function buildLibrary(input) {
     f.entries.push(e); entries.push(e);
   });
   for (const r of rows.likes) { const f = find(r); if (f) f.liked = true; }
+  const reviews = [];
   for (const r of rows.reviews) {
     const f = find(r);
     if (!f) continue;
@@ -818,7 +890,11 @@ function buildLibrary(input) {
     const d = r["Watched Date"] || r.Date;
     const e = f.entries.find((x) => x.date === d) || f.entries[f.entries.length - 1];
     if (e) e.review = true;
+    const { html, text } = reviewParts(r.Review);
+    reviews.push({ film: f, date: /^\d{4}-\d{2}-\d{2}$/.test(d || "") ? d : null, rating: parseFloat(r.Rating) || f.rating || null,
+      html, text, words: text ? text.split(/\s+/).length : 0, tags: r.Tags || "", rewatch: /^yes$/i.test(r.Rewatch || "") });
   }
+  reviews.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
   entries.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : a.order - b.order);
   for (const f of films.values()) {
     f.entries.sort((a, b) => a.date < b.date ? -1 : 1);
@@ -826,7 +902,9 @@ function buildLibrary(input) {
   }
   const p = rows.profile[0] || {};
   return {
-    films: [...films.values()], entries,
+    films: [...films.values()], entries, reviews,
+    // a saved import from before review text was kept: the reviews are counted but their words are missing
+    reviewTextMissing: reviews.length > 0 && reviews.every((r) => !r.text),
     profile: { username: p.Username || "", joined: (p["Date Joined"] || "").slice(0, 10), name: [p["Given Name"], p["Family Name"]].filter(Boolean).join(" ") },
     watchlist: rows.watchlist.length,
     watchlistFilms: rows.watchlist.map((r) => ({ key: filmKey(r.Name, r.Year), name: String(r.Name).trim(), year: parseInt(r.Year, 10) || null })),
@@ -2000,9 +2078,61 @@ function compareGroup(profiles) {
 }
 </script>
 <script>
+/* ---------- reviews: the words behind the ratings ---------- */
+const STOPWORDS = new Set(`the and for that this with was but are not you all any can had her his one our out get has him how its may new now see two who did let put say she too use from have they will been more when what were your than then them some just into only also very much even such here most like over well back many does make made each those after where which while about would could there their these other being still really thing things through every because before again first last never ever though think know going felt feel feels lot little bit enough always something nothing anything everything someone without within around another itself himself herself myself yourself whole kind sort maybe almost quite rather pretty seem seems seemed got gets getting goes went come came comes take took make makes making give gave look looks looked watch watched watching rewatch rewatched film films movie movies cinema scene scenes character characters story time times way ways year years day days man men people`.split(/\s+/));
+const reviewWords = (text) => (text.toLowerCase().match(/\p{L}[\p{L}'’-]*/gu) || [])
+  .map((w) => w.replace(/’/g, "'").replace(/'s$/, "").replace(/-+$/, "")).filter((w) => w.length > 2 && !STOPWORDS.has(w));
+const reviewsIn = (lib, Y) => lib.reviews.filter((r) => r.text && (!Y || (r.date || "").startsWith(Y)));
+
+// Counts, lengths, which films you review, and the words you use, overall or for one year.
+function computeReviewInsights(lib, Y) {
+  const R = reviewsIn(lib, Y);
+  if (!R.length) return null;
+  const total = R.reduce((s, r) => s + r.words, 0);
+  const byLength = [...R].sort((a, b) => b.words - a.words);
+  const median = byLength[Math.floor(byLength.length / 2)].words;
+  const docFreq = (list) => { const m = new Map(); for (const r of list) for (const w of new Set(reviewWords(r.text))) bump(m, w); return m; };
+  const top = [...docFreq(R)].filter(([, n]) => n >= 2).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 24);
+  // words that set your reviews of loved films apart from the rest, and the other way round
+  const hi = R.filter((r) => r.rating >= 4.5), lo = R.filter((r) => r.rating && r.rating <= 3);
+  let love = [], cold = [];
+  if (hi.length >= 4 && lo.length >= 3) {
+    const dh = docFreq(hi), dl = docFreq(lo);
+    const lean = (w) => Math.log(((dh.get(w) || 0) + 0.5) / (hi.length + 1)) - Math.log(((dl.get(w) || 0) + 0.5) / (lo.length + 1));
+    love = [...dh.keys()].filter((w) => dh.get(w) >= 2 && lean(w) > 0).sort((a, b) => lean(b) - lean(a)).slice(0, 8);
+    cold = [...dl.keys()].filter((w) => dl.get(w) >= 2 && lean(w) < 0).sort((a, b) => lean(a) - lean(b)).slice(0, 8);
+  }
+  const films = Y ? [...new Set(lib.entries.filter((e) => e.date.startsWith(Y)).map((e) => e.film))] : lib.films;
+  const reviewed = new Set(R.map((r) => r.film));
+  const rated = films.filter((f) => f.rating);
+  const avgReviewed = avg(rated.filter((f) => reviewed.has(f)).map((f) => f.rating)), avgOthers = avg(rated.filter((f) => !reviewed.has(f)).map((f) => f.rating));
+  const shareAt = (test) => { const fs = rated.filter((f) => test(f.rating)); return fs.length >= 3 ? pctOf(fs.filter((f) => reviewed.has(f)).length, fs.length) : null; };
+  const loveShare = shareAt((r) => r >= 4.5), lowShare = shareAt((r) => r <= 2.5);
+  const lines = [
+    `${Y ? `In ${Y} you wrote` : "You've written"} ${plural(R.length, "review")}, about ${fmtN(total)} words in all${total >= 600 ? `: roughly ${fmtN(Math.round(total / 300))} pages of a paperback` : ""}.`,
+    `A typical review runs ${plural(median, "word")}; the longest, for ${byLength[0].film.name}, runs ${fmtN(byLength[0].words)}.`,
+  ];
+  if (films.length) lines.push(`You've reviewed ${pctOf(reviewed.size, films.length)}% of the films you logged${Y ? ` in ${Y}` : ""}.`);
+  if (avgReviewed && avgOthers && Math.abs(avgReviewed - avgOthers) >= 0.15)
+    lines.push(`You review the films you ${avgReviewed > avgOthers ? "like more" : "like less"}: ${starsNum(avgReviewed)} on average for the ones you reviewed, against ${starsNum(avgOthers)} for the rest.`);
+  if (loveShare != null && lowShare != null && Math.abs(loveShare - lowShare) >= 10)
+    lines.push(`You review ${loveShare}% of the films you rate 4½★ or more, and ${lowShare}% of those you rate 2½★ or less.`);
+  const perYear = Y ? [] : [...new Set(R.map((r) => (r.date || "").slice(0, 4)).filter(Boolean))].sort()
+    .map((y) => ({ year: y, count: R.filter((r) => (r.date || "").startsWith(y)).length }));
+  return { count: R.length, total, median, longest: byLength[0], top, love, cold, lines, perYear };
+}
+// Reviews of the same film by two people, both with text.
+function bothReviewed(A, B) {
+  const theirs = new Map(B.lib.reviews.filter((r) => r.text).map((r) => [r.film.key, r]));
+  return A.lib.reviews.filter((r) => r.text && theirs.has(r.film.key)).map((r) => ({ f: r.film, mine: r, theirs: theirs.get(r.film.key) }));
+}
+// A short plain-text excerpt for side-by-side views.
+const excerpt = (text, n = 220) => text.length > n ? text.slice(0, n).replace(/\s+\S*$/, "") + "…" : text;
+</script>
+<script>
 /* ---------- page state ---------- */
 const state = {
-  mode: "example", lib: null, scope: "all", page: "stats", crowd: null, insYear: "all", cmp: null, cmpError: "", unfriend: null,
+  mode: "example", lib: null, scope: "all", page: "stats", crowd: null, insYear: "all", reviewQuery: "", reviewLimit: 20, cmp: null, cmpError: "", unfriend: null,
   tab: { cast: "most", directors: "most", crew: "w", cats: "most" },
   more: { cast: false, directors: false },
 };
@@ -2327,6 +2457,7 @@ function renderSections(s) {
     section("released", "Released", "Films by decade of release.", decadeBlock(s)),
     section("crew", "Crew", "Writers, cinematographers and composers.", noMeta ? emptyMeta() : crewBlock(s)),
     section("milestones", "Milestones", "Counted through your diary in date order.", milestonesBlock(s)),
+    section("reviews", "Reviewed", s.scope === "all" ? "Everything you've written, newest first." : `What you wrote about films you watched in ${s.scope}.`, reviewsBlock(s)),
     section("top", "Top billing", "Your highest-rated films.", highlightsBlock(s)),
   ].join("");
 }
@@ -2371,6 +2502,7 @@ function renderInsights() {
     section("i-genres", "Genres", "How much you watch each genre, and how you rate it.", genresBlock(I)),
     section("i-people", "People", "Directors and actors across your years of watching.", peopleInsights(I)),
     section("i-crowd", "Against the crowd", "Where your ratings part ways with everyone else's.", crowdBlock(I)),
+    section("i-reviews", "Your reviews", "What you write, and when you bother.", reviewInsightsBlock(lib, null)),
     section("i-habits", "Habits", "When and how you watch.", habitsBlock(I)),
   ].join("");
 }
@@ -2532,6 +2664,7 @@ function renderYearInsights(Y) {
       (R.worst.length ? `<h3 class="sub-h" style="margin-top:6px">Lowest rated</h3>` + posterRow(R.worst, "") : "")),
     section("y-people", `People of ${esc(Y)}`, first ? "Your first diary year, so everyone is new." : "Who you watched most, and who was new.", people),
     section("y-crowd", "Against the crowd", `Films you rated in ${esc(Y)}.`, crowd),
+    section("y-reviews", `Reviews in ${esc(Y)}`, "What you wrote that year.", reviewInsightsBlock(lib, Y)),
     section("y-habits", `Habits in ${esc(Y)}`, "When and how you watched.", habits),
   ].join("");
 }
@@ -2619,6 +2752,7 @@ function pairSections(C) {
       <h3>You both loved</h3>${filmRow(C.bothLoved, "No film you both rated 4½★ or more.", (x) => bothCap(x, A, B))}
       <h3>You rated higher</h3>${filmRow(C.aHigher, `No film you rated 1½★ or more above ${esc(B.name)}.`, (x) => bothCap(x, A, B))}
       <h3>${esc(B.name)} rated higher</h3>${filmRow(C.bHigher, `No film ${esc(B.name)} rated 1½★ or more above you.`, (x) => bothCap(x, A, B))}</div>`),
+    section("c-reviews", "In your words", "Films you've both reviewed.", bothReviewedBlock(A, B)),
     section("c-style", "Rating style", "How each of you spreads ratings.", hist),
     section("c-genres", "Genres", "Each person's mix of genres.", genres),
     section("c-people", "People", "Directors and actors across both diaries.", people),
@@ -2653,6 +2787,76 @@ function groupSections(profiles) {
     section("c-divisive", "Most divisive", "Films three or more of you rated, furthest apart.", filmRow(G.divisive, "Nothing has split the group yet.", rated)),
     section("c-night", "Movie night", "On several watchlists, or loved by one of you and unseen by most.", picks),
   ];
+}
+</script>
+<script>
+/* ---------- desktop: reviews on the stats page, in Insights and in Compare ---------- */
+const reimportNote = () => `<div class="notice"><p><strong>Your reviews aren't in yet.</strong> The copy of your export saved in this browser was made before
+  review text was kept. Import your Letterboxd export again to bring your reviews in, formatting and all.</p>
+  <button class="btn small" type="button" data-reimport>Import export</button></div>`;
+
+function reviewCard(r) {
+  const long = r.words > 90;
+  const tags = r.tags ? `<div class="rv-tags">${r.tags.split(",").map((t) => t.trim()).filter(Boolean).map((t) => `<span class="chiplet">${esc(t)}</span>`).join("")}</div>` : "";
+  return `<article class="review"><div class="rv-art">${artHtml(r.film)}</div><div class="rv-body">
+    <h3 class="rv-title">${esc(r.film.name)} <span class="muted">${r.film.year || ""}</span></h3>
+    <div class="rv-meta"><span class="stars">${stars(r.rating)}</span>${r.film.liked ? ' <span class="muted" title="Liked">♥</span>' : ""}
+      <span class="muted">${r.date ? `${r.rewatch ? "Rewatched" : "Watched"} ${fmtDate(r.date)}` : ""}${tmdbLink(r.film)}</span></div>
+    <div class="rv-text${long ? " clamp" : ""}">${r.html}</div>
+    ${long ? `<button class="linkish rv-more" type="button" data-expand>Read more</button>` : ""}${tags}</div></article>`;
+}
+function reviewMatches(scopeYear) {
+  const q = (state.reviewQuery || "").trim().toLowerCase();
+  const all = reviewsIn(state.lib, scopeYear);
+  return { all, list: q ? all.filter((r) => r.text.toLowerCase().includes(q) || r.film.name.toLowerCase().includes(q)) : all };
+}
+function reviewListHtml(scopeYear) {
+  const { all, list } = reviewMatches(scopeYear);
+  const shown = list.slice(0, state.reviewLimit);
+  const count = state.reviewQuery ? `${plural(list.length, "review")} match "${esc(state.reviewQuery)}"` : plural(all.length, "review");
+  return `<p class="status" id="review-count">${count}</p>` + (shown.length ? shown.map(reviewCard).join("") : `<div class="empty">No review matches that search.</div>`) +
+    (list.length > shown.length ? `<button class="btn small" type="button" data-more-reviews>Show more reviews (${fmtN(list.length - shown.length)} left)</button>` : "");
+}
+function reviewsBlock(s) {
+  const lib = state.lib;
+  if (lib.reviewTextMissing) return reimportNote();
+  const year = s.scope === "all" ? null : s.scope;
+  if (!reviewsIn(lib, year).length) return `<div class="empty">No reviews ${year ? `in ${year}` : "yet"}.</div>`;
+  return `<div class="review-tools"><label class="sr-only" for="review-search">Search your reviews</label>
+    <input id="review-search" type="search" autocomplete="off" placeholder="Search your reviews by word or title" value="${esc(state.reviewQuery || "")}"></div>
+    <div id="review-list">${reviewListHtml(year)}</div>`;
+}
+function refreshReviewList() {
+  const el = $("#review-list");
+  if (el) el.innerHTML = reviewListHtml(state.scope === "all" ? null : state.scope);
+}
+
+/* ----- review insights, for all years or one ----- */
+function reviewInsightsBlock(lib, Y) {
+  if (lib.reviewTextMissing) return reimportNote();
+  const RI = computeReviewInsights(lib, Y);
+  if (!RI) return `<div class="empty">No written reviews ${Y ? `in ${Y}` : "yet"}.</div>`;
+  const lines = `<ul class="trend-lines">${RI.lines.map((t) => `<li><span class="mk" aria-hidden="true">●</span><span>${esc(t)}</span></li>`).join("")}</ul>`;
+  const maxN = RI.top.length ? RI.top[0][1] : 1;
+  const words = RI.top.length ? `<h3 class="sub-h">Words you use most</h3><div class="wordcloud">${RI.top.map(([w, n]) =>
+    `<span class="w" style="font-size:${(13 + 13 * n / maxN).toFixed(1)}px" data-tip="In ${plural(n, "review")}">${esc(w)}</span>`).join("")}</div>
+    <p class="status">Counted once per review. Common words like "the" and "film" are left out.</p>` : "";
+  const leaning = RI.love.length || RI.cold.length ? `<div class="ins-grid">
+    <div><h3 class="sub-h">When you love a film</h3><div class="chiplets">${RI.love.map((w) => `<span class="chiplet">${esc(w)}</span>`).join("") || `<span class="status">Not enough reviews yet.</span>`}</div></div>
+    <div><h3 class="sub-h">When you don't</h3><div class="chiplets">${RI.cold.map((w) => `<span class="chiplet">${esc(w)}</span>`).join("") || `<span class="status">Not enough reviews yet.</span>`}</div></div></div>
+    <p class="status">Words that turn up more in your reviews of films you rated 4½★ or more than in those you rated 3★ or less, and the other way round.</p>` : "";
+  const perYear = RI.perYear.length >= 2 ? `<h3 class="sub-h">Reviews each year</h3>` + colChart(RI.perYear.map((p) => ({ a: p.count, b: 0, label: `’${p.year.slice(2)}`, tip: `${p.year}: ${plural(p.count, "review")}` })), "Reviews written each year", "", 90) : "";
+  const longest = `<h3 class="sub-h">Your longest review${Y ? ` of ${Y}` : ""}</h3>` + reviewCard(RI.longest);
+  return lines + words + leaning + perYear + longest;
+}
+
+/* ----- in Compare: the same film, both reviews ----- */
+function bothReviewedBlock(A, B) {
+  const both = bothReviewed(A, B).slice(0, 6);
+  if (!both.length) return `<div class="empty">No film you've both written a review of${A.lib.reviewTextMissing || B.lib.reviewTextMissing ? " (import the exports again to bring review text in)" : ""}.</div>`;
+  return both.map((x) => `<div class="pair-rev"><h3 class="rv-title">${esc(x.f.name)} <span class="muted">${x.f.year || ""}</span></h3><div class="ins-grid">
+    <div><div class="rv-meta"><span class="muted">You</span> <span class="stars">${stars(x.mine.rating)}</span></div><p class="rv-text">${esc(excerpt(x.mine.text))}</p></div>
+    <div><div class="rv-meta"><span class="muted">${esc(B.name)}</span> <span class="stars">${stars(x.theirs.rating)}</span></div><p class="rv-text">${esc(excerpt(x.theirs.text))}</p></div></div></div>`).join("");
 }
 </script>
 <script>
@@ -2702,9 +2906,15 @@ function bind() {
   $("#btn-mine").addEventListener("click", () => { state.mode = "mine"; state.scope = "all"; saveView(); render(); });
 
   document.addEventListener("click", (e) => {
-    const t = e.target.closest("[data-insyear],#btn-add-friend,[data-cmp],[data-unfriend],[data-lb],[data-crowd],[data-scope],[data-tab],[data-more],[data-list],[data-close],#btn-tmdb,#btn-change-key,#btn-omdb,#btn-change-omdb,#btn-claude,#btn-claude-retry,#btn-stop");
+    const t = e.target.closest("[data-expand],[data-more-reviews],[data-reimport],[data-insyear],#btn-add-friend,[data-cmp],[data-unfriend],[data-lb],[data-crowd],[data-scope],[data-tab],[data-more],[data-list],[data-close],#btn-tmdb,#btn-change-key,#btn-omdb,#btn-change-omdb,#btn-claude,#btn-claude-retry,#btn-stop");
     if (!t) return;
-    if (t.dataset.insyear) { state.insYear = t.dataset.insyear; renderInsights(); $(`[data-insyear="${t.dataset.insyear}"]`)?.focus(); }
+    if (t.hasAttribute("data-expand")) {
+      const text = t.previousElementSibling, open = text.classList.toggle("clamp") === false;
+      t.textContent = open ? "Show less" : "Read more";
+    }
+    else if (t.hasAttribute("data-more-reviews")) { state.reviewLimit += 20; refreshReviewList(); }
+    else if (t.hasAttribute("data-reimport")) $("#file-input").click();
+    else if (t.dataset.insyear) { state.insYear = t.dataset.insyear; renderInsights(); $(`[data-insyear="${t.dataset.insyear}"]`)?.focus(); }
     else if (t.id === "btn-add-friend") $("#friend-input").click();
     else if (t.dataset.cmp) { state.cmp = t.dataset.cmp; state.unfriend = null; renderCompare(); $(`[data-cmp="${t.dataset.cmp}"]`)?.focus(); }
     else if (t.dataset.unfriend) {
@@ -2714,7 +2924,7 @@ function bind() {
     }
     else if (t.dataset.lb) lbAction(t.dataset.lb, MY_LIB);
     else if (t.dataset.crowd) { state.crowd = t.dataset.crowd; renderInsights(); $(`[data-crowd="${t.dataset.crowd}"]`)?.focus(); }
-    else if (t.dataset.scope) { state.scope = t.dataset.scope; state.more = { cast: false, directors: false }; saveView(); render(); }
+    else if (t.dataset.scope) { state.scope = t.dataset.scope; state.more = { cast: false, directors: false }; state.reviewLimit = 20; saveView(); render(); }
     else if (t.dataset.tab) { state.tab[t.dataset.tab] = t.dataset.val; renderSections(STATS); $(`[data-tab="${t.dataset.tab}"][data-val="${t.dataset.val}"]`)?.focus(); }
     else if (t.dataset.more) { state.more[t.dataset.more] = true; renderSections(STATS); }
     else if (t.dataset.list) openList(t.dataset.list);
@@ -2726,6 +2936,10 @@ function bind() {
     else if (t.id === "btn-claude") runClaude(MY_LIB);
     else if (t.id === "btn-claude-retry") retryClaudeMisses(MY_LIB);
     else if (t.id === "btn-stop") job.ctl && job.ctl.abort();
+  });
+  document.addEventListener("input", (e) => {
+    if (e.target.id !== "review-search") return;
+    state.reviewQuery = e.target.value; state.reviewLimit = 20; refreshReviewList();
   });
   const dlg = $("#dlg");
   dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });

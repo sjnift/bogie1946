@@ -26,6 +26,7 @@ function act(t) {
   if (a === "import") $("#file-input").click();
   else if (a === "insights") push({ type: "insights", title: "Insights" });
   else if (a === "compare") push({ type: "compare", title: "Compare" });
+  else if (a === "reviews") { state.reviewLimit = 30; push({ type: "reviews", title: "Reviews" }); }
   else if (a === "add-friend") $("#friend-input").click();
   else if (a === "back") pop();
   else if (a === "people") { Object.assign(state, { view: "people", role: t.dataset.role || "c", stack: [], peopleLimit: 50 }); saveView(); render(); window.scrollTo(0, 0); }
@@ -74,6 +75,15 @@ function bind() {
   });
   const fileInput = $("#file-input");
   fileInput.addEventListener("change", () => { const files = [...fileInput.files]; fileInput.value = ""; if (files.length) importFiles(files); });
+  document.addEventListener("input", (e) => {
+    if (e.target.id !== "review-search") return;
+    state.reviewQuery = e.target.value; state.reviewLimit = 30; refreshReviewList();
+  });
+  document.addEventListener("click", (e) => {
+    const x = e.target.closest("[data-expand],[data-more-reviews]");
+    if (x && x.hasAttribute("data-expand")) { const open = x.previousElementSibling.classList.toggle("clamp") === false; x.textContent = open ? "Less" : "More"; return; }
+    if (x) { state.reviewLimit += 30; refreshReviewList(); }
+  });
   document.addEventListener("click", (e) => {
     const t = e.target.closest("[data-insyear],[data-cmp],[data-unfriend],[data-lb],[data-crowdsel],[data-act],[data-view],[data-scope],[data-push],[data-role],[data-crew],[data-sort],[data-catsort]");
     if (!t) return;

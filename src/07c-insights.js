@@ -20,6 +20,7 @@ function renderInsights() {
     section("i-genres", "Genres", "How much you watch each genre, and how you rate it.", genresBlock(I)),
     section("i-people", "People", "Directors and actors across your years of watching.", peopleInsights(I)),
     section("i-crowd", "Against the crowd", "Where your ratings part ways with everyone else's.", crowdBlock(I)),
+    section("i-reviews", "Your reviews", "What you write, and when you bother.", reviewInsightsBlock(lib, null)),
     section("i-habits", "Habits", "When and how you watch.", habitsBlock(I)),
   ].join("");
 }
@@ -181,6 +182,7 @@ function renderYearInsights(Y) {
       (R.worst.length ? `<h3 class="sub-h" style="margin-top:6px">Lowest rated</h3>` + posterRow(R.worst, "") : "")),
     section("y-people", `People of ${esc(Y)}`, first ? "Your first diary year, so everyone is new." : "Who you watched most, and who was new.", people),
     section("y-crowd", "Against the crowd", `Films you rated in ${esc(Y)}.`, crowd),
+    section("y-reviews", `Reviews in ${esc(Y)}`, "What you wrote that year.", reviewInsightsBlock(lib, Y)),
     section("y-habits", `Habits in ${esc(Y)}`, "When and how you watched.", habits),
   ].join("");
 }

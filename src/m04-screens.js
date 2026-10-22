@@ -176,6 +176,7 @@ function dataScreen() {
 function detailScreen(d, s) {
   if (d.type === "insights") return insightsScreen();
   if (d.type === "compare") return compareScreen();
+  if (d.type === "reviews") return reviewsScreen();
   if (d.type === "cat") {
     const data = s[d.field], best = state.catSort === "best";
     const list = best ? data.best : data.most;

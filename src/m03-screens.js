@@ -2,7 +2,7 @@
 /* ---------- app state ---------- */
 const state = {
   mode: "example", lib: null, scope: "all", view: "profile", stack: [],
-  role: "c", crew: "w", sort: "most", catSort: "most", peopleLimit: 50, diaryLimit: 60, crowd: null, insYear: "all", cmp: null, cmpError: "", unfriend: null,
+  role: "c", crew: "w", sort: "most", catSort: "most", peopleLimit: 50, diaryLimit: 60, crowd: null, insYear: "all", reviewQuery: "", reviewLimit: 30, cmp: null, cmpError: "", unfriend: null,
 };
 let MY_LIB = null, EXAMPLE_LIB = null, STATS = null;
 const IMG = "https://image.tmdb.org/t/p/w185";
@@ -131,6 +131,7 @@ function profileScreen(s) {
     ["Actors", s.cast.total, `data-act="people" data-role="c"`],
     ["Directors", s.directors.total, `data-act="people" data-role="d"`],
     ["Diary", s.entries.length, `data-view="diary"`],
+    ["Reviews", lib.reviewTextMissing ? s.reviews : reviewsIn(lib, s.scope === "all" ? null : s.scope).length, `data-act="reviews"`],
     ["Genres", s.genres.most.length, `data-act="cat" data-field="genres"`],
     ["Countries", s.countries.most.length, `data-act="cat" data-field="countries"`],
     ["Languages", s.languages.most.length, `data-act="cat" data-field="languages"`],

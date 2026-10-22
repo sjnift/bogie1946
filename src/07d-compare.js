@@ -81,6 +81,7 @@ function pairSections(C) {
       <h3>You both loved</h3>${filmRow(C.bothLoved, "No film you both rated 4½★ or more.", (x) => bothCap(x, A, B))}
       <h3>You rated higher</h3>${filmRow(C.aHigher, `No film you rated 1½★ or more above ${esc(B.name)}.`, (x) => bothCap(x, A, B))}
       <h3>${esc(B.name)} rated higher</h3>${filmRow(C.bHigher, `No film ${esc(B.name)} rated 1½★ or more above you.`, (x) => bothCap(x, A, B))}</div>`),
+    section("c-reviews", "In your words", "Films you've both reviewed.", bothReviewedBlock(A, B)),
     section("c-style", "Rating style", "How each of you spreads ratings.", hist),
     section("c-genres", "Genres", "Each person's mix of genres.", genres),
     section("c-people", "People", "Directors and actors across both diaries.", people),

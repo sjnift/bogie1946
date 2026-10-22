@@ -15,7 +15,7 @@ function mAllInsights() {
   const I = computeInsights(lib, metaOf, state.crowd || defaultCrowd(lib, metaOf));
   const first = lib.entries[0].date, last = lib.entries[lib.entries.length - 1].date;
   const intro = `<p class="status" style="margin:16px 0 0">Patterns across ${plural(I.years.length, "year")} of diary, ${fmtDate(first)} to ${fmtDate(last)}.</p>`;
-  return intro + mGlance(I) + mYears(I) + mTastes(I) + mGenres(I) + mPeople(I) + mCrowd(I) + mHabits(I);
+  return intro + mGlance(I) + mYears(I) + mTastes(I) + mGenres(I) + mPeople(I) + mCrowd(I) + mReviewInsights(lib, null) + mHabits(I);
 }
 const twoYears = (what) => `<div class="empty">${what} need diary entries from at least two years, with five or more films in each.</div>`;
 
@@ -140,6 +140,7 @@ function mYearInsights(Y) {
     h += sh(`You vs ${esc(C.short)} in ${esc(Y)}`) + `<p class="lead">You gave ${Math.abs(C.meanDiff).toFixed(2)}★ ${C.meanDiff >= 0 ? "more" : "less"} than ${esc(C.label)} on average.</p>` +
       `<p class="status" style="margin:10px 0 6px">You liked more</p>` + cg(C.higher) + `<p class="status" style="margin:14px 0 6px">You liked less</p>` + cg(C.lower);
   }
+  h += mReviewInsights(lib, Y);
   if (R.habits.length) h += sh(`Habits in ${esc(Y)}`) + `<div class="facts" style="margin-top:0">${R.habits.map((x) => `<div class="fact"><span class="k">${esc(x.k)}</span><span class="v">${esc(x.v)}</span><span class="t">${esc(x.text)}</span></div>`).join("")}</div>`;
   return h;
 }

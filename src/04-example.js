@@ -113,6 +113,27 @@ const EXAMPLE_EXTRA = [
   ["Superbad", 2007, "Greg Mottola", "Jonah Hill|Michael Cera|Christopher Mintz-Plasse|Seth Rogen|Bill Hader", "Comedy", "USA", "English", 113, "Seth Rogen|Evan Goldberg", "Russ T. Alsobrook", "Lyle Workman", 7.2, 8000],
   ["Paddington 2", 2017, "Paul King", "Ben Whishaw|Hugh Grant|Hugh Bonneville|Sally Hawkins|Brendan Gleeson", "Family|Comedy|Adventure", "UK|France|USA", "English", 104, "Paul King|Simon Farnaby", "Erik Wilson", "Dario Marianelli", 7.6, 3200],
 ];
+// Sample reviews for the example diary, in a casual Letterboxd voice. Invented for the example.
+const EXAMPLE_REVIEWS = {
+  "Parasite": "Every staircase in this house is doing work. The swerve in the last act still knocks the air out of me.",
+  "In the Mood for Love": "Corridors, cigarette smoke and the same waltz again and again. Longing has never looked this beautiful.",
+  "Portrait of a Lady on Fire": "Turn around.\n\nThe final shot is one of the most beautiful endings I've seen. Patient, precise and burning underneath.",
+  "Before Sunset": "Eighty minutes of walking and talking, and I wanted eighty more. The ending is perfect.",
+  "Spirited Away": "Pure imagination. The train across the water is the most peaceful scene I know, and I cried again.",
+  "Fight Club": "Loud, smug and tiresome on a rewatch. Great score, though, and the cast is having fun.",
+  "La La Land": "Gorgeous to look at, but the songs left me cold and the romance felt thin.",
+  "Dune": "Beautiful, but it's half a story and it feels like it. Loud and slow at the same time.",
+  "Asteroid City": "Pretty dioramas with very little underneath. Beautiful, but cold.",
+  "Aftersun": "Quietly devastating. That last dance under the strobe lights wrecked me. Paul Mescal is perfect.",
+  "Burning": "A slow burn that never lets you look away. Steven Yeun is unsettling and perfect.",
+  "Interstellar": "Big, earnest and very loud. The docking scene still works on me every time.",
+  "Kinds of Kindness": "Three stories, one too many. Strange for the sake of strange, and tiresome by the end.",
+  "Prisoners": "Grim, gripping, and two and a half hours that fly by. Gyllenhaal's blinking detective is a great creation.",
+  "Drive My Car": "Three hours of grief, theatre and long drives, and I didn't want it to end. Patient and beautiful.",
+  "Decision to Leave": "Sly, romantic and endlessly clever. Park Chan-wook at his most playful, and the ending is devastating.",
+  "Chungking Express": "California Dreamin' forever. Pure joy, and Faye Wong is perfect.",
+  "Whiplash": "Not quite my tempo. Tense as a thriller, and that finale is perfect.",
+};
 const EXAMPLE_WATCHLIST = [["Seven Samurai", 1954], ["The Thing", 1982], ["Amélie", 2001]];
 
 /* Turns the table above into the same shape an imported export produces:
@@ -150,7 +171,7 @@ function buildExample() {
       const again = first + Math.floor(rand() * (end - first) / day) * day;
       if (again > first) rows.diary.push({ ...base, Date: logDate(again), "Watched Date": iso(again), Rating: String(rating), Rewatch: "Yes", Tags: "" });
     }
-    if (rand() < 0.3) rows.reviews.push({ ...base, "Watched Date": iso(first) });
+    if (EXAMPLE_REVIEWS[name]) rows.reviews.push({ ...base, Date: logDate(first), "Watched Date": iso(first), Rating: String(rating), Review: EXAMPLE_REVIEWS[name] });
   });
   for (const [name, year, d, c, g, k, l, r, w, p, m, va, vc] of EXAMPLE_EXTRA)
     meta[filmKey(name, year)] = { src: "example", d: split(d), c: split(c), g: split(g), k: split(k), l, r, w: split(w), p: split(p), m: split(m), va, vc };

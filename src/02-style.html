@@ -93,6 +93,28 @@ main { padding-block: 8px 64px; }
 .habit .v { font-weight: 700; font-size: 24px; color: var(--ink); line-height: 1.15; }
 .habit .t { color: var(--ink-2); font-size: 14px; }
 
+/* ---------- reviews ---------- */
+.review-tools input { width: min(100%, 420px); padding: 9px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); }
+.review { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 18px; padding: 18px 0; border-bottom: 1px solid var(--line); }
+.review .rv-art .art { padding: 7px; }
+.review .rv-art .art .t { font-size: 12px; }
+.rv-title { font-size: 17px; font-weight: 700; margin: 0; }
+.rv-meta { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; font-size: 13px; margin: 2px 0 8px; }
+.rv-text { color: var(--ink); line-height: 1.6; max-width: 72ch; overflow-wrap: anywhere; margin: 0; }
+.rv-text p { margin: 0 0 .8em; } .rv-text p:last-child { margin-bottom: 0; }
+.rv-text blockquote { margin: .3em 0 .8em; padding-left: 12px; border-left: 2px solid var(--line); color: var(--ink-2); }
+.rv-text ul, .rv-text ol { margin: .3em 0 .8em; padding-left: 1.3em; }
+.rv-text a { color: var(--gold-ink); }
+.rv-text.clamp { max-height: 9.6em; overflow: hidden; -webkit-mask-image: linear-gradient(#000 60%, transparent); mask-image: linear-gradient(#000 60%, transparent); }
+.rv-more { margin-top: 6px; font-size: 13.5px; }
+.rv-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.rv-tags .chiplet { font-size: 12px; padding: 3px 8px; }
+.wordcloud { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; max-width: 80ch; }
+.wordcloud .w { color: var(--ink); font-weight: 600; line-height: 1.3; }
+.pair-rev { padding: 14px 0; border-bottom: 1px solid var(--line); display: grid; gap: 8px; }
+.sub-h { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin: 14px 0 6px; }
+@media (max-width: 520px) { .review { grid-template-columns: 64px minmax(0, 1fr); gap: 12px; } }
+
 /* ---------- compare ---------- */
 .who-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
 .who { display: inline-flex; align-items: center; gap: 2px; }

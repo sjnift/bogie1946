@@ -45,9 +45,15 @@ function bind() {
   $("#btn-mine").addEventListener("click", () => { state.mode = "mine"; state.scope = "all"; saveView(); render(); });
 
   document.addEventListener("click", (e) => {
-    const t = e.target.closest("[data-insyear],#btn-add-friend,[data-cmp],[data-unfriend],[data-lb],[data-crowd],[data-scope],[data-tab],[data-more],[data-list],[data-close],#btn-tmdb,#btn-change-key,#btn-omdb,#btn-change-omdb,#btn-claude,#btn-claude-retry,#btn-stop");
+    const t = e.target.closest("[data-expand],[data-more-reviews],[data-reimport],[data-insyear],#btn-add-friend,[data-cmp],[data-unfriend],[data-lb],[data-crowd],[data-scope],[data-tab],[data-more],[data-list],[data-close],#btn-tmdb,#btn-change-key,#btn-omdb,#btn-change-omdb,#btn-claude,#btn-claude-retry,#btn-stop");
     if (!t) return;
-    if (t.dataset.insyear) { state.insYear = t.dataset.insyear; renderInsights(); $(`[data-insyear="${t.dataset.insyear}"]`)?.focus(); }
+    if (t.hasAttribute("data-expand")) {
+      const text = t.previousElementSibling, open = text.classList.toggle("clamp") === false;
+      t.textContent = open ? "Show less" : "Read more";
+    }
+    else if (t.hasAttribute("data-more-reviews")) { state.reviewLimit += 20; refreshReviewList(); }
+    else if (t.hasAttribute("data-reimport")) $("#file-input").click();
+    else if (t.dataset.insyear) { state.insYear = t.dataset.insyear; renderInsights(); $(`[data-insyear="${t.dataset.insyear}"]`)?.focus(); }
     else if (t.id === "btn-add-friend") $("#friend-input").click();
     else if (t.dataset.cmp) { state.cmp = t.dataset.cmp; state.unfriend = null; renderCompare(); $(`[data-cmp="${t.dataset.cmp}"]`)?.focus(); }
     else if (t.dataset.unfriend) {
@@ -57,7 +63,7 @@ function bind() {
     }
     else if (t.dataset.lb) lbAction(t.dataset.lb, MY_LIB);
     else if (t.dataset.crowd) { state.crowd = t.dataset.crowd; renderInsights(); $(`[data-crowd="${t.dataset.crowd}"]`)?.focus(); }
-    else if (t.dataset.scope) { state.scope = t.dataset.scope; state.more = { cast: false, directors: false }; saveView(); render(); }
+    else if (t.dataset.scope) { state.scope = t.dataset.scope; state.more = { cast: false, directors: false }; state.reviewLimit = 20; saveView(); render(); }
     else if (t.dataset.tab) { state.tab[t.dataset.tab] = t.dataset.val; renderSections(STATS); $(`[data-tab="${t.dataset.tab}"][data-val="${t.dataset.val}"]`)?.focus(); }
     else if (t.dataset.more) { state.more[t.dataset.more] = true; renderSections(STATS); }
     else if (t.dataset.list) openList(t.dataset.list);
@@ -69,6 +75,10 @@ function bind() {
     else if (t.id === "btn-claude") runClaude(MY_LIB);
     else if (t.id === "btn-claude-retry") retryClaudeMisses(MY_LIB);
     else if (t.id === "btn-stop") job.ctl && job.ctl.abort();
+  });
+  document.addEventListener("input", (e) => {
+    if (e.target.id !== "review-search") return;
+    state.reviewQuery = e.target.value; state.reviewLimit = 20; refreshReviewList();
   });
   const dlg = $("#dlg");
   dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });

@@ -43,7 +43,7 @@ function slim(kind, rows) {
     case "diary": return rows.map((r) => pick(r, [...base, "Date", "Watched Date", "Rating", "Rewatch", "Tags"]));
     case "watched": return rows.map((r) => pick(r, [...base, "Date", "Letterboxd URI"]));
     case "ratings": return rows.map((r) => pick(r, [...base, "Rating"]));
-    case "reviews": return rows.map((r) => pick(r, [...base, "Date", "Watched Date"]));
+    case "reviews": return rows.map((r) => pick(r, [...base, "Date", "Watched Date", "Rating", "Rewatch", "Review", "Tags"]));
     case "likes": case "watchlist": return rows.map((r) => pick(r, base));
     default: return rows;
   }
@@ -81,6 +81,34 @@ async function readExport(fileList) {
   return rows;
 }
 
+// Letterboxd keeps reviews with some HTML. Keep the formatting people use (paragraphs, line breaks,
+// italics, bold, quotes, lists, links) and drop everything else but its text, so a review shows as
+// written and nothing in it can run. A plain-text copy is kept for search and word counts.
+const REVIEW_TAGS = new Set(["P", "BR", "I", "EM", "B", "STRONG", "U", "S", "STRIKE", "BLOCKQUOTE", "UL", "OL", "LI", "A"]);
+function reviewParts(raw) {
+  if (!raw) return { html: "", text: "" };
+  const doc = new DOMParser().parseFromString(String(raw).replace(/\r\n?/g, "\n"), "text/html");
+  const clean = (node) => {
+    let out = "";
+    for (const n of node.childNodes) {
+      if (n.nodeType === 3) { out += esc(n.nodeValue).replace(/\n/g, "<br>"); continue; }
+      if (n.nodeType !== 1) continue;
+      const tag = n.tagName;
+      if (tag === "SCRIPT" || tag === "STYLE") continue;
+      const inner = clean(n);
+      if (tag === "BR") out += "<br>";
+      else if (!REVIEW_TAGS.has(tag)) out += inner;
+      else if (tag === "A") { const href = n.getAttribute("href") || ""; out += /^https?:\/\//i.test(href) ? `<a href="${esc(href)}" target="_blank" rel="noopener nofollow">${inner}</a>` : inner; }
+      else { const t = tag === "STRIKE" ? "s" : tag.toLowerCase(); out += `<${t}>${inner}</${t}>`; }
+    }
+    return out;
+  };
+  const html = clean(doc.body).replace(/^(<br>)+|(<br>)+$/g, "").trim();
+  const text = html.replace(/<br>/g, "\n").replace(/<\/(p|blockquote|li)>/g, "\n\n").replace(/<[^>]+>/g, "")
+    .replace(/&(amp|lt|gt|quot|#39);/g, (m, e) => ({ amp: "&", lt: "<", gt: ">", quot: '"', "#39": "'" }[e])).replace(/\n{3,}/g, "\n\n").trim();
+  return { html, text };
+}
+
 /* ---------- the library: one record per film, one per diary entry ---------- */
 function buildLibrary(input) {
   const rows = { diary: [], watched: [], ratings: [], reviews: [], likes: [], watchlist: [], profile: [], ...input };
@@ -107,6 +135,7 @@ function buildLibrary(input) {
     f.entries.push(e); entries.push(e);
   });
   for (const r of rows.likes) { const f = find(r); if (f) f.liked = true; }
+  const reviews = [];
   for (const r of rows.reviews) {
     const f = find(r);
     if (!f) continue;
@@ -114,7 +143,11 @@ function buildLibrary(input) {
     const d = r["Watched Date"] || r.Date;
     const e = f.entries.find((x) => x.date === d) || f.entries[f.entries.length - 1];
     if (e) e.review = true;
+    const { html, text } = reviewParts(r.Review);
+    reviews.push({ film: f, date: /^\d{4}-\d{2}-\d{2}$/.test(d || "") ? d : null, rating: parseFloat(r.Rating) || f.rating || null,
+      html, text, words: text ? text.split(/\s+/).length : 0, tags: r.Tags || "", rewatch: /^yes$/i.test(r.Rewatch || "") });
   }
+  reviews.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
   entries.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : a.order - b.order);
   for (const f of films.values()) {
     f.entries.sort((a, b) => a.date < b.date ? -1 : 1);
@@ -122,7 +155,9 @@ function buildLibrary(input) {
   }
   const p = rows.profile[0] || {};
   return {
-    films: [...films.values()], entries,
+    films: [...films.values()], entries, reviews,
+    // a saved import from before review text was kept: the reviews are counted but their words are missing
+    reviewTextMissing: reviews.length > 0 && reviews.every((r) => !r.text),
     profile: { username: p.Username || "", joined: (p["Date Joined"] || "").slice(0, 10), name: [p["Given Name"], p["Family Name"]].filter(Boolean).join(" ") },
     watchlist: rows.watchlist.length,
     watchlistFilms: rows.watchlist.map((r) => ({ key: filmKey(r.Name, r.Year), name: String(r.Name).trim(), year: parseInt(r.Year, 10) || null })),
