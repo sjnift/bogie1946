@@ -5,6 +5,7 @@
       <div class="wordmark"><span class="reel" aria-hidden="true"></span>Credits Roll</div>
       <div class="actions">
         <button class="btn" id="btn-insights" type="button">Insights</button>
+        <button class="btn" id="btn-compare" type="button">Compare</button>
         <button class="btn primary" id="btn-import" type="button">Import Letterboxd export</button>
         <input id="file-input" type="file" accept=".zip,.csv,application/zip,text/csv" multiple hidden>
         <button class="btn" id="btn-example" type="button" hidden>View example</button>
@@ -36,6 +37,7 @@
   <section class="lookup" id="lookup" aria-labelledby="lookup-title"></section>
   <main id="sections"></main>
   <main id="insights" hidden></main>
+  <main id="compare" hidden></main>
   <footer>
     <p>Credits Roll reads the CSV files in a Letterboxd data export. It is not made by or affiliated with Letterboxd.</p>
     <p>With your own TMDB key, film details come from The Movie Database. This product uses the TMDB API but is not endorsed or certified by TMDB.
@@ -48,6 +50,7 @@
 </div>
 
 <dialog id="dlg" aria-labelledby="dlg-title"></dialog>
+<input id="friend-input" type="file" accept=".zip,.csv,application/zip,text/csv" multiple hidden>
 <div id="tip" role="tooltip" hidden></div>
 <div class="drop-veil" id="drop-veil" hidden>Drop your export</div>
 

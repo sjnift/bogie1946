@@ -2,7 +2,7 @@
 /* ---------- app state ---------- */
 const state = {
   mode: "example", lib: null, scope: "all", view: "profile", stack: [],
-  role: "c", crew: "w", sort: "most", catSort: "most", peopleLimit: 50, diaryLimit: 60, crowd: null,
+  role: "c", crew: "w", sort: "most", catSort: "most", peopleLimit: 50, diaryLimit: 60, crowd: null, insYear: "all", cmp: null, cmpError: "", unfriend: null,
 };
 let MY_LIB = null, EXAMPLE_LIB = null, STATS = null;
 const IMG = "https://image.tmdb.org/t/p/w185";
@@ -141,6 +141,7 @@ function profileScreen(s) {
       <div class="name">${esc(name)}</div><div class="handle">${handle}</div></div>
     ${notice}${strip}
     <button class="row" type="button" data-act="insights"><span>Insights</span><span class="count">Trends, tastes, the crowd</span>${CHEV}</button>
+    <button class="row" type="button" data-act="compare"><span>Compare</span><span class="count">You and friends</span>${CHEV}</button>
     ${fill}${topRated}${ratings}${people}
     ${sh(state.scope === "all" ? "All time" : state.scope)}<ul class="menu">${rows}</ul>`;
 }

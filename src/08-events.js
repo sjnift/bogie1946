@@ -13,7 +13,7 @@ async function importFiles(files) {
     job.err = !saved;
     saveView();
     render();
-    autoLookup(MY_LIB);
+    autoLookup(allFilmsLib());
   } catch (e) {
     err.textContent = (e && e.message) || "Couldn't read that file. Import the ZIP from Letterboxd → Settings → Data.";
     err.hidden = false;
@@ -30,12 +30,32 @@ function bind() {
   fileInput.addEventListener("change", () => { const files = [...fileInput.files]; fileInput.value = ""; if (files.length) importFiles(files); });
   $("#btn-example").addEventListener("click", () => { state.mode = "example"; state.scope = "all"; saveView(); render(); });
   $("#btn-insights").addEventListener("click", () => { state.page = state.page === "insights" ? "stats" : "insights"; saveView(); render(); window.scrollTo(0, 0); });
+  $("#btn-compare").addEventListener("click", () => { state.page = state.page === "compare" ? "stats" : "compare"; saveView(); render(); window.scrollTo(0, 0); });
+  const friendInput = $("#friend-input");
+  friendInput.addEventListener("change", async () => {
+    const files = [...friendInput.files]; friendInput.value = "";
+    if (!files.length) return;
+    try {
+      state.cmp = await addFriend(files);
+      Object.assign(state, { cmpError: "", mode: "mine" });
+      autoLookup(allFilmsLib());
+    } catch (e) { state.cmpError = (e && e.message) || "Couldn't read that export."; }
+    render();
+  });
   $("#btn-mine").addEventListener("click", () => { state.mode = "mine"; state.scope = "all"; saveView(); render(); });
 
   document.addEventListener("click", (e) => {
-    const t = e.target.closest("[data-lb],[data-crowd],[data-scope],[data-tab],[data-more],[data-list],[data-close],#btn-tmdb,#btn-change-key,#btn-omdb,#btn-change-omdb,#btn-claude,#btn-claude-retry,#btn-stop");
+    const t = e.target.closest("[data-insyear],#btn-add-friend,[data-cmp],[data-unfriend],[data-lb],[data-crowd],[data-scope],[data-tab],[data-more],[data-list],[data-close],#btn-tmdb,#btn-change-key,#btn-omdb,#btn-change-omdb,#btn-claude,#btn-claude-retry,#btn-stop");
     if (!t) return;
-    if (t.dataset.lb) lbAction(t.dataset.lb, MY_LIB);
+    if (t.dataset.insyear) { state.insYear = t.dataset.insyear; renderInsights(); $(`[data-insyear="${t.dataset.insyear}"]`)?.focus(); }
+    else if (t.id === "btn-add-friend") $("#friend-input").click();
+    else if (t.dataset.cmp) { state.cmp = t.dataset.cmp; state.unfriend = null; renderCompare(); $(`[data-cmp="${t.dataset.cmp}"]`)?.focus(); }
+    else if (t.dataset.unfriend) {
+      if (state.unfriend === t.dataset.unfriend) { removeFriend(t.dataset.unfriend); state.unfriend = null; }
+      else state.unfriend = t.dataset.unfriend;
+      renderCompare();
+    }
+    else if (t.dataset.lb) lbAction(t.dataset.lb, MY_LIB);
     else if (t.dataset.crowd) { state.crowd = t.dataset.crowd; renderInsights(); $(`[data-crowd="${t.dataset.crowd}"]`)?.focus(); }
     else if (t.dataset.scope) { state.scope = t.dataset.scope; state.more = { cast: false, directors: false }; saveView(); render(); }
     else if (t.dataset.tab) { state.tab[t.dataset.tab] = t.dataset.val; renderSections(STATS); $(`[data-tab="${t.dataset.tab}"][data-val="${t.dataset.val}"]`)?.focus(); }
@@ -66,7 +86,7 @@ function bind() {
     clearTimeout(armed); armed = null;
     if (job.running && job.ctl) job.ctl.abort();
     Object.values(KEYS).forEach((k) => store.del(k));
-    META = {}; PHOTOS = {}; LBX = {}; MY_LIB = null;
+    META = {}; PHOTOS = {}; LBX = {}; FRIENDS = []; MY_LIB = null;
     Object.assign(state, { mode: "example", scope: "all" });
     job.note = ""; job.err = false;
     btn.textContent = "Delete saved data from this browser";
@@ -109,6 +129,8 @@ function bind() {
 
 function init() {
   const ex = buildExample();
+  EXAMPLE_FRIENDS = buildExampleFriends().map((f) => ({ ...f, lib: buildLibrary(f.rows) }));
+  loadFriends();
   EXAMPLE_META = Object.fromEntries(Object.entries(ex.meta).map(([k, m]) => [k, cleanMeta(m)]));
   EXAMPLE_LIB = buildLibrary(ex.rows);
   const saved = store.get(KEYS.rows, null);
@@ -116,11 +138,11 @@ function init() {
   const view = store.get(KEYS.view, {});
   state.mode = MY_LIB && view.mode !== "example" ? "mine" : "example";
   if (view.scope) state.scope = view.scope;
-  if (view.page === "insights") state.page = "insights";
+  if (view.page === "insights" || view.page === "compare") state.page = view.page;
   bind();
   render();
   // A saved key picks up films not yet looked up, or matched before matching improved.
-  if (MY_LIB) { autoLookup(MY_LIB); pollLetterboxd(MY_LIB); }
+  if (MY_LIB) { autoLookup(allFilmsLib()); pollLetterboxd(MY_LIB); }
 }
 init();
 </script>

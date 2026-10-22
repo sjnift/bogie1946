@@ -1,7 +1,7 @@
 <script>
 /* ---------- page state ---------- */
 const state = {
-  mode: "example", lib: null, scope: "all", page: "stats", crowd: null,
+  mode: "example", lib: null, scope: "all", page: "stats", crowd: null, insYear: "all", cmp: null, cmpError: "", unfriend: null,
   tab: { cast: "most", directors: "most", crew: "w", cats: "most" },
   more: { cast: false, directors: false },
 };
@@ -30,11 +30,14 @@ function render() {
   if (state.scope !== "all" && !years.includes(state.scope)) state.scope = "all";
   STATS = computeStats(state.lib, metaOf, state.scope);
   renderHero(STATS, years);
-  const ins = state.page === "insights";
-  for (const sel of ["#tiles", "#lookup", "#sections", ".scopes-row"]) $(sel).hidden = ins;
-  $("#insights").hidden = !ins;
-  $("#btn-insights").textContent = ins ? "Back to stats" : "Insights";
-  if (ins) { renderInsights(); return; }
+  const page = state.page;
+  for (const sel of ["#tiles", "#lookup", "#sections", ".scopes-row"]) $(sel).hidden = page !== "stats";
+  $("#insights").hidden = page !== "insights";
+  $("#compare").hidden = page !== "compare";
+  $("#btn-insights").textContent = page === "insights" ? "Back to stats" : "Insights";
+  $("#btn-compare").textContent = page === "compare" ? "Back to stats" : "Compare";
+  if (page === "insights") { renderInsights(); return; }
+  if (page === "compare") { renderCompare(); return; }
   renderTiles(STATS);
   renderLookup();
   renderSections(STATS);

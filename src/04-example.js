@@ -99,6 +99,22 @@ const EXAMPLE_CROWD = {
   "Get Out": [7.6, 17000], "Before Sunrise": [7.9, 4400], "Before Sunset": [7.8, 3200], "Before Midnight": [7.6, 2500],
 };
 
+/* Films only the example friends have seen, so Compare has something to suggest. Same columns as
+   the table above (without rating and like), then the example crowd score and votes. */
+const EXAMPLE_EXTRA = [
+  ["Hereditary", 2018, "Ari Aster", "Toni Collette|Alex Wolff|Milly Shapiro|Gabriel Byrne", "Horror|Mystery|Thriller", "USA", "English", 127, "Ari Aster", "Pawel Pogorzelski", "Colin Stetson", 7.3, 9000],
+  ["The Thing", 1982, "John Carpenter", "Kurt Russell|Wilford Brimley|Keith David|T.K. Carter", "Horror|Science Fiction|Mystery", "USA", "English", 109, "Bill Lancaster", "Dean Cundey", "Ennio Morricone", 8.1, 7000],
+  ["Alien", 1979, "Ridley Scott", "Sigourney Weaver|Tom Skerritt|Veronica Cartwright|Harry Dean Stanton|John Hurt", "Horror|Science Fiction", "UK|USA", "English", 117, "Dan O'Bannon", "Derek Vanlint", "Jerry Goldsmith", 8.2, 15000],
+  ["Heat", 1995, "Michael Mann", "Al Pacino|Robert De Niro|Val Kilmer|Jon Voight", "Crime|Drama|Action", "USA", "English", 170, "Michael Mann", "Dante Spinotti", "Elliot Goldenthal", 7.9, 7500],
+  ["Seven Samurai", 1954, "Akira Kurosawa", "Toshiro Mifune|Takashi Shimura|Keiko Tsushima", "Action|Drama", "Japan", "Japanese", 207, "Akira Kurosawa|Shinobu Hashimoto|Hideo Oguni", "Asakazu Nakai", "Fumio Hayasaka", 8.5, 3500],
+  ["The Shining", 1980, "Stanley Kubrick", "Jack Nicholson|Shelley Duvall|Danny Lloyd|Scatman Crothers", "Horror|Thriller", "UK|USA", "English", 144, "Stanley Kubrick|Diane Johnson", "John Alcott", "Wendy Carlos|Rachel Elkind", 8.2, 18000],
+  ["Amélie", 2001, "Jean-Pierre Jeunet", "Audrey Tautou|Mathieu Kassovitz|Rufus|Lorella Cravotta", "Comedy|Romance", "France|Germany", "French", 122, "Guillaume Laurant|Jean-Pierre Jeunet", "Bruno Delbonnel", "Yann Tiersen", 7.9, 11000],
+  ["Midsommar", 2019, "Ari Aster", "Florence Pugh|Jack Reynor|William Jackson Harper|Will Poulter", "Horror|Drama|Mystery", "USA|Sweden", "English", 148, "Ari Aster", "Pawel Pogorzelski", "Bobby Krlic", 7.1, 8000],
+  ["Superbad", 2007, "Greg Mottola", "Jonah Hill|Michael Cera|Christopher Mintz-Plasse|Seth Rogen|Bill Hader", "Comedy", "USA", "English", 113, "Seth Rogen|Evan Goldberg", "Russ T. Alsobrook", "Lyle Workman", 7.2, 8000],
+  ["Paddington 2", 2017, "Paul King", "Ben Whishaw|Hugh Grant|Hugh Bonneville|Sally Hawkins|Brendan Gleeson", "Family|Comedy|Adventure", "UK|France|USA", "English", 104, "Paul King|Simon Farnaby", "Erik Wilson", "Dario Marianelli", 7.6, 3200],
+];
+const EXAMPLE_WATCHLIST = [["Seven Samurai", 1954], ["The Thing", 1982], ["Amélie", 2001]];
+
 /* Turns the table above into the same shape an imported export produces:
    a library of films plus diary entries, and a metadata map keyed by film. */
 function buildExample() {
@@ -136,6 +152,44 @@ function buildExample() {
     }
     if (rand() < 0.3) rows.reviews.push({ ...base, "Watched Date": iso(first) });
   });
+  for (const [name, year, d, c, g, k, l, r, w, p, m, va, vc] of EXAMPLE_EXTRA)
+    meta[filmKey(name, year)] = { src: "example", d: split(d), c: split(c), g: split(g), k: split(k), l, r, w: split(w), p: split(p), m: split(m), va, vc };
+  rows.watchlist = EXAMPLE_WATCHLIST.map(([Name, Year]) => ({ Name, Year: String(Year) }));
   return { rows, meta };
+}
+
+/* Two made-up members for Compare: one leans to horror and science fiction, one to comedy and romance.
+   They rate the example films from the "you" diary's ratings, nudged by their tastes, and each has
+   seen a few films "you" haven't. */
+function buildExampleFriends() {
+  let seed = 7;
+  const rand = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  const half = (x) => Math.min(5, Math.max(0.5, Math.round(x * 2) / 2));
+  const iso = (t) => new Date(t).toISOString().slice(0, 10);
+  const people = [
+    { id: "ex-a", name: "Friend A", likes: ["Horror", "Science Fiction", "Thriller", "Crime"], dislikes: ["Romance", "Family"], keep: 0.55,
+      extra: ["Hereditary", "The Thing", "Alien", "Heat", "The Shining", "Midsommar"], watchlist: ["Seven Samurai", "Paddington 2"] },
+    { id: "ex-b", name: "Friend B", likes: ["Comedy", "Romance", "Animation", "Family"], dislikes: ["Horror", "Thriller"], keep: 0.5,
+      extra: ["Amélie", "Superbad", "Paddington 2", "Seven Samurai"], watchlist: ["The Thing", "The Shining"] },
+  ];
+  const films = [...EXAMPLE_FILMS.map((f) => ({ name: f[0], year: f[1], base: f[2], g: f[6].split("|"), extra: false })),
+    ...EXAMPLE_EXTRA.map((f) => ({ name: f[0], year: f[1], base: f[11] / 2, g: f[4].split("|"), extra: true }))];
+  return people.map((P) => {
+    const rows = { profile: [{ Username: P.name }], watched: [], ratings: [], diary: [], likes: [], reviews: [], watchlist: [] };
+    for (const f of films) {
+      const taste = (f.g.some((g) => P.likes.includes(g)) ? 1 : 0) - (f.g.some((g) => P.dislikes.includes(g)) ? 1 : 0);
+      if (f.extra ? !P.extra.includes(f.name) : rand() > P.keep + 0.2 * taste) continue;
+      const rating = half(f.base + (taste > 0 ? 1 : taste < 0 ? -1.5 : 0) + (rand() < 0.3 ? -0.5 : rand() < 0.3 ? 0.5 : 0));
+      const lo = Math.max(Date.UTC(2022, 0, 1), Date.UTC(f.year, 2, 1)), hi = Date.UTC(2026, 9, 15);
+      const date = iso(lo + Math.floor(rand() * (hi - lo) / 864e5) * 864e5);
+      const base = { Name: f.name, Year: String(f.year) };
+      rows.watched.push(base);
+      rows.ratings.push({ ...base, Rating: String(rating) });
+      rows.diary.push({ ...base, Date: date, "Watched Date": date, Rating: String(rating), Rewatch: "" });
+      if (rating >= 4.5) rows.likes.push(base);
+    }
+    rows.watchlist = P.watchlist.map((n) => { const f = films.find((x) => x.name === n); return { Name: f.name, Year: String(f.year) }; });
+    return { id: P.id, name: P.name, example: true, rows };
+  });
 }
 </script>

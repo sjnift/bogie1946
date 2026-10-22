@@ -239,3 +239,88 @@ function defaultCrowd(lib, metaOf) {
   return enough("letterboxd") ? "letterboxd" : enough("imdb") ? "imdb" : "tmdb";
 }
 </script>
+<script>
+/* ---------- one year's insights: that year against the one before, and against your whole diary ---------- */
+function computeYearInsights(lib, metaOf, Y, crowdKey) {
+  const S = computeStats(lib, metaOf, Y);
+  const I = computeInsights(lib, metaOf, crowdKey);
+  const cur = I.years.find((p) => p.year === Y), prev = I.years.find((p) => p.year === String(+Y - 1));
+  const E = S.entries, overall = I.overallAvg;
+  // the rating given that year, if the film was rated in the diary then
+  const ratingIn = (f) => { const es = E.filter((e) => e.film === f && e.rating); return es.length ? es[es.length - 1].rating : f.rating; };
+  const rated = S.films.map((f) => ({ f, r: ratingIn(f) })).filter((x) => x.r).sort((a, b) => b.r - a.r || a.f.name.localeCompare(b.f.name));
+
+  // the first year each person, country and language turns up anywhere in the diary
+  const firstYear = (pick) => {
+    const m = new Map();
+    for (const e of lib.entries) { const meta = metaOf(e.film); if (!meta) continue; for (const k of pick(meta)) if (!m.has(k)) m.set(k, e.date.slice(0, 4)); }
+    return m;
+  };
+  const firstD = firstYear((m) => m.d.map(personKey)), firstC = firstYear((m) => m.c.slice(0, CAST_DEPTH).map(personKey));
+  const firstK = firstYear((m) => m.k), firstL = firstYear((m) => m.l ? [m.l] : []);
+  const newIn = (map) => [...map].filter(([, y]) => y === Y).map(([k]) => k);
+  const discovered = (ranked, first) => ranked.most.filter((p) => first.get(p.key) === Y);
+
+  const changes = [];
+  if (cur && prev) {
+    const row = (label, a, b, fmt) => { if (a != null && b != null) changes.push({ label, now: fmt(a), before: fmt(b), d: fmt(a) === fmt(b) ? 0 : a - b }); };
+    row("Films", cur.films, prev.films, fmtN);
+    row("Hours", Math.round(cur.hours), Math.round(prev.hours), fmtN);
+    row("Average rating", cur.avgRating, prev.avgRating, (x) => x.toFixed(2));
+    row("New releases", cur.newShare, prev.newShare, (x) => `${x}%`);
+    row("Not in English", cur.nonEnglish, prev.nonEnglish, (x) => `${x}%`);
+    row("Film age when watched", cur.age, prev.age, (x) => `${Math.round(x)} years`);
+    row("Countries", cur.countries, prev.countries, fmtN);
+    row("Rewatches", pctOf(cur.rewatches, cur.entries), pctOf(prev.rewatches, prev.entries), (x) => `${x}%`);
+  }
+  const genreLines = [];
+  if (cur && prev && cur.withMeta >= 5 && prev.withMeta >= 5) {
+    const moves = [...new Set([...cur.genres.keys(), ...prev.genres.keys()])]
+      .map((g) => ({ g, a: (cur.genres.get(g) || 0) / cur.withMeta * 100, b: (prev.genres.get(g) || 0) / prev.withMeta * 100 })).map((x) => ({ ...x, d: x.a - x.b }));
+    const line = (x) => `${x.g} went from ${Math.round(x.b)}% of your films in ${+Y - 1} to ${Math.round(x.a)}% in ${Y}.`;
+    for (const x of moves.filter((x) => x.d >= 8).sort((a, b) => b.d - a.d).slice(0, 2)) genreLines.push({ dir: "up", text: line(x) });
+    for (const x of moves.filter((x) => x.d <= -8).sort((a, b) => a.d - b.d).slice(0, 2)) genreLines.push({ dir: "down", text: line(x) });
+  }
+
+  const crowd = CROWDS[crowdKey] || CROWDS.tmdb;
+  const pairs = rated.map((x) => { const c = crowd.score(metaOf(x.f), x.f); return c ? { f: x.f, you: x.r, crowd: c / 2, diff: x.r - c / 2 } : null; }).filter(Boolean);
+  const crowdY = { key: crowdKey, label: crowd.label, short: crowd.short, n: pairs.length, meanDiff: pairs.length ? avg(pairs.map((p) => p.diff)) : null,
+    higher: pairs.filter((p) => p.diff >= 0.75).sort((a, b) => b.diff - a.diff).slice(0, 8), lower: pairs.filter((p) => p.diff <= -0.75).sort((a, b) => a.diff - b.diff).slice(0, 8) };
+
+  const habits = [];
+  if (E.length) {
+    const wk = pctOf(E.filter((e) => weekdayOf(e.date) >= 5).length, E.length);
+    habits.push({ k: "Weekends", v: `${wk}%`, text: "of the year's diary fell on a Saturday or Sunday." });
+    if (S.streak.days > 1) habits.push({ k: "Longest streak", v: `${S.streak.days} days`, text: "in a row with at least one film." });
+    if (S.busiestDay && S.busiestDay.count > 1) habits.push({ k: "Biggest day", v: plural(S.busiestDay.count, "film"), text: `on ${fmtDate(S.busiestDay.key)}.` });
+    const logged = E.filter((e) => e.logged);
+    if (logged.length >= 5) habits.push({ k: "Same-day logging", v: `${pctOf(logged.filter((e) => e.logged === e.date).length, logged.length)}%`, text: "of films logged the day you watched them." });
+    habits.push({ k: "Same-year releases", v: fmtN(S.newReleases || 0), text: `films that came out in ${Y}.` });
+    const oldest = S.films.filter((f) => f.year).sort((a, b) => a.year - b.year)[0];
+    if (oldest) habits.push({ k: "Oldest film", v: String(oldest.year), text: `${oldest.name}.` });
+    const re = E.filter((e) => e.rewatch).length;
+    habits.push({ k: "Rewatches", v: fmtN(re), text: `of ${plural(E.length, "diary entry", "diary entries")}.` });
+  }
+
+  const glance = [];
+  if (cur) glance.push({ k: "Films", big: fmtN(cur.films), text: prev ? `${cur.films >= prev.films ? "Up" : "Down"} ${Math.abs(pctOf(cur.films - prev.films, prev.films))}% from ${fmtN(prev.films)} in ${+Y - 1}${cur.pace ? `, and on pace for about ${fmtN(cur.pace)}` : ""}.` : `in your diary${cur.pace ? `, on pace for about ${fmtN(cur.pace)}` : ""}.` });
+  if (rated[0]) { const ties = rated.filter((x) => x.r === rated[0].r).length - 1; glance.push({ k: "Film of the year", big: rated[0].f.name, text: `${stars(rated[0].r)}${ties ? `, tied with ${ties} more` : ""}.` }); }
+  if (cur && cur.avgRating && overall) glance.push({ k: "Average rating", big: starsNum(cur.avgRating), text: Math.abs(cur.avgRating - overall) < 0.05 ? "The same as your all-time average." : `${Math.abs(cur.avgRating - overall).toFixed(1)}★ ${cur.avgRating > overall ? "above" : "below"} your all-time average.` });
+  if (cur && cur.topGenre && cur.withMeta) glance.push({ k: "Top genre", big: cur.topGenre[0], text: `${pctOf(cur.topGenre[1], cur.withMeta)}% of the year's films.` });
+  const dir = S.directors.most[0]; if (dir && dir.count > 1) glance.push({ k: "Director of the year", big: dir.name, text: `${plural(dir.count, "film")} in ${Y}.` });
+  const star = S.cast.most[0]; if (star && star.count > 1) glance.push({ k: "Most seen actor", big: star.name, text: `${plural(star.count, "film")} in ${Y}.` });
+  const discD = discovered(S.directors, firstD);
+  if (discD.length && diaryYears(lib)[0] !== Y) glance.push({ k: "Discoveries", big: plural(discD.length, "director"), text: `new to your diary in ${Y}${discD[0].count > 1 ? `, led by ${discD[0].name} with ${discD[0].count} films` : ""}.` });
+  if (S.busiestMonth) glance.push({ k: "Busiest month", big: MONTHS_LONG[+S.busiestMonth.key.slice(5, 7) - 1], text: `${plural(S.busiestMonth.count, "film")}.` });
+
+  return {
+    Y, S, cur, prev, overall, rated, changes, genreLines, glance, habits,
+    best: rated.slice(0, 12), worst: rated.filter((x) => x.r <= 2.5).sort((a, b) => a.r - b.r).slice(0, 8),
+    topDirectors: S.directors.most.slice(0, 8), topActors: S.cast.most.slice(0, 8),
+    discDirectors: discD.slice(0, 8), discActors: discovered(S.cast, firstC).slice(0, 8),
+    newCountries: newIn(firstK), newLangs: newIn(firstL), crowd: crowdY, firstYear: diaryYears(lib)[0],
+  };
+}
+// The years with diary entries, oldest first.
+const diaryYears = (lib) => [...new Set(lib.entries.map((e) => e.date.slice(0, 4)))].sort();
+</script>

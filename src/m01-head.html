@@ -248,6 +248,9 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 
 /* ---------- insights ---------- */
 .icards { display: grid; gap: 8px; }
+.yearpick { overflow-x: auto; scrollbar-width: none; flex-wrap: nowrap; margin-top: 14px; padding-bottom: 2px; }
+.yearpick::-webkit-scrollbar { display: none; }
+.yearpick .toggle { flex: none; }
 .icard { background: var(--card); border-radius: 8px; padding: 12px 14px; display: grid; gap: 3px; }
 .icard .k { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); }
 .icard .big { color: var(--ink); font-size: 22px; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
@@ -278,6 +281,22 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .lead { margin: 4px 0 0; color: var(--ink-1); font-size: 15px; }
 .fact .t { font-size: 12.5px; color: var(--ink-2); }
 .dv { color: var(--ink); font-weight: 600; }
+/* ---------- compare ---------- */
+.venn { display: flex; gap: 2px; height: 18px; border-radius: 5px; overflow: hidden; }
+.venn span { min-width: 3px; }
+.venn .va { background: var(--green-mark); } .venn .vboth { background: var(--muted); } .venn .vb { background: var(--blue-mark); }
+.phist { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 4px; height: 110px; align-items: end; border-bottom: 1px solid var(--line); margin-top: 8px; }
+.pgroup { display: flex; gap: 1px; align-items: flex-end; justify-content: center; height: 100%; }
+.pgroup span { width: 45%; border-radius: 2px 2px 0 0; }
+.pgroup .pa { background: var(--green-mark); } .pgroup .pb { background: var(--blue-mark); }
+.gpair { display: grid; grid-template-columns: 100px minmax(0, 1fr) 54px; gap: 10px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.gpair .gname { color: var(--ink); font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gpair .gbars { display: grid; gap: 2px; }
+.gpair .gbars span { display: block; height: 7px; border-radius: 0 3px 3px 0; min-width: 2px; }
+.gpair .ga { background: var(--green-mark); } .gpair .gb { background: var(--blue-mark); }
+.gpair .gv { text-align: right; font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.kv { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line); color: var(--ink-1); font-size: 14.5px; }
+.kv span:last-child { color: var(--ink-2); font-size: 13px; white-space: nowrap; }
 #tip { position: fixed; z-index: 50; pointer-events: none; background: var(--ink-1); color: var(--bg); font-size: 12.5px; padding: 6px 9px; border-radius: 6px; max-width: 240px; line-height: 1.35; }
 .foot { font-size: 12.5px; color: var(--muted); margin-top: 26px; display: grid; gap: 6px; }
 .foot p { margin: 0; }

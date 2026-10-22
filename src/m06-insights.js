@@ -2,8 +2,17 @@
 /* ---------- phone: the Insights screen, pushed from the nav bar or Profile ---------- */
 function insightsScreen() {
   const lib = state.lib;
-  const I = computeInsights(lib, metaOf, state.crowd || defaultCrowd(lib, metaOf));
   if (!lib.entries.length) return `<div class="empty" style="padding-top:28px">Insights come from your diary dates, and this diary has none yet.</div>`;
+  const ys = diaryYears(lib);
+  if (state.insYear !== "all" && !ys.includes(state.insYear)) state.insYear = "all";
+  const picker = `<div class="toggles yearpick">${["all", ...[...ys].reverse()].map((y) =>
+    `<button class="toggle" type="button" data-insyear="${y}" aria-pressed="${y === state.insYear}">${y === "all" ? "All years" : y}</button>`).join("")}</div>`;
+  if (state.insYear !== "all") return picker + mYearInsights(state.insYear);
+  return picker + mAllInsights();
+}
+function mAllInsights() {
+  const lib = state.lib;
+  const I = computeInsights(lib, metaOf, state.crowd || defaultCrowd(lib, metaOf));
   const first = lib.entries[0].date, last = lib.entries[lib.entries.length - 1].date;
   const intro = `<p class="status" style="margin:16px 0 0">Patterns across ${plural(I.years.length, "year")} of diary, ${fmtDate(first)} to ${fmtDate(last)}.</p>`;
   return intro + mGlance(I) + mYears(I) + mTastes(I) + mGenres(I) + mPeople(I) + mCrowd(I) + mHabits(I);
@@ -97,5 +106,41 @@ function mCrowd(I) {
 function mHabits(I) {
   if (!I.habits.length) return "";
   return sh("Habits") + `<div class="facts" style="margin-top:0">${I.habits.map((h) => `<div class="fact"><span class="k">${esc(h.k)}</span><span class="v">${esc(h.v)}</span><span class="t">${esc(h.text)}</span></div>`).join("")}</div>`;
+}
+
+/* ----- one year ----- */
+function mYearInsights(Y) {
+  const lib = state.lib;
+  const R = computeYearInsights(lib, metaOf, Y, state.crowd || defaultCrowd(lib, metaOf));
+  const prevY = String(+Y - 1), first = R.firstYear === Y;
+  let h = `<p class="status" style="margin:14px 0 0">${plural(R.S.films.length, "film")} and ${plural(R.S.entries.length, "diary entry", "diary entries")} in ${esc(Y)}.</p>`;
+  if (R.glance.length) h += sh(`${esc(Y)} at a glance`) + `<div class="icards">${R.glance.map((g) => `<div class="icard"><span class="k">${esc(g.k)}</span><span class="big">${esc(g.big)}</span><p>${esc(g.text)}</p></div>`).join("")}</div>`;
+  h += sh(`Against ${prevY}`) + (R.changes.length ? `<div class="tscroll" style="margin-top:0"><table class="mtable"><thead><tr><th></th><th class="n">${esc(Y)}</th><th class="n">${prevY}</th><th class="n"></th></tr></thead>
+    <tbody>${R.changes.map((c) => `<tr><td>${c.label}</td><td class="n">${c.now}</td><td class="n">${c.before}</td><td class="n dim">${Math.abs(c.d) < 1e-9 ? "=" : c.d > 0 ? "▲" : "▼"}</td></tr>`).join("")}</tbody></table></div>` +
+    R.genreLines.map((l) => `<div class="tline"><span class="mk" aria-hidden="true">${l.dir === "up" ? "▲" : "▼"}</span><span>${esc(l.text)}</span></div>`).join("")
+    : `<div class="empty">No diary entries in ${prevY} to compare with.</div>`);
+  const months = MONTHS.map((m, i) => {
+    const es = R.S.entries.filter((e) => +e.date.slice(5, 7) === i + 1), b = es.filter((e) => e.rewatch).length;
+    return { a: es.length - b, b, label: m[0], tip: `${MONTHS_LONG[i]}: ${plural(es.length, "film")}` };
+  });
+  h += sh("Month by month") + colChart(months, `Films each month of ${Y}`, "", 80);
+  const grid = (items) => `<div class="pgrid">${items.map((x) => `<div class="pitem">${poster(x.f)}<span class="pmeta"><span class="stars">${stars(x.r)}</span>${x.f.liked ? '<span class="heart">♥</span>' : ""}</span></div>`).join("")}</div>`;
+  if (R.best.length) h += sh(`Best of ${esc(Y)}`) + grid(R.best);
+  if (R.worst.length) h += sh("Lowest rated") + grid(R.worst);
+  const prow = (items, sub) => items.map((p, i) => `<button class="prow" type="button" data-push="${reg(p.name, filmsTitle(p), p.films, p)}"><span class="rk">${i + 1}</span>${avatar(p, "md")}
+    <span style="min-width:0"><span class="nm" style="display:block">${esc(p.name)}</span><span class="sub">${sub}</span></span><span class="val">${p.count}</span>${CHEV}</button>`).join("");
+  if (R.topDirectors.length) h += sh(`Directors of ${esc(Y)}`) + prow(R.topDirectors.slice(0, 5), `films in ${esc(Y)}`);
+  if (R.topActors.length) h += sh(`Actors of ${esc(Y)}`) + prow(R.topActors.slice(0, 5), `films in ${esc(Y)}`);
+  if (!first && R.discDirectors.length) h += sh(`New directors in ${esc(Y)}`) + prow(R.discDirectors.slice(0, 5), "first time in your diary");
+  if (!first && (R.newCountries.length || R.newLangs.length)) h += `<p class="lead">${R.newCountries.length ? `New countries: ${esc(R.newCountries.join(", "))}.` : ""} ${R.newLangs.length ? `New languages: ${esc(R.newLangs.join(", "))}.` : ""}</p>`;
+  const C = R.crowd;
+  if (C.n >= 3) {
+    const cg = (items) => items.length ? `<div class="pgrid">${items.map((p) => `<div class="pitem">${poster(p.f)}<span class="pmeta"><span class="stars">${stars(p.you)}</span></span>
+      <span class="mdate">${C.short} ${crowdScore(C.key, p.crowd)} · <b class="dv">${signed(p.diff)}★</b></span></div>`).join("")}</div>` : `<div class="empty">None.</div>`;
+    h += sh(`You vs ${esc(C.short)} in ${esc(Y)}`) + `<p class="lead">You gave ${Math.abs(C.meanDiff).toFixed(2)}★ ${C.meanDiff >= 0 ? "more" : "less"} than ${esc(C.label)} on average.</p>` +
+      `<p class="status" style="margin:10px 0 6px">You liked more</p>` + cg(C.higher) + `<p class="status" style="margin:14px 0 6px">You liked less</p>` + cg(C.lower);
+  }
+  if (R.habits.length) h += sh(`Habits in ${esc(Y)}`) + `<div class="facts" style="margin-top:0">${R.habits.map((x) => `<div class="fact"><span class="k">${esc(x.k)}</span><span class="v">${esc(x.v)}</span><span class="t">${esc(x.text)}</span></div>`).join("")}</div>`;
+  return h;
 }
 </script>
