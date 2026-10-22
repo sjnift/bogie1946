@@ -34,12 +34,26 @@ if [ -n "$TMDB_KEY" ]; then
 fi
 
 # The GitHub Pages site in docs/: both layouts on one origin, so they share one import and one saved key.
-# Never takes TMDB_KEY: this site is public.
-mkdir -p docs
-standalone "$DESK_HEAD" "$DESK_BODY" | stamp | sed \
+# Never takes TMDB_KEY: this site is public. It installs as an app: a manifest, icons and a service worker.
+mkdir -p docs/icons
+cp src/site/manifest.webmanifest src/site/sw.js docs/
+cp src/site/icons/*.png docs/icons/
+APP_HEAD='<link rel="manifest" href="manifest.webmanifest">\
+<meta name="theme-color" content="#1B2128">\
+<meta name="mobile-web-app-capable" content="yes">\
+<meta name="apple-mobile-web-app-capable" content="yes">\
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">\
+<meta name="apple-mobile-web-app-title" content="Credits Roll">\
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">\
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">'
+SW_REGISTER='<script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});</script>'
+app() { sed -e "s|<meta charset=\"utf-8\">|<meta charset=\"utf-8\">\\
+$APP_HEAD|" -e "s|</body>|$SW_REGISTER\\
+</body>|"; }
+standalone "$DESK_HEAD" "$DESK_BODY" | stamp | app | sed \
   -e 's|https://claude.ai/artifact/2RUkgC4dsysdz66WjJ6gzb" target="_blank" rel="noopener"|mobile.html"|' \
   -e 's|It keeps its own copy of your import, so import there too.|It uses the same import.|' > docs/desktop.html
-standalone "$MOB_HEAD" "$MOB_BODY" | stamp | sed \
+standalone "$MOB_HEAD" "$MOB_BODY" | stamp | app | sed \
   -e 's|https://claude.ai/artifact/52oE5x53dcjUZgBYQMfPjR" target="_blank" rel="noopener"|desktop.html"|' \
   -e 's|It keeps its own copy of your import.|It uses the same import.|' > docs/mobile.html
 cat > docs/index.html <<'HTML'
@@ -49,6 +63,9 @@ cat > docs/index.html <<'HTML'
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Credits Roll</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1B2128">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <script>
   var phone = matchMedia("(max-width: 700px)").matches || /iPhone|iPod|Android.+Mobile/.test(navigator.userAgent);
   location.replace(phone ? "mobile.html" : "desktop.html");
