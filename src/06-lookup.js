@@ -28,7 +28,11 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 function needsLookup(lib, kind) {
   return lib.films.filter((f) => {
     const m = META[f.key];
-    if (kind === "tmdb") return !m || (m.src !== "tmdb" && !m.tmdbMiss);
+    if (kind === "tmdb") {
+      if (!m) return true;
+      if (m.src === "tmdb") return (m.v || 1) < TMDB_MATCH_VERSION;
+      return !(m.tmdbMiss >= TMDB_MATCH_VERSION);
+    }
     return !m && !EXAMPLE_META[f.key];
   });
 }
@@ -49,13 +53,22 @@ async function tmdbGet(path, params, key, signal) {
   }
   throw { code: "busy" };
 }
+// Bump when matching changes, so films matched the old way are looked up again.
+const TMDB_MATCH_VERSION = 2;
+// Several films can share a title and year (a feature and a short called "Brick", say).
+// Prefer an exact title in the right year, then the film most people on TMDB have rated.
 function pickHit(results, f, tolerance) {
   if (!results || !results.length) return null;
   const want = personKey(f.name);
   const yearOf = (r) => parseInt((r.release_date || "").slice(0, 4), 10);
-  const near = results.filter((r) => !f.year || !yearOf(r) || Math.abs(yearOf(r) - f.year) <= tolerance);
-  const exact = near.find((r) => personKey(r.title || "") === want || personKey(r.original_title || "") === want);
-  return exact || (tolerance === 0 ? near[0] : null) || null;
+  const titled = (r) => personKey(r.title || "") === want || personKey(r.original_title || "") === want;
+  const ranked = results
+    .filter((r) => !f.year || (yearOf(r) && Math.abs(yearOf(r) - f.year) <= tolerance))
+    .map((r) => ({ r, score: (titled(r) ? 4 : 0) + (yearOf(r) === f.year ? 2 : 0) - (r.video ? 1 : 0) }))
+    .sort((a, b) => b.score - a.score || (b.r.vote_count || 0) - (a.r.vote_count || 0) || (b.r.popularity || 0) - (a.r.popularity || 0));
+  const best = ranked[0];
+  if (!best) return null;
+  return titled(best.r) || tolerance === 0 ? best.r : null;
 }
 async function tmdbFilm(f, key, signal) {
   let s = await tmdbGet("/search/movie", { query: f.name, year: f.year || "", include_adult: "false" }, key, signal);
@@ -64,15 +77,15 @@ async function tmdbFilm(f, key, signal) {
     s = await tmdbGet("/search/movie", { query: f.name, include_adult: "false" }, key, signal);
     hit = pickHit(s && s.results, f, 1);
   }
-  if (!hit) return { src: "tmdb", miss: true };
+  if (!hit) return { src: "tmdb", miss: true, v: TMDB_MATCH_VERSION };
   const d = await tmdbGet(`/movie/${hit.id}`, { append_to_response: "credits" }, key, signal);
-  if (!d) return { src: "tmdb", miss: true };
+  if (!d) return { src: "tmdb", miss: true, v: TMDB_MATCH_VERSION };
   const crew = (d.credits && d.credits.crew) || [];
   const cast = ((d.credits && d.credits.cast) || []).slice().sort((a, b) => a.order - b.order).slice(0, CAST_DEPTH);
   const names = (list) => [...new Set(list.map((x) => x.name))];
   for (const p of [...cast, ...crew.filter((c) => c.job === "Director")]) if (p.profile_path && !PHOTOS[personKey(p.name)]) PHOTOS[personKey(p.name)] = p.profile_path;
   return cleanMeta({
-    src: "tmdb", id: d.id, poster: d.poster_path,
+    src: "tmdb", v: TMDB_MATCH_VERSION, id: d.id, poster: d.poster_path,
     d: names(crew.filter((c) => c.job === "Director")),
     c: cast.map((c) => c.name),
     w: names(crew.filter((c) => ["Screenplay", "Writer", "Story"].includes(c.job))),
@@ -94,7 +107,7 @@ async function runTmdb(lib, key) {
       const f = queue.shift();
       try {
         const m = await tmdbFilm(f, key, signal);
-        if (m.miss) { if (!META[f.key]) META[f.key] = m; else META[f.key].tmdbMiss = true; job.failed++; }
+        if (m.miss) { if (!META[f.key] || META[f.key].src === "tmdb") META[f.key] = m; else META[f.key].tmdbMiss = TMDB_MATCH_VERSION; job.failed++; }
         else META[f.key] = m;
       } catch (e) {
         if (signal.aborted) return;

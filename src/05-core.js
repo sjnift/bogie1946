@@ -91,9 +91,12 @@ function buildLibrary(input) {
     if (!f) { f = { key: k, name: String(r.Name).trim(), year: parseInt(r.Year, 10) || null, rating: null, liked: false, entries: [], reviews: 0 }; films.set(k, f); }
     return f;
   };
+  // Watched films and diary entries decide what counts as seen. Likes and reviews only mark films
+  // already in it: Letterboxd lets you like a film you never logged.
+  const find = (r) => films.get(filmKey(r.Name, r.Year));
   rows.watched.forEach(get);
-  for (const r of rows.ratings) { const v = parseFloat(r.Rating); if (v) get(r).rating = v; }
-  for (const r of rows.likes) get(r).liked = true;
+  const rated = rows.watched.length ? find : get; // without watched.csv, a rating is the only sign of a watch
+  for (const r of rows.ratings) { const v = parseFloat(r.Rating); const f = v && rated(r); if (f) f.rating = v; }
   const entries = [];
   rows.diary.forEach((r, i) => {
     const date = r["Watched Date"] || r.Date;
@@ -102,8 +105,11 @@ function buildLibrary(input) {
     const e = { film: f, date, rating: parseFloat(r.Rating) || null, rewatch: /^yes$/i.test(r.Rewatch || ""), order: i, review: false };
     f.entries.push(e); entries.push(e);
   });
+  for (const r of rows.likes) { const f = find(r); if (f) f.liked = true; }
   for (const r of rows.reviews) {
-    const f = get(r); f.reviews++;
+    const f = find(r);
+    if (!f) continue;
+    f.reviews++;
     const d = r["Watched Date"] || r.Date;
     const e = f.entries.find((x) => x.date === d) || f.entries[f.entries.length - 1];
     if (e) e.review = true;
@@ -144,7 +150,7 @@ function cleanMeta(m) {
   const list = (a, n = 20) => [...new Set((Array.isArray(a) ? a : []).map((x) => String(x).trim()).filter(Boolean))].slice(0, n);
   const genre = (g) => g === "Sci-Fi" ? "Science Fiction" : g;
   return {
-    src: m.src, id: m.id || null, poster: m.poster || null,
+    src: m.src, v: m.v || null, id: m.id || null, poster: m.poster || null,
     d: list(m.d, 6), c: list(m.c, 15), w: list(m.w, 6), p: list(m.p, 4), m: list(m.m, 4),
     g: list((m.g || []).map(genre).filter((g) => GENRES.includes(g)), 6),
     k: list((m.k || []).map(country), 6), l: language(m.l), r: Math.round(Number(m.r)) || null,

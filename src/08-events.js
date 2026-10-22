@@ -113,6 +113,8 @@ function init() {
   if (view.scope) state.scope = view.scope;
   bind();
   render();
+  // A saved key picks up films not yet looked up, or matched before matching improved.
+  if (MY_LIB) autoLookup(MY_LIB);
 }
 init();
 </script>

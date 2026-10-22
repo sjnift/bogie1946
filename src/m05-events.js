@@ -111,6 +111,8 @@ function init() {
   if (SCREENS[view.view]) state.view = view.view;
   bind();
   render();
+  // A saved key picks up films not yet looked up, or matched before matching improved.
+  if (MY_LIB) autoLookup(MY_LIB);
 }
 init();
 </script>
