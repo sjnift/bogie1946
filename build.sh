@@ -46,7 +46,7 @@ APP_HEAD='<link rel="manifest" href="manifest.webmanifest">\
 <meta name="apple-mobile-web-app-title" content="Credits Roll">\
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">\
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">'
-SW_REGISTER='<script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});</script>'
+SW_REGISTER='<script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js", { updateViaCache: \"none\" }).catch(() => {});</script>'
 app() { sed -e "s|<meta charset=\"utf-8\">|<meta charset=\"utf-8\">\\
 $APP_HEAD|" -e "s|</body>|$SW_REGISTER\\
 </body>|"; }

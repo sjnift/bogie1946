@@ -1,8 +1,8 @@
 <script>
 /* ---------- importing ---------- */
 async function importFiles(files) {
-  const err = $("#import-error"), btn = $("#btn-import");
-  err.hidden = true;
+  const err = $("#import-error"), done = $("#import-done"), btn = $("#btn-import");
+  err.hidden = true; done.hidden = true;
   btn.disabled = true; btn.textContent = "Reading export…";
   try {
     const rows = await readExport(files);
@@ -13,6 +13,8 @@ async function importFiles(files) {
     job.err = !saved;
     saveView();
     render();
+    done.innerHTML = `${esc(importSummary(rows, MY_LIB))}${MY_LIB.reviews.length ? ' <a href="#reviews">See your reviews</a>' : ""}`;
+    done.hidden = false;
     autoLookup(allFilmsLib());
   } catch (e) {
     err.textContent = (e && e.message) || "Couldn't read that file. Import the ZIP from Letterboxd → Settings → Data.";

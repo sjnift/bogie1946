@@ -1,7 +1,8 @@
-// Lets Credits Roll install as an app and open offline. Pages and scripts always come from the
-// network first, so a new version shows up on the next open; the saved copy is only for offline.
+// Lets Credits Roll install as an app and open offline. Our own pages and scripts are always checked
+// with the server (never taken from the browser's short-term cache), so a new version shows up on the
+// next open; the saved copy is only for offline.
 // Calls to TMDB, OMDb and Apify, and poster images, are left alone.
-const CACHE = "credits-roll-v1";
+const CACHE = "credits-roll-v2";
 const SHELL = ["./", "index.html", "mobile.html", "desktop.html", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png"];
 
 self.addEventListener("install", (e) => {
@@ -18,8 +19,9 @@ self.addEventListener("fetch", (e) => {
   const ours = url.origin === self.location.origin;
   const library = url.hostname === "cdnjs.cloudflare.com" || url.hostname === "fonts.googleapis.com" || url.hostname === "fonts.gstatic.com";
   if (!ours && !library) return;
+  const fresh = ours ? fetch(req.url, { cache: "no-cache", credentials: "same-origin" }) : fetch(req);
   e.respondWith(
-    fetch(req).then((res) => {
+    fresh.then((res) => {
       if (res.ok || res.type === "opaque") { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); }
       return res;
     }).catch(() => caches.match(req, { ignoreSearch: true }).then((hit) => hit || (req.mode === "navigate" ? caches.match("mobile.html") : undefined)))

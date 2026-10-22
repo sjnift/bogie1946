@@ -164,6 +164,14 @@ function buildLibrary(input) {
   };
 }
 
+// One line saying what an import brought in, so a missing part (say, reviews) is easy to spot.
+function importSummary(rows, lib) {
+  const skipped = rows.reviews.length - lib.reviews.length;
+  const reviews = !rows.reviews.length ? "no reviews (this export has no reviews.csv)"
+    : `${plural(lib.reviews.length, "review")}${skipped > 0 ? ` (${plural(skipped, "review")} for films not in your watched list left out)` : ""}`;
+  return `Imported ${plural(lib.films.length, "film")}, ${plural(lib.entries.length, "diary entry", "diary entries")} and ${reviews}.`;
+}
+
 /* ---------- metadata: one shape whether it came from TMDB, Claude or the example ---------- */
 const COUNTRY_ALIASES = {
   "united states of america": "USA", "united states": "USA", "us": "USA", "u.s.": "USA", "u.s.a.": "USA", "america": "USA",

@@ -150,7 +150,7 @@ function renderLookupProgress() {
 }
 function dataScreen() {
   const lib = MY_LIB;
-  const status = lib ? `${plural(lib.films.length, "film")} and ${plural(lib.entries.length, "diary entry", "diary entries")} imported${lib.profile.username ? ` for @${esc(lib.profile.username)}` : ""}.` : "Nothing imported yet.";
+  const status = lib ? `${plural(lib.films.length, "film")}, ${plural(lib.entries.length, "diary entry", "diary entries")} and ${plural(lib.reviews.length, "review")} imported${lib.profile.username ? ` for @${esc(lib.profile.username)}` : ""}.${lib.reviewTextMissing ? " The review text is missing, so import the export again." : ""}` : "Nothing imported yet.";
   const rows = [];
   if (state.mode === "mine") rows.push(`<li><button class="row" type="button" data-act="example"><span>View the example diary</span>${CHEV}</button></li>`);
   else if (lib) rows.push(`<li><button class="row" type="button" data-act="mine"><span>Back to my diary</span>${CHEV}</button></li>`);

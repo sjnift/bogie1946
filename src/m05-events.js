@@ -9,6 +9,7 @@ async function importFiles(files) {
     Object.assign(state, { mode: "mine", scope: "all", view: "profile", stack: [], peopleLimit: 50, diaryLimit: 60 });
     job.note = saved ? "" : "This browser wouldn't save your export, so you'll need to import it again next time.";
     job.err = !saved;
+    state.importNote = importSummary(rows, MY_LIB);
     setTimeout(() => autoLookup(allFilmsLib()));
   } catch (e) {
     state.importError = (e && e.message) || "Couldn't read that file. Import the ZIP from Letterboxd → Settings → Data.";
@@ -98,7 +99,7 @@ function bind() {
     if (t.dataset.act) return act(t);
     if (t.dataset.view) {
       const same = state.view === t.dataset.view && !state.stack.length;
-      Object.assign(state, { view: t.dataset.view, stack: [], forgetArmed: false });
+      Object.assign(state, { view: t.dataset.view, stack: [], forgetArmed: false, importNote: "" });
       saveView(); render();
       if (!same) window.scrollTo(0, 0);
     }

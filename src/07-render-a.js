@@ -67,8 +67,9 @@ function renderHero(s, years) {
 }
 
 /* ---------- overview tiles ---------- */
-function tile(label, value, foot) {
-  return `<div class="tile"><span class="label">${label}</span><span class="value">${value}</span><span class="foot">${foot || "&nbsp;"}</span></div>`;
+function tile(label, value, foot, href) {
+  const inner = `<span class="label">${label}</span><span class="value">${value}</span><span class="foot">${foot || "&nbsp;"}</span>`;
+  return href ? `<a class="tile" href="${href}">${inner}</a>` : `<div class="tile">${inner}</div>`;
 }
 function renderTiles(s) {
   const films = s.films.length;
@@ -84,7 +85,7 @@ function renderTiles(s) {
     tile("Diary entries", fmtN(s.entries.length), s.streak.days > 1 ? `longest streak ${s.streak.days} days` : "&nbsp;"),
     tile("Average rating", s.avgRating ? s.avgRating.toFixed(2) + "<small>/ 5</small>" : "—", `${fmtN(s.rated)} rated`),
     tile("Rewatches", fmtN(s.rewatches), s.entries.length ? `${pct}% of entries` : "&nbsp;"),
-    tile("Reviews", fmtN(s.reviews), `${fmtN(s.likes)} liked`),
+    tile("Reviews", fmtN(s.reviews), `${fmtN(s.likes)} liked`, s.reviews ? "#reviews" : null),
   ].join("");
 }
 

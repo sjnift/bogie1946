@@ -155,6 +155,9 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 .tiles { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 1px; background: var(--line);
   border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; margin-block: 28px 8px; }
 .tile { background: var(--surface); padding: 16px 18px; display: grid; gap: 2px; align-content: start; min-width: 0; }
+a.tile { color: inherit; text-decoration: none; }
+a.tile:hover { background: var(--surface-2); }
+a.tile .label::after { content: " ↓"; }
 .tile .label { font-size: 13px; color: var(--muted); }
 .tile .value { font-weight: 700; font-size: clamp(26px, 3.2vw, 34px); line-height: 1.1; letter-spacing: -.01em; }
 .tile .value small { font-size: .5em; font-weight: 500; color: var(--muted); margin-left: 3px; }
@@ -498,6 +501,7 @@ footer p { margin: 0 0 6px; max-width: 80ch; }
       <button class="btn small" id="btn-import-2" type="button">Import export</button>
     </div>
     <div class="status err" id="import-error" role="alert" hidden></div>
+    <div class="status" id="import-done" role="status" hidden></div>
     <div class="scopes-row">
       <span class="eyebrow">Showing</span>
       <div class="scopes" id="scopes" role="group" aria-label="Time period"></div>
@@ -516,7 +520,7 @@ footer p { margin: 0 0 6px; max-width: 80ch; }
     <p>With your own TMDB key, film details come from The Movie Database. This product uses the TMDB API but is not endorsed or certified by TMDB.
       Inside the Claude app, details come from Claude's knowledge of each film instead, so check anything surprising.</p>
     <p>On a phone? <a href="mobile.html">Open the phone version</a>. It uses the same import.</p>
-    <p>Updated 22 Oct 2026, 15:11 UTC</p>
+    <p>Updated 22 Oct 2026, 15:20 UTC</p>
     <p><button class="btn small" id="btn-forget" type="button">Delete saved data from this browser</button>
       <span class="status" id="forget-status"></span></p>
   </footer>
@@ -909,6 +913,14 @@ function buildLibrary(input) {
     watchlist: rows.watchlist.length,
     watchlistFilms: rows.watchlist.map((r) => ({ key: filmKey(r.Name, r.Year), name: String(r.Name).trim(), year: parseInt(r.Year, 10) || null })),
   };
+}
+
+// One line saying what an import brought in, so a missing part (say, reviews) is easy to spot.
+function importSummary(rows, lib) {
+  const skipped = rows.reviews.length - lib.reviews.length;
+  const reviews = !rows.reviews.length ? "no reviews (this export has no reviews.csv)"
+    : `${plural(lib.reviews.length, "review")}${skipped > 0 ? ` (${plural(skipped, "review")} for films not in your watched list left out)` : ""}`;
+  return `Imported ${plural(lib.films.length, "film")}, ${plural(lib.entries.length, "diary entry", "diary entries")} and ${reviews}.`;
 }
 
 /* ---------- metadata: one shape whether it came from TMDB, Claude or the example ---------- */
@@ -2198,8 +2210,9 @@ function renderHero(s, years) {
 }
 
 /* ---------- overview tiles ---------- */
-function tile(label, value, foot) {
-  return `<div class="tile"><span class="label">${label}</span><span class="value">${value}</span><span class="foot">${foot || "&nbsp;"}</span></div>`;
+function tile(label, value, foot, href) {
+  const inner = `<span class="label">${label}</span><span class="value">${value}</span><span class="foot">${foot || "&nbsp;"}</span>`;
+  return href ? `<a class="tile" href="${href}">${inner}</a>` : `<div class="tile">${inner}</div>`;
 }
 function renderTiles(s) {
   const films = s.films.length;
@@ -2215,7 +2228,7 @@ function renderTiles(s) {
     tile("Diary entries", fmtN(s.entries.length), s.streak.days > 1 ? `longest streak ${s.streak.days} days` : "&nbsp;"),
     tile("Average rating", s.avgRating ? s.avgRating.toFixed(2) + "<small>/ 5</small>" : "—", `${fmtN(s.rated)} rated`),
     tile("Rewatches", fmtN(s.rewatches), s.entries.length ? `${pct}% of entries` : "&nbsp;"),
-    tile("Reviews", fmtN(s.reviews), `${fmtN(s.likes)} liked`),
+    tile("Reviews", fmtN(s.reviews), `${fmtN(s.likes)} liked`, s.reviews ? "#reviews" : null),
   ].join("");
 }
 
@@ -2862,8 +2875,8 @@ function bothReviewedBlock(A, B) {
 <script>
 /* ---------- importing ---------- */
 async function importFiles(files) {
-  const err = $("#import-error"), btn = $("#btn-import");
-  err.hidden = true;
+  const err = $("#import-error"), done = $("#import-done"), btn = $("#btn-import");
+  err.hidden = true; done.hidden = true;
   btn.disabled = true; btn.textContent = "Reading export…";
   try {
     const rows = await readExport(files);
@@ -2874,6 +2887,8 @@ async function importFiles(files) {
     job.err = !saved;
     saveView();
     render();
+    done.innerHTML = `${esc(importSummary(rows, MY_LIB))}${MY_LIB.reviews.length ? ' <a href="#reviews">See your reviews</a>' : ""}`;
+    done.hidden = false;
     autoLookup(allFilmsLib());
   } catch (e) {
     err.textContent = (e && e.message) || "Couldn't read that file. Import the ZIP from Letterboxd → Settings → Data.";
@@ -3017,6 +3032,6 @@ function init() {
 }
 init();
 </script>
-<script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});</script>
+<script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).catch(() => {});</script>
 </body>
 </html>

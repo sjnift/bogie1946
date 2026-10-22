@@ -140,7 +140,7 @@ function profileScreen(s) {
   ].map(([k, n, attrs]) => `<li><button class="row" type="button" ${attrs}><span>${k}</span><span class="count">${fmtN(n)}</span>${CHEV}</button></li>`).join("");
   return `<div class="profile">${avatar({ name: ex ? "Example" : lib.profile.username || "You" }, "xl")}
       <div class="name">${esc(name)}</div><div class="handle">${handle}</div></div>
-    ${notice}${strip}
+    ${state.importNote ? `<div class="card notice"><p>${esc(state.importNote)}</p>${MY_LIB && MY_LIB.reviews.length ? `<button class="btn block" type="button" data-act="reviews">See your reviews</button>` : ""}</div>` : ""}${notice}${strip}
     <button class="row" type="button" data-act="insights"><span>Insights</span><span class="count">Trends, tastes, the crowd</span>${CHEV}</button>
     <button class="row" type="button" data-act="compare"><span>Compare</span><span class="count">You and friends</span>${CHEV}</button>
     ${fill}${topRated}${ratings}${people}

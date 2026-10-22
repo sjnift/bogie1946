@@ -758,6 +758,14 @@ function buildLibrary(input) {
   };
 }
 
+// One line saying what an import brought in, so a missing part (say, reviews) is easy to spot.
+function importSummary(rows, lib) {
+  const skipped = rows.reviews.length - lib.reviews.length;
+  const reviews = !rows.reviews.length ? "no reviews (this export has no reviews.csv)"
+    : `${plural(lib.reviews.length, "review")}${skipped > 0 ? ` (${plural(skipped, "review")} for films not in your watched list left out)` : ""}`;
+  return `Imported ${plural(lib.films.length, "film")}, ${plural(lib.entries.length, "diary entry", "diary entries")} and ${reviews}.`;
+}
+
 /* ---------- metadata: one shape whether it came from TMDB, Claude or the example ---------- */
 const COUNTRY_ALIASES = {
   "united states of america": "USA", "united states": "USA", "us": "USA", "u.s.": "USA", "u.s.a.": "USA", "america": "USA",
@@ -2118,7 +2126,7 @@ function profileScreen(s) {
   ].map(([k, n, attrs]) => `<li><button class="row" type="button" ${attrs}><span>${k}</span><span class="count">${fmtN(n)}</span>${CHEV}</button></li>`).join("");
   return `<div class="profile">${avatar({ name: ex ? "Example" : lib.profile.username || "You" }, "xl")}
       <div class="name">${esc(name)}</div><div class="handle">${handle}</div></div>
-    ${notice}${strip}
+    ${state.importNote ? `<div class="card notice"><p>${esc(state.importNote)}</p>${MY_LIB && MY_LIB.reviews.length ? `<button class="btn block" type="button" data-act="reviews">See your reviews</button>` : ""}</div>` : ""}${notice}${strip}
     <button class="row" type="button" data-act="insights"><span>Insights</span><span class="count">Trends, tastes, the crowd</span>${CHEV}</button>
     <button class="row" type="button" data-act="compare"><span>Compare</span><span class="count">You and friends</span>${CHEV}</button>
     ${fill}${topRated}${ratings}${people}
@@ -2300,7 +2308,7 @@ function renderLookupProgress() {
 }
 function dataScreen() {
   const lib = MY_LIB;
-  const status = lib ? `${plural(lib.films.length, "film")} and ${plural(lib.entries.length, "diary entry", "diary entries")} imported${lib.profile.username ? ` for @${esc(lib.profile.username)}` : ""}.` : "Nothing imported yet.";
+  const status = lib ? `${plural(lib.films.length, "film")}, ${plural(lib.entries.length, "diary entry", "diary entries")} and ${plural(lib.reviews.length, "review")} imported${lib.profile.username ? ` for @${esc(lib.profile.username)}` : ""}.${lib.reviewTextMissing ? " The review text is missing, so import the export again." : ""}` : "Nothing imported yet.";
   const rows = [];
   if (state.mode === "mine") rows.push(`<li><button class="row" type="button" data-act="example"><span>View the example diary</span>${CHEV}</button></li>`);
   else if (lib) rows.push(`<li><button class="row" type="button" data-act="mine"><span>Back to my diary</span>${CHEV}</button></li>`);
@@ -2319,7 +2327,7 @@ function dataScreen() {
       <p>With your own TMDB key, film details come from The Movie Database. This product uses the TMDB API but is not endorsed or certified by TMDB.
       Inside the Claude app, details come from Claude's knowledge of each film instead, so check anything surprising.</p>
       <p>On a computer? <a href="desktop.html">Open the desktop version</a>. It uses the same import.</p>
-      <p>Updated 22 Oct 2026, 15:11 UTC</p></div>`;
+      <p>Updated 22 Oct 2026, 15:20 UTC</p></div>`;
 }
 
 /* ---------- pushed detail screens ---------- */
@@ -2646,6 +2654,7 @@ async function importFiles(files) {
     Object.assign(state, { mode: "mine", scope: "all", view: "profile", stack: [], peopleLimit: 50, diaryLimit: 60 });
     job.note = saved ? "" : "This browser wouldn't save your export, so you'll need to import it again next time.";
     job.err = !saved;
+    state.importNote = importSummary(rows, MY_LIB);
     setTimeout(() => autoLookup(allFilmsLib()));
   } catch (e) {
     state.importError = (e && e.message) || "Couldn't read that file. Import the ZIP from Letterboxd → Settings → Data.";
@@ -2735,7 +2744,7 @@ function bind() {
     if (t.dataset.act) return act(t);
     if (t.dataset.view) {
       const same = state.view === t.dataset.view && !state.stack.length;
-      Object.assign(state, { view: t.dataset.view, stack: [], forgetArmed: false });
+      Object.assign(state, { view: t.dataset.view, stack: [], forgetArmed: false, importNote: "" });
       saveView(); render();
       if (!same) window.scrollTo(0, 0);
     }
@@ -2789,6 +2798,6 @@ function init() {
 }
 init();
 </script>
-<script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});</script>
+<script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).catch(() => {});</script>
 </body>
 </html>
