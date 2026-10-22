@@ -172,6 +172,8 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 }
 .status { font-size: 13.5px; color: var(--ink-2); }
 .status.err { color: var(--danger); }
+.tmdb-link { font-size: 12px; font-weight: 500; color: var(--muted); text-decoration: none; white-space: nowrap; margin-left: 4px; }
+.tmdb-link:hover { color: var(--gold-ink); }
 .linkish { all: unset; cursor: pointer; color: var(--gold-ink); text-decoration: underline; text-underline-offset: 2px; }
 .linkish:focus-visible { outline: 2px solid var(--gold-ink); outline-offset: 2px; }
 .src-tag {
@@ -412,6 +414,7 @@ footer p { margin: 0 0 6px; max-width: 80ch; }
     <p>With your own TMDB key, film details come from The Movie Database. This product uses the TMDB API but is not endorsed or certified by TMDB.
       Inside the Claude app, details come from Claude's knowledge of each film instead, so check anything surprising.</p>
     <p>On a phone? <a href="mobile.html">Open the phone version</a>. It uses the same import.</p>
+    <p>Updated 22 Oct 2026, 08:35 UTC</p>
     <p><button class="btn small" id="btn-forget" type="button">Delete saved data from this browser</button>
       <span class="status" id="forget-status"></span></p>
   </footer>
@@ -639,7 +642,8 @@ function buildLibrary(input) {
     const date = r["Watched Date"] || r.Date;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date || "")) return;
     const f = get(r);
-    const e = { film: f, date, rating: parseFloat(r.Rating) || null, rewatch: /^yes$/i.test(r.Rewatch || ""), order: i, review: false };
+    const logged = /^\d{4}-\d{2}-\d{2}$/.test(r.Date || "") ? r.Date : null;
+    const e = { film: f, date, logged, rating: parseFloat(r.Rating) || null, rewatch: /^yes$/i.test(r.Rewatch || ""), order: i, review: false };
     f.entries.push(e); entries.push(e);
   });
   for (const r of rows.likes) { const f = find(r); if (f) f.liked = true; }
@@ -691,6 +695,8 @@ function cleanMeta(m) {
     d: list(m.d, 6), c: list(m.c, 15), w: list(m.w, 6), p: list(m.p, 4), m: list(m.m, 4),
     g: list((m.g || []).map(genre).filter((g) => GENRES.includes(g)), 6),
     k: list((m.k || []).map(country), 6), l: language(m.l), r: Math.round(Number(m.r)) || null,
+    va: Number(m.va) || null, vc: Number(m.vc) || null, // TMDB audience score out of 10, and how many votes
+    im: /^tt\d+$/.test(m.im || "") ? m.im : null, // IMDb id, for IMDb scores from OMDb
   };
 }
 
@@ -859,29 +865,30 @@ async function tmdbGet(path, params, key, signal) {
   }
   throw { code: "busy" };
 }
-// Bump when matching changes, so films matched the old way are looked up again.
-const TMDB_MATCH_VERSION = 2;
-// Several films can share a title and year (a feature and a short called "Brick", say).
-// Prefer an exact title in the right year, then the film most people on TMDB have rated.
-function pickHit(results, f, tolerance) {
+// Bump when matching or the stored fields change, so saved films are looked up again.
+const TMDB_MATCH_VERSION = 3;
+// Letterboxd dates a film by its first showing; TMDB often by a later release (Brick: 2005 vs 2006),
+// and several films can share a title (a feature and a short called "Brick"). So allow a gap of a
+// year or two, insist on the title, and let the number of TMDB votes pick the real film.
+function pickHit(results, f, tolerance, needTitle) {
   if (!results || !results.length) return null;
   const want = personKey(f.name);
   const yearOf = (r) => parseInt((r.release_date || "").slice(0, 4), 10);
   const titled = (r) => personKey(r.title || "") === want || personKey(r.original_title || "") === want;
   const ranked = results
-    .filter((r) => !f.year || (yearOf(r) && Math.abs(yearOf(r) - f.year) <= tolerance))
-    .map((r) => ({ r, score: (titled(r) ? 4 : 0) + (yearOf(r) === f.year ? 2 : 0) - (r.video ? 1 : 0) }))
-    .sort((a, b) => b.score - a.score || (b.r.vote_count || 0) - (a.r.vote_count || 0) || (b.r.popularity || 0) - (a.r.popularity || 0));
+    .filter((r) => !f.year || !yearOf(r) || Math.abs(yearOf(r) - f.year) <= tolerance)
+    .map((r) => ({ r, score: (titled(r) ? 1000 : 0) + Math.log10((r.vote_count || 0) + 1) * 100 + (yearOf(r) === f.year ? 50 : 0) - (r.video ? 100 : 0) }))
+    .sort((a, b) => b.score - a.score);
   const best = ranked[0];
-  if (!best) return null;
-  return titled(best.r) || tolerance === 0 ? best.r : null;
+  if (!best || (needTitle && !titled(best.r))) return null;
+  return best.r;
 }
 async function tmdbFilm(f, key, signal) {
   let s = await tmdbGet("/search/movie", { query: f.name, year: f.year || "", include_adult: "false" }, key, signal);
-  let hit = pickHit(s && s.results, f, 0);
+  let hit = pickHit(s && s.results, f, 2, false);
   if (!hit && f.year) {
     s = await tmdbGet("/search/movie", { query: f.name, include_adult: "false" }, key, signal);
-    hit = pickHit(s && s.results, f, 1);
+    hit = pickHit(s && s.results, f, 2, true);
   }
   if (!hit) return { src: "tmdb", miss: true, v: TMDB_MATCH_VERSION };
   const d = await tmdbGet(`/movie/${hit.id}`, { append_to_response: "credits" }, key, signal);
@@ -899,7 +906,7 @@ async function tmdbFilm(f, key, signal) {
     m: names(crew.filter((c) => c.job === "Original Music Composer" || c.job === "Music")),
     g: (d.genres || []).map((g) => g.name),
     k: (d.production_countries || []).map((c) => c.name),
-    l: d.original_language, r: d.runtime,
+    l: d.original_language, r: d.runtime, va: d.vote_average, vc: d.vote_count, im: d.imdb_id,
   });
 }
 async function runTmdb(lib, key) {
@@ -1026,6 +1033,11 @@ let LISTS = new Map(), listSeq = 0;
 function reg(title, sub, films, person) { const id = "l" + (++listSeq); LISTS.set(id, { title, sub, films, person }); return id; }
 const initials = (name) => name.replace(/[^\p{L}\s-]/gu, "").split(/[\s-]+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 const ordinal = (n) => { const s = ["th", "st", "nd", "rd"], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); };
+// A small link to the TMDB page a film was matched to, so a wrong match is easy to spot.
+const tmdbLink = (f) => {
+  const m = f && META[f.key];
+  return m && m.src === "tmdb" && m.id && !IN_VIEWER ? ` <a class="tmdb-link" href="https://www.themoviedb.org/movie/${m.id}" target="_blank" rel="noopener" title="See the film this was matched to on TMDB">TMDB ↗</a>` : "";
+};
 const isoOfDay = (d) => new Date(d * 864e5).toISOString().slice(0, 10);
 function niceTick(max) {
   const raw = max * 0.8, p = Math.pow(10, Math.floor(Math.log10(raw))), n = raw / p;
@@ -1401,9 +1413,9 @@ function highlightsBlock(s) {
   const dated = s.films.filter((f) => f.year);
   const oldest = dated.reduce((a, f) => !a || f.year < a.year ? f : a, null);
   const facts = [
-    ["Longest", longest && `${longest.name} · ${metaOf(longest).r} min`], ["Shortest", shortest && `${shortest.name} · ${metaOf(shortest).r} min`],
-    ["Oldest", oldest && `${oldest.name} · ${oldest.year}`], ["Liked", plural(s.likes, "film")],
-  ].filter(([, v]) => v).map(([k, v]) => `<div class="fact"><span class="k">${k}</span><span class="v">${esc(v)}</span></div>`).join("");
+    ["Longest", longest && `${longest.name} · ${metaOf(longest).r} min`, longest], ["Shortest", shortest && `${shortest.name} · ${metaOf(shortest).r} min`, shortest],
+    ["Oldest", oldest && `${oldest.name} · ${oldest.year}`, oldest], ["Liked", plural(s.likes, "film")],
+  ].filter(([, v]) => v).map(([k, v, f]) => `<div class="fact"><span class="k">${k}</span><span class="v">${esc(v)}${tmdbLink(f)}</span></div>`).join("");
   const reList = re.length ? `<div><div class="muted" style="font-size:12.5px; margin-bottom:6px">Most rewatched</div>${rankRows(
     re.map((f) => ({ name: `${f.name}${f.year ? ` (${f.year})` : ""}`, films: [f], count: views(f) })),
     (p) => `${p.count} viewings`, (p) => p.count / views(re[0]), 1, (p) => plural(p.count, "viewing"))}</div>` : "";
@@ -1436,7 +1448,7 @@ function openList(id) {
   const rows = films.map((f) => {
     const n = f.entries.length, last = n ? f.entries[n - 1].date : null;
     return `<div class="film-row"><div><div class="ft">${esc(f.name)} <span class="fy">${f.year || ""}</span></div>
-      <div class="fd">${last ? `Watched ${fmtDate(last)}${n > 1 ? ` · ${n} viewings` : ""}` : "Logged without a date"}</div></div>
+      <div class="fd">${last ? `Watched ${fmtDate(last)}${n > 1 ? ` · ${n} viewings` : ""}` : "Logged without a date"}${tmdbLink(f)}</div></div>
       <div class="fr"><span class="stars">${stars(f.rating)}</span>${f.liked ? ' <span class="muted">♥</span>' : ""}</div></div>`;
   }).join("");
   dlg.innerHTML = `<div class="dlg-head">${L.person && L.person.key ? faceHtml(L.person) : ""}<div style="min-width:0"><h3 id="dlg-title">${esc(L.title)}</h3>

@@ -19,10 +19,12 @@ standalone() { # $1 = head files, $2 = body files
   cat $2
   printf '</body>\n</html>\n'
 }
-cat $DESK_HEAD $DESK_BODY > credits-roll.html
-cat $MOB_HEAD $MOB_BODY > credits-roll-mobile.html
-standalone "$DESK_HEAD" "$DESK_BODY" > credits-roll-standalone.html
-standalone "$MOB_HEAD" "$MOB_BODY" > credits-roll-mobile-standalone.html
+BUILT_AT=$(date -u +"%-d %b %Y, %H:%M UTC")
+stamp() { sed "s|<!--BUILD-->|$BUILT_AT|g"; }
+cat $DESK_HEAD $DESK_BODY | stamp > credits-roll.html
+cat $MOB_HEAD $MOB_BODY | stamp > credits-roll-mobile.html
+standalone "$DESK_HEAD" "$DESK_BODY" | stamp > credits-roll-standalone.html
+standalone "$MOB_HEAD" "$MOB_BODY" | stamp > credits-roll-mobile-standalone.html
 
 if [ -n "$TMDB_KEY" ]; then
   printf '%s' "$TMDB_KEY" | grep -Eq '^([0-9a-f]{32}|eyJ[A-Za-z0-9._-]+)$' || { echo "TMDB_KEY doesn't look like a TMDB key" >&2; exit 1; }
@@ -34,10 +36,10 @@ fi
 # The GitHub Pages site in docs/: both layouts on one origin, so they share one import and one saved key.
 # Never takes TMDB_KEY: this site is public.
 mkdir -p docs
-standalone "$DESK_HEAD" "$DESK_BODY" | sed \
+standalone "$DESK_HEAD" "$DESK_BODY" | stamp | sed \
   -e 's|https://claude.ai/artifact/2RUkgC4dsysdz66WjJ6gzb" target="_blank" rel="noopener"|mobile.html"|' \
   -e 's|It keeps its own copy of your import, so import there too.|It uses the same import.|' > docs/desktop.html
-standalone "$MOB_HEAD" "$MOB_BODY" | sed \
+standalone "$MOB_HEAD" "$MOB_BODY" | stamp | sed \
   -e 's|https://claude.ai/artifact/52oE5x53dcjUZgBYQMfPjR" target="_blank" rel="noopener"|desktop.html"|' \
   -e 's|It keeps its own copy of your import.|It uses the same import.|' > docs/mobile.html
 cat > docs/index.html <<'HTML'

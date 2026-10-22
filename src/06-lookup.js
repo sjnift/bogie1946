@@ -53,29 +53,30 @@ async function tmdbGet(path, params, key, signal) {
   }
   throw { code: "busy" };
 }
-// Bump when matching changes, so films matched the old way are looked up again.
-const TMDB_MATCH_VERSION = 2;
-// Several films can share a title and year (a feature and a short called "Brick", say).
-// Prefer an exact title in the right year, then the film most people on TMDB have rated.
-function pickHit(results, f, tolerance) {
+// Bump when matching or the stored fields change, so saved films are looked up again.
+const TMDB_MATCH_VERSION = 3;
+// Letterboxd dates a film by its first showing; TMDB often by a later release (Brick: 2005 vs 2006),
+// and several films can share a title (a feature and a short called "Brick"). So allow a gap of a
+// year or two, insist on the title, and let the number of TMDB votes pick the real film.
+function pickHit(results, f, tolerance, needTitle) {
   if (!results || !results.length) return null;
   const want = personKey(f.name);
   const yearOf = (r) => parseInt((r.release_date || "").slice(0, 4), 10);
   const titled = (r) => personKey(r.title || "") === want || personKey(r.original_title || "") === want;
   const ranked = results
-    .filter((r) => !f.year || (yearOf(r) && Math.abs(yearOf(r) - f.year) <= tolerance))
-    .map((r) => ({ r, score: (titled(r) ? 4 : 0) + (yearOf(r) === f.year ? 2 : 0) - (r.video ? 1 : 0) }))
-    .sort((a, b) => b.score - a.score || (b.r.vote_count || 0) - (a.r.vote_count || 0) || (b.r.popularity || 0) - (a.r.popularity || 0));
+    .filter((r) => !f.year || !yearOf(r) || Math.abs(yearOf(r) - f.year) <= tolerance)
+    .map((r) => ({ r, score: (titled(r) ? 1000 : 0) + Math.log10((r.vote_count || 0) + 1) * 100 + (yearOf(r) === f.year ? 50 : 0) - (r.video ? 100 : 0) }))
+    .sort((a, b) => b.score - a.score);
   const best = ranked[0];
-  if (!best) return null;
-  return titled(best.r) || tolerance === 0 ? best.r : null;
+  if (!best || (needTitle && !titled(best.r))) return null;
+  return best.r;
 }
 async function tmdbFilm(f, key, signal) {
   let s = await tmdbGet("/search/movie", { query: f.name, year: f.year || "", include_adult: "false" }, key, signal);
-  let hit = pickHit(s && s.results, f, 0);
+  let hit = pickHit(s && s.results, f, 2, false);
   if (!hit && f.year) {
     s = await tmdbGet("/search/movie", { query: f.name, include_adult: "false" }, key, signal);
-    hit = pickHit(s && s.results, f, 1);
+    hit = pickHit(s && s.results, f, 2, true);
   }
   if (!hit) return { src: "tmdb", miss: true, v: TMDB_MATCH_VERSION };
   const d = await tmdbGet(`/movie/${hit.id}`, { append_to_response: "credits" }, key, signal);
@@ -93,7 +94,7 @@ async function tmdbFilm(f, key, signal) {
     m: names(crew.filter((c) => c.job === "Original Music Composer" || c.job === "Music")),
     g: (d.genres || []).map((g) => g.name),
     k: (d.production_countries || []).map((c) => c.name),
-    l: d.original_language, r: d.runtime,
+    l: d.original_language, r: d.runtime, va: d.vote_average, vc: d.vote_count, im: d.imdb_id,
   });
 }
 async function runTmdb(lib, key) {

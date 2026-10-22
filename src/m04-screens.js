@@ -1,6 +1,6 @@
 <script>
 /* ---------- Diary ---------- */
-const fact = (k, v) => `<div class="fact"><span class="k">${k}</span><span class="v">${esc(v)}</span></div>`;
+const fact = (k, v, f) => `<div class="fact"><span class="k">${k}</span><span class="v">${esc(v)}${tmdbLink(f)}</span></div>`;
 function diaryScreen(s) {
   if (!s.entries.length) return `<div class="empty" style="padding-top:28px">No diary dates in ${s.scope === "all" ? "your export" : s.scope}. Films logged without a date still count on the other tabs.</div>`;
   const cols = timeline(s);
@@ -86,8 +86,8 @@ function filmsScreen(s) {
   const oldest = dated.reduce((a, f) => !a || f.year < a.year ? f : a, null);
   const newest = dated.reduce((a, f) => !a || f.year > a.year ? f : a, null);
   const rec = [
-    longest && fact("Longest", `${longest.name} · ${metaOf(longest).r} min`), shortest && fact("Shortest", `${shortest.name} · ${metaOf(shortest).r} min`),
-    oldest && fact("Oldest", `${oldest.name} · ${oldest.year}`), newest && fact("Newest", `${newest.name} · ${newest.year}`),
+    longest && fact("Longest", `${longest.name} · ${metaOf(longest).r} min`, longest), shortest && fact("Shortest", `${shortest.name} · ${metaOf(shortest).r} min`, shortest),
+    oldest && fact("Oldest", `${oldest.name} · ${oldest.year}`, oldest), newest && fact("Newest", `${newest.name} · ${newest.year}`, newest),
   ].filter(Boolean).join("");
   if (rec) html += sh("Records") + `<div class="facts" style="margin-top:0">${rec}</div>`;
   return html || `<div class="empty">No films in this period.</div>`;
@@ -164,7 +164,8 @@ function dataScreen() {
     <div class="foot"><p>Credits Roll reads the CSV files in a Letterboxd data export. It is not made by or affiliated with Letterboxd.</p>
       <p>With your own TMDB key, film details come from The Movie Database. This product uses the TMDB API but is not endorsed or certified by TMDB.
       Inside the Claude app, details come from Claude's knowledge of each film instead, so check anything surprising.</p>
-      <p>On a computer? <a href="https://claude.ai/artifact/52oE5x53dcjUZgBYQMfPjR" target="_blank" rel="noopener">Open the desktop version</a>. It keeps its own copy of your import.</p></div>`;
+      <p>On a computer? <a href="https://claude.ai/artifact/52oE5x53dcjUZgBYQMfPjR" target="_blank" rel="noopener">Open the desktop version</a>. It keeps its own copy of your import.</p>
+      <p>Updated <!--BUILD--></p></div>`;
 }
 
 /* ---------- pushed detail screens ---------- */

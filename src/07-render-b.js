@@ -134,9 +134,9 @@ function highlightsBlock(s) {
   const dated = s.films.filter((f) => f.year);
   const oldest = dated.reduce((a, f) => !a || f.year < a.year ? f : a, null);
   const facts = [
-    ["Longest", longest && `${longest.name} · ${metaOf(longest).r} min`], ["Shortest", shortest && `${shortest.name} · ${metaOf(shortest).r} min`],
-    ["Oldest", oldest && `${oldest.name} · ${oldest.year}`], ["Liked", plural(s.likes, "film")],
-  ].filter(([, v]) => v).map(([k, v]) => `<div class="fact"><span class="k">${k}</span><span class="v">${esc(v)}</span></div>`).join("");
+    ["Longest", longest && `${longest.name} · ${metaOf(longest).r} min`, longest], ["Shortest", shortest && `${shortest.name} · ${metaOf(shortest).r} min`, shortest],
+    ["Oldest", oldest && `${oldest.name} · ${oldest.year}`, oldest], ["Liked", plural(s.likes, "film")],
+  ].filter(([, v]) => v).map(([k, v, f]) => `<div class="fact"><span class="k">${k}</span><span class="v">${esc(v)}${tmdbLink(f)}</span></div>`).join("");
   const reList = re.length ? `<div><div class="muted" style="font-size:12.5px; margin-bottom:6px">Most rewatched</div>${rankRows(
     re.map((f) => ({ name: `${f.name}${f.year ? ` (${f.year})` : ""}`, films: [f], count: views(f) })),
     (p) => `${p.count} viewings`, (p) => p.count / views(re[0]), 1, (p) => plural(p.count, "viewing"))}</div>` : "";
@@ -169,7 +169,7 @@ function openList(id) {
   const rows = films.map((f) => {
     const n = f.entries.length, last = n ? f.entries[n - 1].date : null;
     return `<div class="film-row"><div><div class="ft">${esc(f.name)} <span class="fy">${f.year || ""}</span></div>
-      <div class="fd">${last ? `Watched ${fmtDate(last)}${n > 1 ? ` · ${n} viewings` : ""}` : "Logged without a date"}</div></div>
+      <div class="fd">${last ? `Watched ${fmtDate(last)}${n > 1 ? ` · ${n} viewings` : ""}` : "Logged without a date"}${tmdbLink(f)}</div></div>
       <div class="fr"><span class="stars">${stars(f.rating)}</span>${f.liked ? ' <span class="muted">♥</span>' : ""}</div></div>`;
   }).join("");
   dlg.innerHTML = `<div class="dlg-head">${L.person && L.person.key ? faceHtml(L.person) : ""}<div style="min-width:0"><h3 id="dlg-title">${esc(L.title)}</h3>

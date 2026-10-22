@@ -102,7 +102,8 @@ function buildLibrary(input) {
     const date = r["Watched Date"] || r.Date;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date || "")) return;
     const f = get(r);
-    const e = { film: f, date, rating: parseFloat(r.Rating) || null, rewatch: /^yes$/i.test(r.Rewatch || ""), order: i, review: false };
+    const logged = /^\d{4}-\d{2}-\d{2}$/.test(r.Date || "") ? r.Date : null;
+    const e = { film: f, date, logged, rating: parseFloat(r.Rating) || null, rewatch: /^yes$/i.test(r.Rewatch || ""), order: i, review: false };
     f.entries.push(e); entries.push(e);
   });
   for (const r of rows.likes) { const f = find(r); if (f) f.liked = true; }
@@ -154,6 +155,8 @@ function cleanMeta(m) {
     d: list(m.d, 6), c: list(m.c, 15), w: list(m.w, 6), p: list(m.p, 4), m: list(m.m, 4),
     g: list((m.g || []).map(genre).filter((g) => GENRES.includes(g)), 6),
     k: list((m.k || []).map(country), 6), l: language(m.l), r: Math.round(Number(m.r)) || null,
+    va: Number(m.va) || null, vc: Number(m.vc) || null, // TMDB audience score out of 10, and how many votes
+    im: /^tt\d+$/.test(m.im || "") ? m.im : null, // IMDb id, for IMDb scores from OMDb
   };
 }
 

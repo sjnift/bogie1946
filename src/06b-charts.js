@@ -4,6 +4,11 @@ let LISTS = new Map(), listSeq = 0;
 function reg(title, sub, films, person) { const id = "l" + (++listSeq); LISTS.set(id, { title, sub, films, person }); return id; }
 const initials = (name) => name.replace(/[^\p{L}\s-]/gu, "").split(/[\s-]+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 const ordinal = (n) => { const s = ["th", "st", "nd", "rd"], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); };
+// A small link to the TMDB page a film was matched to, so a wrong match is easy to spot.
+const tmdbLink = (f) => {
+  const m = f && META[f.key];
+  return m && m.src === "tmdb" && m.id && !IN_VIEWER ? ` <a class="tmdb-link" href="https://www.themoviedb.org/movie/${m.id}" target="_blank" rel="noopener" title="See the film this was matched to on TMDB">TMDB ↗</a>` : "";
+};
 const isoOfDay = (d) => new Date(d * 864e5).toISOString().slice(0, 10);
 function niceTick(max) {
   const raw = max * 0.8, p = Math.pow(10, Math.floor(Math.log10(raw))), n = raw / p;
