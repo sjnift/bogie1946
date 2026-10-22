@@ -454,7 +454,7 @@ footer p { margin: 0 0 6px; max-width: 80ch; }
     <p>With your own TMDB key, film details come from The Movie Database. This product uses the TMDB API but is not endorsed or certified by TMDB.
       Inside the Claude app, details come from Claude's knowledge of each film instead, so check anything surprising.</p>
     <p>On a phone? <a href="mobile.html">Open the phone version</a>. It uses the same import.</p>
-    <p>Updated 22 Oct 2026, 09:49 UTC</p>
+    <p>Updated 22 Oct 2026, 09:51 UTC</p>
     <p><button class="btn small" id="btn-forget" type="button">Delete saved data from this browser</button>
       <span class="status" id="forget-status"></span></p>
   </footer>
@@ -1282,7 +1282,9 @@ function heatmap(s) {
    each film's Letterboxd average. It costs the viewer's Apify credit, so it only runs on a click.
    Titles and years come from Letterboxd itself, so they match the export exactly. */
 const LB_ACTOR = "solidcode~letterboxd-scraper";
-const LB_PRICE_PER_FILM = 0.003; // the actor's listed price: from $3.00 per 1,000 films
+// Apify's price for this actor on its free plan (paid plans pay a little less): per film, plus a fee per run.
+const LB_PRICE_PER_FILM = 0.0036, LB_PRICE_PER_RUN = 0.005;
+const runCost = (films) => films * LB_PRICE_PER_FILM + LB_PRICE_PER_RUN;
 let LBX = store.get(KEYS.lbx, {}); // film key → { r: average out of 5, n: ratings, slug, at }
 const apifyKey = () => store.get(KEYS.apify, "");
 const lbJob = { running: false, started: 0, note: "", err: false, badKey: false };
@@ -1311,7 +1313,9 @@ async function startLetterboxd(lib, mode) {
   Object.assign(lbJob, { running: true, started: Date.now(), note: "", err: false, badKey: false });
   renderLookup();
   try {
-    const run = await apify(`/acts/${LB_ACTOR}/runs`, { method: "POST", body: JSON.stringify(input) });
+    // Apify stops a run after an hour by default; give very large libraries two
+    const timeout = mode === "all" && lib.films.length > 1500 ? "?timeout=7200" : "";
+    const run = await apify(`/acts/${LB_ACTOR}/runs${timeout}`, { method: "POST", body: JSON.stringify(input) });
     store.set(KEYS.lbRun, { id: run.data.id, dataset: run.data.defaultDatasetId, at: Date.now(), mode });
     await pollLetterboxd(lib);
   } catch (e) { finishLetterboxd(e); }
@@ -1379,15 +1383,15 @@ function letterboxdBlock(lib, phone) {
     const input = `<label class="sr-only" for="apify-key">Apify API token</label><input ${phone ? 'class="key" ' : ""}id="apify-key" type="password" autocomplete="off" spellcheck="false" placeholder="Apify API token (optional)" value="${esc(apifyKey())}">`;
     return title + (phone ? input + btn("save", "Save token") : `<div class="lookup-row">${input}${btn("save", "Save token")}</div>`) +
       `<p class="status">Compares your ratings with Letterboxd's own averages. An <a href="https://apify.com/solidcode/letterboxd-scraper" target="_blank" rel="noopener">Apify actor</a> reads your films page for you,
-      billed to your Apify account at about $3 per 1,000 films (the free plan includes $5 a month). Your token is under Apify Console → Settings → API &amp; Integrations, and is kept in this browser only.</p>` + note;
+      billed to your Apify account at about $3.60 per 1,000 films on Apify's free plan, which includes $5 of credit a month. Your token is under Apify Console → Settings → API &amp; Integrations, and is kept in this browser only.</p>` + note;
   }
   const total = lib.films.length, missing = lbMissing(lib).length, have = total - missing;
-  const all = cost(total * LB_PRICE_PER_FILM);
+  const all = cost(runCost(total));
   let body;
   if (!have) body = (phone ? "" : `<div class="lookup-row">`) + btn("all", `Get Letterboxd averages for ${plural(total, "film")}`, true) + (phone ? "" : `<span class="status">Costs ${all}, billed by Apify.</span></div>`) + (phone ? `<p class="status">Costs ${all}, billed by Apify.</p>` : "");
   else if (missing) body = `<p class="status">${fmtN(have)} of ${plural(total, "film")} have Letterboxd averages.</p>` +
     (phone ? "" : `<div class="lookup-row">`) + btn(missing <= 200 ? "recent" : "all", `Get the ${plural(missing, "missing film")}`, true) +
-    (phone ? `<p class="status">Costs ${cost((missing <= 200 ? missing + 25 : total) * LB_PRICE_PER_FILM)}. ${link("all", `Refresh all (${all})`)}</p>` : `<span class="status">${cost((missing <= 200 ? missing + 25 : total) * LB_PRICE_PER_FILM)} · ${link("all", `Refresh all (${all})`)}</span></div>`);
+    (phone ? `<p class="status">Costs ${cost(runCost(missing <= 200 ? missing + 25 : total))}. ${link("all", `Refresh all (${all})`)}</p>` : `<span class="status">${cost(runCost(missing <= 200 ? missing + 25 : total))} · ${link("all", `Refresh all (${all})`)}</span></div>`);
   else body = `<p class="status">Every film has a Letterboxd average. ${link("all", `Refresh all (${all})`)}</p>`;
   return title + body + `<p class="status">${link("change", "Change Apify token")}</p>` + note;
 }
