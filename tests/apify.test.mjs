@@ -29,7 +29,7 @@ export default async function ({ browser, base }) {
   assert(bodies[0].maxResults === 1300, `first run asked for ${bodies[0].maxResults}`);
   assert(/45 films are still missing, because one run stops at 1,300/.test(await p.evaluate(() => lbJob.note)), `note: ${await p.evaluate(() => lbJob.note)}`);
   await p.click('[data-lb="missing"]');
-  await p.waitForFunction(() => !lbJob.running && bodies === undefined || !lbJob.running && lbMissing(MY_LIB).length === 0);
+  await p.waitForFunction(() => !lbJob.running);
   const urls = bodies[1].startUrls.map((u) => u.replace("https://letterboxd.com/film/", ""));
   for (const s of ["8-half/", "mash/", "heat/", "heat-1995/", "soren/"]) assert(urls.includes(s), `follow-up run didn't ask for ${s}`);
   const r = await p.evaluate((sp) => sp.map(([n, y]) => { const x = LBX[filmKey(n, y)]; return x && x.r ? x.slug : "missing"; }), special);

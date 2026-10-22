@@ -30,8 +30,8 @@ export default async function ({ browser, base }) {
 
   await p.click("#dlg .fc-dir .dlink");
   await p.waitForFunction(() => /Seen 2 of 3/.test(($("#dlg .filmo") || {}).textContent || ""), null, { timeout: 8000 }).catch(() => {});
-  const filmo = await p.$eval("#dlg .filmo", (e) => e.innerText.replace(/\s+/g, " "));
-  assert(/Seen 2 of 3/.test(filmo) && /Knives Out 2019 On your watchlist/.test(filmo) && !/Not Out Yet/.test(filmo), `filmography: ${filmo}`);
+  const filmo = await p.$eval("#dlg .filmo", (e) => e.textContent.replace(/\s+/g, " "));
+  assert(/Seen 2 of 3/.test(filmo) && /Knives Out 2019\s*On your watchlist/.test(filmo) && !/Not Out Yet/.test(filmo), `filmography: ${filmo}`);
 
   await p.keyboard.press("Escape"); await p.waitForTimeout(200);
   await p.keyboard.press("/"); await p.keyboard.type("rian"); await p.waitForTimeout(100);

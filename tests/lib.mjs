@@ -28,8 +28,10 @@ export function serve() {
 export const launch = () => chromium.launch();
 
 // A page in a fresh browser profile. `phone` sizes it like a phone; routes added later by a check win.
-export async function open(browser, base, file, { phone = false, downloads = false } = {}) {
-  const ctx = await browser.newContext({ ...(phone ? { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } : { viewport: { width: 1280, height: 900 } }), acceptDownloads: downloads });
+// The service worker is off unless asked for, since its requests would slip past the stand-ins.
+export async function open(browser, base, file, { phone = false, downloads = false, worker = false } = {}) {
+  const ctx = await browser.newContext({ ...(phone ? { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } : { viewport: { width: 1280, height: 900 } }),
+    acceptDownloads: downloads, serviceWorkers: worker ? "allow" : "block" });
   await ctx.route(/fonts\.(googleapis|gstatic)\.com|image\.tmdb\.org|api\.themoviedb\.org|omdbapi\.com|api\.apify\.com|letterboxd\.com/, (r) => r.abort());
   await ctx.route(/papaparse/, (r) => r.fulfill({ contentType: "text/javascript", body: PAPA }));
   await ctx.route(/jszip/, (r) => r.fulfill({ contentType: "text/javascript", body: JSZIP }));

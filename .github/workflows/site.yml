@@ -1,0 +1,70 @@
+# Builds the site and runs its checks on every push. When Pages is set to deploy from GitHub Actions
+# (Settings → Pages → Source), it also publishes docs/, and only after the checks pass; while Pages
+# deploys from the branch, a failure here shows up as a red mark and an email instead.
+name: Site
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["docs/feed/**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: site-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Build
+        run: ./build.sh
+      - name: Check
+        run: npm test
+
+  # Pages' source decides whether this workflow publishes the site.
+  mode:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: read
+    outputs:
+      type: ${{ steps.pages.outputs.type }}
+    steps:
+      - id: pages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: echo "type=$(gh api "repos/${{ github.repository }}/pages" --jq .build_type 2>/dev/null || echo legacy)" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    needs: [test, mode]
+    if: needs.mode.outputs.type == 'workflow'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build
+        run: ./build.sh
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: docs
+      - id: deployment
+        uses: actions/deploy-pages@v4

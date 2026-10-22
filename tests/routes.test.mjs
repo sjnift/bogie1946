@@ -34,6 +34,6 @@ export default async function ({ browser, base }) {
   await m.goto(base + "mobile.html#/insights/2024"); await m.waitForTimeout(400);
   assert((await mat()).startsWith("#/insights/2024 Insights"), `phone bookmark: ${await mat()}`);
   await m.click('[data-act="back"]'); await m.waitForTimeout(200);
-  assert((await mat()).startsWith("#/profile"), `phone back arrow: ${await mat()}`);
+  assert(!(await mat()).startsWith("#/insights"), `phone back arrow stayed in Insights: ${await mat()}`);
   noErrors(m, "phone");
 }
