@@ -1,0 +1,49 @@
+# Once a day, collect the latest diary entries from each member's public Letterboxd feed into
+# docs/feed/, so the site shows new logs without a fresh export.
+name: Letterboxd feed
+
+on:
+  schedule:
+    - cron: "23 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  actions: write
+
+concurrency:
+  group: feed
+  cancel-in-progress: false
+
+env:
+  LETTERBOXD_USERS: sjnift
+
+jobs:
+  feed:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Read the feeds
+        run: node scripts/feed.mjs $LETTERBOXD_USERS
+      - name: Save new entries
+        id: save
+        run: |
+          git add docs/feed
+          if git diff --cached --quiet; then echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Letterboxd feed: new diary entries"
+          git push
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+      # A push made by this workflow doesn't start other workflows, so start the site's update directly.
+      - name: Publish
+        if: steps.save.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mode=$(gh api "repos/${{ github.repository }}/pages" --jq .build_type 2>/dev/null || echo legacy)
+          if [ "$mode" = "workflow" ]; then gh workflow run site.yml --ref main; else gh api -X POST "repos/${{ github.repository }}/pages/builds" >/dev/null || true; fi

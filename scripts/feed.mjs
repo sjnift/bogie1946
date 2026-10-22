@@ -1,0 +1,70 @@
+// Reads a Letterboxd member's public RSS feed (their latest diary entries) and adds them to
+// docs/feed/<username>.json, which the site merges into that member's imported diary.
+// The feed only shows about 50 recent entries, so each run keeps what earlier runs collected.
+// Usage: node scripts/feed.mjs <username> [<username> ...]
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+
+const KEEP = 1000; // entries kept per member, newest first
+const tag = (xml, name) => {
+  const m = xml.match(new RegExp(`<${name}(?:\\s[^>]*)?>([\\s\\S]*?)</${name}>`));
+  return m ? m[1].trim().replace(/^<!\[CDATA\[([\s\S]*)\]\]>$/, "$1").trim() : "";
+};
+const decode = (s) => s.replace(/&(amp|lt|gt|quot|#39|apos);/g, (m, e) => ({ amp: "&", lt: "<", gt: ">", quot: '"', "#39": "'", apos: "'" }[e]));
+
+// The description holds the poster, then the review, or just "Watched on <date>." when there is none.
+function reviewOf(html) {
+  const paras = (html.match(/<p>[\s\S]*?<\/p>/g) || [])
+    .filter((p) => !/^<p>\s*<img\b/.test(p) && !/^<p>\s*Watched on [^<]*\.\s*<\/p>$/.test(p) && !/^<p>\s*<em>This review may contain spoilers\.<\/em>\s*<\/p>$/.test(p));
+  return paras.join("");
+}
+
+function parse(xml) {
+  const items = [];
+  for (const [, it] of xml.matchAll(/<item>([\s\S]*?)<\/item>/g)) {
+    const guid = tag(it, "guid");
+    if (!/letterboxd-(watch|review)-/.test(guid)) continue; // lists and other posts
+    const watched = tag(it, "letterboxd:watchedDate");
+    const title = decode(tag(it, "letterboxd:filmTitle"));
+    if (!watched || !title) continue;
+    const pub = new Date(tag(it, "pubDate"));
+    items.push({
+      guid, title, year: Number(tag(it, "letterboxd:filmYear")) || null, watched,
+      logged: isNaN(pub) ? null : pub.toISOString().slice(0, 10),
+      rating: Number(tag(it, "letterboxd:memberRating")) || null,
+      rewatch: /^yes$/i.test(tag(it, "letterboxd:rewatch")),
+      liked: /^yes$/i.test(tag(it, "letterboxd:memberLike")),
+      tmdb: Number(tag(it, "tmdb:movieId")) || null,
+      review: reviewOf(tag(it, "description")),
+      link: tag(it, "link"),
+    });
+  }
+  return items;
+}
+
+async function update(user) {
+  const res = await fetch(`https://letterboxd.com/${encodeURIComponent(user)}/rss/`, {
+    headers: { "User-Agent": "Mozilla/5.0 (compatible; CreditsRollFeed/1.0; +https://github.com/sjnift/credits-roll)", Accept: "application/rss+xml, application/xml" },
+  });
+  if (!res.ok) throw new Error(`${user}: Letterboxd answered ${res.status}`);
+  const fresh = parse(await res.text());
+  const file = `docs/feed/${user.toLowerCase()}.json`;
+  let old = { items: [] };
+  try { old = JSON.parse(await readFile(file, "utf8")); } catch {}
+  const byGuid = new Map(old.items.map((x) => [x.guid, x]));
+  let added = 0;
+  for (const x of fresh) { if (!byGuid.has(x.guid)) added++; byGuid.set(x.guid, x); } // an edited entry replaces the old copy
+  const items = [...byGuid.values()].sort((a, b) => (b.watched + (b.logged || "")).localeCompare(a.watched + (a.logged || ""))).slice(0, KEEP);
+  await mkdir("docs/feed", { recursive: true });
+  // the file only changes when the entries do, so a quiet day makes no commit
+  const out = JSON.stringify({ user, items }, null, 1) + "\n";
+  let before = "";
+  try { before = await readFile(file, "utf8"); } catch {}
+  if (out !== before) await writeFile(file, out);
+  console.log(`${user}: ${fresh.length} entries in the feed, ${added} new, ${items.length} kept`);
+}
+
+const users = process.argv.slice(2);
+if (!users.length) { console.error("usage: node scripts/feed.mjs <username> ..."); process.exit(2); }
+let failed = 0;
+for (const u of users) { try { await update(u); } catch (e) { failed++; console.error(String(e.message || e)); } }
+process.exit(failed ? 1 : 0);
