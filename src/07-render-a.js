@@ -24,6 +24,7 @@ function scheduleRender() {
 function saveView() { store.set(KEYS.view, { scope: state.scope, mode: state.mode, page: state.page }); }
 
 function render() {
+  LISTS = new Map();
   state.lib = state.mode === "mine" && MY_LIB ? MY_LIB : EXAMPLE_LIB;
   if (state.mode === "mine" && !MY_LIB) state.mode = "example";
   const years = [...new Set(state.lib.entries.map((e) => e.date.slice(0, 4)))].sort().reverse();
@@ -34,8 +35,10 @@ function render() {
   for (const sel of ["#tiles", "#lookup", "#sections", ".scopes-row"]) $(sel).hidden = page !== "stats";
   $("#insights").hidden = page !== "insights";
   $("#compare").hidden = page !== "compare";
+  $("#drillpage").hidden = page !== "drill";
   $("#btn-insights").textContent = page === "insights" ? "Back to stats" : "Insights";
   $("#btn-compare").textContent = page === "compare" ? "Back to stats" : "Compare";
+  if (page === "drill") { $(".scopes-row").hidden = true; renderDrillPage(); return; }
   if (page === "insights") { renderInsights(); return; }
   if (page === "compare") { renderCompare(); return; }
   renderTiles(STATS);
@@ -54,38 +57,41 @@ function renderHero(s, years) {
   $("#hero-eyebrow").textContent = who + since;
   $("#hero-title").innerHTML = state.scope === "all" ? "All <span class=\"accent\">time</span>" : `<span class="accent">${esc(state.scope)}</span> in film`;
   const hours = Math.round(s.minutes / 60);
-  let line = `${plural(s.films.length, "film")}`;
-  if (s.timed) line += ` and ${plural(hours, "hour")} in front of the screen`;
+  let line = dlink(DR.films(s), plural(s.films.length, "film"));
+  if (s.timed) line += ` and ${dlink(DR.runtime(s), plural(hours, "hour"))} in front of the screen`;
   line += ".";
   const star = s.cast.most[0], dir = s.directors.most[0];
-  if (star && star.count > 1) line += ` ${star.name} turns up most, in ${star.count} of them.`;
-  if (dir && dir.count > 1) line += ` ${dir.name} directed the most, with ${dir.count}.`;
+  if (star && star.count > 1) line += ` ${dlink(DR.person(star), esc(star.name))} turns up most, in ${star.count} of them.`;
+  if (dir && dir.count > 1) line += ` ${dlink(DR.person(dir), esc(dir.name))} directed the most, with ${dir.count}.`;
   if (!s.withMeta && s.films.length) line += " Look up cast and crew below to see who you watch most.";
-  $("#hero-sub").textContent = line;
+  $("#hero-sub").innerHTML = line;
   $("#scopes").innerHTML = ["all", ...years].map((y) =>
     `<button class="chip" type="button" data-scope="${y}" aria-pressed="${y === state.scope}">${y === "all" ? "All time" : y}</button>`).join("");
 }
 
 /* ---------- overview tiles ---------- */
-function tile(label, value, foot, href) {
-  const inner = `<span class="label">${label}</span><span class="value">${value}</span><span class="foot">${foot || "&nbsp;"}</span>`;
-  return href ? `<a class="tile" href="${href}">${inner}</a>` : `<div class="tile">${inner}</div>`;
+function tile(label, value, foot, to, footTo) {
+  const main = `<span class="label">${label}</span><span class="value">${value}</span>`;
+  return `<div class="tile">${to ? `<button class="tile-main" type="button" ${dl(to)}>${main}</button>` : `<div class="tile-main">${main}</div>`}
+    <span class="foot">${foot ? dlink(footTo, foot) : "&nbsp;"}</span></div>`;
 }
 function renderTiles(s) {
   const films = s.films.length;
   const hours = s.minutes / 60;
-  const filmFoot = s.newReleases != null ? `${fmtN(s.newReleases)} released in ${s.scope}` :
-    state.lib.watchlist ? `${fmtN(state.lib.watchlist)} on watchlist` : `${fmtN(s.films.filter((f) => f.entries.length).length)} in your diary`;
+  const lib = state.lib;
+  const [filmFoot, filmFootTo] = s.newReleases != null ? [`${fmtN(s.newReleases)} released in ${s.scope}`, DR.released(s, s.scope)] :
+    lib.watchlist ? [`${fmtN(lib.watchlist)} on watchlist`, DR.watchlist(lib)] : [`${fmtN(s.films.filter((f) => f.entries.length).length)} in your diary`, DR.inDiary(s)];
   const hoursVal = s.timed ? `${fmtN(Math.round(hours))}<small>h</small>` : "—";
   const hoursFoot = !s.timed ? "after cast &amp; crew lookup" : s.timed < films ? `runtime known for ${fmtN(s.timed)}` : `${fmtN(s.minutes)} min`;
   const pct = s.entries.length ? Math.round(s.rewatches / s.entries.length * 100) : 0;
+  const reviews = lib.reviews.filter((r) => s.scope === "all" || (r.date || "").startsWith(s.scope));
   $("#tiles").innerHTML = [
-    tile("Films", fmtN(films), filmFoot),
-    tile("Hours", hoursVal, hoursFoot),
-    tile("Diary entries", fmtN(s.entries.length), s.streak.days > 1 ? `longest streak ${s.streak.days} days` : "&nbsp;"),
-    tile("Average rating", s.avgRating ? s.avgRating.toFixed(2) + "<small>/ 5</small>" : "—", `${fmtN(s.rated)} rated`),
-    tile("Rewatches", fmtN(s.rewatches), s.entries.length ? `${pct}% of entries` : "&nbsp;"),
-    tile("Reviews", fmtN(s.reviews), `${fmtN(s.likes)} liked`, s.reviews ? "#reviews" : null),
+    tile("Films", fmtN(films), filmFoot, films && DR.films(s), filmFootTo),
+    tile("Hours", hoursVal, hoursFoot, s.timed && DR.runtime(s), s.timed && DR.runtime(s)),
+    tile("Diary entries", fmtN(s.entries.length), s.streak.days > 1 ? `longest streak ${s.streak.days} days` : "", s.entries.length && DR.diary(s), s.streak.days > 1 && DR.streak(s)),
+    tile("Average rating", s.avgRating ? s.avgRating.toFixed(2) + "<small>/ 5</small>" : "—", `${fmtN(s.rated)} rated`, s.rated && DR.rated(s), s.rated && DR.rated(s)),
+    tile("Rewatches", fmtN(s.rewatches), s.entries.length ? `${pct}% of entries` : "", s.rewatches && DR.rewatches(s), s.rewatches && DR.rewatches(s)),
+    tile("Reviews", fmtN(s.reviews), `${fmtN(s.likes)} liked`, reviews.length && D.reviews(s.scope === "all" ? "Your reviews" : `Reviews of ${s.scope}`, plural(reviews.length, "review"), reviews), s.likes && DR.liked(s)),
   ].join("");
 }
 
@@ -115,7 +121,8 @@ function renderLookup() {
       <button class="btn small" type="button" id="btn-stop">Stop</button></div>`;
     return;
   }
-  const coverage = `<p><strong>${fmtN(have)} of ${plural(total, "film")}</strong> ${total === 1 ? "has" : "have"} cast and crew. `;
+  const withMeta = lib.films.filter((f) => metaOf(f)), without = lib.films.filter((f) => !metaOf(f));
+  const coverage = `<p><strong>${dlink(D.films("With cast & crew", filmsSub(withMeta), withMeta, { sort: "name" }), fmtN(have))} of ${plural(total, "film")}</strong> ${total === 1 ? "has" : "have"} cast and crew${without.length ? ` (${dlink(D.films("Without cast & crew", "Films with no details yet, or no match on TMDB", without, { sort: "name" }), `${fmtN(without.length)} without`)})` : ""}. `;
   let body = "";
   if (!IN_VIEWER) {
     const key = tmdbKey();

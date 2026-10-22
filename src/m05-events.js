@@ -32,10 +32,7 @@ function act(t) {
   else if (a === "back") pop();
   else if (a === "people") { Object.assign(state, { view: "people", role: t.dataset.role || "c", stack: [], peopleLimit: 50 }); saveView(); render(); window.scrollTo(0, 0); }
   else if (a === "cat") push({ type: "cat", field: t.dataset.field, title: t.dataset.field[0].toUpperCase() + t.dataset.field.slice(1) });
-  else if (a === "all-rated" || a === "liked") {
-    const films = STATS.films.filter((f) => a === "liked" ? f.liked : f.rating);
-    push({ type: "films", title: a === "liked" ? "Liked" : "Highest rated", sub: plural(films.length, "film"), films });
-  }
+  else if (a === "all-rated" || a === "liked") openSheet(a === "liked" ? DR.liked(STATS) : D.films("Highest rated", filmsSub(STATS.films.filter((f) => f.rating)), STATS.films.filter((f) => f.rating), { scope: STATS.scope }));
   else if (a === "more-people") { state.peopleLimit += 100; render(); }
   else if (a === "more-diary") { state.diaryLimit += 120; render(); }
   else if (a === "example" || a === "mine") { Object.assign(state, { mode: a === "example" ? "example" : "mine", scope: "all", view: "profile", stack: [] }); saveView(); render(); window.scrollTo(0, 0); }
@@ -85,8 +82,20 @@ function bind() {
     if (x && x.hasAttribute("data-expand")) { const open = x.previousElementSibling.classList.toggle("clamp") === false; x.textContent = open ? "Less" : "More"; return; }
     if (x) { state.reviewLimit += 30; refreshReviewList(); }
   });
+  // the sheet: Back, Done, a tap outside it, and "See all"
+  const sheet = $("#sheet");
+  sheet.addEventListener("click", (e) => { if (e.target === sheet) sheet.close(); });
+  sheet.addEventListener("close", () => { SSTACK = []; PANEL = new Map(); });
   document.addEventListener("click", (e) => {
-    const t = e.target.closest("[data-insyear],[data-cmp],[data-unfriend],[data-lb],[data-crowdsel],[data-act],[data-view],[data-scope],[data-push],[data-role],[data-crew],[data-sort],[data-catsort]");
+    const x = e.target.closest("[data-sback],[data-sclose],[data-drillpage],[data-drillmore]");
+    if (!x) return;
+    if (x.hasAttribute("data-sback")) { SSTACK.pop(); paintSheet(); }
+    else if (x.hasAttribute("data-sclose")) sheet.close();
+    else if (x.hasAttribute("data-drillpage")) sheetToPage();
+    else { state.drillLimit += 200; render(); }
+  });
+  document.addEventListener("click", (e) => {
+    const t = e.target.closest("[data-insyear],[data-cmp],[data-unfriend],[data-lb],[data-crowdsel],[data-act],[data-view],[data-scope],[data-list],[data-role],[data-crew],[data-sort],[data-catsort]");
     if (!t) return;
     if (t.dataset.insyear) { state.insYear = t.dataset.insyear; render(); return; }
     if (t.dataset.cmp) { Object.assign(state, { cmp: t.dataset.cmp, unfriend: null }); render(); return; }
@@ -104,7 +113,7 @@ function bind() {
       if (!same) window.scrollTo(0, 0);
     }
     else if (t.dataset.scope) { Object.assign(state, { scope: t.dataset.scope, peopleLimit: 50, diaryLimit: 60 }); saveView(); render(); }
-    else if (t.dataset.push) { const L = LISTS.get(t.dataset.push); if (L) push({ type: "films", title: L.title, sub: L.sub, films: L.films, person: L.person }); }
+    else if (t.dataset.list) openSheet(drillGet(t.dataset.list), sheet.open && sheet.contains(t));
     else if (t.dataset.role) { Object.assign(state, { role: t.dataset.role, peopleLimit: 50 }); render(); }
     else if (t.dataset.crew) { state.crew = t.dataset.crew; render(); }
     else if (t.dataset.sort) { state.sort = t.dataset.sort; render(); }

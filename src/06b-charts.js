@@ -1,7 +1,5 @@
 <script>
 /* ---------- helpers and charts shared by the desktop and phone pages ---------- */
-let LISTS = new Map(), listSeq = 0;
-function reg(title, sub, films, person) { const id = "l" + (++listSeq); LISTS.set(id, { title, sub, films, person }); return id; }
 const initials = (name) => name.replace(/[^\p{L}\s-]/gu, "").split(/[\s-]+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 const ordinal = (n) => { const s = ["th", "st", "nd", "rd"], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); };
 // A small link to the TMDB page a film was matched to, so a wrong match is easy to spot.
@@ -24,7 +22,9 @@ function colChart(cols, aria, legend, H = 162) {
     const segs = [];
     if (c.a) segs.push(`<div class="seg a" style="height:${(c.a / max * 100).toFixed(2)}%"></div>`);
     if (c.b) segs.push(`<div class="seg b" style="height:${(c.b / max * 100).toFixed(2)}%"></div>`);
-    return `<div class="col" data-tip="${esc(c.tip)}">${segs.join("")}</div>`;
+    // a column with something behind it opens it
+    return c.to ? `<button class="col" type="button" ${dl(c.to)} data-tip="${esc(c.tip)}" aria-label="${esc(c.tip)}">${segs.join("")}</button>`
+      : `<div class="col" data-tip="${esc(c.tip)}">${segs.join("")}</div>`;
   }).join("");
   const axis = cols.map((c) => `<span${c.minor ? ' class="minor"' : ""}>${c.label || ""}</span>`).join("");
   return `${legend || ""}<div class="chart"><div class="gridline" style="bottom:${(tick / max * H).toFixed(1)}px"><span>${fmtN(tick)}</span></div>
@@ -32,7 +32,7 @@ function colChart(cols, aria, legend, H = 162) {
 }
 function timeline(s) {
   const E = s.entries, cols = [];
-  const add = (key, label, tipLabel, minor) => cols.push({ key, a: 0, b: 0, label, tipLabel, minor });
+  const add = (key, label, tipLabel, minor) => cols.push({ key, a: 0, b: 0, label, tipLabel, minor, es: [] });
   let keyOf;
   if (s.scope !== "all") {
     const y = +s.scope, jan1 = dayIndex(`${y}-01-01`), off = weekdayOf(`${y}-01-01`);
@@ -63,8 +63,11 @@ function timeline(s) {
     }
   }
   const idx = new Map(cols.map((c, i) => [c.key, i]));
-  for (const e of E) { const c = cols[idx.get(keyOf(e))]; if (c) e.rewatch ? c.b++ : c.a++; }
-  for (const c of cols) c.tip = `${c.tipLabel}: ${plural(c.a + c.b, "film")}${c.b ? ` (${plural(c.b, "rewatch", "rewatches")})` : ""}`;
+  for (const e of E) { const c = cols[idx.get(keyOf(e))]; if (c) { e.rewatch ? c.b++ : c.a++; c.es.push(e); } }
+  for (const c of cols) {
+    c.tip = `${c.tipLabel}: ${plural(c.a + c.b, "film")}${c.b ? ` (${plural(c.b, "rewatch", "rewatches")})` : ""}`;
+    if (c.es.length) c.to = D.entries(c.tipLabel, entriesSub(c.es), c.es, { order: "asc" });
+  }
   return cols;
 }
 function heatmap(s) {
@@ -76,7 +79,7 @@ function heatmap(s) {
   for (let i = 0; i < pad; i++) cells.push('<i class="pad"></i>');
   for (let d = start; d <= end; d++) {
     const iso = isoOfDay(d), n = s.byDay.get(iso) || 0;
-    cells.push(`<i class="${n ? "l" + Math.min(3, n) : ""}" data-tip="${fmtDate(iso)}: ${plural(n, "film")}"></i>`);
+    cells.push(`<i class="${n ? "l" + Math.min(3, n) : ""}" data-tip="${fmtDate(iso)}: ${plural(n, "film")}"${n ? ` ${dl(DR.day(s.entries, iso))}` : ""}></i>`);
   }
   const weeks = Math.ceil((pad + end - start + 1) / 7);
   for (let w = 0; w < weeks; w++) {

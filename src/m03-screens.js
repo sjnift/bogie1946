@@ -75,19 +75,19 @@ function poster(f) {
   return `<span class="poster"><span class="ph">${esc(f.name)}<small>${f.year || ""}</small></span>${img}</span>`;
 }
 function posterGrid(films) {
-  return `<div class="pgrid">${films.map((f) => `<div class="pitem" title="${esc(f.name)}${f.year ? ` (${f.year})` : ""}">${poster(f)}
-    <span class="pmeta"><span class="stars">${stars(f.rating)}</span>${f.liked ? '<span class="heart" aria-label="liked">♥</span>' : ""}</span></div>`).join("")}</div>`;
+  return `<div class="pgrid">${films.map((f) => `<button class="pitem" type="button" ${dl(D.film(f))} title="${esc(f.name)}${f.year ? ` (${f.year})` : ""}">${poster(f)}
+    <span class="pmeta"><span class="stars">${stars(f.rating)}</span>${f.liked ? '<span class="heart" aria-label="liked">♥</span>' : ""}</span></button>`).join("")}</div>`;
 }
 const filmsTitle = (p) => `${plural(p.count, "film")}${p.avg ? ` · ★ ${p.avg.toFixed(2)} average` : ""}`;
 function personRow(p, rank, sortBest) {
-  return `<button class="prow" type="button" data-push="${reg(p.name, filmsTitle(p), p.films, p)}">
+  return `<button class="prow" type="button" data-list="${reg(p.name, filmsTitle(p), p.films, p)}">
     <span class="rk">${rank}</span>${avatar(p, "md")}
     <span style="min-width:0"><span class="nm" style="display:block">${esc(p.name)}</span><span class="sub">${filmsTitle(p)}</span></span>
     <span class="val">${sortBest ? p.avg.toFixed(2) : fmtN(p.count)}</span>${CHEV}</button>`;
 }
 function catRow(c, max, sortBest) {
   const w = sortBest ? c.avg / 5 : c.count / max;
-  return `<button class="prow cat" type="button" data-push="${reg(c.name, filmsTitle(c), c.films)}">
+  return `<button class="prow cat" type="button" data-list="${reg(c.name, filmsTitle(c), c.films)}">
     <span class="nm">${esc(c.name)}</span><span class="mini" aria-hidden="true"><span style="width:${(w * 100).toFixed(1)}%"></span></span>
     <span class="val" style="text-align:right">${sortBest ? c.avg.toFixed(2) : fmtN(c.count)}</span>${CHEV}</button>`;
 }
@@ -108,22 +108,20 @@ function profileScreen(s) {
       <span>${job.running ? `Looking up cast &amp; crew · ${fmtN(job.done)} of ${fmtN(job.total)}` : `Cast &amp; crew for ${fmtN(have)} of ${plural(total, "film")}`}</span>
       <span class="count" style="color:var(--green)">${job.running ? "" : "Fill in"}</span>${CHEV}</button>` : "";
   const hours = Math.round(s.minutes / 60);
-  const strip = `<div class="strip">
-    <div><b class="num">${fmtN(s.films.length)}</b><span>Films</span></div>
-    <div><b class="num">${s.timed ? fmtN(hours) : "—"}</b><span>Hours</span></div>
-    <div><b class="num">${fmtN(s.entries.length)}</b><span>Entries</span></div>
-    <div><b class="num">${s.avgRating ? s.avgRating.toFixed(2) : "—"}</b><span>Average</span></div></div>`;
+  const cell = (to, v, label) => to ? `<button type="button" ${dl(to)}><b class="num">${v}</b><span>${label}</span></button>` : `<div><b class="num">${v}</b><span>${label}</span></div>`;
+  const strip = `<div class="strip">${cell(s.films.length && DR.films(s), fmtN(s.films.length), "Films")}${cell(s.timed && DR.runtime(s), s.timed ? fmtN(hours) : "—", "Hours")}
+    ${cell(s.entries.length && DR.diary(s), fmtN(s.entries.length), "Entries")}${cell(s.rated && DR.rated(s), s.avgRating ? s.avgRating.toFixed(2) : "—", "Average")}</div>`;
   const top = s.films.filter((f) => f.rating).sort((a, b) => b.rating - a.rating || b.entries.length - a.entries.length || (b.year || 0) - (a.year || 0));
   const topRated = top.length ? sh("Top rated", `<button class="more" type="button" data-act="all-rated">See all</button>`) + posterGrid(top.slice(0, 4)) : "";
   const ratings = s.rated ? sh("Ratings", `<span class="num">${fmtN(s.rated)}</span>`) +
-    colChart(s.spread.map((x) => ({ a: x.count, b: 0, tip: `${stars(x.r)} · ${plural(x.count, "film")}` })), "How many films you gave each rating", "", 72)
+    colChart(s.spread.map((x) => ({ a: x.count, b: 0, tip: `${stars(x.r)} · ${plural(x.count, "film")}`, to: x.count && DR.rating(s.films, x.r) })), "How many films you gave each rating", "", 72)
       .replace('class="chart"', 'class="chart slate"').replace(/<div class="axis"[^]*?<\/div>/, "") +
     `<div class="hist-ends" style="margin-right:26px"><span class="stars">★</span><span class="stars">★★★★★</span></div>` : "";
   const strip2 = (label, data, role) => {
     const list = data.most.slice(0, 10);
     if (!list.length) return "";
     return sh(label, `<button class="more" type="button" data-act="people" data-role="${role}">See all</button>`) +
-      `<div class="scroller">${list.map((p) => `<button class="pcard" type="button" data-push="${reg(p.name, filmsTitle(p), p.films, p)}">
+      `<div class="scroller">${list.map((p) => `<button class="pcard" type="button" data-list="${reg(p.name, filmsTitle(p), p.films, p)}">
         ${avatar(p, "lg")}<span class="nm">${esc(p.name)}</span><span class="ct">${plural(p.count, "film")}</span></button>`).join("")}</div>`;
   };
   const people = s.withMeta ? strip2("Most watched actors", s.cast, "c") + strip2("Most watched directors", s.directors, "d") : "";
@@ -135,7 +133,7 @@ function profileScreen(s) {
     ["Genres", s.genres.most.length, `data-act="cat" data-field="genres"`],
     ["Countries", s.countries.most.length, `data-act="cat" data-field="countries"`],
     ["Languages", s.languages.most.length, `data-act="cat" data-field="languages"`],
-    ["Rewatches", s.rewatches, `data-view="films"`],
+    ["Rewatches", s.rewatches, s.rewatches ? dl(DR.rewatches(s)) : `data-view="diary"`],
     ["Liked", s.likes, `data-act="liked"`],
   ].map(([k, n, attrs]) => `<li><button class="row" type="button" ${attrs}><span>${k}</span><span class="count">${fmtN(n)}</span>${CHEV}</button></li>`).join("");
   return `<div class="profile">${avatar({ name: ex ? "Example" : lib.profile.username || "You" }, "xl")}

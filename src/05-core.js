@@ -126,7 +126,8 @@ function buildLibrary(input) {
   const get = (r) => {
     const k = filmKey(r.Name, r.Year);
     let f = films.get(k);
-    if (!f) { f = { key: k, name: String(r.Name).trim(), year: parseInt(r.Year, 10) || null, rating: null, liked: false, entries: [], reviews: 0 }; films.set(k, f); }
+    if (!f) { f = { key: k, name: String(r.Name).trim(), year: parseInt(r.Year, 10) || null, rating: null, liked: false, entries: [], reviews: 0, uri: "" }; films.set(k, f); }
+    if (!f.uri && /^https?:\/\//.test(r["Letterboxd URI"] || "")) f.uri = r["Letterboxd URI"];
     return f;
   };
   // Watched films and diary entries decide what counts as seen. Likes and reviews only mark films

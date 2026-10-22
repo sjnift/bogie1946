@@ -5,11 +5,11 @@
 # With TMDB_KEY set, the key is written into the two standalone files only, so their owner never has to paste it.
 set -e
 cd "$(dirname "$0")"
-SHARED="src/04-example.js src/05-core.js src/06-lookup.js src/06b-charts.js src/06d-letterboxd.js src/06c-insights.js src/06e-compare.js src/06f-reviews.js"
+SHARED="src/04-example.js src/05-core.js src/06-lookup.js src/06b-charts.js src/06d-letterboxd.js src/06c-insights.js src/06e-compare.js src/06f-reviews.js src/06g-drill.js"
 DESK_HEAD="src/01-head.html src/02-style.html"
-DESK_BODY="src/03-body.html $SHARED src/07-render-a.js src/07-render-b.js src/07c-insights.js src/07d-compare.js src/07e-reviews.js src/08-events.js"
+DESK_BODY="src/03-body.html $SHARED src/07-render-a.js src/07-render-b.js src/07c-insights.js src/07d-compare.js src/07e-reviews.js src/07f-drill.js src/08-events.js"
 MOB_HEAD="src/m01-head.html"
-MOB_BODY="src/m02-body.html $SHARED src/m03-screens.js src/m04-screens.js src/m06-insights.js src/m07-compare.js src/m08-reviews.js src/m05-events.js"
+MOB_BODY="src/m02-body.html $SHARED src/m03-screens.js src/m04-screens.js src/m06-insights.js src/m07-compare.js src/m08-reviews.js src/m09-drill.js src/m05-events.js"
 
 standalone() { # $1 = head files, $2 = body files
   printf '<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">\n'

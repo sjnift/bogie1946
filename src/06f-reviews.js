@@ -29,18 +29,27 @@ function computeReviewInsights(lib, Y) {
   const avgReviewed = avg(rated.filter((f) => reviewed.has(f)).map((f) => f.rating)), avgOthers = avg(rated.filter((f) => !reviewed.has(f)).map((f) => f.rating));
   const shareAt = (test) => { const fs = rated.filter((f) => test(f.rating)); return fs.length >= 3 ? pctOf(fs.filter((f) => reviewed.has(f)).length, fs.length) : null; };
   const loveShare = shareAt((r) => r >= 4.5), lowShare = shareAt((r) => r <= 2.5);
+  const all = D.reviews(Y ? `Reviews of ${Y}` : "Your reviews", `${plural(R.length, "review")} · ${fmtN(total)} words`, R);
+  const split = (title, fs) => D.groups(title, Y ? `Films you logged in ${Y}` : "Every film you've logged", [
+    D.films("Reviewed", filmsSub(fs.filter((f) => reviewed.has(f))), fs.filter((f) => reviewed.has(f))), D.films("Not reviewed", filmsSub(fs.filter((f) => !reviewed.has(f))), fs.filter((f) => !reviewed.has(f)))]);
   const lines = [
-    `${Y ? `In ${Y} you wrote` : "You've written"} ${plural(R.length, "review")}, about ${fmtN(total)} words in all${total >= 600 ? `: roughly ${fmtN(Math.round(total / 300))} pages of a paperback` : ""}.`,
-    `A typical review runs ${plural(median, "word")}; the longest, for ${byLength[0].film.name}, runs ${fmtN(byLength[0].words)}.`,
+    { text: `${Y ? `In ${Y} you wrote` : "You've written"} ${plural(R.length, "review")}, about ${fmtN(total)} words in all${total >= 600 ? `: roughly ${fmtN(Math.round(total / 300))} pages of a paperback` : ""}.`, to: all },
+    { text: `A typical review runs ${plural(median, "word")}; the longest, for ${byLength[0].film.name}, runs ${fmtN(byLength[0].words)}.`, to: D.reviews(Y ? `Your ${Y} reviews by length` : "Your reviews by length", `A typical one runs ${plural(median, "word")}`, byLength) },
   ];
-  if (films.length) lines.push(`You've reviewed ${pctOf(reviewed.size, films.length)}% of the films you logged${Y ? ` in ${Y}` : ""}.`);
+  if (films.length) lines.push({ text: `You've reviewed ${pctOf(reviewed.size, films.length)}% of the films you logged${Y ? ` in ${Y}` : ""}.`, to: split("Reviewed and not", films) });
   if (avgReviewed && avgOthers && Math.abs(avgReviewed - avgOthers) >= 0.15)
-    lines.push(`You review the films you ${avgReviewed > avgOthers ? "like more" : "like less"}: ${starsNum(avgReviewed)} on average for the ones you reviewed, against ${starsNum(avgOthers)} for the rest.`);
+    lines.push({ text: `You review the films you ${avgReviewed > avgOthers ? "like more" : "like less"}: ${starsNum(avgReviewed)} on average for the ones you reviewed, against ${starsNum(avgOthers)} for the rest.`, to: split("Reviewed and not", rated) });
   if (loveShare != null && lowShare != null && Math.abs(loveShare - lowShare) >= 10)
-    lines.push(`You review ${loveShare}% of the films you rate 4½★ or more, and ${lowShare}% of those you rate 2½★ or less.`);
+    lines.push({ text: `You review ${loveShare}% of the films you rate 4½★ or more, and ${lowShare}% of those you rate 2½★ or less.`,
+      to: D.groups("Which films you review", "", [split("", rated.filter((f) => f.rating >= 4.5)).groups.map((g) => ({ ...g, title: `Rated 4½★ or more: ${g.title.toLowerCase()}` })),
+        split("", rated.filter((f) => f.rating <= 2.5)).groups.map((g) => ({ ...g, title: `Rated 2½★ or less: ${g.title.toLowerCase()}` }))].flat()) });
   const perYear = Y ? [] : [...new Set(R.map((r) => (r.date || "").slice(0, 4)).filter(Boolean))].sort()
-    .map((y) => ({ year: y, count: R.filter((r) => (r.date || "").startsWith(y)).length }));
-  return { count: R.length, total, median, longest: byLength[0], top, love, cold, lines, perYear };
+    .map((y) => { const list = R.filter((r) => (r.date || "").startsWith(y)); return { year: y, count: list.length, to: D.reviews(`Reviews of ${y}`, plural(list.length, "review"), list) }; });
+  // the reviews that use a word, from all of them or just the loved or unloved ones
+  const words = new Map(R.map((r) => [r, new Set(reviewWords(r.text))]));
+  const withWord = (w, among = R, label) => { const list = among.filter((r) => words.get(r).has(w)); return D.reviews(`“${w}”`, `${plural(list.length, "review")}${label ? ` ${label}` : ""} use it`, list, { mark: w }); };
+  return { count: R.length, total, median, longest: byLength[0], top, love, cold, lines, perYear, all,
+    wordTo: (w) => withWord(w), loveTo: (w) => withWord(w, hi, "of films you rated 4½★ or more"), coldTo: (w) => withWord(w, lo, "of films you rated 3★ or less") };
 }
 // Reviews of the same film by two people, both with text.
 function bothReviewed(A, B) {

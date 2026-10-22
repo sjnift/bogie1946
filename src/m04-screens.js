@@ -1,32 +1,34 @@
 <script>
 /* ---------- Diary ---------- */
-const fact = (k, v, f) => `<div class="fact"><span class="k">${k}</span><span class="v">${esc(v)}${tmdbLink(f)}</span></div>`;
+// a fact that opens what it counts, or the film it names
+const fact = (k, v, f, to) => { const inner = `<span class="k">${k}</span><span class="v">${esc(v)}${to || f ? '<span class="go" aria-hidden="true"> ›</span>' : ""}</span>`;
+  return to || f ? `<button class="fact" type="button" ${dl(to || D.film(f))}>${inner}</button>` : `<div class="fact">${inner}</div>`; };
 function diaryScreen(s) {
   if (!s.entries.length) return `<div class="empty" style="padding-top:28px">No diary dates in ${s.scope === "all" ? "your export" : s.scope}. Films logged without a date still count on the other tabs.</div>`;
   const cols = timeline(s);
   const unit = s.scope !== "all" ? "week" : cols[0].key.length === 7 ? "month" : "year";
   const bm = s.busiestMonth, fav = s.weekday.indexOf(Math.max(...s.weekday));
   const facts = `<div class="facts">${[
-    fact("Busiest month", bm ? `${MONTHS[+bm.key.slice(5, 7) - 1]} ${bm.key.slice(0, 4)} · ${plural(bm.count, "film")}` : "—"),
-    fact("Longest streak", s.streak.days > 1 ? `${s.streak.days} days` : "1 day"),
-    fact("Most in a day", s.busiestDay ? `${plural(s.busiestDay.count, "film")} · ${fmtDate(s.busiestDay.key).replace(/ \d{4}$/, s.scope === "all" ? "$&" : "")}` : "—"),
-    fact("Favourite day", WEEKDAYS_LONG[fav]),
+    fact("Busiest month", bm ? `${MONTHS[+bm.key.slice(5, 7) - 1]} ${bm.key.slice(0, 4)} · ${plural(bm.count, "film")}` : "—", null, bm && DR.month(s.entries, bm.key)),
+    fact("Longest streak", s.streak.days > 1 ? `${s.streak.days} days` : "1 day", null, DR.streak(s)),
+    fact("Most in a day", s.busiestDay ? `${plural(s.busiestDay.count, "film")} · ${fmtDate(s.busiestDay.key).replace(/ \d{4}$/, s.scope === "all" ? "$&" : "")}` : "—", null, s.busiestDay && DR.day(s.entries, s.busiestDay.key)),
+    fact("Favourite day", WEEKDAYS_LONG[fav], null, DR.weekday(s.entries, fav)),
   ].join("")}</div>`;
   const legend = s.rewatches ? `<div class="legend"><span><i style="background:var(--green-mark)"></i>First watch</span><span><i style="background:var(--blue-mark)"></i>Rewatch</span></div>` : "";
   let chart = colChart(cols, `Diary entries by ${unit}`, legend, 110);
   if (cols.length > 24) chart = chart.replace('class="axis"', 'class="axis dense"');
   const wmax = Math.max(1, ...s.weekday);
-  const weekdays = `<div class="weekdays" role="img" aria-label="Diary entries by day of the week">${s.weekday.map((n, i) =>
-    `<div class="wd" data-tip="${WEEKDAYS_LONG[i]}: ${plural(n, "film")}"><span class="cnt">${n}</span><div class="bar-v"><span style="height:${(n / wmax * 100).toFixed(1)}%"></span></div><span class="lbl">${WEEKDAYS[i].slice(0, 1)}</span></div>`).join("")}</div>`;
+  const weekdays = `<div class="weekdays" role="group" aria-label="Diary entries by day of the week">${s.weekday.map((n, i) =>
+    `<button class="wd" type="button" ${dl(DR.weekday(s.entries, i))} aria-label="${WEEKDAYS_LONG[i]}: ${plural(n, "film")}"><span class="cnt">${n}</span><span class="bar-v"><span style="height:${(n / wmax * 100).toFixed(1)}%"></span></span><span class="lbl">${WEEKDAYS[i].slice(0, 1)}</span></button>`).join("")}</div>`;
   const list = [...s.entries].reverse().slice(0, state.diaryLimit);
   let rows = "", month = "";
   for (const e of list) {
     const m = e.date.slice(0, 7);
     if (m !== month) { month = m; rows += `<div class="month-h">${MONTHS_LONG[+m.slice(5, 7) - 1]} ${m.slice(0, 4)}</div>`; }
-    rows += `<div class="drow"><span class="day">${+e.date.slice(8, 10)}</span>${poster(e.film)}
+    rows += `<button class="drow" type="button" ${dl(D.film(e.film, { entry: e }))}><span class="day">${+e.date.slice(8, 10)}</span>${poster(e.film)}
       <span style="min-width:0"><span class="t" style="display:block">${esc(e.film.name)} <span>${e.film.year || ""}</span></span>
       <span class="m"><span class="stars">${stars(e.rating)}</span></span></span>
-      <span class="icons">${e.rewatch ? '<span class="rewatch" title="Rewatch">↻</span>' : ""}${e.film.liked ? '<span class="heart" title="Liked">♥</span>' : ""}${e.review ? '<span title="Reviewed">≡</span>' : ""}</span></div>`;
+      <span class="icons">${e.rewatch ? '<span class="rewatch" title="Rewatch">↻</span>' : ""}${e.film.liked ? '<span class="heart" title="Liked">♥</span>' : ""}${e.review ? '<span title="Reviewed">≡</span>' : ""}</span></button>`;
   }
   const more = s.entries.length > state.diaryLimit ? `<button class="row" type="button" data-act="more-diary"><span>Show older entries</span><span class="count">${fmtN(s.entries.length - state.diaryLimit)} more</span>${CHEV}</button>` : "";
   return facts + sh(`Films by ${unit}`, `<span class="num">${fmtN(s.entries.length)}</span>`) + chart +
@@ -55,7 +57,7 @@ function filmsScreen(s) {
     const all = s.decades, cols = [];
     for (let d = all[0].decade; d <= all[all.length - 1].decade; d += 10) {
       const x = all.find((y) => y.decade === d);
-      cols.push({ a: x ? x.count : 0, b: 0, label: `’${String(d).slice(2)}`, tip: `${d}s: ${plural(x ? x.count : 0, "film")}${x && x.avg ? ` · ${x.avg.toFixed(2)} average` : ""}` });
+      cols.push({ a: x ? x.count : 0, b: 0, label: `’${String(d).slice(2)}`, tip: `${d}s: ${plural(x ? x.count : 0, "film")}${x && x.avg ? ` · ${x.avg.toFixed(2)} average` : ""}`, to: x && DR.decade(x) });
     }
     const ranked = all.filter((x) => x.ratings.length >= 3).sort((a, b) => b.avg - a.avg).slice(0, 5)
       .map((x) => ({ name: `${x.decade}s`, films: x.films, count: x.count, avg: x.avg }));
@@ -64,19 +66,19 @@ function filmsScreen(s) {
   }
 
   const re = s.films.filter((f) => views(f) > 1).sort((a, b) => views(b) - views(a) || (b.rating || 0) - (a.rating || 0)).slice(0, 8);
-  if (re.length) html += sh("Most rewatched") + re.map((f) => `<div class="drow" style="grid-template-columns:34px minmax(0,1fr) auto">${poster(f)}
+  if (re.length) html += sh("Most rewatched") + re.map((f) => `<button class="drow" type="button" ${dl(D.film(f))} style="grid-template-columns:34px minmax(0,1fr) auto">${poster(f)}
     <span style="min-width:0"><span class="t" style="display:block">${esc(f.name)} <span>${f.year || ""}</span></span><span class="m"><span class="stars">${stars(f.rating)}</span></span></span>
-    <span class="val num">${views(f)}×</span></div>`).join("");
+    <span class="val num">${views(f)}×</span></button>`).join("");
 
   const E = s.entries;
   if (E.length) {
     const marks = s.scope === "all" ? [50, 100, 250, 500, 750, 1000, 1500, 2000, 2500, 3000, 4000, 5000, 7500, 10000] : [25, 50, 100, 150, 200, 250, 300, 365, 400, 500];
-    const items = [["First film", E[0]], ...marks.filter((n) => n < E.length).slice(-5).map((n) => [`${ordinal(n)} film`, E[n - 1]])];
-    if (E.length > 1) items.push(["Latest", E[E.length - 1]]);
-    html += sh("Milestones") + `<div class="pgrid">${items.map(([k, e]) => `<div class="pitem" title="${esc(e.film.name)}${e.film.year ? ` (${e.film.year})` : ""}">
+    const items = [["First film", E[0], 1], ...marks.filter((n) => n < E.length).slice(-5).map((n) => [`${ordinal(n)} film`, E[n - 1], n])];
+    if (E.length > 1) items.push(["Latest", E[E.length - 1], E.length]);
+    html += sh("Milestones") + `<div class="pgrid">${items.map(([k, e, n]) => `<button class="pitem" type="button" ${dl(D.film(e.film, { entry: e, badge: `${k}: diary entry ${fmtN(n)} of ${fmtN(E.length)}${s.scope === "all" ? "" : ` in ${s.scope}`}, ${fmtDate(e.date)}` }))} title="${esc(e.film.name)}${e.film.year ? ` (${e.film.year})` : ""}">
       <span class="mlabel">${k}</span>${poster(e.film)}
       <span class="pmeta"><span class="stars">${stars(e.rating)}</span>${e.rewatch ? '<span class="rewatch" aria-label="rewatch">↻</span>' : ""}</span>
-      <span class="mdate">${fmtDate(e.date)}</span></div>`).join("")}</div>`;
+      <span class="mdate">${fmtDate(e.date)}</span></button>`).join("")}</div>`;
   }
 
   const timed = s.films.filter((f) => metaOf(f) && metaOf(f).r);
@@ -177,6 +179,7 @@ function detailScreen(d, s) {
   if (d.type === "insights") return insightsScreen();
   if (d.type === "compare") return compareScreen();
   if (d.type === "reviews") return reviewsScreen();
+  if (d.type === "drill") return drillScreen(d.d);
   if (d.type === "cat") {
     const data = s[d.field], best = state.catSort === "best";
     const list = best ? data.best : data.most;

@@ -6,8 +6,8 @@ const mReimport = () => `<div class="card notice"><p class="title">Your reviews 
 
 function mReviewItem(r) {
   const long = r.words > 60;
-  return `<div class="mrev"><div class="mrev-head">${poster(r.film)}<div style="min-width:0"><div class="t">${esc(r.film.name)} <span>${r.film.year || ""}</span></div>
-    <div class="m"><span class="stars">${stars(r.rating)}</span>${r.film.liked ? '<span class="heart">♥</span>' : ""}${r.rewatch ? '<span class="rewatch">↻</span>' : ""}<span class="dim">${r.date ? fmtDate(r.date) : ""}</span></div></div></div>
+  return `<div class="mrev"><button class="mrev-head" type="button" ${dl(D.film(r.film))}>${poster(r.film)}<span style="min-width:0"><span class="t" style="display:block">${esc(r.film.name)} <span>${r.film.year || ""}</span></span>
+    <span class="m"><span class="stars">${stars(r.rating)}</span>${r.film.liked ? '<span class="heart">♥</span>' : ""}${r.rewatch ? '<span class="rewatch">↻</span>' : ""}<span class="dim">${r.date ? fmtDate(r.date) : ""}</span></span></span></button>
     <div class="rv-text${long ? " clamp" : ""}">${r.html}</div>${long ? `<button class="linkish" type="button" data-expand>More</button>` : ""}</div>`;
 }
 function mReviewList(year) {
@@ -37,21 +37,22 @@ function mReviewInsights(lib, Y) {
   if (lib.reviewTextMissing) return sh(Y ? `Reviews in ${esc(Y)}` : "Your reviews") + mReimport();
   const RI = computeReviewInsights(lib, Y);
   if (!RI) return "";
-  let h = sh(Y ? `Reviews in ${esc(Y)}` : "Your reviews") + RI.lines.map((t) => `<div class="tline"><span class="mk" aria-hidden="true">●</span><span>${esc(t)}</span></div>`).join("");
+  let h = sh(Y ? `Reviews in ${esc(Y)}` : "Your reviews") + mLines(RI.lines, () => "●");
   if (RI.top.length) {
     const maxN = RI.top[0][1];
-    h += `<p class="status" style="margin:12px 0 6px">Words you use most</p><div class="wordcloud">${RI.top.map(([w, n]) => `<span class="w" style="font-size:${(12 + 11 * n / maxN).toFixed(1)}px">${esc(w)}</span>`).join("")}</div>`;
+    h += `<p class="status" style="margin:12px 0 6px">Words you use most</p><div class="wordcloud">${RI.top.map(([w, n]) => `<button class="w" type="button" ${dl(RI.wordTo(w))} style="font-size:${(12 + 11 * n / maxN).toFixed(1)}px">${esc(w)}</button>`).join("")}</div>`;
   }
-  const chips = (ws) => ws.length ? `<div class="wchips">${ws.map((w) => `<span>${esc(w)}</span>`).join("")}</div>` : `<p class="status">Not enough reviews yet.</p>`;
-  if (RI.love.length || RI.cold.length) h += `<p class="status" style="margin:14px 0 6px">When you love a film</p>${chips(RI.love)}<p class="status" style="margin:12px 0 6px">When you don't</p>${chips(RI.cold)}`;
+  const chips = (ws, to) => ws.length ? `<div class="wchips">${ws.map((w) => `<button type="button" ${dl(to(w))}>${esc(w)}</button>`).join("")}</div>` : `<p class="status">Not enough reviews yet.</p>`;
+  if (RI.love.length || RI.cold.length) h += `<p class="status" style="margin:14px 0 6px">When you love a film</p>${chips(RI.love, RI.loveTo)}<p class="status" style="margin:12px 0 6px">When you don't</p>${chips(RI.cold, RI.coldTo)}`;
+  if (RI.perYear.length >= 2) h += `<p class="status" style="margin:14px 0 6px">Reviews each year</p>` + colChart(RI.perYear.map((p) => ({ a: p.count, b: 0, label: `’${p.year.slice(2)}`, tip: `${p.year}: ${plural(p.count, "review")}`, to: p.to })), "Reviews written each year", "", 64);
   h += `<p class="status" style="margin:14px 0 0">Your longest review${Y ? ` of ${esc(Y)}` : ""}</p>` + mReviewItem(RI.longest);
   return h;
 }
 
-function mBothReviewed(A, B) {
+function mBothReviewed(A, B, card) {
   const both = bothReviewed(A, B).slice(0, 6);
   if (!both.length) return "";
-  return sh("In your words") + both.map((x) => `<div class="mrev"><div class="t" style="color:var(--ink);font-weight:600">${esc(x.f.name)} <span class="dim">${x.f.year || ""}</span></div>
+  return sh("In your words") + both.map((x) => `<div class="mrev"><div class="t" style="color:var(--ink);font-weight:600">${dlink(card(x.f), esc(x.f.name))} <span class="dim">${x.f.year || ""}</span></div>
     <p class="m" style="margin:6px 0 2px">You <span class="stars">${stars(x.mine.rating)}</span></p><p class="rv-text" style="margin:0">${esc(excerpt(x.mine.text, 180))}</p>
     <p class="m" style="margin:8px 0 2px">${esc(B.name)} <span class="stars">${stars(x.theirs.rating)}</span></p><p class="rv-text" style="margin:0">${esc(excerpt(x.theirs.text, 180))}</p></div>`).join("");
 }
