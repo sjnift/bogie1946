@@ -274,7 +274,7 @@ async function siteRemove() {
 function siteKey(repo, token) {
   repo = String(repo || SITE_GH_REPO).trim().replace(/^https?:\/\/github\.com\//i, "").replace(/\.git$|\/+$/g, "");
   token = String(token || "").trim();
-  if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) return siteSay("Type the site's repository as name/repository, for example sjnift/credits-roll.", true), false;
+  if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) return siteSay("Type the site's repository as name/repository, for example sjnift/bogie1946.", true), false;
   if (!token) return siteSay("Paste the GitHub key.", true), false;
   SITEPUB = { repo, token, at: null }; saveSite();
   return true;
@@ -339,7 +339,7 @@ function siteBox(kind) {
   if (idx === undefined) return box(title, `<p class="status">${site.offline ? "Couldn't reach the site just now." : "Checking the site…"}</p>`);
   const help = `<details class="site-help"><summary>How to make the GitHub key (once)</summary><ol class="steps">
       <li><a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">Make a fine-grained token</a>: name it Credits Roll site and pick the longest expiry.</li>
-      <li>Under Repository access choose <b>Only select repositories</b> and pick <b>${esc((SITE_GH_REPO || "your-name/credits-roll").split("/")[1])}</b>.</li>
+      <li>Under Repository access choose <b>Only select repositories</b> and pick <b>${esc((SITE_GH_REPO || "your-name/your-site").split("/")[1])}</b>.</li>
       <li>Under Permissions → Repository permissions set <b>Contents</b> to <b>Read and write</b>. Generate it, copy it and paste it above. It stays in this browser.</li></ol></details>`;
   const keyFields = () => (SITE_GH_REPO ? "" : field("repo", "The site's repository", "text", "off", "")) + field("token", "GitHub key for the site", "password", "off");
   if (!idx) {

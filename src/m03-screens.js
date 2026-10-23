@@ -169,7 +169,7 @@ function welcomeScreen() {
       <button class="btn green block" type="button" data-act="import">${ICON.upload}Import export</button>
       <p class="status">A backup file from another device works the same way.</p>
       ${state.importError ? `<p class="status err" role="alert">${esc(state.importError)}</p>` : ""}</div>
-    ${IN_VIEWER ? `<p class="note">This Claude version keeps its own copy of an import. Your saved diary is on the website, <a href="https://sjnift.github.io/credits-roll/" target="_blank" rel="noopener">sjnift.github.io/credits-roll</a>.</p>` : ""}
+    ${IN_VIEWER ? `<p class="note">This Claude version keeps its own copy of an import. Your saved diary is on the website, <a href="https://sjnift.github.io/bogie1946/" target="_blank" rel="noopener">sjnift.github.io/bogie1946</a>.</p>` : ""}
     <div class="foot"><p class="stamp">Updated <!--BUILD--></p></div>`;
 }
 // The header frosts over once the screen scrolls under it.

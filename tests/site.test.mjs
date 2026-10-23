@@ -7,7 +7,7 @@ import { createHash, webcrypto } from "node:crypto";
 import { gzipSync, gunzipSync } from "node:zlib";
 import { open, seed, assert, noErrors, until, JSZip } from "./lib.mjs";
 
-const REPO = "sjnift/credits-roll", TOKEN = "github_pat_test", PASS = "popcorn and credits", PASS2 = "second reel of film";
+const REPO = "sjnift/bogie1946", TOKEN = "github_pat_test", PASS = "popcorn and credits", PASS2 = "second reel of film";
 const rows = { profile: [{ "Date Joined": "2020-01-01", Username: "tester", "Given Name": "Sam", "Email Address": "someone@example.com", Bio: "hi" }],
   watched: [{ Name: "Heat", Year: "1995", Date: "2024-01-01" }], diary: [{ Name: "Heat", Year: "1995", Date: "2024-02-03", "Watched Date": "2024-02-03", Rating: "4.5" }],
   ratings: [{ Name: "Heat", Year: "1995", Rating: "4.5" }] };

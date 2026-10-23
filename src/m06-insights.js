@@ -119,7 +119,7 @@ function mCrowd(I) {
   const C = I.crowd;
   const toggles = chipBar("crowdsel", Object.entries(CROWDS).filter(([k]) => (C.available[k] || 0) >= 5 || k === C.key).map(([k, c]) => [k, c.short]), C.key);
   if (C.n < 5) {
-    const why = IN_VIEWER ? `Crowd scores come from TMDB and OMDb, which pages inside Claude can't reach. Open <a href="https://sjnift.github.io/credits-roll/" target="_blank" rel="noopener">the web version</a>.`
+    const why = IN_VIEWER ? `Crowd scores come from TMDB and OMDb, which pages inside Claude can't reach. Open <a href="https://sjnift.github.io/bogie1946/" target="_blank" rel="noopener">the web version</a>.`
       : C.key === "tmdb" ? "Crowd scores come with TMDB details. Look your films up in Settings."
       : C.key === "letterboxd" ? "Letterboxd averages need an Apify token, added in Settings." : "IMDb and critics' scores need a free OMDb key, added in Settings.";
     return toggles + `<div class="empty">${why}</div>`;

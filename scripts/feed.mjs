@@ -45,7 +45,7 @@ function parse(xml) {
 
 async function update(user) {
   const res = await fetch(`https://letterboxd.com/${encodeURIComponent(user)}/rss/`, {
-    headers: { "User-Agent": "Mozilla/5.0 (compatible; CreditsRollFeed/1.0; +https://github.com/sjnift/credits-roll)", Accept: "application/rss+xml, application/xml" },
+    headers: { "User-Agent": "Mozilla/5.0 (compatible; CreditsRollFeed/1.0; +https://github.com/sjnift/bogie1946)", Accept: "application/rss+xml, application/xml" },
   });
   if (res.status === 404) throw new Error(`${user}: Letterboxd has no public profile with this username. Check the spelling in feed-users.txt.`);
   if (!res.ok) throw new Error(`${user}: Letterboxd answered ${res.status} ${res.statusText} (${res.headers.get("server") || "?"}, ${res.headers.get("cf-mitigated") || "no challenge"})`);

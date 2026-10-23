@@ -5,7 +5,7 @@
    left as it was, so a fresh import simply takes over. */
 let FEED = null, FEED_ADDED = [];
 // The repository a GitHub Pages copy is published from, for the link that adds a username to the feed.
-// The site's own GitHub repository, from its address: sjnift.github.io/credits-roll/ is sjnift/credits-roll, and the
+// The site's own GitHub repository, from its address: sjnift.github.io/bogie1946/ is sjnift/bogie1946, and the
 // short sjnift.github.io/ (a repository named sjnift.github.io) is sjnift/sjnift.github.io.
 function repoOfPage(host, path) {
   const m = String(host).match(/^([\w-]+)\.github\.io$/i);

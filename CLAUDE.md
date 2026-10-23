@@ -17,13 +17,13 @@ comparisons with friends and more, in two layouts:
   reach, five tabs, screens that slide in, bottom sheets that swipe away. Dark only.
 
 Where it lives:
-- Live site (GitHub Pages, from `docs/` on `main`): https://sjnift.github.io/credits-roll/
+- Repository `sjnift/bogie1946` (renamed from `credits-roll` in Oct 2026; the app is still called Credits Roll, as the
+  owner wants). Live site (GitHub Pages, from `docs/` on `main`): https://sjnift.github.io/bogie1946/
   (`index.html` sends phones to `mobile.html`, others to `desktop.html`; both share one origin, so one import).
-  **Moving to https://sjnift.github.io/bogie1946/** (Oct 2026: the owner asked to rename the repository and the site
-  to `bogie1946`; they rename it on GitHub). Same origin, so browser data stays; GitHub doesn't forward a renamed
-  project site's old address, so bookmarks and the home-screen app need the new one. The site already works there:
-  `repoOfPage` reads the repository from the address, and a device that updates the diary on the site follows the new
-  name. After the rename: update the links that name the old address, this file, and push access.
+  The old address sjnift.github.io/credits-roll/ no longer works (GitHub doesn't forward a renamed project site);
+  browser data stayed (same origin). `repoOfPage` reads the repository from the address, and a device that updates
+  the diary on the site follows the repository's current name. A session made before the rename reaches it after
+  `add_repo` for `sjnift/bogie1946` and `git remote set-url origin https://github.com/sjnift/bogie1946`.
 - Claude versions (private artifacts): desktop https://claude.ai/artifact/52oE5x53dcjUZgBYQMfPjR,
   phone https://claude.ai/artifact/2RUkgC4dsysdz66WjJ6gzb. Inside Claude, outside sites are blocked, so the
   page uses the `sample` capability (Claude fills in film details) instead of TMDB, and downloads don't work.
@@ -89,9 +89,9 @@ The owner asked for this to be checked every time. A film, diary entry, person o
    The `links` check takes about two minutes.
 4. Commit with a message that says what changed for the owner; end it with the attribution lines the session
    gives you. Push to `main`.
-5. Wait for GitHub: `gh run list --repo sjnift/credits-roll --limit 4` — the `Site` workflow (checks) and
+5. Wait for GitHub: `gh run list --repo sjnift/bogie1946 --limit 4` — the `Site` workflow (checks) and
    `pages-build-deployment` (publishing). Then confirm the live files match the build:
-   `curl -s "https://sjnift.github.io/credits-roll/desktop.html?$(date +%s)" | cmp - docs/desktop.html` (same for mobile).
+   `curl -s "https://sjnift.github.io/bogie1946/desktop.html?$(date +%s)" | cmp - docs/desktop.html` (same for mobile).
 6. Update the Claude versions with the Artifact tool: publish `credits-roll.html` with
    `url: https://claude.ai/artifact/52oE5x53dcjUZgBYQMfPjR` and `credits-roll-mobile.html` with
    `url: https://claude.ai/artifact/2RUkgC4dsysdz66WjJ6gzb` (in a new conversation read each one first;
@@ -277,7 +277,7 @@ app**. `06j-site.js`:
 ## Daily diary updates
 
 `.github/workflows/feed.yml` runs at 06:23 UTC each day (and on demand: `gh workflow run feed.yml --repo
-sjnift/credits-roll`). `scripts/feed.mjs` reads `https://letterboxd.com/<user>/rss/` for each name in
+sjnift/bogie1946`). `scripts/feed.mjs` reads `https://letterboxd.com/<user>/rss/` for each name in
 `feed-users.txt` (now `bogie1946`) into `docs/feed/<user>.json`, keeping up to 1,000 entries (the feed only
 shows the latest ~50, so it accumulates), commits, and asks Pages to rebuild. The site loads
 `feed/<username>.json` when the imported export's username matches and merges entries the export lacks
@@ -316,7 +316,7 @@ day, shared with the owner's own app. The in-app version is the "Check film data
 - `letterboxd.com` and `cdnjs.cloudflare.com` are blocked from the container (tests use local copies);
   TMDB, Apify's API and GitHub work. The GitHub Pages settings API is blocked through the proxy.
 - GitHub Actions job logs live on blocked storage: scripts print `::error::…` lines, readable with
-  `gh api repos/sjnift/credits-roll/check-runs/<job id>/annotations`.
+  `gh api repos/sjnift/bogie1946/check-runs/<job id>/annotations`.
 - A background `python3 -m http.server` in `docs/` stops after two hours; the checks start their own server.
 - Pushes made by a workflow's own token don't start other workflows (hence the explicit Pages rebuild).
 

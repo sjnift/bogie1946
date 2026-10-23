@@ -743,12 +743,12 @@ body.empty #settings, body.empty .foot-settings { display: none !important; }
         <p>With your own TMDB key, film details come from The Movie Database. This product uses the TMDB API but is not endorsed or certified by TMDB.
           Inside the Claude app, details come from Claude's knowledge of each film instead, so check anything surprising.</p>
         <p>On a phone? <a href="mobile.html">Open the phone version</a>. It uses the same import.</p>
-        <p>Updated 23 Oct 2026, 18:40 UTC</p>
+        <p>Updated 23 Oct 2026, 18:45 UTC</p>
       </div>
     </section>
   </main>
   <footer>
-    <p>Updated 23 Oct 2026, 18:40 UTC<span class="foot-settings"> · <button class="linkish" type="button" data-goto="settings">Settings</button></span></p>
+    <p>Updated 23 Oct 2026, 18:45 UTC<span class="foot-settings"> · <button class="linkish" type="button" data-goto="settings">Settings</button></span></p>
   </footer>
 </div>
 
@@ -3018,7 +3018,7 @@ async function runFix(key, repaint) {
    left as it was, so a fresh import simply takes over. */
 let FEED = null, FEED_ADDED = [];
 // The repository a GitHub Pages copy is published from, for the link that adds a username to the feed.
-// The site's own GitHub repository, from its address: sjnift.github.io/credits-roll/ is sjnift/credits-roll, and the
+// The site's own GitHub repository, from its address: sjnift.github.io/bogie1946/ is sjnift/bogie1946, and the
 // short sjnift.github.io/ (a repository named sjnift.github.io) is sjnift/sjnift.github.io.
 function repoOfPage(host, path) {
   const m = String(host).match(/^([\w-]+)\.github\.io$/i);
@@ -3807,7 +3807,7 @@ async function siteRemove() {
 function siteKey(repo, token) {
   repo = String(repo || SITE_GH_REPO).trim().replace(/^https?:\/\/github\.com\//i, "").replace(/\.git$|\/+$/g, "");
   token = String(token || "").trim();
-  if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) return siteSay("Type the site's repository as name/repository, for example sjnift/credits-roll.", true), false;
+  if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) return siteSay("Type the site's repository as name/repository, for example sjnift/bogie1946.", true), false;
   if (!token) return siteSay("Paste the GitHub key.", true), false;
   SITEPUB = { repo, token, at: null }; saveSite();
   return true;
@@ -3872,7 +3872,7 @@ function siteBox(kind) {
   if (idx === undefined) return box(title, `<p class="status">${site.offline ? "Couldn't reach the site just now." : "Checking the site…"}</p>`);
   const help = `<details class="site-help"><summary>How to make the GitHub key (once)</summary><ol class="steps">
       <li><a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">Make a fine-grained token</a>: name it Credits Roll site and pick the longest expiry.</li>
-      <li>Under Repository access choose <b>Only select repositories</b> and pick <b>${esc((SITE_GH_REPO || "your-name/credits-roll").split("/")[1])}</b>.</li>
+      <li>Under Repository access choose <b>Only select repositories</b> and pick <b>${esc((SITE_GH_REPO || "your-name/your-site").split("/")[1])}</b>.</li>
       <li>Under Permissions → Repository permissions set <b>Contents</b> to <b>Read and write</b>. Generate it, copy it and paste it above. It stays in this browser.</li></ol></details>`;
   const keyFields = () => (SITE_GH_REPO ? "" : field("repo", "The site's repository", "text", "off", "")) + field("token", "GitHub key for the site", "password", "off");
   if (!idx) {
@@ -4504,7 +4504,7 @@ function crowdBlock(I) {
     const n = C.available[k] || 0;
     return `<button class="tab" role="tab" type="button" data-crowd="${k}" aria-selected="${k === C.key}" ${n < 5 ? "disabled" : ""} title="${n} rated films have this score">${c.label}</button>`; }).join("")}</div>`;
   if (C.n < 5) {
-    const why = IN_VIEWER ? `Crowd scores come from TMDB and OMDb, which pages inside Claude can't reach. Open <a href="https://sjnift.github.io/credits-roll/" target="_blank" rel="noopener">the web version</a> with your keys.`
+    const why = IN_VIEWER ? `Crowd scores come from TMDB and OMDb, which pages inside Claude can't reach. Open <a href="https://sjnift.github.io/bogie1946/" target="_blank" rel="noopener">the web version</a> with your keys.`
       : C.key === "letterboxd" ? "Letterboxd averages come through Apify. Add your Apify token in Settings → Film details."
       : C.key === "imdb" || C.key === "critics" ? "IMDb and critics' scores come from OMDb. Add a free OMDb key in Settings → Film details."
       : "Crowd scores come with TMDB details. Look your films up from Settings → Film details.";

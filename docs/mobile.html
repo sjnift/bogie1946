@@ -2953,7 +2953,7 @@ async function runFix(key, repaint) {
    left as it was, so a fresh import simply takes over. */
 let FEED = null, FEED_ADDED = [];
 // The repository a GitHub Pages copy is published from, for the link that adds a username to the feed.
-// The site's own GitHub repository, from its address: sjnift.github.io/credits-roll/ is sjnift/credits-roll, and the
+// The site's own GitHub repository, from its address: sjnift.github.io/bogie1946/ is sjnift/bogie1946, and the
 // short sjnift.github.io/ (a repository named sjnift.github.io) is sjnift/sjnift.github.io.
 function repoOfPage(host, path) {
   const m = String(host).match(/^([\w-]+)\.github\.io$/i);
@@ -3742,7 +3742,7 @@ async function siteRemove() {
 function siteKey(repo, token) {
   repo = String(repo || SITE_GH_REPO).trim().replace(/^https?:\/\/github\.com\//i, "").replace(/\.git$|\/+$/g, "");
   token = String(token || "").trim();
-  if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) return siteSay("Type the site's repository as name/repository, for example sjnift/credits-roll.", true), false;
+  if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) return siteSay("Type the site's repository as name/repository, for example sjnift/bogie1946.", true), false;
   if (!token) return siteSay("Paste the GitHub key.", true), false;
   SITEPUB = { repo, token, at: null }; saveSite();
   return true;
@@ -3807,7 +3807,7 @@ function siteBox(kind) {
   if (idx === undefined) return box(title, `<p class="status">${site.offline ? "Couldn't reach the site just now." : "Checking the site…"}</p>`);
   const help = `<details class="site-help"><summary>How to make the GitHub key (once)</summary><ol class="steps">
       <li><a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">Make a fine-grained token</a>: name it Credits Roll site and pick the longest expiry.</li>
-      <li>Under Repository access choose <b>Only select repositories</b> and pick <b>${esc((SITE_GH_REPO || "your-name/credits-roll").split("/")[1])}</b>.</li>
+      <li>Under Repository access choose <b>Only select repositories</b> and pick <b>${esc((SITE_GH_REPO || "your-name/your-site").split("/")[1])}</b>.</li>
       <li>Under Permissions → Repository permissions set <b>Contents</b> to <b>Read and write</b>. Generate it, copy it and paste it above. It stays in this browser.</li></ol></details>`;
   const keyFields = () => (SITE_GH_REPO ? "" : field("repo", "The site's repository", "text", "off", "")) + field("token", "GitHub key for the site", "password", "off");
   if (!idx) {
@@ -4046,8 +4046,8 @@ function welcomeScreen() {
       <button class="btn green block" type="button" data-act="import">${ICON.upload}Import export</button>
       <p class="status">A backup file from another device works the same way.</p>
       ${state.importError ? `<p class="status err" role="alert">${esc(state.importError)}</p>` : ""}</div>
-    ${IN_VIEWER ? `<p class="note">This Claude version keeps its own copy of an import. Your saved diary is on the website, <a href="https://sjnift.github.io/credits-roll/" target="_blank" rel="noopener">sjnift.github.io/credits-roll</a>.</p>` : ""}
-    <div class="foot"><p class="stamp">Updated 23 Oct 2026, 18:40 UTC</p></div>`;
+    ${IN_VIEWER ? `<p class="note">This Claude version keeps its own copy of an import. Your saved diary is on the website, <a href="https://sjnift.github.io/bogie1946/" target="_blank" rel="noopener">sjnift.github.io/bogie1946</a>.</p>` : ""}
+    <div class="foot"><p class="stamp">Updated 23 Oct 2026, 18:45 UTC</p></div>`;
 }
 // The header frosts over once the screen scrolls under it.
 function updateTop() { $("#top").classList.toggle("solid", window.scrollY > 12); }
@@ -4399,7 +4399,7 @@ function dataScreen() {
       <p>With your own TMDB key, film details come from The Movie Database. This product uses the TMDB API but is not endorsed or certified by TMDB.
       Inside the Claude app, details come from Claude's knowledge of each film instead, so check anything surprising.</p>
       <p>On a computer? <a href="desktop.html">Open the desktop version</a>. It uses the same import.</p>
-      <p class="stamp">Updated 23 Oct 2026, 18:40 UTC</p></div>`;
+      <p class="stamp">Updated 23 Oct 2026, 18:45 UTC</p></div>`;
 }
 
 /* ---------- pushed screens ---------- */
@@ -4550,7 +4550,7 @@ function mCrowd(I) {
   const C = I.crowd;
   const toggles = chipBar("crowdsel", Object.entries(CROWDS).filter(([k]) => (C.available[k] || 0) >= 5 || k === C.key).map(([k, c]) => [k, c.short]), C.key);
   if (C.n < 5) {
-    const why = IN_VIEWER ? `Crowd scores come from TMDB and OMDb, which pages inside Claude can't reach. Open <a href="https://sjnift.github.io/credits-roll/" target="_blank" rel="noopener">the web version</a>.`
+    const why = IN_VIEWER ? `Crowd scores come from TMDB and OMDb, which pages inside Claude can't reach. Open <a href="https://sjnift.github.io/bogie1946/" target="_blank" rel="noopener">the web version</a>.`
       : C.key === "tmdb" ? "Crowd scores come with TMDB details. Look your films up in Settings."
       : C.key === "letterboxd" ? "Letterboxd averages need an Apify token, added in Settings." : "IMDb and critics' scores need a free OMDb key, added in Settings.";
     return toggles + `<div class="empty">${why}</div>`;
