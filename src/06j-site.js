@@ -2,15 +2,17 @@
 /* ---------- your diary on this site, locked with a password ----------
    The device where the export is imported puts a copy on the site itself: docs/diary/ in the site's own
    repository, committed through GitHub's API with a key that only that device keeps. The copy is encrypted
-   (AES-GCM, with a key made from the owner's password by PBKDF2) in three parts: the export, film details,
-   and the rest (photos, Letterboxd averages, friends), so a change sends only its own part again. Any device
-   that opens the site and is given the password once shows the diary with no import, and keeps up with it.
-   The export's email address and the API keys are never in it. index.json says, in the clear, whose diary it
-   is, when each part last changed, and how to make the key from the password. */
+   (AES-GCM, with a key made from the owner's password by PBKDF2) in four parts: the export, film details,
+   the rest (photos, Letterboxd averages, friends), and the TMDB, OMDb and Apify keys, so a change sends only its
+   own part again. Any device that opens the site and is given the password once shows the diary with no import,
+   keeps up with it, and has the keys without typing them. The export's email address and the GitHub key (which
+   can change the site itself) are never in it, and nothing is ever there unencrypted. index.json says, in the
+   clear, whose diary it is, when each part last changed, and how to make the key from the password. */
 const SITE_REC = "cr-site-v1";      // every device that opened it: { salt, key, user, at, have: { part: at }, sums: { part: sha-256 } }
 const SITE_PUB = "cr-site-pub-v1";  // a device that puts it there: { repo, token, at }
-const SITE_DIRTY = "cr-site-dirty"; // changes here not yet on the site: { at, now: a new import or friend }
-const SITE_PARTS = ["rows", "meta", "extra"];
+const SITE_DIRTY = "cr-site-dirty"; // changes here not yet on the site: { at, now: a new import, friend or key }
+const SITE_PARTS = ["rows", "meta", "extra", "keys"];
+const SITE_KEYS = ["tmdb", "omdb", "apify"]; // the keys that travel with the diary (never the GitHub one)
 const SITE_PATH = "docs/diary/";    // in the repository; the site serves docs/ at its root
 const SITE_ITER = 600000;
 const SITE_MIN_PASS = 10;
@@ -18,7 +20,8 @@ const SITE_META_EVERY = 12 * 3600e3; // film details go up at most twice a day: 
 const SITE_ON = !IN_VIEWER && /^https?:$/.test(location.protocol);
 const SITE_DEVICE = document.querySelector(".tabbar") ? "phone" : "computer";
 const SITE_GH_REPO = SITE_REPO ? SITE_REPO.split("/").slice(3, 5).join("/") : "";
-const PUBLISHED = new Set([KEYS.rows, KEYS.meta, KEYS.photos, KEYS.lbx, KEYS.friends]);
+const PUBLISHED = new Set([KEYS.rows, KEYS.meta, KEYS.photos, KEYS.lbx, KEYS.friends, ...SITE_KEYS.map((k) => KEYS[k])]);
+const SITE_SOON = new Set([KEYS.rows, KEYS.friends, ...SITE_KEYS.map((k) => KEYS[k])]); // go up within seconds
 let SITE = ls.get(SITE_REC, null), SITEPUB = ls.get(SITE_PUB, null);
 // the key works for the site's repository whatever it's called, so a renamed one is followed
 if (SITEPUB && SITE_GH_REPO && SITEPUB.repo !== SITE_GH_REPO) { SITEPUB.repo = SITE_GH_REPO; ls.set(SITE_PUB, SITEPUB); }
@@ -112,7 +115,11 @@ function siteRows(rows) {
   return r;
 }
 const siteLocal = () => ({ rows: siteRows(store.get(KEYS.rows, null)), meta: META,
-  extra: { photos: PHOTOS, lbx: LBX, friends: store.get(KEYS.friends, []).map((f) => ({ ...f, rows: siteRows(f.rows) })) } });
+  extra: { photos: PHOTOS, lbx: LBX, friends: store.get(KEYS.friends, []).map((f) => ({ ...f, rows: siteRows(f.rows) })) },
+  keys: Object.fromEntries(SITE_KEYS.map((k) => [k, store.get(KEYS[k], "")]).filter(([, v]) => v)) });
+// Bulk lookups that use up a daily allowance (OMDb) are left to a device that updates the site, or that has its
+// own import: a device only reading the site's diary would spend the same allowance on the same films.
+const siteLeadsLookups = () => !SITE_ON || !SITE || !!SITEPUB || !(store.get(KEYS.rows, null) || {}).site;
 const siteUser = (rows) => (((rows && rows.profile) || [])[0] || {}).Username || "";
 // Which of two imports is newer: by when it was imported, or for imports from before that was noted,
 // by the newest diary entry and then by size.
@@ -145,6 +152,12 @@ async function siteTake(parts, idx, draw) {
       if (x.photos) PHOTOS = { ...x.photos, ...PHOTOS };
       if (x.lbx) { LBX = mergeLbx(LBX, x.lbx); store.set(KEYS.lbx, LBX); }
       if (x.friends) { store.set(KEYS.friends, mergeFriends(store.get(KEYS.friends, []), x.friends)); loadFriends(); }
+    }
+    if (parts.keys) {
+      // the site's keys replace this device's, unless a key changed here hasn't gone up yet
+      const waiting = !!ls.get(SITE_DIRTY, null);
+      for (const k of SITE_KEYS) if (parts.keys[k] && (!waiting || !store.get(KEYS[k], ""))) store.set(KEYS[k], parts.keys[k]);
+      job.badKey = imdbJob.badKey = lbJob.badKey = false;
     }
     if (parts.meta || parts.extra) saveMeta();
   } finally { site.applying = false; }
@@ -287,7 +300,7 @@ function siteForget() { clearTimeout(site.timer); site.timer = null; SITE = null
 STORE_HOOK = (k) => {
   if (site.applying || !SITEPUB || !SITE || !PUBLISHED.has(k)) return;
   const d = ls.get(SITE_DIRTY, null) || { at: Date.now() };
-  if (k === KEYS.rows || k === KEYS.friends) d.now = true;
+  if (SITE_SOON.has(k)) d.now = true;
   ls.set(SITE_DIRTY, d);
   siteLater();
 };
@@ -343,7 +356,7 @@ function siteBox(kind) {
       <li>Under Permissions → Repository permissions set <b>Contents</b> to <b>Read and write</b>. Generate it, copy it and paste it above. It stays in this browser.</li></ol></details>`;
   const keyFields = () => (SITE_GH_REPO ? "" : field("repo", "The site's repository", "text", "off", "")) + field("token", "GitHub key for the site", "password", "off");
   if (!idx) {
-    return box("Put your diary on this site", `<p class="status">Lock it with a password and every device can open it: just open the site and type the password once, with no importing. Your email address and API keys stay out of it.</p>
+    return box("Put your diary on this site", `<p class="status">Lock it with a password and every device can open it: just open the site and type the password once, with no importing. Your TMDB, OMDb and Apify keys go along, locked the same way, so you never type them again; your email address and the GitHub key stay out of it.</p>
       ${field("newpass", `Choose a password (at least ${SITE_MIN_PASS} characters; you'll type it once on each device)`, "text", "new-password")}
       ${SITEPUB ? "" : keyFields()}${btn("create", "Put my diary on the site", true)}${say}${SITEPUB ? "" : help}`);
   }
@@ -404,6 +417,11 @@ document.addEventListener("keydown", (e) => {
 function siteStart() {
   if (!SITE_ON) return;
   siteRedraw();
-  (Date.now() - site.checked < 5000 ? Promise.resolve() : siteCheck(true)).then(() => { if (SITEPUB && SITE && ls.get(SITE_DIRTY, null)) siteLater(); });
+  (Date.now() - site.checked < 5000 ? Promise.resolve() : siteCheck(true)).then(() => {
+    if (!SITEPUB || !SITE) return;
+    // a part the site doesn't have yet (the keys, for a diary put there before they went along) goes up now
+    if (site.index && site.index.salt === SITE.salt && SITE_PARTS.some((p) => !site.index.parts[p])) ls.set(SITE_DIRTY, { ...(ls.get(SITE_DIRTY, null) || { at: Date.now() }), now: true });
+    if (ls.get(SITE_DIRTY, null)) siteLater();
+  });
 }
 </script>

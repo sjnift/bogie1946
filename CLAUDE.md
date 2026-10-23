@@ -1,7 +1,9 @@
 # Credits Roll — handover notes
 
 This file is everything a new session needs to keep working on Credits Roll. Read it fully before changing
-anything. **This repository is public: never write API keys, tokens or the owner's email into any file here.**
+anything. **This repository is public: never write API keys, tokens or the owner's email into any file here** — the one
+exception, at the owner's request (Oct 2026), is their TMDB, OMDb and Apify keys inside the *encrypted* diary on the
+site (`docs/diary/keys.bin`). Never in the clear, and never the GitHub key.
 
 ## What it is
 
@@ -40,7 +42,8 @@ Where it lives:
   - **Never double count** (see the section below). Check it every time.
   - Records (shortest, longest, oldest film) must be right. Films only *liked* (not logged) don't count as watched.
   - Reviews come in with their formatting (paragraphs, italics, bold, links).
-  - Their TMDB key is saved in the browser for good, never asked for again.
+  - Their TMDB key is saved in the browser for good, never asked for again. Their TMDB, OMDb and Apify keys travel to
+    every device that opens the diary on the site, so they never type them twice.
   - They **can't pay for Apify**: stay inside Apify's free plan ($5 of credit a month).
   - Every number, chart bar, poster, person and sentence opens the data behind it: a pop-up (desktop) or a
     bottom sheet (phone) first, with "See all on one page" when the list is long. The back button works.
@@ -52,7 +55,8 @@ Where it lives:
     year, and every other kind of person, keeps `minRated` (2, or 3 for 150+ films).
   - The best-rated decade is featured with its films' posters (phone Breakdown and desktop "Released").
   - **Their diary lives on the site, locked with a password** (see "The diary on the site"), so no device needs an
-    import. Never put it there unencrypted, and never with their email address or API keys.
+    import. Never put it there unencrypted, and never with their email address or the GitHub key (the TMDB, OMDb and
+    Apify keys go in their own encrypted part).
   - **The main page is only stats.** Admin things (the export, lookups and their keys and small print, the diary on
     the site and its GitHub key, backups, deleting data, the disclaimers) live in Settings: the desktop's Settings
     page (`#/settings`) and the phone's Settings screen (gear). The desktop main page shows at most one line
@@ -250,11 +254,16 @@ The owner wanted the site itself to hold their diary, so no device needs an impo
 first and replaced at their request). They chose: **only them, with a password**, put there by **a button in the
 app**. `06j-site.js`:
 - `docs/diary/` in this repository: `index.json` (in the clear: `user`, `imported`, `at`, `from`, PBKDF2 `salt`
-  and `iter` (600,000), `check`, and when each part last changed) and three encrypted parts, `rows.bin` (the
-  export), `meta.bin` (film details), `extra.bin` (photos, Letterboxd averages, friends). Each part is one byte of
-  kind (2 = gzipped), a 12-byte IV, then AES-GCM. **Never** put the parts in the clear, the export's email address
-  (`siteRows` keeps only Username, Date Joined, Given and Family Name, for friends too) or any API key on the
-  site. The `site` check decrypts what goes up and fails on either.
+  and `iter` (600,000), `check`, and when each part last changed) and four encrypted parts, `rows.bin` (the
+  export), `meta.bin` (film details), `extra.bin` (photos, Letterboxd averages, friends), `keys.bin` (`SITE_KEYS`:
+  the TMDB, OMDb and Apify keys, so other devices never need them typed). Each part is one byte of kind (2 =
+  gzipped), a 12-byte IV, then AES-GCM. **Never** put anything there in the clear, the export's email address
+  (`siteRows` keeps only Username, Date Joined, Given and Family Name, for friends too), a key outside `keys.bin`, or
+  the GitHub key at all. The `site` check decrypts what goes up and fails on any of these.
+- Keys: a key typed or changed on the device that updates the site goes up within seconds (`SITE_SOON`); the site's
+  keys replace a device's own unless a change made there hasn't gone up yet. A diary put there before keys travelled
+  gets its `keys` part the next time that device opens the site. Bulk OMDb lookups (1,000 a day per key) run only on
+  a device that updates the site or has its own import (`siteLeadsLookups`), not on every device reading the diary.
 - Putting it there: Settings (phone) or the foot of the page (desktop) → "Put my diary on the site": a password
   (10+ characters) and a fine-grained GitHub key for this repository (Contents: Read and write) that stays in that
   browser (`cr-site-pub-v1`). Each update is one commit through the git data API (`force: false`; on 422 it reads

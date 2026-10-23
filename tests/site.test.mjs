@@ -100,7 +100,7 @@ export default async function ({ browser, base }) {
 
   // A computer with a diary puts it on the site.
   const a = await device(browser, base, gh, "desktop.html", {});
-  await seed(a, rows, { "cr-meta-v1": meta, "cr-tmdb-key": "k123" });
+  await seed(a, rows, { "cr-meta-v1": meta, "cr-tmdb-key": "k123", "cr-omdb-key": "om456" });
   await a.click("#btn-settings");
   await a.waitForSelector("#site-box #site-newpass-publish");
   await a.fill("#site-newpass-publish", "short");
@@ -112,14 +112,26 @@ export default async function ({ browser, base }) {
   await a.click('#site-box [data-site="create"]');
   await until(a, () => !site.job && site.index && SITEPUB && SITEPUB.at, "the first copy to go up");
   const idx = JSON.parse(gh.file("docs/diary/index.json"));
-  assert(["rows", "meta", "extra"].every((p) => gh.file(`docs/diary/${p}.bin`)) && idx.user === "tester" && idx.parts.rows, `on the site: ${Object.keys(gh.files())}`);
+  assert(["rows", "meta", "extra", "keys"].every((p) => gh.file(`docs/diary/${p}.bin`)) && idx.user === "tester" && idx.parts.rows && idx.parts.keys, `on the site: ${Object.keys(gh.files())}`);
   const everything = Object.values(gh.files()).map((s) => s).join() + Object.keys(gh.files()).map((f) => gh.file(f).toString("latin1")).join();
-  assert(!/someone@example\.com|k123/.test(everything), "the email address or a key is readable on the site");
+  assert(!/someone@example\.com|k123|om456/.test(everything), "the email address or a key is readable on the site");
   let key = await keyFor(PASS, idx.salt);
   const up = { rows: await openPart(key, gh.file("docs/diary/rows.bin")), meta: await openPart(key, gh.file("docs/diary/meta.bin")), extra: await openPart(key, gh.file("docs/diary/extra.bin")) };
   assert(up.rows.watched.length === 1 && up.rows.profile[0].Username === "tester" && up.rows.profile[0]["Given Name"] === "Sam" && !("Email Address" in up.rows.profile[0]) && !("Bio" in up.rows.profile[0]), `rows on the site: ${JSON.stringify(up.rows.profile)}`);
-  assert(up.meta["heat|1995"].d[0] === "Michael Mann" && !JSON.stringify(up).includes("k123"), "film details missing, or a key went up");
+  assert(up.meta["heat|1995"].d[0] === "Michael Mann" && !/k123|om456/.test(JSON.stringify(up)), "film details missing, or a key is outside its own locked part");
+  // the keys travel in their own locked part; the GitHub key never does
+  const keysUp = await openPart(key, gh.file("docs/diary/keys.bin"));
+  assert(JSON.stringify(keysUp) === JSON.stringify({ tmdb: "k123", omdb: "om456" }), `keys on the site: ${JSON.stringify(keysUp)}`);
+  assert(![JSON.stringify(up), JSON.stringify(keysUp), everything].some((t) => t.includes(TOKEN)), "the GitHub key went up");
   assert(/On the site/.test(await a.innerText("#site-box")), `computer's box: ${await a.innerText("#site-box")}`);
+
+  // A diary put on the site before keys went along: the computer adds them by itself the next time it opens
+  { const ix = JSON.parse(gh.file("docs/diary/index.json")); delete ix.parts.keys; gh.write({ "docs/diary/index.json": Buffer.from(JSON.stringify(ix)) }); }
+  await a.reload(); await a.waitForFunction(() => typeof state === "object" && state.lib && MY_LIB);
+  { const t0 = Date.now(); while (!JSON.parse(gh.file("docs/diary/index.json")).parts.keys && Date.now() - t0 < 12000) await a.waitForTimeout(250); }
+  assert(JSON.parse(gh.file("docs/diary/index.json")).parts.keys, "the keys didn't go up to a diary put there before they travelled");
+  await until(a, () => !site.job && !site.busy, "the computer to finish");
+  assert(await a.evaluate(() => state.page) === "settings", "the reload didn't come back to Settings");
 
   // A phone with nothing on it: the site offers the diary; a wrong password is refused, the right one opens it.
   const b = await device(browser, base, gh, "mobile.html", { phone: true, example: false });
@@ -132,11 +144,20 @@ export default async function ({ browser, base }) {
   await b.fill('[data-sitebox="open"] input[name="pass"]', PASS);
   await b.press('[data-sitebox="open"] input[name="pass"]', "Enter");
   await until(b, () => MY_LIB && MY_LIB.films.length === 1 && !site.busy, "the phone to open the diary");
-  let got = await b.evaluate(() => ({ dir: META["heat|1995"] && META["heat|1995"].d[0], key: store.get(KEYS.tmdb, ""), mode: state.mode, user: MY_LIB.profile.username, box: !!document.querySelector('[data-sitebox="open"] input') }));
-  assert(got.dir === "Michael Mann" && got.key === "" && got.mode === "mine" && got.user === "tester" && !got.box, `phone after opening: ${JSON.stringify(got)}`);
+  let got = await b.evaluate(() => ({ dir: META["heat|1995"] && META["heat|1995"].d[0], key: store.get(KEYS.tmdb, ""), omdb: store.get(KEYS.omdb, ""), pub: localStorage.getItem("cr-site-pub-v1"),
+    mode: state.mode, user: MY_LIB.profile.username, box: !!document.querySelector('[data-sitebox="open"] input'), leads: siteLeadsLookups() }));
+  assert(got.dir === "Michael Mann" && got.key === "k123" && got.omdb === "om456" && !got.pub && got.mode === "mine" && got.user === "tester" && !got.box, `phone after opening: ${JSON.stringify(got)}`);
+  assert(!got.leads && await a.evaluate(() => siteLeadsLookups()), "the daily OMDb allowance would be spent by a device that only reads the site's diary");
   await b.reload();
   await b.waitForFunction(() => typeof state === "object" && state.lib && MY_LIB);
   assert(await b.evaluate(() => MY_LIB.films.length === 1 && !document.querySelector('[data-sitebox="open"] input')), "the phone forgot the diary or asked again after a reload");
+  // A key changed on the computer reaches the phone, without typing it there
+  const keysAt = JSON.parse(gh.file("docs/diary/index.json")).parts.keys;
+  await a.evaluate(() => store.set(KEYS.tmdb, "k999"));
+  { const t0 = Date.now(); while (JSON.parse(gh.file("docs/diary/index.json")).parts.keys === keysAt && Date.now() - t0 < 12000) await a.waitForTimeout(250); }
+  await until(a, () => !site.job && !site.busy, "the computer to send the new key");
+  await b.evaluate(() => siteCheck(true));
+  assert(await b.evaluate(() => store.get(KEYS.tmdb, "")) === "k999", "the new key didn't reach the phone");
 
   // A newer export imported on the computer goes up by itself (only the parts that changed), and the phone gets it.
   const before = { ...gh.files() };

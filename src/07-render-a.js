@@ -194,7 +194,7 @@ function renderLookupBox() {
         <input id="tmdb-key" type="password" autocomplete="off" spellcheck="false" placeholder="Paste your TMDB API key or read access token" value="${esc(key)}">
         <button class="btn primary" type="button" id="btn-tmdb">Look up ${plural(todo, "film")}</button>
       </div>
-      <p class="status">Get a free key from <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener">themoviedb.org/settings/api</a>. The key is saved in this browser only and sent only to TMDB.</p>` : "");
+      <p class="status">Get a free key from <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener">themoviedb.org/settings/api</a>. The key is saved in this browser (and in your locked diary on this site, if it's there) and sent only to TMDB.</p>` : "");
   } else {
     const todo = needsLookup(lib, "claude").length;
     const misses = lib.films.filter((f) => META[f.key] && META[f.key].miss && META[f.key].src === "claude").length;

@@ -240,7 +240,7 @@ function startTmdb(lib) {
 async function autoLookup(lib) {
   if (IN_VIEWER) return;
   if (tmdbKey() && needsLookup(lib, "tmdb").length) await runTmdb(lib, tmdbKey());
-  if (omdbKey() && !imdbJob.badKey && needsImdb(lib).length) runOmdb(lib, omdbKey());
+  if (omdbKey() && !imdbJob.badKey && needsImdb(lib).length && siteLeadsLookups()) runOmdb(lib, omdbKey());
 }
 
 /* ----- IMDb, Metacritic and Rotten Tomatoes scores, through OMDb -----

@@ -147,7 +147,7 @@ function letterboxdBlock(lib, phone) {
     const save = phone ? `<button class="btn block" type="button" data-lb="save">Save token</button>` : `<button class="btn" type="button" data-lb="save">Save token</button>`;
     return title + (phone ? input + save : `<div class="lookup-row">${input}${save}</div>`) +
       `<p class="status">Compares your ratings with Letterboxd's own averages. An <a href="https://apify.com/solidcode/letterboxd-scraper" target="_blank" rel="noopener">Apify actor</a> reads Letterboxd for you.
-      ${free} Make a free account at <a href="https://console.apify.com/sign-up" target="_blank" rel="noopener">apify.com</a>; your token is under Settings → API &amp; Integrations, and stays in this browser.</p>` + note;
+      ${free} Make a free account at <a href="https://console.apify.com/sign-up" target="_blank" rel="noopener">apify.com</a>; your token is under Settings → API &amp; Integrations. It's saved in this browser (and in your locked diary on this site, if it's there).</p>` + note;
   }
   const total = lib.films.length, missing = lbMissing(lib), found = lib.films.filter(lbFound).length, gone = lbNotFound(lib).length;
   let body;
