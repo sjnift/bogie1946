@@ -191,7 +191,8 @@ friend replaces the address instead.
 
 ## Features (all on both layouts)
 
-- **Stats**: films, hours, diary, ratings, rewatches, reviews, most watched actors/directors/crew, genres,
+- **Stats**: recently watched (8 latest entries on the desktop main page, `recentBlock`; 12 on the phone's Profile;
+  a year shows its last ones), films, hours, diary, ratings, rewatches, reviews, most watched actors/directors/crew, genres,
   countries, languages, decades, milestones with posters, records, On this day, Watch next, Reviewed (search).
 - **Insights**: all years (at a glance, year by year, changing tastes, genres, people, against the crowd,
   reviews, habits) and each year (against the year before, months, best of, people, crowd, reviews, habits).

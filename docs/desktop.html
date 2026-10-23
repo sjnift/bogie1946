@@ -649,6 +649,9 @@ footer p { margin: 0 0 6px; max-width: 80ch; }
 body.empty #tiles, body.empty #lookup-mini, body.empty #sections, body.empty #insights, body.empty #compare, body.empty #drillpage,
 body.empty .scopes-row, body.empty #btn-search, body.empty #btn-insights, body.empty #btn-compare, body.empty #btn-settings,
 body.empty #settings, body.empty .foot-settings { display: none !important; }
+/* recently watched: one row of posters (two of four in a narrow window) */
+#recent .posters { grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 900px) { #recent .posters { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 /* settings: the same credit layout as the stats, with the boxes inside */
 #settings { padding-top: 8px; }
 .set .lookup, .set .site-box { margin: 0; }
@@ -733,12 +736,12 @@ body.empty #settings, body.empty .foot-settings { display: none !important; }
         <p>With your own TMDB key, film details come from The Movie Database. This product uses the TMDB API but is not endorsed or certified by TMDB.
           Inside the Claude app, details come from Claude's knowledge of each film instead, so check anything surprising.</p>
         <p>On a phone? <a href="mobile.html">Open the phone version</a>. It uses the same import.</p>
-        <p>Updated 23 Oct 2026, 17:54 UTC</p>
+        <p>Updated 23 Oct 2026, 18:09 UTC</p>
       </div>
     </section>
   </main>
   <footer>
-    <p>Updated 23 Oct 2026, 17:54 UTC<span class="foot-settings"> · <button class="linkish" type="button" data-goto="settings">Settings</button></span></p>
+    <p>Updated 23 Oct 2026, 18:09 UTC<span class="foot-settings"> · <button class="linkish" type="button" data-goto="settings">Settings</button></span></p>
   </footer>
 </div>
 
@@ -4313,6 +4316,12 @@ function highlightsBlock(s) {
 }
 
 // Films watched on this date in earlier years.
+// The latest diary entries, newest first (a year's last ones when a year is picked): one row of posters.
+const RECENT_N = 8;
+function recentBlock(s) {
+  return `<div class="posters">${s.entries.slice(-RECENT_N).reverse().map((e) => `<button class="poster" type="button" ${dl(D.film(e.film, { entry: e }))}>${artHtml(e.film)}
+    <span class="cap"><span class="d">${fmtDate(e.date)}</span><span><span class="stars">${stars(e.rating)}</span>${e.rewatch ? ' <span class="muted" title="Rewatch">↻</span>' : ""}${e.film.liked ? ' <span class="muted" title="Liked">♥</span>' : ""}</span></span></button>`).join("")}</div>`;
+}
 function onThisDayBlock(T) {
   return `<div class="posters">${T.entries.slice(0, 12).map((e) => `<button class="poster" type="button" ${dl(D.film(e.film, { entry: e }))}>${artHtml(e.film)}
     <span class="cap"><span class="d">${T.week ? fmtDate(e.date) : e.date.slice(0, 4)}</span><span class="stars">${stars(e.rating)}</span></span></button>`).join("")}</div>` +
@@ -4336,6 +4345,8 @@ function renderSections(s) {
   const people = (kind, data) => noMeta ? emptyMeta() : tabs(kind, [["most", "Most watched"], ["best", "Highest rated"]], state.tab[kind]) + peopleBlock(kind, data, s);
   const T = s.scope === "all" ? onThisDay(state.lib) : null, W = state.lib.watchlistFilms.length ? watchNext(state.lib) : undefined;
   $("#sections").innerHTML = [
+    s.entries.length ? section("recent", s.scope === "all" ? "Recently watched" : `Last watched in ${s.scope}`,
+      s.entries.length > RECENT_N ? dlink(DR.diary(s), `All ${fmtN(s.entries.length)} diary entries`) : "Your latest diary entries.", recentBlock(s)) : "",
     T && T.entries.length ? section("onthisday", T.title, T.sub, onThisDayBlock(T)) : "",
     section("starring", "Starring", `${everyone(s.cast, "Actors")} in the top ${CAST_DEPTH} billed of each film. Highest rated needs ${s.castMinRated}+ rated films.`, people("cast", s.cast)),
     section("directed", "Directed by", `${everyone(s.directors, "Directors")}.`, people("directors", s.directors)),
