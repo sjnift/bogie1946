@@ -1,0 +1,16 @@
+{
+ "app": "credits-roll",
+ "v": 1,
+ "user": "bogie1946",
+ "imported": "2026-10-21",
+ "at": "2026-10-23T17:31:37.445Z",
+ "from": "computer",
+ "salt": "haisONn8kaTccthxjrs0mg==",
+ "iter": 600000,
+ "check": "AeqqX0SwekpNKshX8+XaUhwpQz7f4D+hxFWtd+9l9N3EzhVcGyv5gvUshg==",
+ "parts": {
+  "rows": "2026-10-23T17:31:37.445Z",
+  "meta": "2026-10-23T17:31:37.445Z",
+  "extra": "2026-10-23T17:31:37.445Z"
+ }
+}
