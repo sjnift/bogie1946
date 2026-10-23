@@ -9,8 +9,6 @@
         <button class="btn" id="btn-compare" type="button">Compare</button>
         <button class="btn primary" id="btn-import" type="button">Import Letterboxd export</button>
         <input id="file-input" type="file" accept=".zip,.csv,.json,application/zip,text/csv,application/json" multiple hidden>
-        <button class="btn" id="btn-example" type="button" hidden>View example</button>
-        <button class="btn" id="btn-mine" type="button" hidden>Back to my diary</button>
       </div>
     </div>
     <div class="hero">
@@ -19,10 +17,7 @@
       <p class="sub" id="hero-sub"></p>
     </div>
     <div class="notice" id="example-notice">
-      <p><strong>This is an example diary, not yours.</strong> To see your own stats, go to
-        <a href="https://letterboxd.com/settings/data/" target="_blank" rel="noopener">Letterboxd → Settings → Data</a>,
-        choose <em>Export your data</em>, then import the ZIP here or drop it anywhere on this page.
-        Your files stay in this browser.</p>
+      <p id="notice-text"></p>
       <button class="btn small" id="btn-import-2" type="button">Import export</button>
     </div>
     <div class="status err" id="import-error" role="alert" hidden></div>

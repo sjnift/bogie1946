@@ -14,7 +14,8 @@ async function importFiles(files) {
     }
     const rows = await readExport(files);
     const saved = store.set(KEYS.rows, rows);
-    MY_LIB = myLibrary(); DATA_REV++;
+    await store.flush();
+    MY_LIB = myLibrary(); DATA_REV++; LOAD_ERROR = "";
     Object.assign(state, { mode: "mine", scope: "all", view: "profile", stack: [], peopleLimit: 50, diaryLimit: 40 });
     job.note = saved ? "" : "This browser wouldn't save your export, so you'll need to import it again next time.";
     job.err = !saved;
@@ -49,7 +50,6 @@ function act(t) {
   else if (a === "all-rated" || a === "liked") openSheet(a === "liked" ? DR.liked(STATS) : D.films("Highest rated", filmsSub(STATS.films.filter((f) => f.rating)), STATS.films.filter((f) => f.rating), { scope: STATS.scope }));
   else if (a === "more-people") { state.peopleLimit += 100; render(); }
   else if (a === "more-diary") { state.diaryLimit += 120; render(); }
-  else if (a === "example" || a === "mine") { Object.assign(state, { mode: a === "example" ? "example" : "mine", scope: "all", view: "profile", stack: [] }); saveView(); render("tab"); window.scrollTo(0, 0); }
   else if (a === "forget") {
     if (!state.forgetArmed) {
       state.forgetArmed = true; render();
@@ -203,9 +203,9 @@ async function init() {
   loadFriends();
   EXAMPLE_META = Object.fromEntries(Object.entries(ex.meta).map(([k, m]) => [k, cleanMeta(m)]));
   EXAMPLE_LIB = buildLibrary(ex.rows);
-  try { MY_LIB = myLibrary(); } catch { MY_LIB = null; }
+  try { MY_LIB = myLibrary(); } catch (e) { MY_LIB = null; LOAD_ERROR = (e && e.message) || "unknown error"; }
   const view = store.get(VIEW_KEY, {});
-  state.mode = MY_LIB && view.mode !== "example" ? "mine" : "example";
+  state.mode = MY_LIB ? "mine" : "example"; // your diary whenever there is one
   if (view.scope) state.scope = view.scope;
   if (TOP_VIEWS.includes(view.view)) state.view = view.view;
   else if (view.view === "data") state.stack = [{ type: "data", title: PUSHED.data, ret: 0 }];

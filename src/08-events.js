@@ -16,7 +16,8 @@ async function importFiles(files) {
     }
     const rows = await readExport(files);
     const saved = store.set(KEYS.rows, rows);
-    MY_LIB = myLibrary();
+    await store.flush();
+    MY_LIB = myLibrary(); LOAD_ERROR = "";
     Object.assign(state, { mode: "mine", scope: "all", more: { cast: false, directors: false } });
     job.note = saved ? "" : "This browser wouldn't save your export, so you'll need to import it again next time.";
     job.err = !saved;
@@ -40,7 +41,6 @@ function bind() {
   $("#btn-import").addEventListener("click", () => fileInput.click());
   $("#btn-import-2").addEventListener("click", () => fileInput.click());
   fileInput.addEventListener("change", () => { const files = [...fileInput.files]; fileInput.value = ""; if (files.length) importFiles(files); });
-  $("#btn-example").addEventListener("click", () => { state.mode = "example"; state.scope = "all"; saveView(); render(); });
   $("#btn-insights").addEventListener("click", () => { state.page = state.page === "insights" ? "stats" : "insights"; saveView(); render(); window.scrollTo(0, 0); });
   $("#btn-compare").addEventListener("click", () => { state.page = state.page === "compare" ? "stats" : "compare"; saveView(); render(); window.scrollTo(0, 0); });
   const friendInput = $("#friend-input");
@@ -54,7 +54,6 @@ function bind() {
     } catch (e) { state.cmpError = (e && e.message) || "Couldn't read that export."; }
     render();
   });
-  $("#btn-mine").addEventListener("click", () => { state.mode = "mine"; state.scope = "all"; saveView(); render(); });
 
   document.addEventListener("click", (e) => { const c = e.target.closest("[data-copycheck]"); if (c) copyDataCheck(c); });
   document.addEventListener("click", (e) => {
@@ -182,9 +181,9 @@ async function init() {
   loadFriends();
   EXAMPLE_META = Object.fromEntries(Object.entries(ex.meta).map(([k, m]) => [k, cleanMeta(m)]));
   EXAMPLE_LIB = buildLibrary(ex.rows);
-  try { MY_LIB = myLibrary(); } catch { MY_LIB = null; }
+  try { MY_LIB = myLibrary(); } catch (e) { MY_LIB = null; LOAD_ERROR = (e && e.message) || "unknown error"; }
   const view = store.get(KEYS.view, {});
-  state.mode = MY_LIB && view.mode !== "example" ? "mine" : "example";
+  state.mode = MY_LIB ? "mine" : "example"; // your diary whenever there is one
   if (view.scope) state.scope = view.scope;
   if (view.page === "insights" || view.page === "compare") state.page = view.page;
   bind();

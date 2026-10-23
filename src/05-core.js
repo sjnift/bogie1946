@@ -3,6 +3,10 @@
 const $ = (s, el = document) => el.querySelector(s);
 // Goes up whenever film details, averages or friends change, so the phone knows its saved results are stale.
 let DATA_REV = 0;
+// The made-up example diary shows only with ?example in the address, and only while nothing is imported (for
+// the checks, or to show someone the app). Otherwise an empty browser gets an import screen.
+const SHOW_EXAMPLE = /[?&]example\b/.test(location.search);
+let LOAD_ERROR = ""; // why a saved diary couldn't be read, if it couldn't
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const fmtN = (n) => Number(n || 0).toLocaleString("en-US");
 const plural = (n, one, many = one + "s") => `${fmtN(n)} ${n === 1 ? one : many}`;
@@ -45,14 +49,14 @@ function idbReq(mode, fn) {
   });
 }
 const pending = new Map();
+async function idbWriteNow(k) {
+  try { MEM.has(k) ? await idbReq("readwrite", (s) => s.put(MEM.get(k), k)) : await idbReq("readwrite", (s) => s.delete(k)); idbFailed = false; }
+  catch { idbFailed = true; if (MEM.has(k)) ls.set(k, MEM.get(k)); }
+}
 // Writes for one key are coalesced, so a lookup saving every few films writes once.
 function idbWrite(k) {
   if (pending.has(k)) return;
-  pending.set(k, setTimeout(async () => {
-    pending.delete(k);
-    try { MEM.has(k) ? await idbReq("readwrite", (s) => s.put(MEM.get(k), k)) : await idbReq("readwrite", (s) => s.delete(k)); idbFailed = false; }
-    catch { idbFailed = true; if (MEM.has(k)) ls.set(k, MEM.get(k)); }
-  }, 250));
+  pending.set(k, setTimeout(() => { pending.delete(k); idbWriteNow(k); }, 250));
 }
 const store = {
   get(k, fallback) { return IDB && BIG_KEYS.has(k) ? (MEM.has(k) ? MEM.get(k) : fallback) : ls.get(k, fallback); },
@@ -62,6 +66,11 @@ const store = {
     return !idbFailed;
   },
   del(k) { if (IDB && BIG_KEYS.has(k)) { MEM.delete(k); idbWrite(k); } ls.del(k); },
+  // Writes anything waiting at once: after an import, and when the app goes into the background, so closing it
+  // straight away can't lose what was just saved.
+  flush() { const ks = [...pending.keys()]; for (const k of ks) { clearTimeout(pending.get(k)); pending.delete(k); } return Promise.all(ks.map(idbWriteNow)); },
+  // True when this browser's saved data couldn't be opened at start (so an empty page doesn't mean nothing was imported).
+  failed: false,
   // Opens the database and moves anything still in localStorage into it.
   async init() {
     try {
@@ -70,7 +79,7 @@ const store = {
         req.onupgradeneeded = () => req.result.createObjectStore("kv");
         req.onsuccess = () => resolve(req.result);
         req.onerror = () => reject(req.error);
-        setTimeout(() => reject(new Error("timeout")), 4000);
+        setTimeout(() => reject(new Error("timeout")), 12000);
       });
       for (const k of BIG_KEYS) {
         let v = await idbReq("readonly", (s) => s.get(k));
@@ -85,9 +94,11 @@ const store = {
       // put back anything already moved, and carry on with localStorage
       for (const [k, v] of MEM) ls.set(k, v);
       MEM.clear(); IDB = null;
+      store.failed = typeof indexedDB !== "undefined" && !ls.get(KEYS.rows, null);
     }
   },
 };
+for (const ev of ["pagehide", "visibilitychange"]) addEventListener(ev, () => { if (ev === "pagehide" || document.visibilityState === "hidden") store.flush(); });
 
 /* ---------- reading a Letterboxd export ---------- */
 const WANTED = {

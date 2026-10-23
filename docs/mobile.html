@@ -617,6 +617,10 @@ button.kv span:last-child, a.kv span:last-child { color: var(--ink-2); font-size
 .share-row { display: flex; gap: 8px; margin: 14px 0 6px; }
 .share-row .btn { flex: 1; text-align: center; text-decoration: none; }
 
+/* nothing imported yet: no tabs, just how to import */
+body.nodata .tabbar { display: none; }
+body.nodata .hero .avatar svg { width: 40px; height: 40px; color: var(--green); }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after, dialog.sheet[open], dialog.sheet::backdrop { animation: none !important; transition: none !important; }
 }
@@ -882,6 +886,10 @@ function buildExampleFriends() {
 const $ = (s, el = document) => el.querySelector(s);
 // Goes up whenever film details, averages or friends change, so the phone knows its saved results are stale.
 let DATA_REV = 0;
+// The made-up example diary shows only with ?example in the address, and only while nothing is imported (for
+// the checks, or to show someone the app). Otherwise an empty browser gets an import screen.
+const SHOW_EXAMPLE = /[?&]example\b/.test(location.search);
+let LOAD_ERROR = ""; // why a saved diary couldn't be read, if it couldn't
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const fmtN = (n) => Number(n || 0).toLocaleString("en-US");
 const plural = (n, one, many = one + "s") => `${fmtN(n)} ${n === 1 ? one : many}`;
@@ -924,14 +932,14 @@ function idbReq(mode, fn) {
   });
 }
 const pending = new Map();
+async function idbWriteNow(k) {
+  try { MEM.has(k) ? await idbReq("readwrite", (s) => s.put(MEM.get(k), k)) : await idbReq("readwrite", (s) => s.delete(k)); idbFailed = false; }
+  catch { idbFailed = true; if (MEM.has(k)) ls.set(k, MEM.get(k)); }
+}
 // Writes for one key are coalesced, so a lookup saving every few films writes once.
 function idbWrite(k) {
   if (pending.has(k)) return;
-  pending.set(k, setTimeout(async () => {
-    pending.delete(k);
-    try { MEM.has(k) ? await idbReq("readwrite", (s) => s.put(MEM.get(k), k)) : await idbReq("readwrite", (s) => s.delete(k)); idbFailed = false; }
-    catch { idbFailed = true; if (MEM.has(k)) ls.set(k, MEM.get(k)); }
-  }, 250));
+  pending.set(k, setTimeout(() => { pending.delete(k); idbWriteNow(k); }, 250));
 }
 const store = {
   get(k, fallback) { return IDB && BIG_KEYS.has(k) ? (MEM.has(k) ? MEM.get(k) : fallback) : ls.get(k, fallback); },
@@ -941,6 +949,11 @@ const store = {
     return !idbFailed;
   },
   del(k) { if (IDB && BIG_KEYS.has(k)) { MEM.delete(k); idbWrite(k); } ls.del(k); },
+  // Writes anything waiting at once: after an import, and when the app goes into the background, so closing it
+  // straight away can't lose what was just saved.
+  flush() { const ks = [...pending.keys()]; for (const k of ks) { clearTimeout(pending.get(k)); pending.delete(k); } return Promise.all(ks.map(idbWriteNow)); },
+  // True when this browser's saved data couldn't be opened at start (so an empty page doesn't mean nothing was imported).
+  failed: false,
   // Opens the database and moves anything still in localStorage into it.
   async init() {
     try {
@@ -949,7 +962,7 @@ const store = {
         req.onupgradeneeded = () => req.result.createObjectStore("kv");
         req.onsuccess = () => resolve(req.result);
         req.onerror = () => reject(req.error);
-        setTimeout(() => reject(new Error("timeout")), 4000);
+        setTimeout(() => reject(new Error("timeout")), 12000);
       });
       for (const k of BIG_KEYS) {
         let v = await idbReq("readonly", (s) => s.get(k));
@@ -964,9 +977,11 @@ const store = {
       // put back anything already moved, and carry on with localStorage
       for (const [k, v] of MEM) ls.set(k, v);
       MEM.clear(); IDB = null;
+      store.failed = typeof indexedDB !== "undefined" && !ls.get(KEYS.rows, null);
     }
   },
 };
+for (const ev of ["pagehide", "visibilitychange"]) addEventListener(ev, () => { if (ev === "pagehide" || document.visibilityState === "hidden") store.flush(); });
 
 /* ---------- reading a Letterboxd export ---------- */
 const WANTED = {
@@ -2934,6 +2949,7 @@ async function restoreBackup(file) {
   saveMeta(); store.set(KEYS.lbx, LBX);
   if (Array.isArray(b.friends) && b.friends.length) { store.set(KEYS.friends, b.friends); loadFriends(); }
   for (const [k, v] of Object.entries(b.keys || {})) if (v && KEYS[k]) store.set(KEYS[k], v);
+  await store.flush();
   return `Restored the backup from ${fmtDate(String(b.at || "").slice(0, 10))}${b.keys ? ", keys included" : ""}.`;
 }
 
@@ -3432,6 +3448,15 @@ let screenKey = "", SCROLL = {};
 function render(motion) {
   if (state.mode === "mine" && !MY_LIB) state.mode = "example";
   state.lib = state.mode === "mine" ? MY_LIB : EXAMPLE_LIB;
+  // nothing imported: an import screen, not the made-up example (that needs ?example in the address)
+  const empty = !MY_LIB && !SHOW_EXAMPLE;
+  document.body.classList.toggle("nodata", empty);
+  if (empty && !state.stack.length) {
+    renderTop(null, true);
+    $("#screen").innerHTML = welcomeScreen(); screenKey = "welcome";
+    syncHash();
+    return;
+  }
   YEARS = memo("years", () => [...new Set(state.lib.entries.map((e) => e.date.slice(0, 4)))].sort().reverse());
   if (state.scope !== "all" && !YEARS.includes(state.scope)) state.scope = "all";
   STATS = statsOf(state.scope);
@@ -3477,13 +3502,28 @@ function warmUp() {
 }
 $("#screen").addEventListener("animationend", (e) => { if (e.target.id === "screen") e.target.classList.remove("enter-push", "enter-pop", "enter-tab"); });
 
-function renderTop(d) {
+function renderTop(d, welcome) {
   $("#top").classList.toggle("detail", !!d);
   $("#nav-left").innerHTML = d ? `<button class="nav-btn" type="button" data-act="back">${BACK}<span class="sr-only">Back</span></button>`
-    : `<button class="nav-btn" type="button" data-act="search">${SEARCH_ICON}<span class="sr-only">Search</span></button>`;
+    : welcome ? "" : `<button class="nav-btn" type="button" data-act="search">${SEARCH_ICON}<span class="sr-only">Search</span></button>`;
   const who = state.mode === "example" ? "Example diary" : state.lib.profile.username || "Your diary";
-  $("#nav-title").textContent = d ? d.title : state.view === "profile" ? who : TITLES[state.view];
-  $("#nav-right").innerHTML = !d && state.view === "profile" ? `<button class="nav-btn" type="button" data-act="settings">${ICON.gear}<span class="sr-only">Import &amp; settings</span></button>` : "";
+  $("#nav-title").textContent = welcome ? "Credits Roll" : d ? d.title : state.view === "profile" ? who : TITLES[state.view];
+  $("#nav-right").innerHTML = welcome || (!d && state.view === "profile") ? `<button class="nav-btn" type="button" data-act="settings">${ICON.gear}<span class="sr-only">Import &amp; settings</span></button>` : "";
+}
+// Nothing imported (or this browser lost hold of it): how to bring your diary in.
+function welcomeScreen() {
+  const why = LOAD_ERROR ? `<div class="card notice"><p class="title">Your saved diary couldn't be read</p><p class="status err">${esc(LOAD_ERROR)}</p><p class="status">Import your export again.</p></div>`
+    : store.failed ? `<div class="card notice"><p class="title">Your diary isn't showing</p><p class="status">This browser's saved data couldn't be opened just now. Close the app completely and open it again. If it still isn't there, import your export or a backup file again.</p></div>` : "";
+  return `<section class="hero"><div class="hero-bg" aria-hidden="true"></div><div class="hero-in">
+      <span class="avatar xl" aria-hidden="true">${ICON.sparkle}</span><h2 class="hname">Credits Roll</h2><p class="hhandle">Your Letterboxd diary, in numbers</p></div></section>
+    ${why}<div class="card glow notice"><p class="title">Import your Letterboxd export</p>
+      <ol class="steps"><li>On <a href="https://letterboxd.com/settings/data/" target="_blank" rel="noopener">letterboxd.com</a>, open Settings → Data.</li>
+        <li>Choose Export your data and download the ZIP.</li><li>Import the ZIP here. It stays in this browser.</li></ol>
+      <button class="btn green block" type="button" data-act="import">${ICON.upload}Import export</button>
+      <p class="status">A backup file from another device works the same way.</p>
+      ${state.importError ? `<p class="status err" role="alert">${esc(state.importError)}</p>` : ""}</div>
+    ${IN_VIEWER ? `<p class="note">This Claude version keeps its own copy of an import. Your saved diary is on the website, <a href="https://sjnift.github.io/credits-roll/" target="_blank" rel="noopener">sjnift.github.io/credits-roll</a>.</p>` : ""}
+    <div class="foot"><p class="stamp">Updated 23 Oct 2026, 06:44 UTC</p></div>`;
 }
 // The header frosts over once the screen scrolls under it.
 function updateTop() { $("#top").classList.toggle("solid", window.scrollY > 12); }
@@ -3801,8 +3841,6 @@ function dataScreen() {
   const lib = MY_LIB;
   const status = lib ? `${plural(lib.films.length, "film")}, ${plural(lib.entries.length, "diary entry", "diary entries")} and ${plural(lib.reviews.length, "review")} imported${lib.profile.username ? ` for @${esc(lib.profile.username)}` : ""}.${lib.reviewTextMissing ? " The review text is missing, so import the export again." : ""}` : "Nothing imported yet.";
   const rows = [];
-  if (state.mode === "mine") rows.push(`<button class="row" type="button" data-act="example"><span>View the example diary</span>${CHEV}</button>`);
-  else if (lib) rows.push(`<button class="row" type="button" data-act="mine"><span>Back to my diary</span>${CHEV}</button>`);
   if (lib && !IN_VIEWER) {
     rows.push(`<button class="row" type="button" data-act="backup"><span>Back up to a file</span><span class="count">for another device</span>${CHEV}</button>`);
     rows.push(`<button class="row switch" type="button" data-act="backup-keys" role="switch" aria-checked="${!!state.backupKeys}"><span>Include API keys in the backup</span><span class="toggle-ui" aria-hidden="true"></span></button>`);
@@ -3822,7 +3860,7 @@ function dataScreen() {
       <p>With your own TMDB key, film details come from The Movie Database. This product uses the TMDB API but is not endorsed or certified by TMDB.
       Inside the Claude app, details come from Claude's knowledge of each film instead, so check anything surprising.</p>
       <p>On a computer? <a href="desktop.html">Open the desktop version</a>. It uses the same import.</p>
-      <p class="stamp">Updated 23 Oct 2026, 06:31 UTC</p></div>`;
+      <p class="stamp">Updated 23 Oct 2026, 06:44 UTC</p></div>`;
 }
 
 /* ---------- pushed screens ---------- */
@@ -4056,7 +4094,7 @@ function compareScreen() {
     `<button class="chip" type="button" data-cmp="${esc(f.id)}" aria-pressed="${state.cmp === f.id}">${avatar({ name: f.name }, "xs")}${esc(f.name)}</button>`).join("")}
     ${friends.length >= 2 ? `<button class="chip" type="button" data-cmp="all" aria-pressed="${state.cmp === "all"}">Everyone</button>` : ""}
     ${ex ? "" : `<button class="chip add" type="button" data-act="add-friend"${MY_LIB ? "" : " disabled"}>${ICON.plus}Add a friend</button>`}</div>` : "";
-  const note = ex ? (MY_LIB ? "These are made-up example friends. Switch back to your diary in Settings to compare with real ones." : "These are made-up example friends. Import your own export first, then add friends' exports here.")
+  const note = ex ? "These are made-up example friends. Import your own export first, then add friends' exports here."
     : friends.length ? "Friends' exports stay in this browser." : "Ask a friend for their Letterboxd export (Settings → Data → Export your data), then add the ZIP here. Add as many friends as you like. Their exports stay in this browser.";
   const remove = sel && !sel.example ? ` <button class="linkish" type="button" data-unfriend="${esc(sel.id)}">${state.unfriend === sel.id ? `Tap again to remove ${esc(sel.name)}` : `Remove ${esc(sel.name)}`}</button>` : "";
   const head = ltitle("Compare") + chips + `<p class="note">${note}${remove}</p>
@@ -4377,7 +4415,7 @@ function onPopState() {
 }
 function openRouteFilm() {
   const { film } = hashParts();
-  if (!film) return;
+  if (!film || (!MY_LIB && !SHOW_EXAMPLE)) return;
   const f = state.lib.films.find((x) => x.key === film) || (MY_LIB && MY_LIB.watchlistFilms.find((x) => x.key === film));
   try { history.replaceState(null, "", routeBase()); } catch {}
   if (f) openSheet(D.film(f));
@@ -4405,7 +4443,8 @@ async function importFiles(files) {
     }
     const rows = await readExport(files);
     const saved = store.set(KEYS.rows, rows);
-    MY_LIB = myLibrary(); DATA_REV++;
+    await store.flush();
+    MY_LIB = myLibrary(); DATA_REV++; LOAD_ERROR = "";
     Object.assign(state, { mode: "mine", scope: "all", view: "profile", stack: [], peopleLimit: 50, diaryLimit: 40 });
     job.note = saved ? "" : "This browser wouldn't save your export, so you'll need to import it again next time.";
     job.err = !saved;
@@ -4440,7 +4479,6 @@ function act(t) {
   else if (a === "all-rated" || a === "liked") openSheet(a === "liked" ? DR.liked(STATS) : D.films("Highest rated", filmsSub(STATS.films.filter((f) => f.rating)), STATS.films.filter((f) => f.rating), { scope: STATS.scope }));
   else if (a === "more-people") { state.peopleLimit += 100; render(); }
   else if (a === "more-diary") { state.diaryLimit += 120; render(); }
-  else if (a === "example" || a === "mine") { Object.assign(state, { mode: a === "example" ? "example" : "mine", scope: "all", view: "profile", stack: [] }); saveView(); render("tab"); window.scrollTo(0, 0); }
   else if (a === "forget") {
     if (!state.forgetArmed) {
       state.forgetArmed = true; render();
@@ -4594,9 +4632,9 @@ async function init() {
   loadFriends();
   EXAMPLE_META = Object.fromEntries(Object.entries(ex.meta).map(([k, m]) => [k, cleanMeta(m)]));
   EXAMPLE_LIB = buildLibrary(ex.rows);
-  try { MY_LIB = myLibrary(); } catch { MY_LIB = null; }
+  try { MY_LIB = myLibrary(); } catch (e) { MY_LIB = null; LOAD_ERROR = (e && e.message) || "unknown error"; }
   const view = store.get(VIEW_KEY, {});
-  state.mode = MY_LIB && view.mode !== "example" ? "mine" : "example";
+  state.mode = MY_LIB ? "mine" : "example"; // your diary whenever there is one
   if (view.scope) state.scope = view.scope;
   if (TOP_VIEWS.includes(view.view)) state.view = view.view;
   else if (view.view === "data") state.stack = [{ type: "data", title: PUSHED.data, ret: 0 }];

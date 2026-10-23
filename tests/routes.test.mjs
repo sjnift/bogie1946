@@ -19,7 +19,7 @@ export default async function ({ browser, base }) {
   assert((await at()).startsWith("#/list drill"), `full page: ${await at()}`);
   await d.goBack(); await d.waitForTimeout(200);
   assert(await at() === "#/ stats ", `back from the full page: ${await at()}`);
-  await d.goto(base + "desktop.html#/2025/film/" + encodeURIComponent("aftersun|2022")); await d.waitForTimeout(400);
+  await d.goto(base + "desktop.html?example#/2025/film/" + encodeURIComponent("aftersun|2022")); await d.waitForTimeout(400);
   assert(await at() === "#/2025/film/aftersun%7C2022 stats Aftersun", `bookmarked film: ${await at()}`);
   noErrors(d, "desktop");
 
@@ -31,13 +31,13 @@ export default async function ({ browser, base }) {
   assert(/^#\/diary Diary \S+day/.test(await mat()), `phone back to the list: ${await mat()}`);
   await m.click("#sheet [data-sclose]"); await m.waitForTimeout(250);
   assert(await mat() === "#/diary Diary ", `Done closes the sheet: ${await mat()}`);
-  await m.goto(base + "mobile.html#/insights/2024"); await m.waitForTimeout(400);
+  await m.goto(base + "mobile.html?example#/insights/2024"); await m.waitForTimeout(400);
   assert((await mat()).startsWith("#/insights/2024 Insights") && await m.$eval('[data-scope="2024"]', (b) => b.getAttribute("aria-pressed")) === "true", `phone bookmark: ${await mat()}`);
   await m.click('.tabbar [data-view="stats"]'); await m.waitForTimeout(150);
   assert((await mat()).startsWith("#/films Stats"), `phone Stats tab: ${await mat()}`);
   await m.goBack(); await m.waitForTimeout(200);
   assert((await mat()).startsWith("#/insights/2024 Insights"), `phone back to the tab before: ${await mat()}`);
-  await m.goto(base + "mobile.html#/reviews"); await m.waitForTimeout(400);
+  await m.goto(base + "mobile.html?example#/reviews"); await m.waitForTimeout(400);
   assert((await mat()).startsWith("#/reviews Reviews"), `phone pushed screen: ${await mat()}`);
   await m.click('[data-act="back"]'); await m.waitForTimeout(200);
   assert(!(await mat()).startsWith("#/reviews"), `phone back arrow stayed on Reviews: ${await mat()}`);

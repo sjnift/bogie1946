@@ -603,6 +603,10 @@ button.kv span:last-child, a.kv span:last-child { color: var(--ink-2); font-size
 .share-row { display: flex; gap: 8px; margin: 14px 0 6px; }
 .share-row .btn { flex: 1; text-align: center; text-decoration: none; }
 
+/* nothing imported yet: no tabs, just how to import */
+body.nodata .tabbar { display: none; }
+body.nodata .hero .avatar svg { width: 40px; height: 40px; color: var(--green); }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after, dialog.sheet[open], dialog.sheet::backdrop { animation: none !important; transition: none !important; }
 }

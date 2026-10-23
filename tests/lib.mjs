@@ -28,8 +28,10 @@ export function serve() {
 export const launch = () => chromium.launch();
 
 // A page in a fresh browser profile. `phone` sizes it like a phone; routes added later by a check win.
-// The service worker is off unless asked for, since its requests would slip past the stand-ins.
-export async function open(browser, base, file, { phone = false, downloads = false, worker = false } = {}) {
+// The service worker is off unless asked for, since its requests would slip past the stand-ins. With nothing
+// imported the pages show the made-up example diary only with ?example in the address, which checks use.
+export const EX = "?example";
+export async function open(browser, base, file, { phone = false, downloads = false, worker = false, example = true } = {}) {
   const ctx = await browser.newContext({ ...(phone ? { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } : { viewport: { width: 1280, height: 900 } }),
     acceptDownloads: downloads, serviceWorkers: worker ? "allow" : "block", reducedMotion: "reduce" });
   await ctx.route(/fonts\.(googleapis|gstatic)\.com|image\.tmdb\.org|api\.themoviedb\.org|omdbapi\.com|api\.apify\.com|letterboxd\.com/, (r) => r.abort());
@@ -38,7 +40,7 @@ export async function open(browser, base, file, { phone = false, downloads = fal
   const page = await ctx.newPage();
   page.errors = [];
   page.on("pageerror", (e) => page.errors.push(e.message));
-  if (file) { await page.goto(base + file); await page.waitForFunction(() => typeof state === "object" && state.lib); }
+  if (file) { await page.goto(base + file + (example ? EX : "")); await page.waitForFunction(() => typeof state === "object" && state.lib); }
   return page;
 }
 // Saves an export into a page's browser the way an older version did, then reloads so the page picks it up.

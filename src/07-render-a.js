@@ -27,6 +27,10 @@ function render() {
   LISTS = new Map();
   state.lib = state.mode === "mine" && MY_LIB ? MY_LIB : EXAMPLE_LIB;
   if (state.mode === "mine" && !MY_LIB) state.mode = "example";
+  // nothing imported: an import screen, not the made-up example (that needs ?example in the address)
+  const empty = !MY_LIB && !SHOW_EXAMPLE;
+  document.body.classList.toggle("empty", empty);
+  if (empty) { renderWelcome(); return; }
   const years = [...new Set(state.lib.entries.map((e) => e.date.slice(0, 4)))].sort().reverse();
   if (state.scope !== "all" && !years.includes(state.scope)) state.scope = "all";
   STATS = computeStats(state.lib, metaOf, state.scope);
@@ -55,11 +59,23 @@ function openSearch() {
 }
 
 /* ---------- title band ---------- */
+// The page with nothing imported: what to do, and why the diary isn't showing if the browser lost hold of it.
+function renderWelcome() {
+  $("#example-notice").hidden = false;
+  $("#hero-eyebrow").textContent = "Nothing imported yet";
+  $("#hero-title").innerHTML = "Your diary, <span class=\"accent\">in numbers</span>";
+  $("#hero-sub").innerHTML = "Stats, insights and comparisons from your Letterboxd diary.";
+  $("#notice-text").innerHTML = (LOAD_ERROR ? `<strong>Your saved diary couldn't be read</strong> (${esc(LOAD_ERROR)}). Import your export again. ` : store.failed
+    ? `<strong>This browser's saved data couldn't be opened just now</strong>, so your diary isn't showing. Close the page and open it again; if it still isn't there, import your export or a backup file again. ` : "") +
+    `To see your stats, go to <a href="https://letterboxd.com/settings/data/" target="_blank" rel="noopener">Letterboxd → Settings → Data</a>,
+    choose <em>Export your data</em>, then import the ZIP here or drop it anywhere on this page. A backup file from another device works too. Your files stay in this browser.`;
+  $("#backup").hidden = true;
+  for (const sel of ["#insights", "#compare", "#drillpage"]) $(sel).hidden = true;
+}
 function renderHero(s, years) {
   const lib = state.lib, ex = state.mode === "example";
   $("#example-notice").hidden = !ex;
-  $("#btn-example").hidden = ex;
-  $("#btn-mine").hidden = !(ex && MY_LIB);
+  if (ex) $("#notice-text").innerHTML = `<strong>This is a made-up example diary.</strong> To see your own stats, import your Letterboxd export (Letterboxd → Settings → Data → Export your data).`;
   const who = ex ? "Example diary" : lib.profile.username ? `@${lib.profile.username}` : "Your diary";
   const since = !ex && lib.profile.joined ? ` · member since ${MONTHS[+lib.profile.joined.slice(5, 7) - 1]} ${lib.profile.joined.slice(0, 4)}` : "";
   $("#hero-eyebrow").textContent = who + since;

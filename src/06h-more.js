@@ -96,6 +96,7 @@ async function restoreBackup(file) {
   saveMeta(); store.set(KEYS.lbx, LBX);
   if (Array.isArray(b.friends) && b.friends.length) { store.set(KEYS.friends, b.friends); loadFriends(); }
   for (const [k, v] of Object.entries(b.keys || {})) if (v && KEYS[k]) store.set(KEYS[k], v);
+  await store.flush();
   return `Restored the backup from ${fmtDate(String(b.at || "").slice(0, 10))}${b.keys ? ", keys included" : ""}.`;
 }
 

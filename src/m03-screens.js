@@ -95,6 +95,15 @@ let screenKey = "", SCROLL = {};
 function render(motion) {
   if (state.mode === "mine" && !MY_LIB) state.mode = "example";
   state.lib = state.mode === "mine" ? MY_LIB : EXAMPLE_LIB;
+  // nothing imported: an import screen, not the made-up example (that needs ?example in the address)
+  const empty = !MY_LIB && !SHOW_EXAMPLE;
+  document.body.classList.toggle("nodata", empty);
+  if (empty && !state.stack.length) {
+    renderTop(null, true);
+    $("#screen").innerHTML = welcomeScreen(); screenKey = "welcome";
+    syncHash();
+    return;
+  }
   YEARS = memo("years", () => [...new Set(state.lib.entries.map((e) => e.date.slice(0, 4)))].sort().reverse());
   if (state.scope !== "all" && !YEARS.includes(state.scope)) state.scope = "all";
   STATS = statsOf(state.scope);
@@ -140,13 +149,28 @@ function warmUp() {
 }
 $("#screen").addEventListener("animationend", (e) => { if (e.target.id === "screen") e.target.classList.remove("enter-push", "enter-pop", "enter-tab"); });
 
-function renderTop(d) {
+function renderTop(d, welcome) {
   $("#top").classList.toggle("detail", !!d);
   $("#nav-left").innerHTML = d ? `<button class="nav-btn" type="button" data-act="back">${BACK}<span class="sr-only">Back</span></button>`
-    : `<button class="nav-btn" type="button" data-act="search">${SEARCH_ICON}<span class="sr-only">Search</span></button>`;
+    : welcome ? "" : `<button class="nav-btn" type="button" data-act="search">${SEARCH_ICON}<span class="sr-only">Search</span></button>`;
   const who = state.mode === "example" ? "Example diary" : state.lib.profile.username || "Your diary";
-  $("#nav-title").textContent = d ? d.title : state.view === "profile" ? who : TITLES[state.view];
-  $("#nav-right").innerHTML = !d && state.view === "profile" ? `<button class="nav-btn" type="button" data-act="settings">${ICON.gear}<span class="sr-only">Import &amp; settings</span></button>` : "";
+  $("#nav-title").textContent = welcome ? "Credits Roll" : d ? d.title : state.view === "profile" ? who : TITLES[state.view];
+  $("#nav-right").innerHTML = welcome || (!d && state.view === "profile") ? `<button class="nav-btn" type="button" data-act="settings">${ICON.gear}<span class="sr-only">Import &amp; settings</span></button>` : "";
+}
+// Nothing imported (or this browser lost hold of it): how to bring your diary in.
+function welcomeScreen() {
+  const why = LOAD_ERROR ? `<div class="card notice"><p class="title">Your saved diary couldn't be read</p><p class="status err">${esc(LOAD_ERROR)}</p><p class="status">Import your export again.</p></div>`
+    : store.failed ? `<div class="card notice"><p class="title">Your diary isn't showing</p><p class="status">This browser's saved data couldn't be opened just now. Close the app completely and open it again. If it still isn't there, import your export or a backup file again.</p></div>` : "";
+  return `<section class="hero"><div class="hero-bg" aria-hidden="true"></div><div class="hero-in">
+      <span class="avatar xl" aria-hidden="true">${ICON.sparkle}</span><h2 class="hname">Credits Roll</h2><p class="hhandle">Your Letterboxd diary, in numbers</p></div></section>
+    ${why}<div class="card glow notice"><p class="title">Import your Letterboxd export</p>
+      <ol class="steps"><li>On <a href="https://letterboxd.com/settings/data/" target="_blank" rel="noopener">letterboxd.com</a>, open Settings → Data.</li>
+        <li>Choose Export your data and download the ZIP.</li><li>Import the ZIP here. It stays in this browser.</li></ol>
+      <button class="btn green block" type="button" data-act="import">${ICON.upload}Import export</button>
+      <p class="status">A backup file from another device works the same way.</p>
+      ${state.importError ? `<p class="status err" role="alert">${esc(state.importError)}</p>` : ""}</div>
+    ${IN_VIEWER ? `<p class="note">This Claude version keeps its own copy of an import. Your saved diary is on the website, <a href="https://sjnift.github.io/credits-roll/" target="_blank" rel="noopener">sjnift.github.io/credits-roll</a>.</p>` : ""}
+    <div class="foot"><p class="stamp">Updated <!--BUILD--></p></div>`;
 }
 // The header frosts over once the screen scrolls under it.
 function updateTop() { $("#top").classList.toggle("solid", window.scrollY > 12); }

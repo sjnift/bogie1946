@@ -11,7 +11,7 @@ function compareScreen() {
     `<button class="chip" type="button" data-cmp="${esc(f.id)}" aria-pressed="${state.cmp === f.id}">${avatar({ name: f.name }, "xs")}${esc(f.name)}</button>`).join("")}
     ${friends.length >= 2 ? `<button class="chip" type="button" data-cmp="all" aria-pressed="${state.cmp === "all"}">Everyone</button>` : ""}
     ${ex ? "" : `<button class="chip add" type="button" data-act="add-friend"${MY_LIB ? "" : " disabled"}>${ICON.plus}Add a friend</button>`}</div>` : "";
-  const note = ex ? (MY_LIB ? "These are made-up example friends. Switch back to your diary in Settings to compare with real ones." : "These are made-up example friends. Import your own export first, then add friends' exports here.")
+  const note = ex ? "These are made-up example friends. Import your own export first, then add friends' exports here."
     : friends.length ? "Friends' exports stay in this browser." : "Ask a friend for their Letterboxd export (Settings → Data → Export your data), then add the ZIP here. Add as many friends as you like. Their exports stay in this browser.";
   const remove = sel && !sel.example ? ` <button class="linkish" type="button" data-unfriend="${esc(sel.id)}">${state.unfriend === sel.id ? `Tap again to remove ${esc(sel.name)}` : `Remove ${esc(sel.name)}`}</button>` : "";
   const head = ltitle("Compare") + chips + `<p class="note">${note}${remove}</p>

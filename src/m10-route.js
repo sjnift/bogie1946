@@ -88,7 +88,7 @@ function onPopState() {
 }
 function openRouteFilm() {
   const { film } = hashParts();
-  if (!film) return;
+  if (!film || (!MY_LIB && !SHOW_EXAMPLE)) return;
   const f = state.lib.films.find((x) => x.key === film) || (MY_LIB && MY_LIB.watchlistFilms.find((x) => x.key === film));
   try { history.replaceState(null, "", routeBase()); } catch {}
   if (f) openSheet(D.film(f));

@@ -43,6 +43,9 @@ Where it lives:
     underline under bare numbers, no underlines in tables (a "click any number" line under each table instead),
     rounded tags for genres, countries, languages and cast. No white dotted underlines.
   - They like charts and data views that are accurate, clear and consistent in light and dark mode.
+  - **No example diary** (they got stuck in it and asked for it to go): with a diary saved, the app always shows
+    it; with nothing saved it shows an import screen. The made-up example only appears with `?example` in the
+    address and nothing imported (`SHOW_EXAMPLE`), which the checks use. There is no switch to it.
 
 ## Always check double counting
 
@@ -112,6 +115,9 @@ The owner asked for this to be checked every time. A film, diary entry, person o
   profile, files`. Only top-level files count, plus `likes/films.csv`; `likes/` (other people's reviews you
   liked), `lists/`, `deleted/` and `orphaned/` are skipped, and a `reviews.csv` must have a Review column.
   A `.json` file is a backup and is restored instead.
+- Saving: `store.set` writes to IndexedDB 250 ms later; imports and restores call `await store.flush()`, and the
+  page flushes when it's hidden or closed. If the database can't be opened at start, `store.failed` is set and the
+  import screen says so; if the saved export can't be read, `LOAD_ERROR` says why. Neither falls back to the example.
 - `buildLibrary(rows)` makes the library: `films` (one per film: key, name, year, rating, liked, entries,
   reviews, uri), `entries` (diary, oldest first), `reviews` (sanitised HTML + text), `profile`, `watchlistFilms`
   (film-like objects, minus films already watched). `watched.csv` and the diary decide what is seen; likes,
@@ -220,9 +226,10 @@ shows the latest ~50, so it accumulates), commits, and asks Pages to rebuild. Th
 ## Checks and CI
 
 `tests/`: `lib.mjs` (server, browser, stand-ins: papaparse/jszip served from `node_modules`, every outside
-service cut off unless a check stands in for it, service worker off unless asked, reduced motion,
+service cut off unless a check stands in for it, service worker off unless asked, reduced motion, pages opened
+with `?example` (pass `example: false` for an empty browser; a check's own `goto` must add `?example` too),
 `phoneTour()` which opens every phone tab, Stats view and Insights/Compare section), `run.mjs`, and checks:
-`apify`, `check` (film data check), `counts` (double counting), `extras` (year picture, On this day, Watch next, PWA), `feed`, `import`,
+`apify`, `check` (film data check), `counts` (double counting), `welcome` (no example diary; import saved at once), `extras` (year picture, On this day, Watch next, PWA), `feed`, `import`,
 `links` (every link opens something), `pages` (nothing broken shows, no sideways scroll on the phone),
 `routes`, `storage` (IndexedDB move, backup and restore), `tmdb` (fixing a match, filmography, search).
 

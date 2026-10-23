@@ -611,6 +611,9 @@ dialog.tall { width: min(520px, calc(100vw - 32px)); max-height: 94vh; }
 footer { border-top: 1px solid var(--line); padding-block: 22px 40px; color: var(--muted); font-size: 13px; }
 footer p { margin: 0 0 6px; max-width: 80ch; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+/* nothing imported yet: just the title band and how to import */
+body.empty #tiles, body.empty #lookup, body.empty #sections, body.empty #insights, body.empty #compare, body.empty #drillpage,
+body.empty .scopes-row, body.empty #btn-search, body.empty #btn-insights, body.empty #btn-compare { display: none !important; }
 </style>
 </head>
 <body>
@@ -625,8 +628,6 @@ footer p { margin: 0 0 6px; max-width: 80ch; }
         <button class="btn" id="btn-compare" type="button">Compare</button>
         <button class="btn primary" id="btn-import" type="button">Import Letterboxd export</button>
         <input id="file-input" type="file" accept=".zip,.csv,.json,application/zip,text/csv,application/json" multiple hidden>
-        <button class="btn" id="btn-example" type="button" hidden>View example</button>
-        <button class="btn" id="btn-mine" type="button" hidden>Back to my diary</button>
       </div>
     </div>
     <div class="hero">
@@ -635,10 +636,7 @@ footer p { margin: 0 0 6px; max-width: 80ch; }
       <p class="sub" id="hero-sub"></p>
     </div>
     <div class="notice" id="example-notice">
-      <p><strong>This is an example diary, not yours.</strong> To see your own stats, go to
-        <a href="https://letterboxd.com/settings/data/" target="_blank" rel="noopener">Letterboxd → Settings → Data</a>,
-        choose <em>Export your data</em>, then import the ZIP here or drop it anywhere on this page.
-        Your files stay in this browser.</p>
+      <p id="notice-text"></p>
       <button class="btn small" id="btn-import-2" type="button">Import export</button>
     </div>
     <div class="status err" id="import-error" role="alert" hidden></div>
@@ -662,7 +660,7 @@ footer p { margin: 0 0 6px; max-width: 80ch; }
     <p>With your own TMDB key, film details come from The Movie Database. This product uses the TMDB API but is not endorsed or certified by TMDB.
       Inside the Claude app, details come from Claude's knowledge of each film instead, so check anything surprising.</p>
     <p>On a phone? <a href="mobile.html">Open the phone version</a>. It uses the same import.</p>
-    <p>Updated 23 Oct 2026, 06:31 UTC</p>
+    <p>Updated 23 Oct 2026, 06:44 UTC</p>
     <p id="backup" hidden><button class="btn small" id="btn-backup" type="button">Back up to a file</button>
       <label class="status backup-keys"><input type="checkbox" id="backup-keys"> with my API keys</label><br>
       <span class="status">To use your diary on another device, import the backup file there like an export. It carries your import, film details, Letterboxd averages and friends.</span></p>
@@ -899,6 +897,10 @@ function buildExampleFriends() {
 const $ = (s, el = document) => el.querySelector(s);
 // Goes up whenever film details, averages or friends change, so the phone knows its saved results are stale.
 let DATA_REV = 0;
+// The made-up example diary shows only with ?example in the address, and only while nothing is imported (for
+// the checks, or to show someone the app). Otherwise an empty browser gets an import screen.
+const SHOW_EXAMPLE = /[?&]example\b/.test(location.search);
+let LOAD_ERROR = ""; // why a saved diary couldn't be read, if it couldn't
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const fmtN = (n) => Number(n || 0).toLocaleString("en-US");
 const plural = (n, one, many = one + "s") => `${fmtN(n)} ${n === 1 ? one : many}`;
@@ -941,14 +943,14 @@ function idbReq(mode, fn) {
   });
 }
 const pending = new Map();
+async function idbWriteNow(k) {
+  try { MEM.has(k) ? await idbReq("readwrite", (s) => s.put(MEM.get(k), k)) : await idbReq("readwrite", (s) => s.delete(k)); idbFailed = false; }
+  catch { idbFailed = true; if (MEM.has(k)) ls.set(k, MEM.get(k)); }
+}
 // Writes for one key are coalesced, so a lookup saving every few films writes once.
 function idbWrite(k) {
   if (pending.has(k)) return;
-  pending.set(k, setTimeout(async () => {
-    pending.delete(k);
-    try { MEM.has(k) ? await idbReq("readwrite", (s) => s.put(MEM.get(k), k)) : await idbReq("readwrite", (s) => s.delete(k)); idbFailed = false; }
-    catch { idbFailed = true; if (MEM.has(k)) ls.set(k, MEM.get(k)); }
-  }, 250));
+  pending.set(k, setTimeout(() => { pending.delete(k); idbWriteNow(k); }, 250));
 }
 const store = {
   get(k, fallback) { return IDB && BIG_KEYS.has(k) ? (MEM.has(k) ? MEM.get(k) : fallback) : ls.get(k, fallback); },
@@ -958,6 +960,11 @@ const store = {
     return !idbFailed;
   },
   del(k) { if (IDB && BIG_KEYS.has(k)) { MEM.delete(k); idbWrite(k); } ls.del(k); },
+  // Writes anything waiting at once: after an import, and when the app goes into the background, so closing it
+  // straight away can't lose what was just saved.
+  flush() { const ks = [...pending.keys()]; for (const k of ks) { clearTimeout(pending.get(k)); pending.delete(k); } return Promise.all(ks.map(idbWriteNow)); },
+  // True when this browser's saved data couldn't be opened at start (so an empty page doesn't mean nothing was imported).
+  failed: false,
   // Opens the database and moves anything still in localStorage into it.
   async init() {
     try {
@@ -966,7 +973,7 @@ const store = {
         req.onupgradeneeded = () => req.result.createObjectStore("kv");
         req.onsuccess = () => resolve(req.result);
         req.onerror = () => reject(req.error);
-        setTimeout(() => reject(new Error("timeout")), 4000);
+        setTimeout(() => reject(new Error("timeout")), 12000);
       });
       for (const k of BIG_KEYS) {
         let v = await idbReq("readonly", (s) => s.get(k));
@@ -981,9 +988,11 @@ const store = {
       // put back anything already moved, and carry on with localStorage
       for (const [k, v] of MEM) ls.set(k, v);
       MEM.clear(); IDB = null;
+      store.failed = typeof indexedDB !== "undefined" && !ls.get(KEYS.rows, null);
     }
   },
 };
+for (const ev of ["pagehide", "visibilitychange"]) addEventListener(ev, () => { if (ev === "pagehide" || document.visibilityState === "hidden") store.flush(); });
 
 /* ---------- reading a Letterboxd export ---------- */
 const WANTED = {
@@ -2951,6 +2960,7 @@ async function restoreBackup(file) {
   saveMeta(); store.set(KEYS.lbx, LBX);
   if (Array.isArray(b.friends) && b.friends.length) { store.set(KEYS.friends, b.friends); loadFriends(); }
   for (const [k, v] of Object.entries(b.keys || {})) if (v && KEYS[k]) store.set(KEYS[k], v);
+  await store.flush();
   return `Restored the backup from ${fmtDate(String(b.at || "").slice(0, 10))}${b.keys ? ", keys included" : ""}.`;
 }
 
@@ -3381,6 +3391,10 @@ function render() {
   LISTS = new Map();
   state.lib = state.mode === "mine" && MY_LIB ? MY_LIB : EXAMPLE_LIB;
   if (state.mode === "mine" && !MY_LIB) state.mode = "example";
+  // nothing imported: an import screen, not the made-up example (that needs ?example in the address)
+  const empty = !MY_LIB && !SHOW_EXAMPLE;
+  document.body.classList.toggle("empty", empty);
+  if (empty) { renderWelcome(); return; }
   const years = [...new Set(state.lib.entries.map((e) => e.date.slice(0, 4)))].sort().reverse();
   if (state.scope !== "all" && !years.includes(state.scope)) state.scope = "all";
   STATS = computeStats(state.lib, metaOf, state.scope);
@@ -3409,11 +3423,23 @@ function openSearch() {
 }
 
 /* ---------- title band ---------- */
+// The page with nothing imported: what to do, and why the diary isn't showing if the browser lost hold of it.
+function renderWelcome() {
+  $("#example-notice").hidden = false;
+  $("#hero-eyebrow").textContent = "Nothing imported yet";
+  $("#hero-title").innerHTML = "Your diary, <span class=\"accent\">in numbers</span>";
+  $("#hero-sub").innerHTML = "Stats, insights and comparisons from your Letterboxd diary.";
+  $("#notice-text").innerHTML = (LOAD_ERROR ? `<strong>Your saved diary couldn't be read</strong> (${esc(LOAD_ERROR)}). Import your export again. ` : store.failed
+    ? `<strong>This browser's saved data couldn't be opened just now</strong>, so your diary isn't showing. Close the page and open it again; if it still isn't there, import your export or a backup file again. ` : "") +
+    `To see your stats, go to <a href="https://letterboxd.com/settings/data/" target="_blank" rel="noopener">Letterboxd → Settings → Data</a>,
+    choose <em>Export your data</em>, then import the ZIP here or drop it anywhere on this page. A backup file from another device works too. Your files stay in this browser.`;
+  $("#backup").hidden = true;
+  for (const sel of ["#insights", "#compare", "#drillpage"]) $(sel).hidden = true;
+}
 function renderHero(s, years) {
   const lib = state.lib, ex = state.mode === "example";
   $("#example-notice").hidden = !ex;
-  $("#btn-example").hidden = ex;
-  $("#btn-mine").hidden = !(ex && MY_LIB);
+  if (ex) $("#notice-text").innerHTML = `<strong>This is a made-up example diary.</strong> To see your own stats, import your Letterboxd export (Letterboxd → Settings → Data → Export your data).`;
   const who = ex ? "Example diary" : lib.profile.username ? `@${lib.profile.username}` : "Your diary";
   const since = !ex && lib.profile.joined ? ` · member since ${MONTHS[+lib.profile.joined.slice(5, 7) - 1]} ${lib.profile.joined.slice(0, 4)}` : "";
   $("#hero-eyebrow").textContent = who + since;
@@ -4263,7 +4289,8 @@ async function importFiles(files) {
     }
     const rows = await readExport(files);
     const saved = store.set(KEYS.rows, rows);
-    MY_LIB = myLibrary();
+    await store.flush();
+    MY_LIB = myLibrary(); LOAD_ERROR = "";
     Object.assign(state, { mode: "mine", scope: "all", more: { cast: false, directors: false } });
     job.note = saved ? "" : "This browser wouldn't save your export, so you'll need to import it again next time.";
     job.err = !saved;
@@ -4287,7 +4314,6 @@ function bind() {
   $("#btn-import").addEventListener("click", () => fileInput.click());
   $("#btn-import-2").addEventListener("click", () => fileInput.click());
   fileInput.addEventListener("change", () => { const files = [...fileInput.files]; fileInput.value = ""; if (files.length) importFiles(files); });
-  $("#btn-example").addEventListener("click", () => { state.mode = "example"; state.scope = "all"; saveView(); render(); });
   $("#btn-insights").addEventListener("click", () => { state.page = state.page === "insights" ? "stats" : "insights"; saveView(); render(); window.scrollTo(0, 0); });
   $("#btn-compare").addEventListener("click", () => { state.page = state.page === "compare" ? "stats" : "compare"; saveView(); render(); window.scrollTo(0, 0); });
   const friendInput = $("#friend-input");
@@ -4301,7 +4327,6 @@ function bind() {
     } catch (e) { state.cmpError = (e && e.message) || "Couldn't read that export."; }
     render();
   });
-  $("#btn-mine").addEventListener("click", () => { state.mode = "mine"; state.scope = "all"; saveView(); render(); });
 
   document.addEventListener("click", (e) => { const c = e.target.closest("[data-copycheck]"); if (c) copyDataCheck(c); });
   document.addEventListener("click", (e) => {
@@ -4429,9 +4454,9 @@ async function init() {
   loadFriends();
   EXAMPLE_META = Object.fromEntries(Object.entries(ex.meta).map(([k, m]) => [k, cleanMeta(m)]));
   EXAMPLE_LIB = buildLibrary(ex.rows);
-  try { MY_LIB = myLibrary(); } catch { MY_LIB = null; }
+  try { MY_LIB = myLibrary(); } catch (e) { MY_LIB = null; LOAD_ERROR = (e && e.message) || "unknown error"; }
   const view = store.get(KEYS.view, {});
-  state.mode = MY_LIB && view.mode !== "example" ? "mine" : "example";
+  state.mode = MY_LIB ? "mine" : "example"; // your diary whenever there is one
   if (view.scope) state.scope = view.scope;
   if (view.page === "insights" || view.page === "compare") state.page = view.page;
   bind();

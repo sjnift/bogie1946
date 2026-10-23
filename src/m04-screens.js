@@ -164,8 +164,6 @@ function dataScreen() {
   const lib = MY_LIB;
   const status = lib ? `${plural(lib.films.length, "film")}, ${plural(lib.entries.length, "diary entry", "diary entries")} and ${plural(lib.reviews.length, "review")} imported${lib.profile.username ? ` for @${esc(lib.profile.username)}` : ""}.${lib.reviewTextMissing ? " The review text is missing, so import the export again." : ""}` : "Nothing imported yet.";
   const rows = [];
-  if (state.mode === "mine") rows.push(`<button class="row" type="button" data-act="example"><span>View the example diary</span>${CHEV}</button>`);
-  else if (lib) rows.push(`<button class="row" type="button" data-act="mine"><span>Back to my diary</span>${CHEV}</button>`);
   if (lib && !IN_VIEWER) {
     rows.push(`<button class="row" type="button" data-act="backup"><span>Back up to a file</span><span class="count">for another device</span>${CHEV}</button>`);
     rows.push(`<button class="row switch" type="button" data-act="backup-keys" role="switch" aria-checked="${!!state.backupKeys}"><span>Include API keys in the backup</span><span class="toggle-ui" aria-hidden="true"></span></button>`);

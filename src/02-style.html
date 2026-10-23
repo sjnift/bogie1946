@@ -443,4 +443,7 @@ dialog.tall { width: min(520px, calc(100vw - 32px)); max-height: 94vh; }
 footer { border-top: 1px solid var(--line); padding-block: 22px 40px; color: var(--muted); font-size: 13px; }
 footer p { margin: 0 0 6px; max-width: 80ch; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+/* nothing imported yet: just the title band and how to import */
+body.empty #tiles, body.empty #lookup, body.empty #sections, body.empty #insights, body.empty #compare, body.empty #drillpage,
+body.empty .scopes-row, body.empty #btn-search, body.empty #btn-insights, body.empty #btn-compare { display: none !important; }
 </style>

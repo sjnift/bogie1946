@@ -4,7 +4,7 @@ import { open, assert, noErrors } from "./lib.mjs";
 export default async function ({ browser, base }) {
   for (const [file, phone] of [["desktop.html", false], ["mobile.html", true]]) {
     const p = await open(browser, base, file, { phone });
-    await p.goto(`${base}${file}#/insights/2025`); await p.waitForFunction(() => typeof state === "object" && state.lib);
+    await p.goto(`${base}${file}?example#/insights/2025`); await p.waitForFunction(() => typeof state === "object" && state.lib);
     await p.click(phone ? 'button:has-text("Share 2025 as an image")' : "#y-glance .dlink");
     await p.waitForSelector(".share-img", { timeout: 15000 });
     const size = await p.$eval(".share-img", (img) => [img.naturalWidth, img.naturalHeight].join("x"));
