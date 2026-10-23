@@ -1,6 +1,6 @@
 // Reviews: a saved export without review text is spotted even when the daily feed brings a few reviews with
 // words (and those still show); a Review column written in other capitals still counts; and the highest-rated
-// actors need six rated films each.
+// actors over all time need six rated films each, while a single year keeps the usual minimum.
 import { open, seed, assert, noErrors, JSZip } from "./lib.mjs";
 
 const feed = { user: "tester", items: [{ guid: "letterboxd-review-1", title: "Matewan", year: 1987, watched: "2026-08-09", logged: "2026-08-09", rating: 3.5, rewatch: false, liked: true, tmdb: 1, review: "<p>Proto-Eli Sunday.</p>" }] };
@@ -30,7 +30,8 @@ export default async function ({ browser, base }) {
     noErrors(p, file);
   }
   const d = await open(browser, base, "desktop.html");
-  const cast = await d.evaluate(() => { const s = computeStats(state.lib, metaOf, "all"); return [CAST_MIN_RATED, s.cast.best.every((p) => p.ratings.length >= 6), s.directors.best.length]; });
-  assert(cast[0] === 6 && cast[1] && cast[2] > 0, `highest-rated actors need six rated films: ${cast}`);
+  const cast = await d.evaluate(() => { const s = computeStats(state.lib, metaOf, "all"), y = computeStats(state.lib, metaOf, "2025");
+    return [s.castMinRated, s.cast.best.every((p) => p.ratings.length >= 6), y.castMinRated === y.minRated, y.cast.best.length > 0, y.cast.best.some((p) => p.ratings.length < 6)]; });
+  assert(cast.join() === "6,true,true,true,true", `highest-rated actors: six rated films over all time, the usual minimum in a year: ${cast}`);
   noErrors(d, "desktop");
 }

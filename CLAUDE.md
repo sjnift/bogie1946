@@ -43,8 +43,8 @@ Where it lives:
     underline under bare numbers, no underlines in tables (a "click any number" line under each table instead),
     rounded tags for genres, countries, languages and cast. No white dotted underlines.
   - They like charts and data views that are accurate, clear and consistent in light and dark mode.
-  - Highest-rated actors need **6 rated films** each (`CAST_MIN_RATED`); other people keep `minRated` (2, or 3
-    for 150+ films).
+  - Highest-rated actors over **all time** need **6 rated films** each (`CAST_MIN_RATED`, `s.castMinRated`); a single
+    year, and every other kind of person, keeps `minRated` (2, or 3 for 150+ films).
   - The best-rated decade is featured with its films' posters (phone Breakdown and desktop "Released").
   - **No example diary** (they got stuck in it and asked for it to go): with a diary saved, the app always shows
     it; with nothing saved it shows an import screen. The made-up example only appears with `?example` in the

@@ -22,7 +22,7 @@ function rankRows(list, valueOf, widthOf, startRank, titleOf) {
 function peopleBlock(kind, data, s) {
   const t = state.tab[kind];
   const list = t === "most" ? data.most : data.best;
-  if (!list.length) return `<div class="empty">${t === "best" ? `Nobody here has ${kind === "cast" ? CAST_MIN_RATED : s.minRated} or more rated films yet.` : "Nobody to show for this period."}</div>`;
+  if (!list.length) return `<div class="empty">${t === "best" ? `Nobody here has ${kind === "cast" ? s.castMinRated : s.minRated} or more rated films yet.` : "Nobody to show for this period."}</div>`;
   const top = list.slice(0, 12);
   const cards = top.map((p, i) => `<button class="person" type="button" data-list="${reg(p.name, personSub(p), p.films, p)}">
     ${faceHtml(p, i + 1)}<span class="nm">${esc(p.name)}</span>
@@ -179,7 +179,7 @@ function renderSections(s) {
   const T = s.scope === "all" ? onThisDay(state.lib) : null, W = state.lib.watchlistFilms.length ? watchNext(state.lib) : undefined;
   $("#sections").innerHTML = [
     T && T.entries.length ? section("onthisday", T.title, T.sub, onThisDayBlock(T)) : "",
-    section("starring", "Starring", `${everyone(s.cast, "Actors")} in the top ${CAST_DEPTH} billed of each film. Highest rated needs ${CAST_MIN_RATED}+ rated films.`, people("cast", s.cast)),
+    section("starring", "Starring", `${everyone(s.cast, "Actors")} in the top ${CAST_DEPTH} billed of each film. Highest rated needs ${s.castMinRated}+ rated films.`, people("cast", s.cast)),
     section("directed", "Directed by", `${everyone(s.directors, "Directors")}.`, people("directors", s.directors)),
     section("logged", "Logged", s.scope === "all" ? "Diary entries over time, by day and by date." : `Diary entries in ${s.scope}, week by week.`, diaryBlock(s)),
     section("rated", "Rated", "How your ratings spread across half-stars.", ratingBlock(s)),

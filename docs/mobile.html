@@ -1221,7 +1221,8 @@ function inScope(lib, scope) {
   return { films: [...new Set(entries.map((e) => e.film))], entries };
 }
 
-// Highest-rated actors need this many rated films each, so one great film doesn't top the list (the owner's call).
+// Highest-rated actors over all time need this many rated films each, so one great film doesn't top the list (the
+// owner's call); a single year keeps the usual minimum.
 const CAST_MIN_RATED = 6;
 function rankPeople(films, metaOf, role, minRated) {
   const map = new Map();
@@ -1309,7 +1310,7 @@ function computeStats(lib, metaOf, scope) {
 
   const minRated = films.length >= 150 ? 3 : 2;
   return {
-    scope, films, entries, withMeta: withMeta.length, minRated,
+    scope, films, entries, withMeta: withMeta.length, minRated, castMinRated: scope === "all" ? CAST_MIN_RATED : minRated,
     minutes, timed,
     avgRating: avg(rated.map((f) => f.rating)), rated: rated.length, spread,
     rewatches: entries.filter((e) => e.rewatch).length,
@@ -1317,7 +1318,7 @@ function computeStats(lib, metaOf, scope) {
     likes: films.filter((f) => f.liked).length,
     byDay, byMonth, weekday, busiestMonth, busiestDay, streak: longestStreak(entries),
     decades,
-    cast: rankPeople(films, metaOf, "c", CAST_MIN_RATED), directors: rankPeople(films, metaOf, "d", minRated),
+    cast: rankPeople(films, metaOf, "c", scope === "all" ? CAST_MIN_RATED : minRated), directors: rankPeople(films, metaOf, "d", minRated),
     writers: rankPeople(films, metaOf, "w", minRated), dop: rankPeople(films, metaOf, "p", minRated), music: rankPeople(films, metaOf, "m", minRated),
     genres: rankCategory(films, metaOf, "g"), countries: rankCategory(films, metaOf, "k"), languages: rankCategory(films, metaOf, "l"),
     newReleases: scope === "all" ? null : films.filter((f) => String(f.year) === scope).length,
@@ -3584,7 +3585,7 @@ function welcomeScreen() {
       <p class="status">A backup file from another device works the same way.</p>
       ${state.importError ? `<p class="status err" role="alert">${esc(state.importError)}</p>` : ""}</div>
     ${IN_VIEWER ? `<p class="note">This Claude version keeps its own copy of an import. Your saved diary is on the website, <a href="https://sjnift.github.io/credits-roll/" target="_blank" rel="noopener">sjnift.github.io/credits-roll</a>.</p>` : ""}
-    <div class="foot"><p class="stamp">Updated 23 Oct 2026, 09:27 UTC</p></div>`;
+    <div class="foot"><p class="stamp">Updated 23 Oct 2026, 09:39 UTC</p></div>`;
 }
 // The header frosts over once the screen scrolls under it.
 function updateTop() { $("#top").classList.toggle("solid", window.scrollY > 12); }
@@ -3723,7 +3724,7 @@ function peopleScreen(s) {
     segBar("sort", [["most", "Most watched"], ["best", "Highest rated"]], state.sort, "small");
   if (!s.withMeta) return head + needMeta();
   const note = role === "c" ? `Counts the top ${CAST_DEPTH} billed cast of each film.` : "";
-  const bestNote = best ? `${note ? " " : ""}Highest rated needs ${role === "c" ? CAST_MIN_RATED : s.minRated} or more rated films.` : "";
+  const bestNote = best ? `${note ? " " : ""}Highest rated needs ${role === "c" ? s.castMinRated : s.minRated} or more rated films.` : "";
   const val = (p) => best ? `★ ${p.avg.toFixed(2)}` : plural(p.count, "film");
   const podium = list.length >= 3 ? `<div class="podium">${[1, 0, 2].map((i) => { const p = list[i];
     return `<button class="pod${i ? "" : " first"}" type="button" data-list="${reg(p.name, filmsTitle(p), p.films, p)}">${avatar(p, "lg")}<span class="rkb">${i + 1}</span><span class="nm">${esc(p.name)}</span><span class="ct">${val(p)}</span></button>`; }).join("")}</div>` : "";
@@ -3934,7 +3935,7 @@ function dataScreen() {
       <p>With your own TMDB key, film details come from The Movie Database. This product uses the TMDB API but is not endorsed or certified by TMDB.
       Inside the Claude app, details come from Claude's knowledge of each film instead, so check anything surprising.</p>
       <p>On a computer? <a href="desktop.html">Open the desktop version</a>. It uses the same import.</p>
-      <p class="stamp">Updated 23 Oct 2026, 09:27 UTC</p></div>`;
+      <p class="stamp">Updated 23 Oct 2026, 09:39 UTC</p></div>`;
 }
 
 /* ---------- pushed screens ---------- */

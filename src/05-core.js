@@ -315,7 +315,8 @@ function inScope(lib, scope) {
   return { films: [...new Set(entries.map((e) => e.film))], entries };
 }
 
-// Highest-rated actors need this many rated films each, so one great film doesn't top the list (the owner's call).
+// Highest-rated actors over all time need this many rated films each, so one great film doesn't top the list (the
+// owner's call); a single year keeps the usual minimum.
 const CAST_MIN_RATED = 6;
 function rankPeople(films, metaOf, role, minRated) {
   const map = new Map();
@@ -403,7 +404,7 @@ function computeStats(lib, metaOf, scope) {
 
   const minRated = films.length >= 150 ? 3 : 2;
   return {
-    scope, films, entries, withMeta: withMeta.length, minRated,
+    scope, films, entries, withMeta: withMeta.length, minRated, castMinRated: scope === "all" ? CAST_MIN_RATED : minRated,
     minutes, timed,
     avgRating: avg(rated.map((f) => f.rating)), rated: rated.length, spread,
     rewatches: entries.filter((e) => e.rewatch).length,
@@ -411,7 +412,7 @@ function computeStats(lib, metaOf, scope) {
     likes: films.filter((f) => f.liked).length,
     byDay, byMonth, weekday, busiestMonth, busiestDay, streak: longestStreak(entries),
     decades,
-    cast: rankPeople(films, metaOf, "c", CAST_MIN_RATED), directors: rankPeople(films, metaOf, "d", minRated),
+    cast: rankPeople(films, metaOf, "c", scope === "all" ? CAST_MIN_RATED : minRated), directors: rankPeople(films, metaOf, "d", minRated),
     writers: rankPeople(films, metaOf, "w", minRated), dop: rankPeople(films, metaOf, "p", minRated), music: rankPeople(films, metaOf, "m", minRated),
     genres: rankCategory(films, metaOf, "g"), countries: rankCategory(films, metaOf, "k"), languages: rankCategory(films, metaOf, "l"),
     newReleases: scope === "all" ? null : films.filter((f) => String(f.year) === scope).length,

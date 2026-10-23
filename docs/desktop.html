@@ -670,7 +670,7 @@ body.empty .scopes-row, body.empty #btn-search, body.empty #btn-insights, body.e
     <p>With your own TMDB key, film details come from The Movie Database. This product uses the TMDB API but is not endorsed or certified by TMDB.
       Inside the Claude app, details come from Claude's knowledge of each film instead, so check anything surprising.</p>
     <p>On a phone? <a href="mobile.html">Open the phone version</a>. It uses the same import.</p>
-    <p>Updated 23 Oct 2026, 09:27 UTC</p>
+    <p>Updated 23 Oct 2026, 09:39 UTC</p>
     <p id="backup" hidden><button class="btn small" id="btn-backup" type="button">Back up to a file</button>
       <label class="status backup-keys"><input type="checkbox" id="backup-keys"> with my API keys</label><br>
       <span class="status">To use your diary on another device, import the backup file there like an export. It carries your import, film details, Letterboxd averages and friends.</span></p>
@@ -1219,7 +1219,8 @@ function inScope(lib, scope) {
   return { films: [...new Set(entries.map((e) => e.film))], entries };
 }
 
-// Highest-rated actors need this many rated films each, so one great film doesn't top the list (the owner's call).
+// Highest-rated actors over all time need this many rated films each, so one great film doesn't top the list (the
+// owner's call); a single year keeps the usual minimum.
 const CAST_MIN_RATED = 6;
 function rankPeople(films, metaOf, role, minRated) {
   const map = new Map();
@@ -1307,7 +1308,7 @@ function computeStats(lib, metaOf, scope) {
 
   const minRated = films.length >= 150 ? 3 : 2;
   return {
-    scope, films, entries, withMeta: withMeta.length, minRated,
+    scope, films, entries, withMeta: withMeta.length, minRated, castMinRated: scope === "all" ? CAST_MIN_RATED : minRated,
     minutes, timed,
     avgRating: avg(rated.map((f) => f.rating)), rated: rated.length, spread,
     rewatches: entries.filter((e) => e.rewatch).length,
@@ -1315,7 +1316,7 @@ function computeStats(lib, metaOf, scope) {
     likes: films.filter((f) => f.liked).length,
     byDay, byMonth, weekday, busiestMonth, busiestDay, streak: longestStreak(entries),
     decades,
-    cast: rankPeople(films, metaOf, "c", CAST_MIN_RATED), directors: rankPeople(films, metaOf, "d", minRated),
+    cast: rankPeople(films, metaOf, "c", scope === "all" ? CAST_MIN_RATED : minRated), directors: rankPeople(films, metaOf, "d", minRated),
     writers: rankPeople(films, metaOf, "w", minRated), dop: rankPeople(films, metaOf, "p", minRated), music: rankPeople(films, metaOf, "m", minRated),
     genres: rankCategory(films, metaOf, "g"), countries: rankCategory(films, metaOf, "k"), languages: rankCategory(films, metaOf, "l"),
     newReleases: scope === "all" ? null : films.filter((f) => String(f.year) === scope).length,
@@ -3637,7 +3638,7 @@ function rankRows(list, valueOf, widthOf, startRank, titleOf) {
 function peopleBlock(kind, data, s) {
   const t = state.tab[kind];
   const list = t === "most" ? data.most : data.best;
-  if (!list.length) return `<div class="empty">${t === "best" ? `Nobody here has ${kind === "cast" ? CAST_MIN_RATED : s.minRated} or more rated films yet.` : "Nobody to show for this period."}</div>`;
+  if (!list.length) return `<div class="empty">${t === "best" ? `Nobody here has ${kind === "cast" ? s.castMinRated : s.minRated} or more rated films yet.` : "Nobody to show for this period."}</div>`;
   const top = list.slice(0, 12);
   const cards = top.map((p, i) => `<button class="person" type="button" data-list="${reg(p.name, personSub(p), p.films, p)}">
     ${faceHtml(p, i + 1)}<span class="nm">${esc(p.name)}</span>
@@ -3794,7 +3795,7 @@ function renderSections(s) {
   const T = s.scope === "all" ? onThisDay(state.lib) : null, W = state.lib.watchlistFilms.length ? watchNext(state.lib) : undefined;
   $("#sections").innerHTML = [
     T && T.entries.length ? section("onthisday", T.title, T.sub, onThisDayBlock(T)) : "",
-    section("starring", "Starring", `${everyone(s.cast, "Actors")} in the top ${CAST_DEPTH} billed of each film. Highest rated needs ${CAST_MIN_RATED}+ rated films.`, people("cast", s.cast)),
+    section("starring", "Starring", `${everyone(s.cast, "Actors")} in the top ${CAST_DEPTH} billed of each film. Highest rated needs ${s.castMinRated}+ rated films.`, people("cast", s.cast)),
     section("directed", "Directed by", `${everyone(s.directors, "Directors")}.`, people("directors", s.directors)),
     section("logged", "Logged", s.scope === "all" ? "Diary entries over time, by day and by date." : `Diary entries in ${s.scope}, week by week.`, diaryBlock(s)),
     section("rated", "Rated", "How your ratings spread across half-stars.", ratingBlock(s)),
