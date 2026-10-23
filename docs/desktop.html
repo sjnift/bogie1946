@@ -299,6 +299,11 @@ main { padding-block: 8px 64px; }
 .rv-text blockquote { margin: .3em 0 .8em; padding-left: 12px; border-left: 2px solid var(--line); color: var(--ink-2); }
 .rv-text ul, .rv-text ol { margin: .3em 0 .8em; padding-left: 1.3em; }
 .rv-text a { color: var(--gold-ink); }
+.rv-text.clamp.short { max-height: 4.8em; }
+.review.short { grid-template-columns: 56px minmax(0, 1fr); gap: 16px; padding: 14px 0; }
+.review.short .rv-art .art { padding: 5px; }
+.review.short .rv-art .art .t { font-size: 10px; }
+.review.short .rv-meta { margin-bottom: 4px; }
 .rv-text.clamp { max-height: 9.6em; overflow: hidden; -webkit-mask-image: linear-gradient(#000 60%, transparent); mask-image: linear-gradient(#000 60%, transparent); }
 .rv-more { margin-top: 6px; font-size: 13.5px; }
 .rv-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
@@ -738,12 +743,12 @@ body.empty #settings, body.empty .foot-settings { display: none !important; }
         <p>With your own TMDB key, film details come from The Movie Database. This product uses the TMDB API but is not endorsed or certified by TMDB.
           Inside the Claude app, details come from Claude's knowledge of each film instead, so check anything surprising.</p>
         <p>On a phone? <a href="mobile.html">Open the phone version</a>. It uses the same import.</p>
-        <p>Updated 23 Oct 2026, 18:33 UTC</p>
+        <p>Updated 23 Oct 2026, 18:39 UTC</p>
       </div>
     </section>
   </main>
   <footer>
-    <p>Updated 23 Oct 2026, 18:33 UTC<span class="foot-settings"> · <button class="linkish" type="button" data-goto="settings">Settings</button></span></p>
+    <p>Updated 23 Oct 2026, 18:39 UTC<span class="foot-settings"> · <button class="linkish" type="button" data-goto="settings">Settings</button></span></p>
   </footer>
 </div>
 
@@ -3938,7 +3943,7 @@ function siteStart() {
 <script>
 /* ---------- page state ---------- */
 const state = {
-  mode: "example", lib: null, scope: "all", page: "stats", crowd: null, wn: "any", insYear: "all", reviewQuery: "", reviewLimit: 20, cmp: null, cmpError: "", unfriend: null,
+  mode: "example", lib: null, scope: "all", page: "stats", crowd: null, wn: "any", insYear: "all", reviewQuery: "", cmp: null, cmpError: "", unfriend: null,
   tab: { cast: "most", directors: "most", crew: "w", cats: "most" },
   more: { cast: false, directors: false },
 };
@@ -4368,7 +4373,7 @@ function renderSections(s) {
     section("released", "Released", "Films by decade of release.", decadeBlock(s)),
     section("crew", "Crew", "Writers, cinematographers and composers.", noMeta ? emptyMeta() : crewBlock(s)),
     section("milestones", "Milestones", "Counted through your diary in date order.", milestonesBlock(s)),
-    section("reviews", "Reviewed", s.scope === "all" ? "Everything you've written, newest first." : `What you wrote about films you watched in ${s.scope}.`, reviewsBlock(s)),
+    section("reviews", "Reviewed", s.scope === "all" ? "Your latest reviews. Search finds any of them." : `What you wrote about films you watched in ${s.scope}, latest first.`, reviewsBlock(s)),
     section("top", "Top billing", "Your highest-rated films.", highlightsBlock(s)),
     W !== undefined ? section("next", "Watch next", "Your watchlist, likeliest favourites first.", watchNextBlock(W)) : "",
   ].join("");
@@ -4698,15 +4703,16 @@ const reimportNote = () => `<div class="notice"><p><strong>Your reviews' words a
   and import it here: your reviews come in, formatting and all. Reviews from your daily feed show below meanwhile.</p>
   <button class="btn small" type="button" data-reimport>Import export</button></div>`;
 
-function reviewCard(r) {
-  const long = r.words > 90;
+// `short`: the stats page's few reviews, cut to a few lines each.
+function reviewCard(r, short) {
+  const long = r.words > (short ? 45 : 90);
   const tags = r.tags ? `<div class="rv-tags">${r.tags.split(",").map((t) => t.trim()).filter(Boolean).map((t) => `<span class="chiplet">${esc(t)}</span>`).join("")}</div>` : "";
   const card = D.film(r.film);
-  return `<article class="review"><button class="rv-art poster" type="button" ${dl(card)} aria-label="${esc(r.film.name)}">${artHtml(r.film)}</button><div class="rv-body">
+  return `<article class="review${short ? " short" : ""}"><button class="rv-art poster" type="button" ${dl(card)} aria-label="${esc(r.film.name)}">${artHtml(r.film)}</button><div class="rv-body">
     <h3 class="rv-title">${dlink(card, esc(r.film.name))} <span class="muted">${r.film.year || ""}</span></h3>
     <div class="rv-meta"><span class="stars">${stars(r.rating)}</span>${r.film.liked ? ' <span class="muted" title="Liked">♥</span>' : ""}
       <span class="muted">${r.date ? `${r.rewatch ? "Rewatched" : "Watched"} ${fmtDate(r.date)}` : ""}${tmdbLink(r.film)}</span></div>
-    <div class="rv-text${long ? " clamp" : ""}">${r.html}</div>
+    <div class="rv-text${long ? ` clamp${short ? " short" : ""}` : ""}">${r.html}</div>
     ${long ? `<button class="linkish rv-more" type="button" data-expand>Read more</button>` : ""}${tags}</div></article>`;
 }
 function reviewMatches(scopeYear) {
@@ -4714,12 +4720,15 @@ function reviewMatches(scopeYear) {
   const all = reviewsIn(state.lib, scopeYear);
   return { all, list: q ? all.filter((r) => r.text.toLowerCase().includes(q) || r.film.name.toLowerCase().includes(q)) : all };
 }
+// The stats page shows the latest few (or the first few that match a search); the rest open in the pop-up.
+const REVIEWS_SHOWN = 3;
 function reviewListHtml(scopeYear) {
-  const { all, list } = reviewMatches(scopeYear);
-  const shown = list.slice(0, state.reviewLimit);
-  const count = state.reviewQuery ? `${plural(list.length, "review")} match "${esc(state.reviewQuery)}"` : plural(all.length, "review");
-  return `<p class="status" id="review-count">${count}</p>` + (shown.length ? shown.map(reviewCard).join("") : `<div class="empty">No review matches that search.</div>`) +
-    (list.length > shown.length ? `<button class="btn small" type="button" data-more-reviews>Show more reviews (${fmtN(list.length - shown.length)} left)</button>` : "");
+  const { all, list } = reviewMatches(scopeYear), q = state.reviewQuery;
+  const shown = list.slice(0, REVIEWS_SHOWN);
+  const count = q ? `${plural(list.length, "review")} match "${esc(q)}"` : `${plural(all.length, "review")}${all.length > shown.length ? `, the latest ${shown.length} here` : ""}`;
+  const rest = list.length > shown.length ? `<p class="status rv-all">${dlink(D.reviews(q ? `Reviews matching "${q}"` : scopeYear ? `Reviews in ${scopeYear}` : "Your reviews", "Newest first", list),
+    q ? `All ${fmtN(list.length)} matching reviews` : `All ${fmtN(list.length)} reviews`)}</p>` : "";
+  return `<p class="status" id="review-count">${count}</p>` + (shown.length ? shown.map((r) => reviewCard(r, true)).join("") : `<div class="empty">No review matches that search.</div>`) + rest;
 }
 function reviewsBlock(s) {
   const lib = state.lib;
@@ -4963,13 +4972,12 @@ function bind() {
 
   document.addEventListener("click", (e) => { const c = e.target.closest("[data-copycheck]"); if (c) copyDataCheck(c); });
   document.addEventListener("click", (e) => {
-    const t = e.target.closest("[data-expand],[data-more-reviews],[data-reimport],[data-insyear],#btn-add-friend,[data-cmp],[data-unfriend],[data-lb],[data-crowd],[data-scope],[data-tab],[data-more],[data-list],[data-close],[data-dback],[data-drillpage],[data-drillback],[data-drillmore],[data-fix],[data-fixsave],[data-fixcancel],[data-wn],#btn-search,#btn-backup,[data-sharego],#btn-tmdb,#btn-change-key,#btn-omdb,#btn-change-omdb,#btn-claude,#btn-claude-retry,#btn-stop");
+    const t = e.target.closest("[data-expand],[data-reimport],[data-insyear],#btn-add-friend,[data-cmp],[data-unfriend],[data-lb],[data-crowd],[data-scope],[data-tab],[data-more],[data-list],[data-close],[data-dback],[data-drillpage],[data-drillback],[data-drillmore],[data-fix],[data-fixsave],[data-fixcancel],[data-wn],#btn-search,#btn-backup,[data-sharego],#btn-tmdb,#btn-change-key,#btn-omdb,#btn-change-omdb,#btn-claude,#btn-claude-retry,#btn-stop");
     if (!t) return;
     if (t.hasAttribute("data-expand")) {
       const text = t.previousElementSibling, open = text.classList.toggle("clamp") === false;
       t.textContent = open ? "Show less" : "Read more";
     }
-    else if (t.hasAttribute("data-more-reviews")) { state.reviewLimit += 20; refreshReviewList(); }
     else if (t.hasAttribute("data-reimport")) $("#file-input").click();
     else if (t.dataset.insyear) { state.insYear = t.dataset.insyear; routeReplace = true; renderInsights(); routeReplace = false; $(`[data-insyear="${t.dataset.insyear}"]`)?.focus(); }
     else if (t.id === "btn-add-friend") $("#friend-input").click();
@@ -4981,7 +4989,7 @@ function bind() {
     }
     else if (t.dataset.lb) lbAction(t.dataset.lb, MY_LIB);
     else if (t.dataset.crowd) { state.crowd = t.dataset.crowd; renderInsights(); $(`[data-crowd="${t.dataset.crowd}"]`)?.focus(); }
-    else if (t.dataset.scope) { state.scope = t.dataset.scope; state.more = { cast: false, directors: false }; state.reviewLimit = 20; saveView(); routeReplace = true; render(); routeReplace = false; }
+    else if (t.dataset.scope) { state.scope = t.dataset.scope; state.more = { cast: false, directors: false }; saveView(); routeReplace = true; render(); routeReplace = false; }
     else if (t.dataset.tab) { state.tab[t.dataset.tab] = t.dataset.val; renderSections(STATS); $(`[data-tab="${t.dataset.tab}"][data-val="${t.dataset.val}"]`)?.focus(); }
     else if (t.dataset.more) { state.more[t.dataset.more] = true; renderSections(STATS); }
     else if (t.dataset.list) { const dlg = $("#dlg"); openDrill(drillGet(t.dataset.list), dlg.open && dlg.contains(t)); }
@@ -5012,7 +5020,7 @@ function bind() {
       return;
     }
     if (e.target.id !== "review-search") return;
-    state.reviewQuery = e.target.value; state.reviewLimit = 20; refreshReviewList();
+    state.reviewQuery = e.target.value; refreshReviewList();
   });
   document.addEventListener("keydown", (e) => {
     // "/" searches from anywhere but a text box; Enter in search opens the first result

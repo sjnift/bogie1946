@@ -195,7 +195,7 @@ function renderSections(s) {
     section("released", "Released", "Films by decade of release.", decadeBlock(s)),
     section("crew", "Crew", "Writers, cinematographers and composers.", noMeta ? emptyMeta() : crewBlock(s)),
     section("milestones", "Milestones", "Counted through your diary in date order.", milestonesBlock(s)),
-    section("reviews", "Reviewed", s.scope === "all" ? "Everything you've written, newest first." : `What you wrote about films you watched in ${s.scope}.`, reviewsBlock(s)),
+    section("reviews", "Reviewed", s.scope === "all" ? "Your latest reviews. Search finds any of them." : `What you wrote about films you watched in ${s.scope}, latest first.`, reviewsBlock(s)),
     section("top", "Top billing", "Your highest-rated films.", highlightsBlock(s)),
     W !== undefined ? section("next", "Watch next", "Your watchlist, likeliest favourites first.", watchNextBlock(W)) : "",
   ].join("");

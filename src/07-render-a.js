@@ -1,7 +1,7 @@
 <script>
 /* ---------- page state ---------- */
 const state = {
-  mode: "example", lib: null, scope: "all", page: "stats", crowd: null, wn: "any", insYear: "all", reviewQuery: "", reviewLimit: 20, cmp: null, cmpError: "", unfriend: null,
+  mode: "example", lib: null, scope: "all", page: "stats", crowd: null, wn: "any", insYear: "all", reviewQuery: "", cmp: null, cmpError: "", unfriend: null,
   tab: { cast: "most", directors: "most", crew: "w", cats: "most" },
   more: { cast: false, directors: false },
 };

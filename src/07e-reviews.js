@@ -5,15 +5,16 @@ const reimportNote = () => `<div class="notice"><p><strong>Your reviews' words a
   and import it here: your reviews come in, formatting and all. Reviews from your daily feed show below meanwhile.</p>
   <button class="btn small" type="button" data-reimport>Import export</button></div>`;
 
-function reviewCard(r) {
-  const long = r.words > 90;
+// `short`: the stats page's few reviews, cut to a few lines each.
+function reviewCard(r, short) {
+  const long = r.words > (short ? 45 : 90);
   const tags = r.tags ? `<div class="rv-tags">${r.tags.split(",").map((t) => t.trim()).filter(Boolean).map((t) => `<span class="chiplet">${esc(t)}</span>`).join("")}</div>` : "";
   const card = D.film(r.film);
-  return `<article class="review"><button class="rv-art poster" type="button" ${dl(card)} aria-label="${esc(r.film.name)}">${artHtml(r.film)}</button><div class="rv-body">
+  return `<article class="review${short ? " short" : ""}"><button class="rv-art poster" type="button" ${dl(card)} aria-label="${esc(r.film.name)}">${artHtml(r.film)}</button><div class="rv-body">
     <h3 class="rv-title">${dlink(card, esc(r.film.name))} <span class="muted">${r.film.year || ""}</span></h3>
     <div class="rv-meta"><span class="stars">${stars(r.rating)}</span>${r.film.liked ? ' <span class="muted" title="Liked">♥</span>' : ""}
       <span class="muted">${r.date ? `${r.rewatch ? "Rewatched" : "Watched"} ${fmtDate(r.date)}` : ""}${tmdbLink(r.film)}</span></div>
-    <div class="rv-text${long ? " clamp" : ""}">${r.html}</div>
+    <div class="rv-text${long ? ` clamp${short ? " short" : ""}` : ""}">${r.html}</div>
     ${long ? `<button class="linkish rv-more" type="button" data-expand>Read more</button>` : ""}${tags}</div></article>`;
 }
 function reviewMatches(scopeYear) {
@@ -21,12 +22,15 @@ function reviewMatches(scopeYear) {
   const all = reviewsIn(state.lib, scopeYear);
   return { all, list: q ? all.filter((r) => r.text.toLowerCase().includes(q) || r.film.name.toLowerCase().includes(q)) : all };
 }
+// The stats page shows the latest few (or the first few that match a search); the rest open in the pop-up.
+const REVIEWS_SHOWN = 3;
 function reviewListHtml(scopeYear) {
-  const { all, list } = reviewMatches(scopeYear);
-  const shown = list.slice(0, state.reviewLimit);
-  const count = state.reviewQuery ? `${plural(list.length, "review")} match "${esc(state.reviewQuery)}"` : plural(all.length, "review");
-  return `<p class="status" id="review-count">${count}</p>` + (shown.length ? shown.map(reviewCard).join("") : `<div class="empty">No review matches that search.</div>`) +
-    (list.length > shown.length ? `<button class="btn small" type="button" data-more-reviews>Show more reviews (${fmtN(list.length - shown.length)} left)</button>` : "");
+  const { all, list } = reviewMatches(scopeYear), q = state.reviewQuery;
+  const shown = list.slice(0, REVIEWS_SHOWN);
+  const count = q ? `${plural(list.length, "review")} match "${esc(q)}"` : `${plural(all.length, "review")}${all.length > shown.length ? `, the latest ${shown.length} here` : ""}`;
+  const rest = list.length > shown.length ? `<p class="status rv-all">${dlink(D.reviews(q ? `Reviews matching "${q}"` : scopeYear ? `Reviews in ${scopeYear}` : "Your reviews", "Newest first", list),
+    q ? `All ${fmtN(list.length)} matching reviews` : `All ${fmtN(list.length)} reviews`)}</p>` : "";
+  return `<p class="status" id="review-count">${count}</p>` + (shown.length ? shown.map((r) => reviewCard(r, true)).join("") : `<div class="empty">No review matches that search.</div>`) + rest;
 }
 function reviewsBlock(s) {
   const lib = state.lib;
