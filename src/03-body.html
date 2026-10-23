@@ -7,6 +7,7 @@
         <button class="btn" id="btn-search" type="button" title="Search your diary (press /)"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" style="vertical-align:-2px; margin-right:5px"><circle cx="8.5" cy="8.5" r="5.5"/><path d="M13 13l4.5 4.5"/></svg>Search</button>
         <button class="btn" id="btn-insights" type="button">Insights</button>
         <button class="btn" id="btn-compare" type="button">Compare</button>
+        <button class="btn" id="btn-settings" type="button" title="Your export, film details, your diary on this site, backups"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px; margin-right:5px"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>Settings</span></button>
         <button class="btn primary" id="btn-import" type="button">Import Letterboxd export</button>
         <input id="file-input" type="file" accept=".zip,.csv,.json,application/zip,text/csv,application/json" multiple hidden>
       </div>
@@ -32,23 +33,50 @@
 
 <div class="wrap">
   <section class="tiles" id="tiles" aria-label="Overview"></section>
-  <section class="lookup" id="lookup" aria-labelledby="lookup-title"></section>
+  <p class="lookup-mini" id="lookup-mini" role="status" hidden></p>
   <main id="sections"></main>
   <main id="insights" hidden></main>
   <main id="compare" hidden></main>
   <main id="drillpage" hidden></main>
+  <!-- everything that isn't your stats: the export, lookups and their keys, the diary on the site, backups, the small print -->
+  <main id="settings" hidden>
+    <section class="credit set">
+      <div class="role"><h2>Your export</h2><p class="hint">From Letterboxd → Settings → Data</p></div>
+      <div class="credit-body"><p class="status" id="set-export"></p>
+        <div class="lookup-row"><button class="btn small" id="btn-import-3" type="button">Import a newer export</button></div></div>
+    </section>
+    <section class="credit set">
+      <div class="role"><h2>Film details</h2><p class="hint">Cast and crew, scores, Letterboxd averages and the film data check</p></div>
+      <div class="credit-body"><section class="lookup" id="lookup" aria-labelledby="lookup-title"></section></div>
+    </section>
+    <section class="credit set" id="set-site">
+      <div class="role"><h2>On this site</h2><p class="hint">Your diary for every device, locked with a password</p></div>
+      <div class="credit-body"><section class="site-box" id="site-box" data-sitebox="publish" aria-label="Your diary on this site"></section></div>
+    </section>
+    <section class="credit set" id="backup" hidden>
+      <div class="role"><h2>Backups</h2></div>
+      <div class="credit-body"><p><button class="btn small" id="btn-backup" type="button">Back up to a file</button>
+        <label class="status backup-keys"><input type="checkbox" id="backup-keys"> with my API keys</label></p>
+        <p class="status">A backup file also carries your diary to another device: import it there like an export. It carries your import, film details, Letterboxd averages and friends.</p></div>
+    </section>
+    <section class="credit set">
+      <div class="role"><h2>This browser</h2></div>
+      <div class="credit-body"><p><button class="btn small" id="btn-forget" type="button">Delete saved data from this browser</button>
+        <span class="status" id="forget-status"></span></p></div>
+    </section>
+    <section class="credit set about">
+      <div class="role"><h2>About</h2></div>
+      <div class="credit-body">
+        <p>Credits Roll reads the CSV files in a Letterboxd data export. It is not made by or affiliated with Letterboxd.</p>
+        <p>With your own TMDB key, film details come from The Movie Database. This product uses the TMDB API but is not endorsed or certified by TMDB.
+          Inside the Claude app, details come from Claude's knowledge of each film instead, so check anything surprising.</p>
+        <p>On a phone? <a href="https://claude.ai/artifact/2RUkgC4dsysdz66WjJ6gzb" target="_blank" rel="noopener">Open the phone version</a>. It keeps its own copy of your import, so import there too.</p>
+        <p>Updated <!--BUILD--></p>
+      </div>
+    </section>
+  </main>
   <footer>
-    <p>Credits Roll reads the CSV files in a Letterboxd data export. It is not made by or affiliated with Letterboxd.</p>
-    <p>With your own TMDB key, film details come from The Movie Database. This product uses the TMDB API but is not endorsed or certified by TMDB.
-      Inside the Claude app, details come from Claude's knowledge of each film instead, so check anything surprising.</p>
-    <p>On a phone? <a href="https://claude.ai/artifact/2RUkgC4dsysdz66WjJ6gzb" target="_blank" rel="noopener">Open the phone version</a>. It keeps its own copy of your import, so import there too.</p>
-    <section class="site-box" id="site-box" data-sitebox="publish" aria-label="Your diary on this site"></section>
-    <p>Updated <!--BUILD--></p>
-    <p id="backup" hidden><button class="btn small" id="btn-backup" type="button">Back up to a file</button>
-      <label class="status backup-keys"><input type="checkbox" id="backup-keys"> with my API keys</label><br>
-      <span class="status">A backup file also carries your diary to another device: import it there like an export. It carries your import, film details, Letterboxd averages and friends.</span></p>
-    <p><button class="btn small" id="btn-forget" type="button">Delete saved data from this browser</button>
-      <span class="status" id="forget-status"></span></p>
+    <p>Updated <!--BUILD--><span class="foot-settings"> · <button class="linkish" type="button" data-goto="settings">Settings</button></span></p>
   </footer>
 </div>
 

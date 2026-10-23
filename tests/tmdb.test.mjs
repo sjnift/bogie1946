@@ -58,7 +58,13 @@ export default async function ({ browser, base }) {
       }[id] || {};
       return json({ ...movie(id, "x", "1990-01-01", "Someone", ["Someone Else"]), ...details });
     }
+    const found = { tt11564570: 661374, tt7277634: 1002, tt0066904: 1003 }[u.pathname.split("/find/")[1]];
+    if (u.pathname.startsWith("/3/find/")) return json({ movie_results: found ? [{ id: found }] : [] });
     const query = u.searchParams.get("query"), year = u.searchParams.get("year");
+    // TMDB's title is longer than Letterboxd's, or is one half of it; "Alien" (1979) must not become "Alien: Resurrection"
+    if (query === "Wake Up Dead Man") return json({ results: [hit(812583, "Wake Up Dead Man: A Knives Out Mystery", "2025-11-26", 3000)] });
+    if (query === "Special Title") return json({ results: year === "2019" ? [hit(1004, "Special Title", "2019-05-01", 40)] : [] });
+    if (query === "Alien") return json({ results: year ? [] : [hit(8078, "Alien: Resurrection", "1997-11-12", 5000), hit(8077, "Alien³", "1992-05-22", 5000)] });
     if (query === "The Ear") return json({ results: year ? [hit(35002, "When Dinosaurs Ruled the Earth", "1970-10-25", 97), hit(186296, "From Ear to Ear", "1970-09-25", 9)]
       : [hit(1288220, "A Mosquito in the Ear", "2026-06-11", 2), hit(88953, "The Ear", "1990-01-01", 75, "Ucho"), hit(1276412, "The Internal Ear", "2016-07-01", 0)] });
     if (query === "Heat") return json({ results: year ? [] : [hit(949, "Heat", "1995-12-15", 9000), hit(4, "Heat", "1986-03-14", 90), hit(5, "Heat", "1972-10-06", 20)] });
@@ -69,10 +75,14 @@ export default async function ({ browser, base }) {
     json({ results: [] });
   });
   await seed(q, { profile: [{ Username: "tester" }], watched: [{ Name: "The Ear", Year: "1970" }, { Name: "Heat", Year: "1934" }, { Name: "Brick", Year: "2005" },
-    { Name: "A Cop", Year: "1972" }, { Name: "Breaking the Waves", Year: "1996" }, { Name: "The Prowler", Year: "1951" }], diary: [], ratings: [] },
+    { Name: "A Cop", Year: "1972" }, { Name: "Breaking the Waves", Year: "1996" }, { Name: "The Prowler", Year: "1951" },
+    { Name: "Glass Onion", Year: "2022" }, { Name: "Nathan for You: Finding Frances", Year: "2017" }, { Name: "The Sorrow and the Pity", Year: "1969" },
+    { Name: "Wake Up Dead Man", Year: "2025" }, { Name: "Show Name: Special Title", Year: "2019" }, { Name: "Alien", Year: "1979" }], diary: [], ratings: [] },
     { "cr-meta-v1": { "the ear|1970": { src: "tmdb", v: 3, id: 35002, d: ["Don Chaffey"], c: ["Victoria Vetri"], w: [], p: [], m: [], g: ["Adventure"], k: ["UK"], l: "English", r: 100 },
-      "brick|2005": { src: "tmdb", v: 6, id: 9270, d: ["Rian Johnson"], c: ["Joseph Gordon-Levitt"], w: [], p: [], m: [], g: ["Crime"], k: ["USA"], l: "English", r: 110 } }, "cr-tmdb-key": "k123" });
-  await q.waitForFunction(() => ["the ear|1970", "heat|1934", "brick|2005", "a cop|1972", "breaking the waves|1996", "the prowler|1951"].every((k) => META[k] && META[k].v === TMDB_MATCH_VERSION), null, { timeout: 8000 });
+      "brick|2005": { src: "tmdb", v: 6, id: 9270, d: ["Rian Johnson"], c: ["Joseph Gordon-Levitt"], w: [], p: [], m: [], g: ["Crime"], k: ["USA"], l: "English", r: 110 },
+      // films missed before matching learned half-titles: looked up again
+      "wake up dead man|2025": { src: "tmdb", miss: true, v: 6 }, "the sorrow and the pity|1969": { src: "tmdb", miss: true, v: 6 } }, "cr-tmdb-key": "k123" });
+  await q.waitForFunction(() => MY_LIB.films.every((f) => META[f.key] && META[f.key].v >= TMDB_MATCH_VERSION) && !needsLookup(MY_LIB, "tmdb").length && !job.running, null, { timeout: 8000 });
   const ear = await q.evaluate(() => { const s = computeStats(MY_LIB, metaOf, "all"), where = (list) => list.most.filter((x) => x.films.some((f) => f.name === "The Ear")).map((x) => x.name).join();
     return { id: META["the ear|1970"].id, country: where(s.countries), language: where(s.languages), heat: !!META["heat|1934"].miss, brick: META["brick|2005"].id };
   });
@@ -83,5 +93,11 @@ export default async function ({ browser, base }) {
   assert(more.cop === 42741, `A Cop (1972) should be Melville's Un flic, not a 1947 film: ${more.cop}`);
   assert(more.waves[0] === "English" && more.waves[1] === 13, `Breaking the Waves: language ${more.waves[0]} (spoken in English), ${more.waves[1]} of 13 countries kept`);
   assert(more.prowler === "USA" && /American/.test(more.why || ""), `The Prowler's country: ${more.prowler}`);
+  const halves = await q.evaluate(() => Object.fromEntries(["glass onion|2022", "nathan for you: finding frances|2017", "the sorrow and the pity|1969", "wake up dead man|2025",
+    "show name: special title|2019", "alien|1979"].map((k) => [k, META[k].miss ? "miss" : `${META[k].id}${META[k].via ? ` via ${META[k].via}` : ""}`])));
+  assert(JSON.stringify(halves) === JSON.stringify({ "glass onion|2022": "661374 via tt11564570", "nathan for you: finding frances|2017": "1002 via tt7277634",
+    "the sorrow and the pity|1969": "1003 via tt0066904", "wake up dead man|2025": "812583", "show name: special title|2019": "1004", "alien|1979": "miss" }), `titled differently on TMDB: ${JSON.stringify(halves)}`);
+  const check = await q.evaluate(() => dataCheck(MY_LIB).nomatch.map((x) => x.name).join());
+  assert(check === "Alien (1979),Heat (1934)", `still without a TMDB match: ${check}`);
   noErrors(q, "phone");
 }

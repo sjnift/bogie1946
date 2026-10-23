@@ -291,7 +291,7 @@ function dataCheck(lib) {
     if (m.inf) out.notOnImdb++; else if (!m.ik) out.noImdb++;
     if (m.why) out.fixed.push(row(f, `Corrected: ${m.why}`));
     // a match by hand, from the feed or checked by hand is the right film whatever its year
-    const sure = m.pin || KNOWN_IDS[f.key] === m.id || FILM_IDS[titleKey(f.name, f.year)] === m.id;
+    const sure = m.pin || fromKnownId(f, m);
     const wrong = m.y && f.year && Math.abs(m.y - f.year) > 2 && !sure;
     if (wrong) out.look.push(row(f, `Letterboxd ${f.year} · TMDB ${m.y}: maybe matched to the wrong film`, 100 + Math.abs(m.y - f.year)));
     else if (m.y && f.year && m.y !== f.year) out.yearSmall.push(row(f, `Letterboxd ${f.year} · TMDB ${m.y}${sure ? " (checked: the right film)" : ""}`, Math.abs(m.y - f.year)));

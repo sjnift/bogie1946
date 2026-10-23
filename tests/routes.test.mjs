@@ -19,6 +19,13 @@ export default async function ({ browser, base }) {
   assert((await at()).startsWith("#/list drill"), `full page: ${await at()}`);
   await d.goBack(); await d.waitForTimeout(200);
   assert(await at() === "#/ stats ", `back from the full page: ${await at()}`);
+  // Settings is a page of its own, away from the stats
+  await d.click("#btn-settings"); await d.waitForTimeout(150);
+  const set = await d.evaluate(() => ({ at: location.hash, page: state.page, tiles: $("#tiles").hidden, lookup: !$("#settings").hidden && !!$("#lookup").textContent.trim(), foot: $("footer").innerText }));
+  assert(set.at === "#/settings" && set.page === "settings" && set.tiles && set.lookup && !/TMDB API/.test(set.foot), `settings: ${JSON.stringify(set)}`);
+  assert(!(await d.evaluate(() => $("#sections").innerText.includes("This product uses the TMDB API"))), "the small print is still on the stats page");
+  await d.goBack(); await d.waitForTimeout(150);
+  assert(await at() === "#/ stats ", `back from settings: ${await at()}`);
   await d.goto(base + "desktop.html?example#/2025/film/" + encodeURIComponent("aftersun|2022")); await d.waitForTimeout(400);
   assert(await at() === "#/2025/film/aftersun%7C2022 stats Aftersun", `bookmarked film: ${await at()}`);
   noErrors(d, "desktop");

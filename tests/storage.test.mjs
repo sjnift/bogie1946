@@ -18,6 +18,7 @@ export default async function ({ browser, base }) {
   await p.waitForTimeout(500); await p.reload(); await p.waitForFunction(() => typeof META === "object" && META["heat|1995"]);
   assert(await p.evaluate(() => META["heat|1995"].r) === 171, "a saved change didn't survive a reload");
 
+  await p.click("#btn-settings");
   await p.check("#backup-keys");
   const [dl] = await Promise.all([p.waitForEvent("download"), p.click("#btn-backup")]);
   const file = path.join(os.tmpdir(), `credits-roll-backup-${Date.now()}.json`);

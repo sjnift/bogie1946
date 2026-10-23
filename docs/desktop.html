@@ -646,8 +646,17 @@ footer p { margin: 0 0 6px; max-width: 80ch; }
 .best-decade .posters { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 @media (max-width: 760px) { .best-decade { grid-template-columns: minmax(0, 1fr); } .best-decade .posters { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 /* nothing imported yet: just the title band and how to import */
-body.empty #tiles, body.empty #lookup, body.empty #sections, body.empty #insights, body.empty #compare, body.empty #drillpage,
-body.empty .scopes-row, body.empty #btn-search, body.empty #btn-insights, body.empty #btn-compare { display: none !important; }
+body.empty #tiles, body.empty #lookup-mini, body.empty #sections, body.empty #insights, body.empty #compare, body.empty #drillpage,
+body.empty .scopes-row, body.empty #btn-search, body.empty #btn-insights, body.empty #btn-compare, body.empty #btn-settings,
+body.empty #settings, body.empty .foot-settings { display: none !important; }
+/* settings: the same credit layout as the stats, with the boxes inside */
+#settings { padding-top: 8px; }
+.set .lookup, .set .site-box { margin: 0; }
+.set .credit-body { gap: 10px; }
+.set .credit-body > p { margin: 0; }
+.set .site-box { max-width: none; }
+.set.about p { margin: 0; color: var(--muted); font-size: 13.5px; max-width: 75ch; }
+.lookup-mini { margin: 18px 0 0; padding: 10px 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); color: var(--ink-2); font-size: 14px; }
 </style>
 </head>
 <body>
@@ -660,6 +669,7 @@ body.empty .scopes-row, body.empty #btn-search, body.empty #btn-insights, body.e
         <button class="btn" id="btn-search" type="button" title="Search your diary (press /)"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" style="vertical-align:-2px; margin-right:5px"><circle cx="8.5" cy="8.5" r="5.5"/><path d="M13 13l4.5 4.5"/></svg>Search</button>
         <button class="btn" id="btn-insights" type="button">Insights</button>
         <button class="btn" id="btn-compare" type="button">Compare</button>
+        <button class="btn" id="btn-settings" type="button" title="Your export, film details, your diary on this site, backups"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px; margin-right:5px"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>Settings</span></button>
         <button class="btn primary" id="btn-import" type="button">Import Letterboxd export</button>
         <input id="file-input" type="file" accept=".zip,.csv,.json,application/zip,text/csv,application/json" multiple hidden>
       </div>
@@ -685,23 +695,50 @@ body.empty .scopes-row, body.empty #btn-search, body.empty #btn-insights, body.e
 
 <div class="wrap">
   <section class="tiles" id="tiles" aria-label="Overview"></section>
-  <section class="lookup" id="lookup" aria-labelledby="lookup-title"></section>
+  <p class="lookup-mini" id="lookup-mini" role="status" hidden></p>
   <main id="sections"></main>
   <main id="insights" hidden></main>
   <main id="compare" hidden></main>
   <main id="drillpage" hidden></main>
+  <!-- everything that isn't your stats: the export, lookups and their keys, the diary on the site, backups, the small print -->
+  <main id="settings" hidden>
+    <section class="credit set">
+      <div class="role"><h2>Your export</h2><p class="hint">From Letterboxd → Settings → Data</p></div>
+      <div class="credit-body"><p class="status" id="set-export"></p>
+        <div class="lookup-row"><button class="btn small" id="btn-import-3" type="button">Import a newer export</button></div></div>
+    </section>
+    <section class="credit set">
+      <div class="role"><h2>Film details</h2><p class="hint">Cast and crew, scores, Letterboxd averages and the film data check</p></div>
+      <div class="credit-body"><section class="lookup" id="lookup" aria-labelledby="lookup-title"></section></div>
+    </section>
+    <section class="credit set" id="set-site">
+      <div class="role"><h2>On this site</h2><p class="hint">Your diary for every device, locked with a password</p></div>
+      <div class="credit-body"><section class="site-box" id="site-box" data-sitebox="publish" aria-label="Your diary on this site"></section></div>
+    </section>
+    <section class="credit set" id="backup" hidden>
+      <div class="role"><h2>Backups</h2></div>
+      <div class="credit-body"><p><button class="btn small" id="btn-backup" type="button">Back up to a file</button>
+        <label class="status backup-keys"><input type="checkbox" id="backup-keys"> with my API keys</label></p>
+        <p class="status">A backup file also carries your diary to another device: import it there like an export. It carries your import, film details, Letterboxd averages and friends.</p></div>
+    </section>
+    <section class="credit set">
+      <div class="role"><h2>This browser</h2></div>
+      <div class="credit-body"><p><button class="btn small" id="btn-forget" type="button">Delete saved data from this browser</button>
+        <span class="status" id="forget-status"></span></p></div>
+    </section>
+    <section class="credit set about">
+      <div class="role"><h2>About</h2></div>
+      <div class="credit-body">
+        <p>Credits Roll reads the CSV files in a Letterboxd data export. It is not made by or affiliated with Letterboxd.</p>
+        <p>With your own TMDB key, film details come from The Movie Database. This product uses the TMDB API but is not endorsed or certified by TMDB.
+          Inside the Claude app, details come from Claude's knowledge of each film instead, so check anything surprising.</p>
+        <p>On a phone? <a href="mobile.html">Open the phone version</a>. It uses the same import.</p>
+        <p>Updated 23 Oct 2026, 17:54 UTC</p>
+      </div>
+    </section>
+  </main>
   <footer>
-    <p>Credits Roll reads the CSV files in a Letterboxd data export. It is not made by or affiliated with Letterboxd.</p>
-    <p>With your own TMDB key, film details come from The Movie Database. This product uses the TMDB API but is not endorsed or certified by TMDB.
-      Inside the Claude app, details come from Claude's knowledge of each film instead, so check anything surprising.</p>
-    <p>On a phone? <a href="mobile.html">Open the phone version</a>. It uses the same import.</p>
-    <section class="site-box" id="site-box" data-sitebox="publish" aria-label="Your diary on this site"></section>
-    <p>Updated 23 Oct 2026, 11:07 UTC</p>
-    <p id="backup" hidden><button class="btn small" id="btn-backup" type="button">Back up to a file</button>
-      <label class="status backup-keys"><input type="checkbox" id="backup-keys"> with my API keys</label><br>
-      <span class="status">A backup file also carries your diary to another device: import it there like an export. It carries your import, film details, Letterboxd averages and friends.</span></p>
-    <p><button class="btn small" id="btn-forget" type="button">Delete saved data from this browser</button>
-      <span class="status" id="forget-status"></span></p>
+    <p>Updated 23 Oct 2026, 17:54 UTC<span class="foot-settings"> · <button class="linkish" type="button" data-goto="settings">Settings</button></span></p>
   </footer>
 </div>
 
@@ -1386,6 +1423,10 @@ let KNOWN_IDS = {};
 const FILM_IDS = {
   "a cop|1972": 42741, // Melville's Un flic; TMDB knows no film called "A Cop" from 1972
   "the ear|1970": 88953, // Ucho: banned on completion, released in 1990
+  // by IMDb id, which TMDB turns into its own: TMDB titles these differently from Letterboxd (from the film data check)
+  "glass onion|2022": "tt11564570", // Glass Onion: A Knives Out Mystery
+  "nathan for you finding frances|2017": "tt7277634", // the show's finale, a film on Letterboxd
+  "the sorrow and the pity|1969": "tt0066904", // Le Chagrin et la Pitié
 };
 // Facts TMDB has wrong for a film, by its TMDB id, checked against the film itself (from the film data check).
 const FILM_FIXES = {
@@ -1394,15 +1435,17 @@ const FILM_FIXES = {
   17295: { l: "French", why: "in French and Arabic; TMDB gives Italian" }, // The Battle of Algiers (1966)
 };
 const knownId = (f) => KNOWN_IDS[f.key] || FILM_IDS[titleKey(f.name, f.year)];
+// Whether a film's details came from the id it's pinned to (a TMDB id, or an IMDb id "tt…").
+const fromKnownId = (f, m) => { const k = knownId(f); return !!(k && m && (m.id === k || m.im === k || m.via === k)); };
 function needsLookup(lib, kind) {
   return lib.films.filter((f) => {
     const m = META[f.key];
     if (kind === "tmdb") {
       if (m && m.pin) return false;
-      if (knownId(f) && (!m || m.id !== knownId(f))) return true;
+      if (knownId(f) && !fromKnownId(f, m)) return true;
       if (!m) return true;
-      if (m.src === "tmdb") return (m.v || 1) < TMDB_MATCH_VERSION;
-      return !(m.tmdbMiss >= TMDB_MATCH_VERSION);
+      if (m.src === "tmdb") return (m.v || 1) < (m.miss ? TMDB_MISS_VERSION : TMDB_MATCH_VERSION);
+      return !(m.tmdbMiss >= TMDB_MISS_VERSION);
     }
     return !m && !EXAMPLE_META[f.key];
   });
@@ -1430,6 +1473,9 @@ async function tmdbGet(path, params, key, signal) {
 // 5: TMDB's release year is kept too (`y`), for the film data check.
 // 6: every country TMDB lists (it used to stop at 6), the language a film is spoken in, hand-checked fixes.
 const TMDB_MATCH_VERSION = 6;
+// Bump when matching finds films it used to miss, so only those are looked up again.
+// 7: a title that is half of the other ("Glass Onion: A Knives Out Mystery" for Glass Onion).
+const TMDB_MISS_VERSION = Math.max(TMDB_MATCH_VERSION, 7);
 // The words of a title that matter, in any script: "The Ear" → ear, "Love & Mercy" → love, mercy.
 const TITLE_SKIP = new Set(["the", "a", "an", "and", "of", "la", "le", "les", "el", "il", "der", "die", "das"]);
 const titleWords = (s) => new Set(String(s || "").replace(/&/g, " and ").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
@@ -1465,23 +1511,50 @@ function onlyTitled(results, f) {
   // later only: a film can come out years after it was made, never years before (A Cop, 1972, isn't a 1947 film)
   return same.length === 1 && (!f.year || !yearOf(same[0]) || (yearOf(same[0]) >= f.year - 2 && yearOf(same[0]) - f.year <= 30)) ? same[0] : null;
 }
+// TMDB can title a film longer than Letterboxd ("Glass Onion: A Knives Out Mystery" for Glass Onion), or with
+// only one half of Letterboxd's ("Finding Frances" for "Nathan for You: Finding Frances"). Taken only when that
+// half is a whole title on its own and the year is within one; the most-voted such film wins.
+const mainTitle = (t) => String(t || "").split(/:\s|\s[-–—]\s/)[0];
+const titleHalves = (t) => (String(t).includes(":") ? String(t).split(/:\s*/).map((x) => x.trim()).filter(Boolean) : []);
+function halfTitled(results, f) {
+  const yearOf = (r) => parseInt((r.release_date || "").slice(0, 4), 10);
+  const halves = titleHalves(f.name);
+  const fits = (t) => !!t && (titleLike(f.name, mainTitle(t)) === 1 || halves.some((h) => titleLike(h, t) === 1));
+  return (results || []).filter((r) => (!f.year || !yearOf(r) || Math.abs(yearOf(r) - f.year) <= 1) && (fits(r.title) || fits(r.original_title)))
+    .sort((a, b) => (b.vote_count || 0) - (a.vote_count || 0))[0] || null;
+}
+// The TMDB id for a pinned film: a TMDB id as it is, an IMDb id through TMDB's find.
+async function tmdbIdFor(known, key, signal) {
+  if (!/^tt\d+$/.test(String(known))) return known;
+  const r = await tmdbGet(`/find/${known}`, { external_source: "imdb_id" }, key, signal);
+  return (r && r.movie_results && r.movie_results[0] && r.movie_results[0].id) || null;
+}
 // `prev` is what the film was matched to before: when the match hasn't changed, its details are kept.
 async function tmdbFilm(f, key, signal, prev) {
-  if (knownId(f)) { const m = await tmdbDetails(knownId(f), key, signal); if (!m.miss) return m; }
-  let s = await tmdbGet("/search/movie", { query: f.name, year: f.year || "", include_adult: "false" }, key, signal);
-  let hit = pickHit(s && s.results, f, 2);
-  if (!hit && f.year) {
-    s = await tmdbGet("/search/movie", { query: f.name, include_adult: "false" }, key, signal);
-    hit = pickHit(s && s.results, f, 2) || onlyTitled(s && s.results, f);
+  const known = knownId(f);
+  if (known) {
+    const id = await tmdbIdFor(known, key, signal), m = id && await tmdbDetails(id, key, signal);
+    if (m && !m.miss) return { ...m, via: known };
   }
-  if (!hit) return { src: "tmdb", miss: true, v: TMDB_MATCH_VERSION };
+  const search = async (query, year) => ((await tmdbGet("/search/movie", { query, year: year || "", include_adult: "false" }, key, signal)) || {}).results || [];
+  const seen = await search(f.name, f.year);
+  let hit = pickHit(seen, f, 2);
+  if (!hit && f.year) {
+    const all = await search(f.name);
+    seen.push(...all);
+    hit = pickHit(all, f, 2) || onlyTitled(all, f);
+  }
+  if (!hit) hit = halfTitled(seen, f);
+  for (const half of hit ? [] : titleHalves(f.name)) if ((hit = halfTitled(await search(half, f.year), f))) break;
+  // (a pinned film TMDB doesn't know keeps the pin, so it isn't asked for again every time)
+  if (!hit) return { src: "tmdb", miss: true, v: TMDB_MISS_VERSION, ...(known ? { via: known } : {}) };
   if (prev && prev.src === "tmdb" && !prev.miss && prev.id === hit.id && prev.c && prev.v >= 6) return { ...prev, v: TMDB_MATCH_VERSION, y: parseInt((hit.release_date || "").slice(0, 4), 10) || prev.y || null };
   return tmdbDetails(hit.id, key, signal);
 }
 // One TMDB film's details and credits, by its id.
 async function tmdbDetails(id, key, signal) {
   const d = await tmdbGet(`/movie/${id}`, { append_to_response: "credits" }, key, signal);
-  if (!d) return { src: "tmdb", miss: true, v: TMDB_MATCH_VERSION };
+  if (!d) return { src: "tmdb", miss: true, v: TMDB_MISS_VERSION };
   const crew = (d.credits && d.credits.crew) || [];
   const cast = ((d.credits && d.credits.cast) || []).slice().sort((a, b) => a.order - b.order).slice(0, CAST_DEPTH);
   const names = (list) => [...new Set(list.map((x) => x.name))];
@@ -1517,7 +1590,7 @@ async function runTmdb(lib, key) {
       const f = queue.shift();
       try {
         const m = await tmdbFilm(f, key, signal, META[f.key]);
-        if (m.miss) { if (!META[f.key] || META[f.key].src === "tmdb") META[f.key] = m; else META[f.key].tmdbMiss = TMDB_MATCH_VERSION; job.failed++; }
+        if (m.miss) { if (!META[f.key] || META[f.key].src === "tmdb") META[f.key] = m; else META[f.key].tmdbMiss = TMDB_MISS_VERSION; job.failed++; }
         else {
           // keep IMDb scores already fetched for the same film, so OMDb's daily allowance isn't spent twice
           const prev = META[f.key];
@@ -1714,13 +1787,12 @@ async function runClaude(lib) {
 // A TMDB or IMDb link (or bare id) for the film this one really is. The match is then kept, whatever later lookups find.
 async function fixMatch(f, text) {
   const key = tmdbKey();
-  if (!key) throw new Error("Add your TMDB key in the Cast & crew box first.");
+  if (!key) throw new Error("Add your TMDB key in Settings → Film details first.");
   const t = String(text || "").trim();
   let id = (t.match(/themoviedb\.org\/movie\/(\d+)/) || t.match(/^(\d+)$/) || [])[1];
   const imdb = (t.match(/\b(tt\d{5,})\b/) || [])[1];
   if (!id && imdb) {
-    const r = await tmdbGet(`/find/${imdb}`, { external_source: "imdb_id" }, key);
-    id = r && r.movie_results && r.movie_results[0] && r.movie_results[0].id;
+    id = await tmdbIdFor(imdb, key);
     if (!id) throw new Error("TMDB doesn't know a film with that IMDb link.");
   }
   if (!id) throw new Error("Paste a link to the film on themoviedb.org or imdb.com.");
@@ -3222,7 +3294,7 @@ function dataCheck(lib) {
     if (m.inf) out.notOnImdb++; else if (!m.ik) out.noImdb++;
     if (m.why) out.fixed.push(row(f, `Corrected: ${m.why}`));
     // a match by hand, from the feed or checked by hand is the right film whatever its year
-    const sure = m.pin || KNOWN_IDS[f.key] === m.id || FILM_IDS[titleKey(f.name, f.year)] === m.id;
+    const sure = m.pin || fromKnownId(f, m);
     const wrong = m.y && f.year && Math.abs(m.y - f.year) > 2 && !sure;
     if (wrong) out.look.push(row(f, `Letterboxd ${f.year} · TMDB ${m.y}: maybe matched to the wrong film`, 100 + Math.abs(m.y - f.year)));
     else if (m.y && f.year && m.y !== f.year) out.yearSmall.push(row(f, `Letterboxd ${f.year} · TMDB ${m.y}${sure ? " (checked: the right film)" : ""}`, Math.abs(m.y - f.year)));
@@ -3887,7 +3959,10 @@ function render() {
   STATS = computeStats(state.lib, metaOf, state.scope);
   renderHero(STATS, years);
   const page = state.page;
-  for (const sel of ["#tiles", "#lookup", "#sections", ".scopes-row"]) $(sel).hidden = page !== "stats";
+  for (const sel of ["#tiles", "#lookup-mini", "#sections", ".scopes-row"]) $(sel).hidden = page !== "stats";
+  $("#settings").hidden = page !== "settings";
+  $("footer").hidden = page === "settings"; // Settings ends with its own About
+  $("#btn-settings span").textContent = page === "settings" ? "Back to stats" : "Settings";
   $("#insights").hidden = page !== "insights";
   $("#compare").hidden = page !== "compare";
   $("#drillpage").hidden = page !== "drill";
@@ -3897,6 +3972,7 @@ function render() {
   if (page === "drill") { $(".scopes-row").hidden = true; renderDrillPage(); syncHash(); return; }
   if (page === "insights") { renderInsights(); return; }
   if (page === "compare") { renderCompare(); return; }
+  if (page === "settings") { $(".scopes-row").hidden = true; renderSettings(); syncHash(); return; }
   renderTiles(STATS);
   renderLookup();
   renderSections(STATS);
@@ -3972,7 +4048,33 @@ function renderTiles(s) {
 }
 
 /* ---------- cast & crew lookup panel ---------- */
-function renderLookup() {
+// Settings: the export, film details, the diary on this site, backups and the small print, away from the stats.
+function renderSettings() {
+  $("#hero-title").innerHTML = `<span class="accent">Settings</span>`;
+  $("#hero-sub").textContent = "Your export, film details, your diary on this site, and backups.";
+  const lib = MY_LIB;
+  $("#set-export").innerHTML = lib ? `${plural(lib.films.length, "film")}, ${plural(lib.entries.length, "diary entry", "diary entries")} and ${plural(lib.reviews.length, "review")} imported${lib.profile.username ? ` for @${esc(lib.profile.username)}` : ""}.${lib.reviewTextMissing ? " The review text is missing, so import the export again." : ""}`
+    : "Nothing imported yet: this is the example diary.";
+  $("#set-site").hidden = !SITE_ON;
+  renderLookup();
+  siteRedraw();
+}
+const goSettings = () => { closePanelThen(() => { state.page = "settings"; render(); window.scrollTo(0, 0); }); };
+// On the stats page, one line while films are being looked up, or while they still need cast and crew.
+function renderLookupMini() {
+  const el = $("#lookup-mini");
+  if (!el) return;
+  let html = "";
+  if (state.page === "stats" && state.mode === "mine" && state.lib) {
+    const without = state.lib.films.filter((f) => !metaOf(f)).length;
+    if (job.running) html = `<span id="lookup-mini-progress">${progressText()}</span> <button class="linkish" type="button" data-goto="settings">See it in Settings</button>`;
+    else if (without && (IN_VIEWER || !tmdbKey())) html = `${plural(without, "film")} ${without === 1 ? "has" : "have"} no cast and crew yet. <button class="linkish" type="button" data-goto="settings">Fill them in from Settings</button>`;
+  }
+  if (el.innerHTML !== html) el.innerHTML = html;
+  el.hidden = !html;
+}
+function renderLookup() { renderLookupBox(); renderLookupMini(); }
+function renderLookupBox() {
   const el = $("#lookup");
   if (!state.lib) return;
   if (state.mode === "example") {
@@ -4041,6 +4143,8 @@ function progressText() {
 function renderLookupProgress() {
   const p = $("#lookup-progress");
   if (p) p.textContent = progressText();
+  const mp = $("#lookup-mini-progress");
+  if (mp) mp.textContent = progressText();
   const ip = $("#imdb-progress");
   if (ip) ip.textContent = imdbProgressText();
   const lp = $("#lb-progress");
@@ -4065,7 +4169,7 @@ function faceHtml(p, rank) {
   const ph = showImages && PHOTOS[p.key];
   return `<div class="face"><span class="initials" aria-hidden="true">${esc(initials(p.name))}</span>${ph ? `<img src="${IMG}${esc(ph)}" alt="" loading="lazy" onerror="this.remove()">` : ""}${rank ? `<span class="rank">${rank}</span>` : ""}</div>`;
 }
-const emptyMeta = () => `<div class="empty">Cast and crew aren't part of the Letterboxd export. Fill them in with <a href="#lookup">Cast &amp; crew</a> above.</div>`;
+const emptyMeta = () => `<div class="empty">Cast and crew aren't part of the Letterboxd export. Fill them in from <button class="linkish" type="button" data-goto="settings">Settings</button>.</div>`;
 function rankRows(list, valueOf, widthOf, startRank, titleOf) {
   return `<ol class="rank-list">${list.map((p, i) => `<li><button class="rank-row" type="button" data-list="${p.to ? drill(p.to) : reg(p.name, titleOf(p), p.films, p)}">
     <span class="r">${startRank + i}</span><span class="n">${esc(p.name)}</span>
@@ -4373,9 +4477,9 @@ function crowdBlock(I) {
     return `<button class="tab" role="tab" type="button" data-crowd="${k}" aria-selected="${k === C.key}" ${n < 5 ? "disabled" : ""} title="${n} rated films have this score">${c.label}</button>`; }).join("")}</div>`;
   if (C.n < 5) {
     const why = IN_VIEWER ? `Crowd scores come from TMDB and OMDb, which pages inside Claude can't reach. Open <a href="https://sjnift.github.io/credits-roll/" target="_blank" rel="noopener">the web version</a> with your keys.`
-      : C.key === "letterboxd" ? "Letterboxd averages come through Apify. Add your Apify token in the Cast &amp; crew box on the stats page."
-      : C.key === "imdb" || C.key === "critics" ? "IMDb and critics' scores come from OMDb. Add a free OMDb key in the Cast &amp; crew box on the stats page."
-      : "Crowd scores come with TMDB details. Look your films up from the Cast &amp; crew box on the stats page.";
+      : C.key === "letterboxd" ? "Letterboxd averages come through Apify. Add your Apify token in Settings → Film details."
+      : C.key === "imdb" || C.key === "critics" ? "IMDb and critics' scores come from OMDb. Add a free OMDb key in Settings → Film details."
+      : "Crowd scores come with TMDB details. Look your films up from Settings → Film details.";
     return tabs + `<div class="empty">${why}</div>`;
   }
   const lead = `<p class="lead">Across ${dlink(C.to, plural(C.n, "film"))} you rated, you give ${Math.abs(C.meanDiff).toFixed(2)}★ ${C.meanDiff >= 0 ? "more" : "less"} than ${esc(C.label)} on average${followText(C.r)}.</p>`;
@@ -4696,11 +4800,12 @@ function renderDrillPage() {
 </script>
 <script>
 /* ---------- desktop: addresses you can bookmark, and the back button ----------
-   #/ and #/2024 are the stats, #/insights and #/insights/2024 the insights, #/compare/<friend> a comparison.
+   #/ and #/2024 are the stats, #/insights and #/insights/2024 the insights, #/compare/<friend> a comparison,
+   #/settings the settings.
    /film/<film> on the end opens that film's card. */
 const routeBase = () => state.page === "insights" ? `#/insights${state.insYear !== "all" ? "/" + state.insYear : ""}`
   : state.page === "compare" ? `#/compare${state.cmp ? "/" + encodeURIComponent(state.cmp) : ""}`
-  : state.page === "drill" ? "#/list" : state.scope === "all" ? "#/" : `#/${state.scope}`;
+  : state.page === "drill" ? "#/list" : state.page === "settings" ? "#/settings" : state.scope === "all" ? "#/" : `#/${state.scope}`;
 const hashParts = () => {
   const h = decodeURIComponent(location.hash.replace(/^#\/?/, "")), m = h.match(/^(.*?)\/?film\/(.+)$/);
   return m ? { base: m[1], film: m[2] } : { base: h, film: null };
@@ -4714,6 +4819,7 @@ function routeFromHash(initial) {
   if (a === "insights") Object.assign(state, { page: "insights", insYear: b || "all" });
   else if (a === "compare") Object.assign(state, { page: "compare", cmp: b || state.cmp });
   else if (a === "list" && state.drill) state.page = "drill";
+  else if (a === "settings") state.page = "settings";
   else Object.assign(state, { page: "stats", scope: /^\d{4}$/.test(a || "") ? a : "all" });
 }
 // After a render: a new page or friend becomes a history entry; a different year or period just changes the address.
@@ -4808,6 +4914,9 @@ function bind() {
   const fileInput = $("#file-input");
   $("#btn-import").addEventListener("click", () => fileInput.click());
   $("#btn-import-2").addEventListener("click", () => fileInput.click());
+  $("#btn-import-3").addEventListener("click", () => fileInput.click());
+  $("#btn-settings").addEventListener("click", () => { if (state.page === "settings") { state.page = "stats"; render(); window.scrollTo(0, 0); } else goSettings(); });
+  document.addEventListener("click", (e) => { if (e.target.closest('[data-goto="settings"]')) goSettings(); });
   fileInput.addEventListener("change", () => { const files = [...fileInput.files]; fileInput.value = ""; if (files.length) importFiles(files); });
   $("#btn-insights").addEventListener("click", () => { state.page = state.page === "insights" ? "stats" : "insights"; saveView(); render(); window.scrollTo(0, 0); });
   $("#btn-compare").addEventListener("click", () => { state.page = state.page === "compare" ? "stats" : "compare"; saveView(); render(); window.scrollTo(0, 0); });

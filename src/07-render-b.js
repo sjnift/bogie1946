@@ -11,7 +11,7 @@ function faceHtml(p, rank) {
   const ph = showImages && PHOTOS[p.key];
   return `<div class="face"><span class="initials" aria-hidden="true">${esc(initials(p.name))}</span>${ph ? `<img src="${IMG}${esc(ph)}" alt="" loading="lazy" onerror="this.remove()">` : ""}${rank ? `<span class="rank">${rank}</span>` : ""}</div>`;
 }
-const emptyMeta = () => `<div class="empty">Cast and crew aren't part of the Letterboxd export. Fill them in with <a href="#lookup">Cast &amp; crew</a> above.</div>`;
+const emptyMeta = () => `<div class="empty">Cast and crew aren't part of the Letterboxd export. Fill them in from <button class="linkish" type="button" data-goto="settings">Settings</button>.</div>`;
 function rankRows(list, valueOf, widthOf, startRank, titleOf) {
   return `<ol class="rank-list">${list.map((p, i) => `<li><button class="rank-row" type="button" data-list="${p.to ? drill(p.to) : reg(p.name, titleOf(p), p.films, p)}">
     <span class="r">${startRank + i}</span><span class="n">${esc(p.name)}</span>

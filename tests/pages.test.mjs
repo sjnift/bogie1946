@@ -10,7 +10,7 @@ const clean = async (page, where) => {
 export default async function ({ browser, base }) {
   const d = await open(browser, base, "desktop.html");
   await clean(d, "desktop stats");
-  for (const [btn, where] of [["#btn-insights", "insights"], ['[data-insyear="2024"]', "insights 2024"], ["#btn-compare", "compare"], ['[data-cmp="all"]', "compare everyone"]]) {
+  for (const [btn, where] of [["#btn-insights", "insights"], ['[data-insyear="2024"]', "insights 2024"], ["#btn-compare", "compare"], ['[data-cmp="all"]', "compare everyone"], ["#btn-settings", "settings"]]) {
     await d.click(btn); await d.waitForTimeout(150);
     await clean(d, `desktop ${where}`);
   }

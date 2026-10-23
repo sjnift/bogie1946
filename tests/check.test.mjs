@@ -36,7 +36,7 @@ export default async function ({ browser, base }) {
       && !/Spirited Away/.test(text) && /IMDb details are still to come for 1 film/.test(text), `${file} text: ${text}`);
 
     // the list opens from the lookup box (Settings on a phone)
-    if (phone) { await p.click('[data-act="settings"]'); await p.waitForTimeout(100); }
+    await p.click(phone ? '[data-act="settings"]' : "#btn-settings"); await p.waitForTimeout(100);
     await p.click('button:has-text("Show the list")'); await p.waitForTimeout(150);
     const panel = phone ? "#sheet" : "#dlg";
     const opened = await p.$eval(panel, (d) => [d.open, d.querySelector("h2, h3").textContent, d.querySelectorAll(".drill-row").length, d.textContent.includes("(not an error)")]);

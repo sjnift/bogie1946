@@ -31,6 +31,10 @@ let KNOWN_IDS = {};
 const FILM_IDS = {
   "a cop|1972": 42741, // Melville's Un flic; TMDB knows no film called "A Cop" from 1972
   "the ear|1970": 88953, // Ucho: banned on completion, released in 1990
+  // by IMDb id, which TMDB turns into its own: TMDB titles these differently from Letterboxd (from the film data check)
+  "glass onion|2022": "tt11564570", // Glass Onion: A Knives Out Mystery
+  "nathan for you finding frances|2017": "tt7277634", // the show's finale, a film on Letterboxd
+  "the sorrow and the pity|1969": "tt0066904", // Le Chagrin et la Pitié
 };
 // Facts TMDB has wrong for a film, by its TMDB id, checked against the film itself (from the film data check).
 const FILM_FIXES = {
@@ -39,15 +43,17 @@ const FILM_FIXES = {
   17295: { l: "French", why: "in French and Arabic; TMDB gives Italian" }, // The Battle of Algiers (1966)
 };
 const knownId = (f) => KNOWN_IDS[f.key] || FILM_IDS[titleKey(f.name, f.year)];
+// Whether a film's details came from the id it's pinned to (a TMDB id, or an IMDb id "tt…").
+const fromKnownId = (f, m) => { const k = knownId(f); return !!(k && m && (m.id === k || m.im === k || m.via === k)); };
 function needsLookup(lib, kind) {
   return lib.films.filter((f) => {
     const m = META[f.key];
     if (kind === "tmdb") {
       if (m && m.pin) return false;
-      if (knownId(f) && (!m || m.id !== knownId(f))) return true;
+      if (knownId(f) && !fromKnownId(f, m)) return true;
       if (!m) return true;
-      if (m.src === "tmdb") return (m.v || 1) < TMDB_MATCH_VERSION;
-      return !(m.tmdbMiss >= TMDB_MATCH_VERSION);
+      if (m.src === "tmdb") return (m.v || 1) < (m.miss ? TMDB_MISS_VERSION : TMDB_MATCH_VERSION);
+      return !(m.tmdbMiss >= TMDB_MISS_VERSION);
     }
     return !m && !EXAMPLE_META[f.key];
   });
@@ -75,6 +81,9 @@ async function tmdbGet(path, params, key, signal) {
 // 5: TMDB's release year is kept too (`y`), for the film data check.
 // 6: every country TMDB lists (it used to stop at 6), the language a film is spoken in, hand-checked fixes.
 const TMDB_MATCH_VERSION = 6;
+// Bump when matching finds films it used to miss, so only those are looked up again.
+// 7: a title that is half of the other ("Glass Onion: A Knives Out Mystery" for Glass Onion).
+const TMDB_MISS_VERSION = Math.max(TMDB_MATCH_VERSION, 7);
 // The words of a title that matter, in any script: "The Ear" → ear, "Love & Mercy" → love, mercy.
 const TITLE_SKIP = new Set(["the", "a", "an", "and", "of", "la", "le", "les", "el", "il", "der", "die", "das"]);
 const titleWords = (s) => new Set(String(s || "").replace(/&/g, " and ").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
@@ -110,23 +119,50 @@ function onlyTitled(results, f) {
   // later only: a film can come out years after it was made, never years before (A Cop, 1972, isn't a 1947 film)
   return same.length === 1 && (!f.year || !yearOf(same[0]) || (yearOf(same[0]) >= f.year - 2 && yearOf(same[0]) - f.year <= 30)) ? same[0] : null;
 }
+// TMDB can title a film longer than Letterboxd ("Glass Onion: A Knives Out Mystery" for Glass Onion), or with
+// only one half of Letterboxd's ("Finding Frances" for "Nathan for You: Finding Frances"). Taken only when that
+// half is a whole title on its own and the year is within one; the most-voted such film wins.
+const mainTitle = (t) => String(t || "").split(/:\s|\s[-–—]\s/)[0];
+const titleHalves = (t) => (String(t).includes(":") ? String(t).split(/:\s*/).map((x) => x.trim()).filter(Boolean) : []);
+function halfTitled(results, f) {
+  const yearOf = (r) => parseInt((r.release_date || "").slice(0, 4), 10);
+  const halves = titleHalves(f.name);
+  const fits = (t) => !!t && (titleLike(f.name, mainTitle(t)) === 1 || halves.some((h) => titleLike(h, t) === 1));
+  return (results || []).filter((r) => (!f.year || !yearOf(r) || Math.abs(yearOf(r) - f.year) <= 1) && (fits(r.title) || fits(r.original_title)))
+    .sort((a, b) => (b.vote_count || 0) - (a.vote_count || 0))[0] || null;
+}
+// The TMDB id for a pinned film: a TMDB id as it is, an IMDb id through TMDB's find.
+async function tmdbIdFor(known, key, signal) {
+  if (!/^tt\d+$/.test(String(known))) return known;
+  const r = await tmdbGet(`/find/${known}`, { external_source: "imdb_id" }, key, signal);
+  return (r && r.movie_results && r.movie_results[0] && r.movie_results[0].id) || null;
+}
 // `prev` is what the film was matched to before: when the match hasn't changed, its details are kept.
 async function tmdbFilm(f, key, signal, prev) {
-  if (knownId(f)) { const m = await tmdbDetails(knownId(f), key, signal); if (!m.miss) return m; }
-  let s = await tmdbGet("/search/movie", { query: f.name, year: f.year || "", include_adult: "false" }, key, signal);
-  let hit = pickHit(s && s.results, f, 2);
-  if (!hit && f.year) {
-    s = await tmdbGet("/search/movie", { query: f.name, include_adult: "false" }, key, signal);
-    hit = pickHit(s && s.results, f, 2) || onlyTitled(s && s.results, f);
+  const known = knownId(f);
+  if (known) {
+    const id = await tmdbIdFor(known, key, signal), m = id && await tmdbDetails(id, key, signal);
+    if (m && !m.miss) return { ...m, via: known };
   }
-  if (!hit) return { src: "tmdb", miss: true, v: TMDB_MATCH_VERSION };
+  const search = async (query, year) => ((await tmdbGet("/search/movie", { query, year: year || "", include_adult: "false" }, key, signal)) || {}).results || [];
+  const seen = await search(f.name, f.year);
+  let hit = pickHit(seen, f, 2);
+  if (!hit && f.year) {
+    const all = await search(f.name);
+    seen.push(...all);
+    hit = pickHit(all, f, 2) || onlyTitled(all, f);
+  }
+  if (!hit) hit = halfTitled(seen, f);
+  for (const half of hit ? [] : titleHalves(f.name)) if ((hit = halfTitled(await search(half, f.year), f))) break;
+  // (a pinned film TMDB doesn't know keeps the pin, so it isn't asked for again every time)
+  if (!hit) return { src: "tmdb", miss: true, v: TMDB_MISS_VERSION, ...(known ? { via: known } : {}) };
   if (prev && prev.src === "tmdb" && !prev.miss && prev.id === hit.id && prev.c && prev.v >= 6) return { ...prev, v: TMDB_MATCH_VERSION, y: parseInt((hit.release_date || "").slice(0, 4), 10) || prev.y || null };
   return tmdbDetails(hit.id, key, signal);
 }
 // One TMDB film's details and credits, by its id.
 async function tmdbDetails(id, key, signal) {
   const d = await tmdbGet(`/movie/${id}`, { append_to_response: "credits" }, key, signal);
-  if (!d) return { src: "tmdb", miss: true, v: TMDB_MATCH_VERSION };
+  if (!d) return { src: "tmdb", miss: true, v: TMDB_MISS_VERSION };
   const crew = (d.credits && d.credits.crew) || [];
   const cast = ((d.credits && d.credits.cast) || []).slice().sort((a, b) => a.order - b.order).slice(0, CAST_DEPTH);
   const names = (list) => [...new Set(list.map((x) => x.name))];
@@ -162,7 +198,7 @@ async function runTmdb(lib, key) {
       const f = queue.shift();
       try {
         const m = await tmdbFilm(f, key, signal, META[f.key]);
-        if (m.miss) { if (!META[f.key] || META[f.key].src === "tmdb") META[f.key] = m; else META[f.key].tmdbMiss = TMDB_MATCH_VERSION; job.failed++; }
+        if (m.miss) { if (!META[f.key] || META[f.key].src === "tmdb") META[f.key] = m; else META[f.key].tmdbMiss = TMDB_MISS_VERSION; job.failed++; }
         else {
           // keep IMDb scores already fetched for the same film, so OMDb's daily allowance isn't spent twice
           const prev = META[f.key];
@@ -359,13 +395,12 @@ async function runClaude(lib) {
 // A TMDB or IMDb link (or bare id) for the film this one really is. The match is then kept, whatever later lookups find.
 async function fixMatch(f, text) {
   const key = tmdbKey();
-  if (!key) throw new Error("Add your TMDB key in the Cast & crew box first.");
+  if (!key) throw new Error("Add your TMDB key in Settings → Film details first.");
   const t = String(text || "").trim();
   let id = (t.match(/themoviedb\.org\/movie\/(\d+)/) || t.match(/^(\d+)$/) || [])[1];
   const imdb = (t.match(/\b(tt\d{5,})\b/) || [])[1];
   if (!id && imdb) {
-    const r = await tmdbGet(`/find/${imdb}`, { external_source: "imdb_id" }, key);
-    id = r && r.movie_results && r.movie_results[0] && r.movie_results[0].id;
+    id = await tmdbIdFor(imdb, key);
     if (!id) throw new Error("TMDB doesn't know a film with that IMDb link.");
   }
   if (!id) throw new Error("Paste a link to the film on themoviedb.org or imdb.com.");

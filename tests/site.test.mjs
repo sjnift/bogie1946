@@ -93,6 +93,7 @@ export default async function ({ browser, base }) {
   // A computer with a diary puts it on the site.
   const a = await device(browser, base, gh, "desktop.html", {});
   await seed(a, rows, { "cr-meta-v1": meta, "cr-tmdb-key": "k123" });
+  await a.click("#btn-settings");
   await a.waitForSelector("#site-box #site-newpass-publish");
   await a.fill("#site-newpass-publish", "short");
   await a.click('#site-box [data-site="create"]');

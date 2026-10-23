@@ -48,6 +48,10 @@ Where it lives:
   - The best-rated decade is featured with its films' posters (phone Breakdown and desktop "Released").
   - **Their diary lives on the site, locked with a password** (see "The diary on the site"), so no device needs an
     import. Never put it there unencrypted, and never with their email address or API keys.
+  - **The main page is only stats.** Admin things (the export, lookups and their keys and small print, the diary on
+    the site and its GitHub key, backups, deleting data, the disclaimers) live in Settings: the desktop's Settings
+    page (`#/settings`) and the phone's Settings screen (gear). The desktop main page shows at most one line
+    (`#lookup-mini`) while films are looked up or still lack cast and crew, linking to Settings.
   - **No example diary** (they got stuck in it and asked for it to go): with a diary saved, the app always shows
     it; with nothing saved it shows an import screen. The made-up example only appears with `?example` in the
     address and nothing imported (`SHOW_EXAMPLE`), which the checks use. There is no switch to it.
@@ -94,7 +98,8 @@ The owner asked for this to be checked every time. A film, diary entry, person o
 `build.sh` concatenates these in order (shared files go into both layouts):
 
 - Desktop: `01-head.html` (fonts, colour tokens, base CSS), `02-style.html` (all other desktop CSS),
-  `03-body.html` (page skeleton), shared files, `07-render-a.js` (state, render(), hero, tiles, lookup box),
+  `03-body.html` (page skeleton), shared files, `07-render-a.js` (state, render(), hero, tiles, the Settings page `renderSettings`, the lookup box and its one-line
+  version on the stats page `renderLookupMini`),
   `07-render-b.js` (Stats sections), `07c-insights.js`, `07d-compare.js`, `07e-reviews.js`,
   `07f-drill.js` (pop-up, full page, hash routes, back button), `08-events.js` (import, clicks, init).
 - Phone: `m01-head.html` (all phone CSS), `m02-body.html` (header, five-tab bar), shared files,
@@ -178,7 +183,7 @@ pinned). In Compare it shows each person's record.
 
 ### Addresses and the back button
 
-Desktop: `#/`, `#/2024`, `#/insights`, `#/insights/2024`, `#/compare/<friend>`, `#/list`; `/film/<filmKey>`
+Desktop: `#/`, `#/2024`, `#/insights`, `#/insights/2024`, `#/compare/<friend>`, `#/list`, `#/settings`; `/film/<filmKey>`
 on the end opens a card. Phone: `#/profile`, `#/diary`, `#/films`, `#/people`, `#/genres`, `#/insights`,
 `#/insights/2024`, `#/compare/<friend>` (tabs) and `#/data`, `#/reviews`, `#/watchnext`, `#/list` (pushed),
 plus `/film/…`. Tabs, pop-ups, sheets and pushed screens are history entries; changing year, Stats section or
@@ -211,7 +216,12 @@ friend replaces the address instead.
   A hit must have the same title, or nearly (`titleLike` ≥ 0.75 on the words that matter, in any script);
   beyond ±2 years only a single exact-title film is taken (`onlyTitled`: The Ear is 1970 on Letterboxd, 1990 on
   TMDB), and never one TMDB dates more than 2 years *earlier* (A Cop, 1972, had matched a 1947 film).
-  `FILM_IDS` pins films TMDB's search can't find by title and year (A Cop → Un flic 42741, The Ear → 88953);
+  `FILM_IDS` pins films TMDB's search can't find by title and year, by TMDB id (A Cop → Un flic 42741, The Ear →
+  88953) or by IMDb id, turned into TMDB's through its find endpoint (Glass Onion tt11564570, Nathan for You: Finding
+  Frances tt7277634, The Sorrow and the Pity tt0066904); the details then carry `via` (`fromKnownId`). A title that
+  is half of TMDB's is matched too (`halfTitled`: "Glass Onion: A Knives Out Mystery"; Letterboxd's "Show: Episode"
+  as TMDB's "Episode"), only as a whole title within a year. `TMDB_MISS_VERSION` (7) looks up again only films
+  missed before, when matching learns to find more;
   `FILM_FIXES` (by TMDB id, with a `why`) corrects facts TMDB has wrong (The Prowler 1951 is American; Breaking
   the Waves is in English; The Battle of Algiers in French). A film's language is TMDB's original language unless
   it's spoken in exactly one other (`spokenIn`). Every TMDB country is kept (it used to stop at 6, which made
@@ -321,6 +331,9 @@ day, shared with the owner's own app. The in-app version is the "Check film data
 - The owner's first full data check (1,556 films, Oct 2026) listed 445 differences; the real problems were A Cop
   (wrong match), The Prowler, Breaking the Waves, The Battle of Algiers (TMDB errors) and the 6-country cap.
   The rest were release-date conventions and co-production lists, now shown as "not an error".
+- Three films had no TMDB match (Oct 2026): Glass Onion (TMDB adds ": A Knives Out Mystery"), Nathan for You:
+  Finding Frances, The Sorrow and the Pity → pinned by IMDb id, plus half-title matching.
+- The owner asked for admin things off the main page (Oct 2026) → the desktop Settings page.
 - The phone app was rebuilt in Oct 2026 (new tabs, sections, speed). With a 1,400-film diary on a slowed CPU,
   opening Insights went from about 1.5 s to about 50 ms, and taps generally take under 0.1 s.
 

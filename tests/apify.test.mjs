@@ -24,6 +24,7 @@ export default async function ({ browser, base }) {
     json({});
   });
   await seed(p, { profile: [{ Username: "tester" }], watched: films.map((f) => ({ Name: f[0], Year: String(f[1]) })), ratings: [], diary: [] }, { "cr-apify-key": "apify_api_TEST" });
+  await p.click("#btn-settings"); // Letterboxd averages are under Settings → Film details
   await p.click('[data-lb="all"]');
   await p.waitForFunction(() => !lbJob.running && Object.keys(LBX).length);
   assert(bodies[0].maxResults === 1300, `first run asked for ${bodies[0].maxResults}`);

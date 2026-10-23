@@ -37,7 +37,10 @@ function render() {
   STATS = computeStats(state.lib, metaOf, state.scope);
   renderHero(STATS, years);
   const page = state.page;
-  for (const sel of ["#tiles", "#lookup", "#sections", ".scopes-row"]) $(sel).hidden = page !== "stats";
+  for (const sel of ["#tiles", "#lookup-mini", "#sections", ".scopes-row"]) $(sel).hidden = page !== "stats";
+  $("#settings").hidden = page !== "settings";
+  $("footer").hidden = page === "settings"; // Settings ends with its own About
+  $("#btn-settings span").textContent = page === "settings" ? "Back to stats" : "Settings";
   $("#insights").hidden = page !== "insights";
   $("#compare").hidden = page !== "compare";
   $("#drillpage").hidden = page !== "drill";
@@ -47,6 +50,7 @@ function render() {
   if (page === "drill") { $(".scopes-row").hidden = true; renderDrillPage(); syncHash(); return; }
   if (page === "insights") { renderInsights(); return; }
   if (page === "compare") { renderCompare(); return; }
+  if (page === "settings") { $(".scopes-row").hidden = true; renderSettings(); syncHash(); return; }
   renderTiles(STATS);
   renderLookup();
   renderSections(STATS);
@@ -122,7 +126,33 @@ function renderTiles(s) {
 }
 
 /* ---------- cast & crew lookup panel ---------- */
-function renderLookup() {
+// Settings: the export, film details, the diary on this site, backups and the small print, away from the stats.
+function renderSettings() {
+  $("#hero-title").innerHTML = `<span class="accent">Settings</span>`;
+  $("#hero-sub").textContent = "Your export, film details, your diary on this site, and backups.";
+  const lib = MY_LIB;
+  $("#set-export").innerHTML = lib ? `${plural(lib.films.length, "film")}, ${plural(lib.entries.length, "diary entry", "diary entries")} and ${plural(lib.reviews.length, "review")} imported${lib.profile.username ? ` for @${esc(lib.profile.username)}` : ""}.${lib.reviewTextMissing ? " The review text is missing, so import the export again." : ""}`
+    : "Nothing imported yet: this is the example diary.";
+  $("#set-site").hidden = !SITE_ON;
+  renderLookup();
+  siteRedraw();
+}
+const goSettings = () => { closePanelThen(() => { state.page = "settings"; render(); window.scrollTo(0, 0); }); };
+// On the stats page, one line while films are being looked up, or while they still need cast and crew.
+function renderLookupMini() {
+  const el = $("#lookup-mini");
+  if (!el) return;
+  let html = "";
+  if (state.page === "stats" && state.mode === "mine" && state.lib) {
+    const without = state.lib.films.filter((f) => !metaOf(f)).length;
+    if (job.running) html = `<span id="lookup-mini-progress">${progressText()}</span> <button class="linkish" type="button" data-goto="settings">See it in Settings</button>`;
+    else if (without && (IN_VIEWER || !tmdbKey())) html = `${plural(without, "film")} ${without === 1 ? "has" : "have"} no cast and crew yet. <button class="linkish" type="button" data-goto="settings">Fill them in from Settings</button>`;
+  }
+  if (el.innerHTML !== html) el.innerHTML = html;
+  el.hidden = !html;
+}
+function renderLookup() { renderLookupBox(); renderLookupMini(); }
+function renderLookupBox() {
   const el = $("#lookup");
   if (!state.lib) return;
   if (state.mode === "example") {
@@ -191,6 +221,8 @@ function progressText() {
 function renderLookupProgress() {
   const p = $("#lookup-progress");
   if (p) p.textContent = progressText();
+  const mp = $("#lookup-mini-progress");
+  if (mp) mp.textContent = progressText();
   const ip = $("#imdb-progress");
   if (ip) ip.textContent = imdbProgressText();
   const lp = $("#lb-progress");

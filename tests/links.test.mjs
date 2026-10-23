@@ -34,6 +34,8 @@ export default async function ({ browser, base }) {
   await clickThrough(d, "#insights", "#dlg", "desktop 2025");
   await d.click("#btn-compare"); await d.waitForTimeout(150);
   await clickThrough(d, "#compare", "#dlg", "desktop compare");
+  await d.click("#btn-settings"); await d.waitForTimeout(150);
+  await clickThrough(d, "#settings", "#dlg", "desktop settings", 0);
 
   // every screen and section of the phone; a section can be short, but it links to something
   const m = await open(browser, base, "mobile.html", { phone: true });

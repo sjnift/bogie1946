@@ -478,6 +478,15 @@ footer p { margin: 0 0 6px; max-width: 80ch; }
 .best-decade .posters { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 @media (max-width: 760px) { .best-decade { grid-template-columns: minmax(0, 1fr); } .best-decade .posters { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 /* nothing imported yet: just the title band and how to import */
-body.empty #tiles, body.empty #lookup, body.empty #sections, body.empty #insights, body.empty #compare, body.empty #drillpage,
-body.empty .scopes-row, body.empty #btn-search, body.empty #btn-insights, body.empty #btn-compare { display: none !important; }
+body.empty #tiles, body.empty #lookup-mini, body.empty #sections, body.empty #insights, body.empty #compare, body.empty #drillpage,
+body.empty .scopes-row, body.empty #btn-search, body.empty #btn-insights, body.empty #btn-compare, body.empty #btn-settings,
+body.empty #settings, body.empty .foot-settings { display: none !important; }
+/* settings: the same credit layout as the stats, with the boxes inside */
+#settings { padding-top: 8px; }
+.set .lookup, .set .site-box { margin: 0; }
+.set .credit-body { gap: 10px; }
+.set .credit-body > p { margin: 0; }
+.set .site-box { max-width: none; }
+.set.about p { margin: 0; color: var(--muted); font-size: 13.5px; max-width: 75ch; }
+.lookup-mini { margin: 18px 0 0; padding: 10px 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); color: var(--ink-2); font-size: 14px; }
 </style>
