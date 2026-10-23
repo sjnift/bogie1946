@@ -184,7 +184,7 @@ pinned). In Compare it shows each person's record.
 ### Addresses and the back button
 
 Desktop: `#/`, `#/2024`, `#/insights`, `#/insights/2024`, `#/compare/<friend>`, `#/list`, `#/settings`; `/film/<filmKey>`
-on the end opens a card. Phone: `#/profile`, `#/diary`, `#/films`, `#/people`, `#/genres`, `#/insights`,
+on the end opens a card. The "Credits Roll" title (`#home-link`) goes to `#/` (the stats, all time) from any page. Phone: `#/profile`, `#/diary`, `#/films`, `#/people`, `#/genres`, `#/insights`,
 `#/insights/2024`, `#/compare/<friend>` (tabs) and `#/data`, `#/reviews`, `#/watchnext`, `#/list` (pushed),
 plus `/film/…`. Tabs, pop-ups, sheets and pushed screens are history entries; changing year, Stats section or
 friend replaces the address instead.

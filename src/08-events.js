@@ -41,6 +41,12 @@ function bind() {
   $("#btn-import").addEventListener("click", () => fileInput.click());
   $("#btn-import-2").addEventListener("click", () => fileInput.click());
   $("#btn-import-3").addEventListener("click", () => fileInput.click());
+  // the title goes back to the stats, all time, from anywhere (a new tab opens it as it is)
+  $("#home-link").addEventListener("click", (e) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button) return;
+    e.preventDefault();
+    closePanelThen(() => { Object.assign(state, { page: "stats", scope: "all" }); saveView(); render(); window.scrollTo(0, 0); });
+  });
   $("#btn-settings").addEventListener("click", () => { if (state.page === "settings") { state.page = "stats"; render(); window.scrollTo(0, 0); } else goSettings(); });
   document.addEventListener("click", (e) => { if (e.target.closest('[data-goto="settings"]')) goSettings(); });
   fileInput.addEventListener("change", () => { const files = [...fileInput.files]; fileInput.value = ""; if (files.length) importFiles(files); });

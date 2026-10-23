@@ -26,6 +26,14 @@ export default async function ({ browser, base }) {
   assert(!(await d.evaluate(() => $("#sections").innerText.includes("This product uses the TMDB API"))), "the small print is still on the stats page");
   await d.goBack(); await d.waitForTimeout(150);
   assert(await at() === "#/ stats ", `back from settings: ${await at()}`);
+  // the title goes home (the stats, all time) from anywhere
+  await d.click('[data-scope="2025"]'); await d.click("#btn-insights"); await d.waitForTimeout(150);
+  await d.click("#home-link"); await d.waitForTimeout(250);
+  assert(await at() === "#/ stats " && await d.evaluate(() => state.scope === "all" && $("#insights").hidden && !$("#tiles").hidden), `home from insights: ${await at()}`);
+  await d.click("#btn-settings"); await d.waitForTimeout(100); await d.click("#home-link"); await d.waitForTimeout(150);
+  assert(await at() === "#/ stats ", `home from settings: ${await at()}`);
+  await d.goBack(); await d.waitForTimeout(150);
+  assert((await at()).startsWith("#/settings settings"), `back after going home: ${await at()}`);
   await d.goto(base + "desktop.html?example#/2025/film/" + encodeURIComponent("aftersun|2022")); await d.waitForTimeout(400);
   assert(await at() === "#/2025/film/aftersun%7C2022 stats Aftersun", `bookmarked film: ${await at()}`);
   noErrors(d, "desktop");

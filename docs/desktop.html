@@ -102,6 +102,8 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
   font-family: var(--display); font-weight: 800; font-size: 22px; letter-spacing: .14em;
   text-transform: uppercase; display: flex; align-items: center; gap: 10px;
 }
+a.wordmark { color: inherit; text-decoration: none; width: fit-content; transition: color .15s; }
+a.wordmark:hover { color: var(--gold-ink); }
 .wordmark .reel {
   width: 22px; height: 22px; border-radius: 50%; flex: none;
   background: radial-gradient(circle, var(--surface) 0 2px, transparent 2.5px),
@@ -667,7 +669,7 @@ body.empty #settings, body.empty .foot-settings { display: none !important; }
   <div class="sprockets" aria-hidden="true"></div>
   <div class="wrap band-inner">
     <div class="topline">
-      <div class="wordmark"><span class="reel" aria-hidden="true"></span>Credits Roll</div>
+      <a class="wordmark" id="home-link" href="#/" title="Back to your stats"><span class="reel" aria-hidden="true"></span>Credits Roll</a>
       <div class="actions">
         <button class="btn" id="btn-search" type="button" title="Search your diary (press /)"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" style="vertical-align:-2px; margin-right:5px"><circle cx="8.5" cy="8.5" r="5.5"/><path d="M13 13l4.5 4.5"/></svg>Search</button>
         <button class="btn" id="btn-insights" type="button">Insights</button>
@@ -736,12 +738,12 @@ body.empty #settings, body.empty .foot-settings { display: none !important; }
         <p>With your own TMDB key, film details come from The Movie Database. This product uses the TMDB API but is not endorsed or certified by TMDB.
           Inside the Claude app, details come from Claude's knowledge of each film instead, so check anything surprising.</p>
         <p>On a phone? <a href="mobile.html">Open the phone version</a>. It uses the same import.</p>
-        <p>Updated 23 Oct 2026, 18:09 UTC</p>
+        <p>Updated 23 Oct 2026, 18:22 UTC</p>
       </div>
     </section>
   </main>
   <footer>
-    <p>Updated 23 Oct 2026, 18:09 UTC<span class="foot-settings"> · <button class="linkish" type="button" data-goto="settings">Settings</button></span></p>
+    <p>Updated 23 Oct 2026, 18:22 UTC<span class="foot-settings"> · <button class="linkish" type="button" data-goto="settings">Settings</button></span></p>
   </footer>
 </div>
 
@@ -4926,6 +4928,12 @@ function bind() {
   $("#btn-import").addEventListener("click", () => fileInput.click());
   $("#btn-import-2").addEventListener("click", () => fileInput.click());
   $("#btn-import-3").addEventListener("click", () => fileInput.click());
+  // the title goes back to the stats, all time, from anywhere (a new tab opens it as it is)
+  $("#home-link").addEventListener("click", (e) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button) return;
+    e.preventDefault();
+    closePanelThen(() => { Object.assign(state, { page: "stats", scope: "all" }); saveView(); render(); window.scrollTo(0, 0); });
+  });
   $("#btn-settings").addEventListener("click", () => { if (state.page === "settings") { state.page = "stats"; render(); window.scrollTo(0, 0); } else goSettings(); });
   document.addEventListener("click", (e) => { if (e.target.closest('[data-goto="settings"]')) goSettings(); });
   fileInput.addEventListener("change", () => { const files = [...fileInput.files]; fileInput.value = ""; if (files.length) importFiles(files); });
