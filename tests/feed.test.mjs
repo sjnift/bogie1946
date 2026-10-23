@@ -18,6 +18,9 @@ const RSS = `<?xml version="1.0" encoding="utf-8"?><rss version="2.0" xmlns:lett
 <item><title>Love &amp; Mercy, 2014</title><guid isPermaLink="false">letterboxd-watch-3</guid><pubDate>Mon, 19 Oct 2026 10:00:00 +0000</pubDate><letterboxd:watchedDate>2026-10-19</letterboxd:watchedDate>
 <letterboxd:rewatch>No</letterboxd:rewatch><letterboxd:filmTitle>Love &amp; Mercy</letterboxd:filmTitle><letterboxd:filmYear>2014</letterboxd:filmYear><tmdb:movieId>271714</tmdb:movieId>
 <description><![CDATA[<p>Watched on Monday October 19, 2026.</p>]]></description></item>
+<item><title>Twilight&#039;s Last Gleaming, 1977</title><guid isPermaLink="false">letterboxd-watch-4</guid><pubDate>Fri, 2 Oct 2026 10:00:00 +0000</pubDate><letterboxd:watchedDate>2026-10-02</letterboxd:watchedDate>
+<letterboxd:rewatch>No</letterboxd:rewatch><letterboxd:filmTitle>Twilight&#039;s Last Gleaming</letterboxd:filmTitle><letterboxd:filmYear>1977</letterboxd:filmYear><tmdb:movieId>75938</tmdb:movieId>
+<description><![CDATA[<p>Watched on Friday October 2, 2026.</p>]]></description></item>
 <item><title>A list</title><guid isPermaLink="false">letterboxd-list-9</guid><description><![CDATA[<p>list</p>]]></description></item></channel></rss>`;
 
 export default async function ({ browser, base }) {
@@ -27,23 +30,26 @@ export default async function ({ browser, base }) {
   await writeFile(path.join(dir, "feed-users.txt"), "# usernames\ntester\n");
   const run = () => promisify(execFile)(process.execPath, ["--import", path.join(dir, "mock.mjs"), path.join(ROOT, "scripts/feed.mjs")], { cwd: dir });
   const out = await run();
-  assert(/tester: 3 entries in the feed, 3 new/.test(out.stdout), `script said: ${out.stdout}`);
+  assert(/tester: 4 entries in the feed, 4 new/.test(out.stdout), `script said: ${out.stdout}`);
   const feed = JSON.parse(await readFile(path.join(dir, "docs/feed/tester.json"), "utf8"));
   const heat = feed.items.find((x) => x.title === "Heat");
-  assert(feed.items.length === 3 && heat.rating === 5 && heat.rewatch && heat.liked && heat.tmdb === 949 && heat.review === "<p>Even <i>better</i> on the big screen &amp; louder.</p>", `parsed: ${JSON.stringify(heat)}`);
+  assert(feed.items.some((x) => x.title === "Twilight's Last Gleaming"), `apostrophe left as a code: ${feed.items.map((x) => x.title)}`);
+  assert(feed.items.length === 4 && heat.rating === 5 && heat.rewatch && heat.liked && heat.tmdb === 949 && heat.review === "<p>Even <i>better</i> on the big screen &amp; louder.</p>", `parsed: ${JSON.stringify(heat)}`);
   assert(feed.items.find((x) => x.title === "Love & Mercy").review === "", "a watch without a review got one");
   assert(/0 new/.test((await run()).stdout), "a second run added entries again");
 
   // the site
   for (const [file, phone] of [["desktop.html", false], ["mobile.html", true]]) {
     const p = await open(browser, base, file, { phone });
-    await p.context().route(/\/feed\/tester\.json/, (r) => r.fulfill({ contentType: "application/json", body: JSON.stringify(feed) }));
-    await seed(p, { profile: [{ Username: "Tester" }], watched: [{ Name: "Heat", Year: "1995" }, { Name: "Brick", Year: "2005" }],
-      diary: [{ Name: "Heat", Year: "1995", "Watched Date": "2024-01-01", Rating: "4.5" }, { Name: "Brick", Year: "2005", "Watched Date": "2024-02-03", Rating: "4" }],
+    const old = { ...feed, items: feed.items.map((x) => x.title === "Twilight's Last Gleaming" ? { ...x, title: "Twilight&#039;s Last Gleaming" } : x) };
+    await p.context().route(/\/feed\/tester\.json/, (r) => r.fulfill({ contentType: "application/json", body: JSON.stringify(old) }));
+    await seed(p, { profile: [{ Username: "Tester" }], watched: [{ Name: "Heat", Year: "1995" }, { Name: "Brick", Year: "2005" }, { Name: "Twilight’s Last Gleaming", Year: "1977" }],
+      diary: [{ Name: "Heat", Year: "1995", "Watched Date": "2024-01-01", Rating: "4.5" }, { Name: "Brick", Year: "2005", "Watched Date": "2024-02-03", Rating: "4" },
+        { Name: "Twilight’s Last Gleaming", Year: "1977", "Watched Date": "2026-10-02", Rating: "3.5" }],
       ratings: [{ Name: "Heat", Year: "1995", Rating: "4.5" }, { Name: "Brick", Year: "2005", Rating: "4" }], reviews: [], likes: [] });
-    await p.waitForFunction(() => FEED && MY_LIB.films.length === 3);
+    await p.waitForFunction(() => FEED && MY_LIB.films.length >= 4);
     const got = await p.evaluate(() => ({ films: MY_LIB.films.map((f) => `${f.name} ${f.entries.length}${f.liked ? "♥" : ""}`).join(), reviews: MY_LIB.reviews.length, known: KNOWN_IDS["love & mercy|2014"], kept: store.get(KEYS.rows).diary.length }));
-    assert(got.films === "Heat 2♥,Brick 1,Love & Mercy 1" && got.reviews === 1 && got.known === 271714 && got.kept === 2, `${file}: ${JSON.stringify(got)}`);
+    assert(got.films === "Heat 2♥,Brick 1,Twilight’s Last Gleaming 1,Love & Mercy 1" && got.reviews === 1 && got.known === 271714 && got.kept === 3, `${file}: ${JSON.stringify(got)}`);
     noErrors(p, file);
   }
 }

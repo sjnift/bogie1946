@@ -19,11 +19,17 @@ function withFeed(rows, feed) {
   if (!rows || !feed) return { rows, added: [] };
   const out = { ...rows, diary: [...(rows.diary || [])], watched: [...(rows.watched || [])], ratings: [...(rows.ratings || [])], reviews: [...(rows.reviews || [])], likes: [...(rows.likes || [])] };
   const k = (r) => filmKey(r.Name, r.Year);
+  // the export's spelling of each title, found by a looser match (apostrophes, accents, punctuation)
+  const loose = (name, year) => `${personKey(String(name).replace(/&#0*39;|&apos;/g, "'").replace(/&amp;/g, "&"))}|${year || ""}`;
+  const spelled = new Map();
+  for (const r of [...out.watched, ...out.diary, ...out.ratings]) if (!spelled.has(loose(r.Name, r.Year))) spelled.set(loose(r.Name, r.Year), r.Name);
+  const unescape = (s) => String(s).replace(/&(?:#(\d+)|#x([\da-f]+)|(amp|lt|gt|quot|apos));/gi, (m, dec, hex, name) => dec ? String.fromCodePoint(+dec) : hex ? String.fromCodePoint(parseInt(hex, 16)) : { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" }[name.toLowerCase()]);
   const inDiary = new Set(out.diary.map((r) => `${k(r)}|${r["Watched Date"] || r.Date}`));
   const watched = new Set(out.watched.map(k)), rated = new Set(out.ratings.map(k)), liked = new Set(out.likes.map(k));
   const added = [];
   for (const x of [...feed.items].sort((a, b) => a.watched.localeCompare(b.watched))) {
-    const base = { Name: x.title, Year: x.year ? String(x.year) : "" }, fk = k(base);
+    const title = spelled.get(loose(x.title, x.year)) || unescape(x.title);
+    const base = { Name: title, Year: x.year ? String(x.year) : "" }, fk = k(base);
     if (x.tmdb) KNOWN_IDS[fk] = x.tmdb;
     if (inDiary.has(`${fk}|${x.watched}`)) continue;
     inDiary.add(`${fk}|${x.watched}`);
@@ -33,7 +39,7 @@ function withFeed(rows, feed) {
     if (x.rating && !rated.has(fk)) { out.ratings.push({ ...base, Rating: String(x.rating) }); rated.add(fk); }
     if (x.liked && !liked.has(fk)) { out.likes.push(base); liked.add(fk); }
     if (x.review) out.reviews.push({ ...entry, Review: x.review });
-    added.push(x);
+    added.push({ ...x, title });
   }
   return { rows: out, added };
 }

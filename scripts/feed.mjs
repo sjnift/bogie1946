@@ -9,7 +9,9 @@ const tag = (xml, name) => {
   const m = xml.match(new RegExp(`<${name}(?:\\s[^>]*)?>([\\s\\S]*?)</${name}>`));
   return m ? m[1].trim().replace(/^<!\[CDATA\[([\s\S]*)\]\]>$/, "$1").trim() : "";
 };
-const decode = (s) => s.replace(/&(amp|lt|gt|quot|#39|apos);/g, (m, e) => ({ amp: "&", lt: "<", gt: ">", quot: '"', "#39": "'", apos: "'" }[e]));
+// Letterboxd writes some characters as codes: &amp;, and &#039; for an apostrophe.
+const decode = (s) => s.replace(/&(?:#(\d+)|#x([\da-f]+)|(amp|lt|gt|quot|apos));/gi, (m, dec, hex, name) =>
+  dec ? String.fromCodePoint(+dec) : hex ? String.fromCodePoint(parseInt(hex, 16)) : { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" }[name.toLowerCase()]);
 
 // The description holds the poster, then the review, or just "Watched on <date>." when there is none.
 function reviewOf(html) {
