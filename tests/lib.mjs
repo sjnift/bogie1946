@@ -12,7 +12,6 @@ export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "
 const DOCS = path.join(ROOT, "docs");
 const PAPA = await readFile(require.resolve("papaparse/papaparse.min.js"), "utf8");
 const JSZIP = await readFile(require.resolve("jszip/dist/jszip.min.js"), "utf8");
-const QRCODE = await readFile(require.resolve("qrcode-generator/qrcode.js"), "utf8");
 export const JSZip = require("jszip");
 
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".json": "application/json", ".webmanifest": "application/manifest+json", ".png": "image/png", ".svg": "image/svg+xml", ".css": "text/css" };
@@ -38,7 +37,8 @@ export async function open(browser, base, file, { phone = false, downloads = fal
   await ctx.route(/fonts\.(googleapis|gstatic)\.com|image\.tmdb\.org|api\.themoviedb\.org|omdbapi\.com|api\.apify\.com|api\.github\.com|cdn\.jsdelivr\.net|letterboxd\.com/, (r) => r.abort());
   await ctx.route(/papaparse/, (r) => r.fulfill({ contentType: "text/javascript", body: PAPA }));
   await ctx.route(/jszip/, (r) => r.fulfill({ contentType: "text/javascript", body: JSZIP }));
-  await ctx.route(/qrcode-generator/, (r) => r.fulfill({ contentType: "text/javascript", body: QRCODE }));
+  // the diary kept on the site: none, unless a check stands in for it
+  await ctx.route(/\/diary\//, (r) => r.fulfill({ status: 404, body: "not found" }));
   const page = await ctx.newPage();
   page.errors = [];
   page.on("pageerror", (e) => page.errors.push(e.message));

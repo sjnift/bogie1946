@@ -59,7 +59,7 @@ function act(t) {
     clearTimeout(forgetTimer); state.forgetArmed = false;
     if (job.running && job.ctl) job.ctl.abort();
     Object.values(KEYS).forEach((k) => store.del(k)); store.del(VIEW_KEY);
-    META = {}; PHOTOS = {}; LBX = {}; FRIENDS = []; MY_LIB = null; DATA_REV++; syncDisconnect(true);
+    META = {}; PHOTOS = {}; LBX = {}; FRIENDS = []; MY_LIB = null; DATA_REV++; siteForget();
     Object.assign(state, { mode: "example", scope: "all" });
     job.note = "Deleted your saved data from this browser."; job.err = false;
     render();
@@ -204,6 +204,8 @@ async function init() {
   EXAMPLE_META = Object.fromEntries(Object.entries(ex.meta).map(([k, m]) => [k, cleanMeta(m)]));
   EXAMPLE_LIB = buildLibrary(ex.rows);
   try { MY_LIB = myLibrary(); } catch (e) { MY_LIB = null; LOAD_ERROR = (e && e.message) || "unknown error"; }
+  // a device that opened the diary on the site before but has nothing saved now: bring it in before the first screen
+  if (!MY_LIB && SITE && SITE_ON) await siteCheck(false);
   const view = store.get(VIEW_KEY, {});
   state.mode = MY_LIB ? "mine" : "example"; // your diary whenever there is one
   if (view.scope) state.scope = view.scope;
@@ -216,7 +218,7 @@ async function init() {
   routeReady = true;
   syncHash(true);
   openRouteFilm();
-  syncOnStart();
+  siteStart();
   // New diary entries from the daily feed, then a saved key picks up films not yet looked up.
   if (MY_LIB) { await refreshFeed(); autoLookup(allFilmsLib()); pollLetterboxd(MY_LIB); }
 }

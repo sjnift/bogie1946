@@ -6,7 +6,7 @@ name: Site
 on:
   push:
     branches: [main]
-    paths-ignore: ["docs/feed/**"]
+    paths-ignore: ["docs/feed/**", "docs/diary/**"]
   pull_request:
   workflow_dispatch:
 

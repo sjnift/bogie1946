@@ -58,7 +58,7 @@ function idbWrite(k) {
   if (pending.has(k)) return;
   pending.set(k, setTimeout(() => { pending.delete(k); idbWriteNow(k); }, 250));
 }
-// Told about every saved change (sync uses it to know what to send).
+// Told about every saved change (the diary on the site uses it to know what to send).
 let STORE_HOOK = null;
 const store = {
   get(k, fallback) { return IDB && BIG_KEYS.has(k) ? (MEM.has(k) ? MEM.get(k) : fallback) : ls.get(k, fallback); },
@@ -165,7 +165,7 @@ async function readExport(fileList) {
       take(file.name, await file.text());
     }
   }
-  rows.importedAt = new Date().toISOString(); // the newest import wins when two devices sync
+  rows.importedAt = new Date().toISOString(); // the newest import wins between this device and the site
   if (!rows.watched.length && !rows.diary.length && !rows.ratings.length) {
     throw new Error(found
       ? "Those files have no films in them. Import the whole export ZIP, or at least diary.csv and watched.csv."

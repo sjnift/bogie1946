@@ -125,14 +125,14 @@ function bind() {
     const btn = e.currentTarget, status = $("#forget-status");
     if (!armed) {
       btn.textContent = "Click again to delete";
-      status.textContent = "Removes your imported export and looked-up details from this browser, plus any keys you typed in. A synced copy on GitHub stays.";
+      status.textContent = "Removes your imported export and looked-up details from this browser, plus any keys you typed in. A copy of your diary on the site stays there.";
       armed = setTimeout(() => { armed = null; btn.textContent = "Delete saved data from this browser"; status.textContent = ""; }, 6000);
       return;
     }
     clearTimeout(armed); armed = null;
     if (job.running && job.ctl) job.ctl.abort();
     Object.values(KEYS).forEach((k) => store.del(k));
-    META = {}; PHOTOS = {}; LBX = {}; FRIENDS = []; MY_LIB = null; syncDisconnect(true);
+    META = {}; PHOTOS = {}; LBX = {}; FRIENDS = []; MY_LIB = null; siteForget();
     Object.assign(state, { mode: "example", scope: "all" });
     job.note = ""; job.err = false;
     btn.textContent = "Delete saved data from this browser";
@@ -182,6 +182,8 @@ async function init() {
   EXAMPLE_META = Object.fromEntries(Object.entries(ex.meta).map(([k, m]) => [k, cleanMeta(m)]));
   EXAMPLE_LIB = buildLibrary(ex.rows);
   try { MY_LIB = myLibrary(); } catch (e) { MY_LIB = null; LOAD_ERROR = (e && e.message) || "unknown error"; }
+  // a device that opened the diary on the site before but has nothing saved now: bring it in before the first screen
+  if (!MY_LIB && SITE && SITE_ON) await siteCheck(false);
   const view = store.get(KEYS.view, {});
   state.mode = MY_LIB ? "mine" : "example"; // your diary whenever there is one
   if (view.scope) state.scope = view.scope;
@@ -193,7 +195,7 @@ async function init() {
   try { history.replaceState(null, "", film ? filmHash(film) : routeBase()); } catch {}
   routeReady = true;
   openRouteFilm();
-  syncOnStart();
+  siteStart();
   // New diary entries from the daily feed, then a saved key picks up films not yet looked up.
   if (MY_LIB) { await refreshFeed(); autoLookup(allFilmsLib()); pollLetterboxd(MY_LIB); }
 }

@@ -1,7 +1,7 @@
 // Lets Credits Roll install as an app and open offline. Our own pages and scripts are always checked
 // with the server (never taken from the browser's short-term cache), so a new version shows up on the
 // next open; the saved copy is only for offline.
-// Calls to TMDB, OMDb and Apify, and poster images, are left alone.
+// Calls to TMDB, OMDb, Apify and GitHub, poster images, and the diary kept on the site (saved by the app itself) are left alone.
 const CACHE = "credits-roll-v2";
 const SHELL = ["./", "index.html", "mobile.html", "desktop.html", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png"];
 
@@ -18,7 +18,7 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(req.url);
   const ours = url.origin === self.location.origin;
   const library = url.hostname === "cdnjs.cloudflare.com" || url.hostname === "fonts.googleapis.com" || url.hostname === "fonts.gstatic.com";
-  if (!ours && !library) return;
+  if ((!ours && !library) || (ours && url.pathname.includes("/diary/"))) return;
   const fresh = ours ? fetch(req.url, { cache: "no-cache", credentials: "same-origin" }) : fetch(req);
   e.respondWith(
     fresh.then((res) => {

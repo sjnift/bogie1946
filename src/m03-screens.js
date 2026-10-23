@@ -163,13 +163,12 @@ function welcomeScreen() {
     : store.failed ? `<div class="card notice"><p class="title">Your diary isn't showing</p><p class="status">This browser's saved data couldn't be opened just now. Close the app completely and open it again. If it still isn't there, import your export or a backup file again.</p></div>` : "";
   return `<section class="hero"><div class="hero-bg" aria-hidden="true"></div><div class="hero-in">
       <span class="avatar xl" aria-hidden="true">${ICON.sparkle}</span><h2 class="hname">Credits Roll</h2><p class="hhandle">Your Letterboxd diary, in numbers</p></div></section>
-    ${why}<div class="card glow notice"><p class="title">Import your Letterboxd export</p>
+    ${why}<div data-sitebox="open">${siteBox("open")}</div><div class="card glow notice"><p class="title">Import your Letterboxd export</p>
       <ol class="steps"><li>On <a href="https://letterboxd.com/settings/data/" target="_blank" rel="noopener">letterboxd.com</a>, open Settings → Data.</li>
         <li>Choose Export your data and download the ZIP.</li><li>Import the ZIP here. It stays in this browser.</li></ol>
       <button class="btn green block" type="button" data-act="import">${ICON.upload}Import export</button>
       <p class="status">A backup file from another device works the same way.</p>
       ${state.importError ? `<p class="status err" role="alert">${esc(state.importError)}</p>` : ""}</div>
-    ${IN_VIEWER ? "" : `<div class="card" data-syncbox="welcome">${syncInner("welcome")}</div>`}
     ${IN_VIEWER ? `<p class="note">This Claude version keeps its own copy of an import. Your saved diary is on the website, <a href="https://sjnift.github.io/credits-roll/" target="_blank" rel="noopener">sjnift.github.io/credits-roll</a>.</p>` : ""}
     <div class="foot"><p class="stamp">Updated <!--BUILD--></p></div>`;
 }
@@ -296,7 +295,8 @@ function profileScreen(s) {
   };
   const people = s.withMeta ? strip("Most watched actors", s.cast, "c") + strip("Most watched directors", s.directors, "d") : "";
   const reimport = !ex && lib.reviewTextMissing ? mReimport() : "";
-  return hero + scopeBar() + notice + note + reimport + fill + tiles + recentRow + otd + ratings + people;
+  const onSite = ex ? "" : `<div data-sitebox="open">${siteBox("open")}</div>`; // a newer copy of the diary is on the site
+  return hero + scopeBar() + onSite + notice + note + reimport + fill + tiles + recentRow + otd + ratings + people;
 }
 
 /* ---------- Stats: films, people, genres ---------- */
