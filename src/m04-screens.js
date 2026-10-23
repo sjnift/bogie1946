@@ -189,10 +189,11 @@ function dataScreen() {
         <li>Choose Export your data and download the ZIP.</li><li>Import the ZIP here. It stays in this browser.</li></ol>
       <button class="btn green block" type="button" data-act="import">${lib ? "Import a newer export" : "Import export"}</button>
       ${state.importError ? `<p class="status err" role="alert">${esc(state.importError)}</p>` : ""}</div>
+    ${IN_VIEWER ? "" : `<div class="card" data-syncbox="phone" style="margin-top:12px">${syncInner("phone")}</div>`}
     ${sh("Film details")}<div id="lookup"><div class="card">${lookupInner()}</div></div>
     ${sh("This browser")}<div class="group">${rows.join("")}</div>
-    ${state.forgetArmed ? `<p class="note">Removes your imported export and looked-up details, plus any keys you typed in.</p>` : ""}
-    ${lib && !IN_VIEWER ? `<p class="note">To use your diary on another device, import the backup file there the same way as an export.</p>` : ""}
+    ${state.forgetArmed ? `<p class="note">Removes your imported export and looked-up details, plus any keys you typed in. A synced copy on GitHub stays.</p>` : ""}
+    ${lib && !IN_VIEWER ? `<p class="note">Without sync, to use your diary on another device, import the backup file there the same way as an export.</p>` : ""}
     <div class="foot"><p>Credits Roll reads the CSV files in a Letterboxd data export. It is not made by or affiliated with Letterboxd.</p>
       <p>With your own TMDB key, film details come from The Movie Database. This product uses the TMDB API but is not endorsed or certified by TMDB.
       Inside the Claude app, details come from Claude's knowledge of each film instead, so check anything surprising.</p>

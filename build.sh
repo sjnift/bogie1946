@@ -5,7 +5,7 @@
 # With TMDB_KEY set, the key is written into the two standalone files only, so their owner never has to paste it.
 set -e
 cd "$(dirname "$0")"
-SHARED="src/04-example.js src/05-core.js src/06-lookup.js src/06b-charts.js src/06d-letterboxd.js src/06c-insights.js src/06e-compare.js src/06f-reviews.js src/06g-drill.js src/06h-more.js src/06i-share.js"
+SHARED="src/04-example.js src/05-core.js src/06-lookup.js src/06b-charts.js src/06d-letterboxd.js src/06c-insights.js src/06e-compare.js src/06f-reviews.js src/06g-drill.js src/06h-more.js src/06i-share.js src/06j-sync.js"
 DESK_HEAD="src/01-head.html src/02-style.html"
 DESK_BODY="src/03-body.html $SHARED src/07-render-a.js src/07-render-b.js src/07c-insights.js src/07d-compare.js src/07e-reviews.js src/07f-drill.js src/08-events.js"
 MOB_HEAD="src/m01-head.html"
@@ -68,7 +68,7 @@ cat > docs/index.html <<'HTML'
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <script>
   var phone = matchMedia("(max-width: 700px)").matches || /iPhone|iPod|Android.+Mobile/.test(navigator.userAgent);
-  location.replace(phone ? "mobile.html" : "desktop.html");
+  location.replace((phone ? "mobile.html" : "desktop.html") + location.hash); // a sync link carries #sync=…
 </script>
 <style>body{margin:0;background:#14181C;color:#DDE6EE;font:16px/1.5 system-ui,sans-serif;display:grid;place-items:center;min-height:100vh}a{color:#40BCF4}</style>
 </head>

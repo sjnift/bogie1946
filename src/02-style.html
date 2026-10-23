@@ -27,6 +27,27 @@
 }
 .src-tag::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--gold); }
 
+/* ---------- sync across devices (at the foot of the page) ---------- */
+.sync-box {
+  margin: 16px 0 18px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface);
+  padding: 16px 18px; display: grid; gap: 10px; max-width: 640px; color: var(--ink-2);
+}
+.sync-box:empty { display: none; }
+.sync-box .sub-h { margin: 0; font-size: 14px; font-weight: 700; color: var(--ink); text-transform: none; letter-spacing: 0; }
+.sync-box p { margin: 0; }
+.sync-box label.status { margin-bottom: -6px; }
+.sync-box input.key {
+  width: 100%; box-sizing: border-box; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--bg); color: var(--ink); font-family: var(--mono); font-size: 13px;
+}
+.sync-box > .btn { justify-self: start; }
+.sync-help summary { cursor: pointer; color: var(--gold-ink); font-size: 13.5px; }
+.sync-help .steps { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 6px; font-size: 13.5px; }
+.sync-help a, .sync-box .status a { color: var(--gold-ink); }
+.sync-link { display: grid; gap: 10px; justify-items: start; }
+.sync-qr { width: 180px; height: 180px; padding: 6px; background: #fff; border-radius: 10px; }
+.sync-qr svg { display: block; width: 100%; height: 100%; }
+
 /* ---------- credit sections ---------- */
 main { padding-block: 8px 64px; }
 .credit {

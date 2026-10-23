@@ -68,7 +68,8 @@ function renderWelcome() {
   $("#notice-text").innerHTML = (LOAD_ERROR ? `<strong>Your saved diary couldn't be read</strong> (${esc(LOAD_ERROR)}). Import your export again. ` : store.failed
     ? `<strong>This browser's saved data couldn't be opened just now</strong>, so your diary isn't showing. Close the page and open it again; if it still isn't there, import your export or a backup file again. ` : "") +
     `To see your stats, go to <a href="https://letterboxd.com/settings/data/" target="_blank" rel="noopener">Letterboxd → Settings → Data</a>,
-    choose <em>Export your data</em>, then import the ZIP here or drop it anywhere on this page. A backup file from another device works too. Your files stay in this browser.`;
+    choose <em>Export your data</em>, then import the ZIP here or drop it anywhere on this page. A backup file from another device works too. Your files stay in this browser.` +
+    (IN_VIEWER ? "" : ` Already syncing on another device? <button class="linkish" type="button" data-sync="show">Connect this one</button> at the foot of the page.`);
   $("#backup").hidden = true;
   for (const sel of ["#insights", "#compare", "#drillpage"]) $(sel).hidden = true;
 }

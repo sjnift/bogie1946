@@ -107,7 +107,7 @@ The owner asked for this to be checked every time. A film, diary entry, person o
   `computeYearInsights`, `yearDrill`, `crowdDrill`), `06e-compare.js` (friends, `tasteProfile`, `comparePair`,
   `compareGroup`, `habitRows`), `06f-reviews.js` (review insights), `06g-drill.js` (the drill system and the
   film card), `06h-more.js` (daily feed merge, backups, search, On this day, Watch next, filmographies),
-  `06i-share.js` (the year picture).
+  `06i-share.js` (the year picture), `06j-sync.js` (sync across devices through GitHub).
 - `src/site/`: `manifest.webmanifest`, `sw.js` (network-first service worker; skips TMDB, OMDb, Apify),
   icons (drawn by `tools/make_icons.py`).
 - `scripts/feed.mjs` and `.github/workflows/`: the daily feed and the checks (below).
@@ -132,7 +132,7 @@ The owner asked for this to be checked every time. A film, diary entry, person o
 - `LBX[filmKey]`: Letterboxd averages `{ r, n, slug }` or `{ tries, v: 2 }` when not found.
 - `KNOWN_IDS[filmKey]`: exact TMDB ids from the feed; lookups use them first.
 - Storage (`store` in `05-core.js`): small things in localStorage (API keys `cr-tmdb-key`, `cr-omdb-key`,
-  `cr-apify-key`; views `cr-view-v1`, `cr-mview-v1`; `cr-letterboxd-run`); big things in IndexedDB database
+  `cr-apify-key`; views `cr-view-v1`, `cr-mview-v1`; `cr-letterboxd-run`; sync `cr-sync-v1`, `cr-sync-dirty`); big things in IndexedDB database
   `credits-roll`, store `kv` (`cr-rows-v1`, `cr-meta-v1`, `cr-photos-v1`, `cr-letterboxd-v1`, `cr-friends-v1`,
   `cr-filmo-v1`), read into memory by `await store.init()` at start (both `init()`s), moved over from
   localStorage automatically (a localStorage copy wins: only an older page version writes one).
@@ -193,7 +193,7 @@ friend replaces the address instead.
   style, genres, people, watch next for each other, watch together, habits; Everyone view for 2+ friends.
 - **Search** (desktop button or `/`; phone magnifier), **filmography progress** for people (TMDB person
   credits, cached 30 days), **Watch next** (watchlist ranked by a predicted rating with reasons, length filter),
-  **year picture** (1080×1350 PNG, Share/Download), **backups** (download a file, import it on another device,
+  **year picture** (1080×1350 PNG, Share/Download), **sync across devices** (below), **backups** (download a file, import it on another device,
   optionally with API keys), **installable app** (PWA), **film data check** (in the lookup box / Settings:
   `dataCheck` in `06h-more.js`: "Worth a look" (TMDB year >2 years from Letterboxd's unless the match is pinned
   or from the feed, countries or language with nothing in common between TMDB and IMDb), "No TMDB match",
@@ -225,6 +225,31 @@ friend replaces the address instead.
   title and year, then title alone, then the address asked for. Runs survive closing the page.
 - **Letterboxd RSS feed** (daily, see below). Letterboxd itself has no API.
 
+## Sync across devices
+
+The owner asked to have the same diary everywhere ("host it on the cloud"); they chose GitHub. `06j-sync.js`:
+- Their own **private** repository (suggested `sjnift/credits-roll-data`) holds `rows.json` (the export, with
+  `importedAt`), `meta.json`, `photos.json`, `lbx.json`, `friends.json`, `keys.json` (TMDB, OMDb, Apify keys),
+  `sync.json` (which device, when), and a README. A public repository is refused (the keys would be readable).
+- Each device keeps a fine-grained token (Contents: Read and write, that one repository) in `cr-sync-v1` with the
+  last commit and file shas it knows. The token never goes into this repository or the chat.
+- Each sync is one commit through the git data API (blobs, tree, commit, then the ref with `force: false`);
+  only files whose git blob sha changed are sent. If another device moved the ref first (422), the page pulls,
+  merges and tries again (up to 4 times).
+- `store.set` calls `STORE_HOOK`, which marks the device dirty (`cr-sync-dirty`) and syncs: an import or friend
+  within 3 s, film details and averages after 60 s and once lookups finish. It also syncs at start, when the
+  page goes into the background (if dirty) and when it comes back (if over a minute since the last).
+- Pulling with nothing changed here replaces this device's copy; with changes on both sides they're merged
+  (`newerRows`: the later import, else newest diary date; `mergeMeta` keeps the better match: pinned, found,
+  newer matcher; averages, photos and friends combined; keys only fill gaps).
+- Linking another device: Settings → Sync across devices → Link another device shows a QR code
+  (qrcode-generator 1.4.4 from jsdelivr, lazy) and a link `…/#sync=<base64url {r, t}>`; `index.html` forwards
+  the hash, the page links itself and removes the key from the address straight away. An app installed on an
+  iPhone home screen has its own storage, so the link is pasted into its key field instead.
+- "Delete saved data from this browser" also stops syncing there; the repository keeps its copy.
+- Hidden inside the Claude artifacts (`IN_VIEWER`). The `sync` check runs two devices against a stand-in
+  GitHub (`tests/sync.test.mjs`) that names blobs the way git does.
+
 ## Daily diary updates
 
 `.github/workflows/feed.yml` runs at 06:23 UTC each day (and on demand: `gh workflow run feed.yml --repo
@@ -243,7 +268,9 @@ with `?example` (pass `example: false` for an empty browser; a check's own `goto
 `phoneTour()` which opens every phone tab, Stats view and Insights/Compare section), `run.mjs`, and checks:
 `apify`, `check` (film data check), `counts` (double counting), `reviews` (missing review text spotted; six-film actors), `welcome` (no example diary; import saved at once), `extras` (year picture, On this day, Watch next, PWA), `feed`, `import`,
 `links` (every link opens something), `pages` (nothing broken shows, no sideways scroll on the phone),
-`routes`, `storage` (IndexedDB move, backup and restore), `tmdb` (fixing a match, filmography, search).
+`routes`, `storage` (IndexedDB move, backup and restore), `sync` (two devices through a stand-in GitHub),
+`tmdb` (fixing a match, filmography, search). `lib.mjs` also cuts off api.github.com and jsdelivr and serves
+qrcode-generator from `node_modules`.
 
 `.github/workflows/site.yml` runs the checks on every push. Pages currently deploys from the branch, so a
 failed check only shows a red mark and an email. If the owner switches Settings → Pages → Source to GitHub
@@ -292,6 +319,8 @@ day, shared with the owner's own app. The in-app version is the "Check film data
 
 ## Known limits
 
+- Sync needs a GitHub token, which can expire (the owner was told to pick the longest expiry); when it does, the sync box
+  says the key wasn't accepted and the owner makes a new one the same way.
 - Inside the Claude artifacts, downloads (backup, year picture) don't work; backups are hidden there and the
   picture can be saved by right-click or long-press. Declaring the artifact `downloads` capability would fix it.
 - The feed sees only the latest ~50 diary entries each day; more than that between runs needs a fresh export.

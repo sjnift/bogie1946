@@ -59,7 +59,7 @@ function act(t) {
     clearTimeout(forgetTimer); state.forgetArmed = false;
     if (job.running && job.ctl) job.ctl.abort();
     Object.values(KEYS).forEach((k) => store.del(k)); store.del(VIEW_KEY);
-    META = {}; PHOTOS = {}; LBX = {}; FRIENDS = []; MY_LIB = null; DATA_REV++;
+    META = {}; PHOTOS = {}; LBX = {}; FRIENDS = []; MY_LIB = null; DATA_REV++; syncDisconnect(true);
     Object.assign(state, { mode: "example", scope: "all" });
     job.note = "Deleted your saved data from this browser."; job.err = false;
     render();
@@ -216,6 +216,7 @@ async function init() {
   routeReady = true;
   syncHash(true);
   openRouteFilm();
+  syncOnStart();
   // New diary entries from the daily feed, then a saved key picks up films not yet looked up.
   if (MY_LIB) { await refreshFeed(); autoLookup(allFilmsLib()); pollLetterboxd(MY_LIB); }
 }

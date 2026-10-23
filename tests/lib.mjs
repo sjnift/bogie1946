@@ -12,6 +12,7 @@ export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "
 const DOCS = path.join(ROOT, "docs");
 const PAPA = await readFile(require.resolve("papaparse/papaparse.min.js"), "utf8");
 const JSZIP = await readFile(require.resolve("jszip/dist/jszip.min.js"), "utf8");
+const QRCODE = await readFile(require.resolve("qrcode-generator/qrcode.js"), "utf8");
 export const JSZip = require("jszip");
 
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".json": "application/json", ".webmanifest": "application/manifest+json", ".png": "image/png", ".svg": "image/svg+xml", ".css": "text/css" };
@@ -34,9 +35,10 @@ export const EX = "?example";
 export async function open(browser, base, file, { phone = false, downloads = false, worker = false, example = true } = {}) {
   const ctx = await browser.newContext({ ...(phone ? { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } : { viewport: { width: 1280, height: 900 } }),
     acceptDownloads: downloads, serviceWorkers: worker ? "allow" : "block", reducedMotion: "reduce" });
-  await ctx.route(/fonts\.(googleapis|gstatic)\.com|image\.tmdb\.org|api\.themoviedb\.org|omdbapi\.com|api\.apify\.com|letterboxd\.com/, (r) => r.abort());
+  await ctx.route(/fonts\.(googleapis|gstatic)\.com|image\.tmdb\.org|api\.themoviedb\.org|omdbapi\.com|api\.apify\.com|api\.github\.com|cdn\.jsdelivr\.net|letterboxd\.com/, (r) => r.abort());
   await ctx.route(/papaparse/, (r) => r.fulfill({ contentType: "text/javascript", body: PAPA }));
   await ctx.route(/jszip/, (r) => r.fulfill({ contentType: "text/javascript", body: JSZIP }));
+  await ctx.route(/qrcode-generator/, (r) => r.fulfill({ contentType: "text/javascript", body: QRCODE }));
   const page = await ctx.newPage();
   page.errors = [];
   page.on("pageerror", (e) => page.errors.push(e.message));
