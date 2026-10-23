@@ -1,5 +1,5 @@
 // Every page and screen of the example diary draws, with nothing broken showing on it.
-import { open, assert, noErrors } from "./lib.mjs";
+import { open, assert, noErrors, phoneTour } from "./lib.mjs";
 
 const clean = async (page, where) => {
   const body = await page.evaluate(() => document.body.innerText);
@@ -15,15 +15,15 @@ export default async function ({ browser, base }) {
     await clean(d, `desktop ${where}`);
   }
   const m = await open(browser, base, "mobile.html", { phone: true });
-  for (const view of ["profile", "people", "diary", "films", "data"]) {
-    await m.click(`.tabbar [data-view="${view}"]`); await m.waitForTimeout(100);
-    await clean(m, `phone ${view}`);
+  const phone = async (where) => {
+    await clean(m, `phone ${where}`);
     const over = await m.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-    assert(over <= 0, `phone ${view} scrolls sideways by ${over}px`);
-  }
-  for (const act of ["insights", "compare", "reviews", "watchnext"]) {
-    await m.click('.tabbar [data-view="profile"]'); await m.waitForTimeout(80);
+    assert(over <= 0, `phone ${where} scrolls sideways by ${over}px`);
+  };
+  await phoneTour(m, phone);
+  for (const act of ["settings", "reviews", "watchnext"]) {
     await m.click(`#screen [data-act="${act}"], #nav-right [data-act="${act}"]`); await m.waitForTimeout(150);
-    await clean(m, `phone ${act}`);
+    await phone(act);
+    await m.click('[data-act="back"]'); await m.waitForTimeout(150);
   }
 }

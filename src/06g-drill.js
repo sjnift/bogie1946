@@ -61,7 +61,7 @@ const DR = {
     const es = s.entries.filter((e) => { const d = dayIndex(e.date); return d >= start && d <= end; });
     return D.entries("Longest streak", `${s.streak.days} days in a row, ${dateSpan(isoOfDay(start), isoOfDay(end))} · ${entriesSub(es)}`, es, { order: "asc" });
   },
-  day: (es, iso) => { const list = es.filter((e) => e.date === iso); return D.entries(fmtDate(iso), `${WEEKDAYS_LONG[weekdayOf(iso)]} · ${entriesSub(list)}`, list, { order: "asc" }); },
+  day: (es, iso, list = es.filter((e) => e.date === iso)) => D.entries(fmtDate(iso), `${WEEKDAYS_LONG[weekdayOf(iso)]} · ${entriesSub(list)}`, list, { order: "asc" }),
   month: (es, ym) => { const list = es.filter((e) => e.date.startsWith(ym)); return D.entries(monthName(ym), entriesSub(list), list, { order: "asc" }); },
   year: (es, y) => { const list = es.filter((e) => e.date.startsWith(y)); return D.entries(`Diary of ${y}`, entriesSub(list), list); },
   weekday: (es, i) => {
@@ -243,7 +243,7 @@ async function runFix(key, repaint) {
   try {
     const m = await fixMatch(f, text);
     FIXING = null; FIX_NOTE = { key, text: `Matched to TMDB film ${m.id}${m.d.length ? `, directed by ${m.d.join(" and ")}` : ""}. Every stat uses it now.` };
-    SEARCH_INDEX = null; render(); repaint();
+    SEARCH_INDEX = null; DATA_REV++; render(); repaint();
   } catch (e) {
     FIX_NOTE = { key, text: (e && e.message) || "Couldn't reach TMDB." }; repaint();
     const again = document.getElementById("fix-input"); if (again) { again.value = text; again.focus(); }

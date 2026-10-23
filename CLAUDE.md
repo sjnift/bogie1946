@@ -11,8 +11,10 @@ comparisons with friends and more, in two layouts:
 
 - **Desktop**: a "screening programme" look (dark, gold accents, Big Shoulders Display headings), inspired by
   boxd.megolo.com and Letterboxd Pro's year pages.
-- **Phone**: styled like the Letterboxd app (slate background, green/blue/orange accents, tab bar, pushed
-  screens, bottom sheets).
+- **Phone**: the Letterboxd app, modernised (rebuilt Oct 2026 after the owner found the old one "wonky and
+  creaky"): Letterboxd's slate background and green/orange/blue, a profile with a blurred poster backdrop, a
+  see-through header that frosts as you scroll, big bold titles, rounded cards, white year chips that stay in
+  reach, five tabs, screens that slide in, bottom sheets that swipe away. Dark only.
 
 Where it lives:
 - Live site (GitHub Pages, from `docs/` on `main`): https://sjnift.github.io/credits-roll/
@@ -87,10 +89,11 @@ The owner asked for this to be checked every time. A film, diary entry, person o
   `03-body.html` (page skeleton), shared files, `07-render-a.js` (state, render(), hero, tiles, lookup box),
   `07-render-b.js` (Stats sections), `07c-insights.js`, `07d-compare.js`, `07e-reviews.js`,
   `07f-drill.js` (pop-up, full page, hash routes, back button), `08-events.js` (import, clicks, init).
-- Phone: `m01-head.html` (all phone CSS), `m02-body.html`, shared files, `m03-screens.js` (state, render(),
-  Profile, People), `m04-screens.js` (Diary, Films, Import, Watch next, pushed screens), `m06-insights.js`,
-  `m07-compare.js`, `m08-reviews.js`, `m09-drill.js` (bottom sheet, drill screens), `m10-route.js` (hash
-  routes, back button), `m05-events.js` (import, taps, init).
+- Phone: `m01-head.html` (all phone CSS), `m02-body.html` (header, five-tab bar), shared files,
+  `m03-screens.js` (state, `memo`, `morph`, render(), header, `goTo`/`push`/`pop`, pieces, Profile, People),
+  `m04-screens.js` (Diary, Films, Genres, Settings, Watch next, pushed screens, `SCREENS`), `m06-insights.js`,
+  `m07-compare.js`, `m08-reviews.js`, `m09-drill.js` (bottom sheet with swipe-to-close, drill screens),
+  `m10-route.js` (hash routes, back button), `m05-events.js` (import, taps, init).
 - Shared, in order: `04-example.js` (the example diary and example friends), `05-core.js` (helpers, storage,
   reading the export, `buildLibrary`, `reviewParts`, `cleanMeta`, `computeStats`), `06-lookup.js` (TMDB,
   OMDb, Claude lookups, `fixMatch`), `06b-charts.js` (column chart, timeline, calendar heatmap),
@@ -125,6 +128,26 @@ The owner asked for this to be checked every time. A film, diary entry, person o
   `cr-filmo-v1`), read into memory by `await store.init()` at start (both `init()`s), moved over from
   localStorage automatically (a localStorage copy wins: only an older page version writes one).
 
+### The phone app's structure and speed
+
+- Tabs: **Profile** (hero, year chips, tiles for Reviews/Watch next/Liked/Rewatches, recently watched, On this
+  day, top rated, ratings, most watched people; gear → Settings), **Diary**, **Stats** (a segmented control:
+  `films`, `people`, `genres` are three views; the tab remembers the last), **Insights** (the year chips pick
+  all years or one; underlined section tabs: `state.insTab` / `state.yearTab`), **Compare** (friend chips,
+  section tabs `state.cmpTab`). Pushed screens (`state.stack`): `data` (Settings: import, lookups, backups,
+  footer stamp), `reviews`, `watchnext`, `cat`, `drill` ("See all").
+- The year chips (`scopeBar()`, `#scopes`) are the one year picker everywhere, Insights included
+  (`state.scope`; there is no separate insights year any more).
+- Speed (the old app redrew everything on every tap): `memo(key, fn)` keeps stats, insights, comparisons and
+  timelines until the data changes (`DATA_REV`, bumped by `scheduleRender`, imports, the feed, friends and
+  fixes; also lib/META/LBX/FRIENDS identity). `render()` patches the screen with `morph()` when the same screen
+  redraws (posters stay loaded, side scrolls keep their place; `data-k` keys rows that move) and replaces it
+  when the screen changes. Insights are worked out ahead in idle time (`warmUp`). Long lists load more as you
+  scroll (`data-auto`). Each tab remembers its scroll (`SCROLL`); tapping the current tab scrolls to the top.
+- Motion respects reduced motion; the checks run with reduced motion, so sheets close at once there.
+- Don't give an element both a phone class and a name used by the layout (a weekday bar called `.top` once
+  became fixed to the top of the screen, because `.top` is the header).
+
 ### Drill-downs (what a click opens)
 
 `drill(d)` registers a description and returns an id for `data-list="…"`; `dl(d)` writes the attribute,
@@ -143,9 +166,10 @@ pinned). In Compare it shows each person's record.
 ### Addresses and the back button
 
 Desktop: `#/`, `#/2024`, `#/insights`, `#/insights/2024`, `#/compare/<friend>`, `#/list`; `/film/<filmKey>`
-on the end opens a card. Phone: `#/profile`, `#/diary`, `#/films`, `#/people`, `#/data`, `#/insights/2024`,
-`#/compare`, `#/reviews`, `#/watchnext`, `#/list`, plus `/film/…`. Pop-ups, sheets and pushed screens are
-history entries; changing year or period replaces the address instead.
+on the end opens a card. Phone: `#/profile`, `#/diary`, `#/films`, `#/people`, `#/genres`, `#/insights`,
+`#/insights/2024`, `#/compare/<friend>` (tabs) and `#/data`, `#/reviews`, `#/watchnext`, `#/list` (pushed),
+plus `/film/…`. Tabs, pop-ups, sheets and pushed screens are history entries; changing year, Stats section or
+friend replaces the address instead.
 
 ## Features (all on both layouts)
 
@@ -187,7 +211,8 @@ shows the latest ~50, so it accumulates), commits, and asks Pages to rebuild. Th
 ## Checks and CI
 
 `tests/`: `lib.mjs` (server, browser, stand-ins: papaparse/jszip served from `node_modules`, every outside
-service cut off unless a check stands in for it, service worker off unless asked), `run.mjs`, and checks:
+service cut off unless a check stands in for it, service worker off unless asked, reduced motion,
+`phoneTour()` which opens every phone tab, Stats view and Insights/Compare section), `run.mjs`, and checks:
 `apify`, `counts` (double counting), `extras` (year picture, On this day, Watch next, PWA), `feed`, `import`,
 `links` (every link opens something), `pages` (nothing broken shows, no sideways scroll on the phone),
 `routes`, `storage` (IndexedDB move, backup and restore), `tmdb` (fixing a match, filmography, search).
@@ -215,6 +240,8 @@ only after the checks pass, and `feed.yml` starts it after collecting new entrie
 - 336 films lacked Letterboxd averages because one Apify run stops at 1,300 films → follow-up runs by address.
 - Twilight's Last Gleaming counted twice in 2026: the feed wrote `Twilight&#039;s…` → `titleKey` everywhere,
   and the `counts` check now runs on every push.
+- The phone app was rebuilt in Oct 2026 (new tabs, sections, speed). With a 1,400-film diary on a slowed CPU,
+  opening Insights went from about 1.5 s to about 50 ms, and taps generally take under 0.1 s.
 
 ## Known limits
 

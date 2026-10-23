@@ -1,10 +1,10 @@
 // Every kind of link on every page opens the data behind it: a pop-up on a computer, a sheet on a phone.
-import { open, assert, noErrors } from "./lib.mjs";
+import { open, assert, noErrors, phoneTour } from "./lib.mjs";
 
-async function clickThrough(page, scope, panel, where) {
+async function clickThrough(page, scope, panel, where, min = 6) {
   const sel = `${scope} [data-list]`;
   const n = await page.$$eval(sel, (x) => x.length);
-  assert(n > 5, `${where}: only ${n} links`);
+  assert(n >= min, `${where}: only ${n} links`);
   const seen = new Map();
   let opened = 0;
   for (let i = 0; i < n; i++) {
@@ -35,11 +35,7 @@ export default async function ({ browser, base }) {
   await d.click("#btn-compare"); await d.waitForTimeout(150);
   await clickThrough(d, "#compare", "#dlg", "desktop compare");
 
+  // every screen and section of the phone; a section can be short, but it links to something
   const m = await open(browser, base, "mobile.html", { phone: true });
-  for (const view of ["profile", "diary", "films", "people"]) {
-    await m.click(`.tabbar [data-view="${view}"]`); await m.waitForTimeout(100);
-    await clickThrough(m, "#screen", "#sheet", `phone ${view}`);
-  }
-  await m.click('.tabbar [data-view="profile"]'); await m.click('#nav-right [data-act="insights"]'); await m.waitForTimeout(150);
-  await clickThrough(m, "#screen", "#sheet", "phone insights");
+  await phoneTour(m, async (where) => { await m.evaluate(() => scrollTo(0, 0)); await clickThrough(m, "#screen", "#sheet", `phone ${where}`, (await m.$("#screen .empty")) ? 0 : 1); });
 }

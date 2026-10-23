@@ -75,11 +75,12 @@ function heatmap(s) {
   if (s.scope !== "all") { start = dayIndex(`${s.scope}-01-01`); end = dayIndex(`${s.scope}-12-31`); }
   else { end = dayIndex(s.entries[s.entries.length - 1].date); start = end - 364; }
   const pad = weekdayOf(isoOfDay(start));
-  const cells = [], months = [];
+  const cells = [], months = [], onDay = new Map();
+  for (const e of s.entries) { if (!onDay.has(e.date)) onDay.set(e.date, []); onDay.get(e.date).push(e); }
   for (let i = 0; i < pad; i++) cells.push('<i class="pad"></i>');
   for (let d = start; d <= end; d++) {
     const iso = isoOfDay(d), n = s.byDay.get(iso) || 0;
-    cells.push(`<i class="${n ? "l" + Math.min(3, n) : ""}" data-tip="${fmtDate(iso)}: ${plural(n, "film")}"${n ? ` ${dl(DR.day(s.entries, iso))}` : ""}></i>`);
+    cells.push(`<i class="${n ? "l" + Math.min(3, n) : ""}" data-tip="${fmtDate(iso)}: ${plural(n, "film")}"${n ? ` ${dl(DR.day(s.entries, iso, onDay.get(iso) || []))}` : ""}></i>`);
   }
   const weeks = Math.ceil((pad + end - start + 1) / 7);
   for (let w = 0; w < weeks; w++) {

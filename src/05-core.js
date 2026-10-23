@@ -1,6 +1,8 @@
 <script>
 /* ---------- small helpers ---------- */
 const $ = (s, el = document) => el.querySelector(s);
+// Goes up whenever film details, averages or friends change, so the phone knows its saved results are stale.
+let DATA_REV = 0;
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const fmtN = (n) => Number(n || 0).toLocaleString("en-US");
 const plural = (n, one, many = one + "s") => `${fmtN(n)} ${n === 1 ? one : many}`;

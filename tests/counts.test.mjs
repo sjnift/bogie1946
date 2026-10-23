@@ -2,7 +2,7 @@
 // list a click can open (films, diary entries, people, genres, groups) holds each film or entry once.
 // Then the same over an export written to trip it: one film spelled four ways, titles in other scripts,
 // a cast list naming someone twice, a watched film still on the watchlist, and a feed overlapping the export.
-import { open, seed, assert, noErrors } from "./lib.mjs";
+import { open, seed, assert, noErrors, phoneTour } from "./lib.mjs";
 
 // Runs in the page: every rule broken anywhere, as text.
 function audit() {
@@ -49,8 +49,9 @@ async function tour(d, m, label) {
   await d.click("#btn-insights");
   for (const y of await d.$$eval("#scopes [data-insyear]", (x) => x.map((b) => b.dataset.insyear))) { await d.click(`[data-insyear="${y}"]`); await check(d, `${label} desktop insights ${y}`); }
   await d.click("#btn-compare"); await check(d, `${label} desktop compare`);
-  for (const view of ["profile", "people", "diary", "films"]) { await m.click(`.tabbar [data-view="${view}"]`); await check(m, `${label} phone ${view}`); }
-  await m.click('.tabbar [data-view="profile"]'); await m.click('#nav-right [data-act="insights"]'); await check(m, `${label} phone insights`);
+  await phoneTour(m, (where) => check(m, `${label} phone ${where}`));
+  for (const y of await m.$$eval("#scopes [data-scope]", (x) => x.map((b) => b.dataset.scope))) { await m.click(`[data-scope="${y}"]`); await check(m, `${label} phone profile ${y}`); }
+  await m.click('[data-scope="all"]');
   noErrors(d, `${label} desktop`); noErrors(m, `${label} phone`);
 }
 

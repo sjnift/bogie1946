@@ -31,7 +31,7 @@ export const launch = () => chromium.launch();
 // The service worker is off unless asked for, since its requests would slip past the stand-ins.
 export async function open(browser, base, file, { phone = false, downloads = false, worker = false } = {}) {
   const ctx = await browser.newContext({ ...(phone ? { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } : { viewport: { width: 1280, height: 900 } }),
-    acceptDownloads: downloads, serviceWorkers: worker ? "allow" : "block" });
+    acceptDownloads: downloads, serviceWorkers: worker ? "allow" : "block", reducedMotion: "reduce" });
   await ctx.route(/fonts\.(googleapis|gstatic)\.com|image\.tmdb\.org|api\.themoviedb\.org|omdbapi\.com|api\.apify\.com|letterboxd\.com/, (r) => r.abort());
   await ctx.route(/papaparse/, (r) => r.fulfill({ contentType: "text/javascript", body: PAPA }));
   await ctx.route(/jszip/, (r) => r.fulfill({ contentType: "text/javascript", body: JSZIP }));
@@ -56,4 +56,27 @@ export const text = (page, sel) => page.$eval(sel, (e) => e.innerText.replace(/\
 // Waits for a condition in the page, with a clear message when it never comes.
 export async function until(page, fn, what, arg) {
   try { await page.waitForFunction(fn, arg, { timeout: 8000 }); } catch { throw new Error(`timed out waiting for ${what}`); }
+}
+// Every screen and section of the phone layout, opened in turn; `each` runs on each with a name for it.
+export async function phoneTour(m, each) {
+  const tab = async (v) => { await m.click(`.tabbar [data-view="${v}"]`); await m.waitForTimeout(60); };
+  await tab("profile"); await each("profile");
+  await tab("diary"); await each("diary");
+  await tab("stats");
+  for (const v of ["films", "people", "genres"]) { await m.click(`#screen .seg [data-view="${v}"]`); await m.waitForTimeout(60); await each(v); }
+  await tab("insights"); await m.click('[data-scope="all"]');
+  for (const t of await m.$$eval("[data-instab]", (x) => x.map((b) => b.dataset.instab))) { await m.click(`[data-instab="${t}"]`); await m.waitForTimeout(60); await each(`insights ${t}`); }
+  await m.click('[data-instab="overview"]');
+  const years = await m.$$eval("#scopes [data-scope]", (x) => x.map((b) => b.dataset.scope).filter((y) => y !== "all"));
+  for (const y of years.slice(0, 2)) {
+    await m.click(`[data-scope="${y}"]`);
+    for (const t of await m.$$eval("[data-ytab]", (x) => x.map((b) => b.dataset.ytab))) { await m.click(`[data-ytab="${t}"]`); await m.waitForTimeout(60); await each(`insights ${y} ${t}`); }
+    await m.click('[data-ytab="overview"]');
+  }
+  await m.click('[data-scope="all"]');
+  await tab("compare");
+  for (const t of await m.$$eval("[data-cmptab]", (x) => x.map((b) => b.dataset.cmptab))) { await m.click(`[data-cmptab="${t}"]`); await m.waitForTimeout(60); await each(`compare ${t}`); }
+  if (await m.$('[data-cmptab="overview"]')) await m.click('[data-cmptab="overview"]');
+  if (await m.$('[data-cmp="all"]')) { await m.click('[data-cmp="all"]'); await each("compare everyone"); }
+  await tab("profile");
 }

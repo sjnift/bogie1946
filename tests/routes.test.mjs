@@ -32,8 +32,14 @@ export default async function ({ browser, base }) {
   await m.click("#sheet [data-sclose]"); await m.waitForTimeout(250);
   assert(await mat() === "#/diary Diary ", `Done closes the sheet: ${await mat()}`);
   await m.goto(base + "mobile.html#/insights/2024"); await m.waitForTimeout(400);
-  assert((await mat()).startsWith("#/insights/2024 Insights"), `phone bookmark: ${await mat()}`);
+  assert((await mat()).startsWith("#/insights/2024 Insights") && await m.$eval('[data-scope="2024"]', (b) => b.getAttribute("aria-pressed")) === "true", `phone bookmark: ${await mat()}`);
+  await m.click('.tabbar [data-view="stats"]'); await m.waitForTimeout(150);
+  assert((await mat()).startsWith("#/films Stats"), `phone Stats tab: ${await mat()}`);
+  await m.goBack(); await m.waitForTimeout(200);
+  assert((await mat()).startsWith("#/insights/2024 Insights"), `phone back to the tab before: ${await mat()}`);
+  await m.goto(base + "mobile.html#/reviews"); await m.waitForTimeout(400);
+  assert((await mat()).startsWith("#/reviews Reviews"), `phone pushed screen: ${await mat()}`);
   await m.click('[data-act="back"]'); await m.waitForTimeout(200);
-  assert(!(await mat()).startsWith("#/insights"), `phone back arrow stayed in Insights: ${await mat()}`);
+  assert(!(await mat()).startsWith("#/reviews"), `phone back arrow stayed on Reviews: ${await mat()}`);
   noErrors(m, "phone");
 }

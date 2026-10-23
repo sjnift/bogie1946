@@ -48,7 +48,9 @@ function yearDrill(p, what) {
   if (what === "hours") return D.films(`Hours in ${y}`, `${fmtN(Math.round(p.hours))} hours`, p.F.filter(runtimeOf), { scope: y, sort: "runtime",
     note: (f) => { const v = viewsIn(f, y); return `${runtimeOf(f)} min${v > 1 ? ` × ${v} viewings` : ""}`; } });
   if (what === "rating") {
-    const r = (f) => { const es = p.E.filter((e) => e.film === f && e.rating); return es.length ? es[es.length - 1].rating : f.rating; };
+    const last = new Map();
+    for (const e of p.E) if (e.rating) last.set(e.film, e.rating);
+    const r = (f) => last.has(f) ? last.get(f) : f.rating;
     const fs = p.F.filter(r).sort((a, b) => r(b) - r(a));
     return D.films(`Ratings in ${y}`, `${p.avgRating ? p.avgRating.toFixed(2) : "—"} average · ${plural(fs.length, "film")}`, fs, { sort: "given", ratingOf: r });
   }
@@ -297,9 +299,9 @@ function defaultCrowd(lib, metaOf) {
 </script>
 <script>
 /* ---------- one year's insights: that year against the one before, and against your whole diary ---------- */
-function computeYearInsights(lib, metaOf, Y, crowdKey) {
+// `I` is the all-years insights when the caller has them worked out already.
+function computeYearInsights(lib, metaOf, Y, crowdKey, I = computeInsights(lib, metaOf, crowdKey)) {
   const S = computeStats(lib, metaOf, Y);
-  const I = computeInsights(lib, metaOf, crowdKey);
   const cur = I.years.find((p) => p.year === Y), prev = I.years.find((p) => p.year === String(+Y - 1));
   const E = S.entries, overall = I.overallAvg;
   // the rating given that year, if the film was rated in the diary then

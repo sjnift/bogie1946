@@ -662,7 +662,7 @@ footer p { margin: 0 0 6px; max-width: 80ch; }
     <p>With your own TMDB key, film details come from The Movie Database. This product uses the TMDB API but is not endorsed or certified by TMDB.
       Inside the Claude app, details come from Claude's knowledge of each film instead, so check anything surprising.</p>
     <p>On a phone? <a href="mobile.html">Open the phone version</a>. It uses the same import.</p>
-    <p>Updated 23 Oct 2026, 04:40 UTC</p>
+    <p>Updated 23 Oct 2026, 06:03 UTC</p>
     <p id="backup" hidden><button class="btn small" id="btn-backup" type="button">Back up to a file</button>
       <label class="status backup-keys"><input type="checkbox" id="backup-keys"> with my API keys</label><br>
       <span class="status">To use your diary on another device, import the backup file there like an export. It carries your import, film details, Letterboxd averages and friends.</span></p>
@@ -897,6 +897,8 @@ function buildExampleFriends() {
 <script>
 /* ---------- small helpers ---------- */
 const $ = (s, el = document) => el.querySelector(s);
+// Goes up whenever film details, averages or friends change, so the phone knows its saved results are stale.
+let DATA_REV = 0;
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const fmtN = (n) => Number(n || 0).toLocaleString("en-US");
 const plural = (n, one, many = one + "s") => `${fmtN(n)} ${n === 1 ? one : many}`;
@@ -1707,11 +1709,12 @@ function heatmap(s) {
   if (s.scope !== "all") { start = dayIndex(`${s.scope}-01-01`); end = dayIndex(`${s.scope}-12-31`); }
   else { end = dayIndex(s.entries[s.entries.length - 1].date); start = end - 364; }
   const pad = weekdayOf(isoOfDay(start));
-  const cells = [], months = [];
+  const cells = [], months = [], onDay = new Map();
+  for (const e of s.entries) { if (!onDay.has(e.date)) onDay.set(e.date, []); onDay.get(e.date).push(e); }
   for (let i = 0; i < pad; i++) cells.push('<i class="pad"></i>');
   for (let d = start; d <= end; d++) {
     const iso = isoOfDay(d), n = s.byDay.get(iso) || 0;
-    cells.push(`<i class="${n ? "l" + Math.min(3, n) : ""}" data-tip="${fmtDate(iso)}: ${plural(n, "film")}"${n ? ` ${dl(DR.day(s.entries, iso))}` : ""}></i>`);
+    cells.push(`<i class="${n ? "l" + Math.min(3, n) : ""}" data-tip="${fmtDate(iso)}: ${plural(n, "film")}"${n ? ` ${dl(DR.day(s.entries, iso, onDay.get(iso) || []))}` : ""}></i>`);
   }
   const weeks = Math.ceil((pad + end - start + 1) / 7);
   for (let w = 0; w < weeks; w++) {
@@ -1954,7 +1957,9 @@ function yearDrill(p, what) {
   if (what === "hours") return D.films(`Hours in ${y}`, `${fmtN(Math.round(p.hours))} hours`, p.F.filter(runtimeOf), { scope: y, sort: "runtime",
     note: (f) => { const v = viewsIn(f, y); return `${runtimeOf(f)} min${v > 1 ? ` × ${v} viewings` : ""}`; } });
   if (what === "rating") {
-    const r = (f) => { const es = p.E.filter((e) => e.film === f && e.rating); return es.length ? es[es.length - 1].rating : f.rating; };
+    const last = new Map();
+    for (const e of p.E) if (e.rating) last.set(e.film, e.rating);
+    const r = (f) => last.has(f) ? last.get(f) : f.rating;
     const fs = p.F.filter(r).sort((a, b) => r(b) - r(a));
     return D.films(`Ratings in ${y}`, `${p.avgRating ? p.avgRating.toFixed(2) : "—"} average · ${plural(fs.length, "film")}`, fs, { sort: "given", ratingOf: r });
   }
@@ -2203,9 +2208,9 @@ function defaultCrowd(lib, metaOf) {
 </script>
 <script>
 /* ---------- one year's insights: that year against the one before, and against your whole diary ---------- */
-function computeYearInsights(lib, metaOf, Y, crowdKey) {
+// `I` is the all-years insights when the caller has them worked out already.
+function computeYearInsights(lib, metaOf, Y, crowdKey, I = computeInsights(lib, metaOf, crowdKey)) {
   const S = computeStats(lib, metaOf, Y);
-  const I = computeInsights(lib, metaOf, crowdKey);
   const cur = I.years.find((p) => p.year === Y), prev = I.years.find((p) => p.year === String(+Y - 1));
   const E = S.entries, overall = I.overallAvg;
   // the rating given that year, if the film was rated in the diary then
@@ -2629,7 +2634,7 @@ const DR = {
     const es = s.entries.filter((e) => { const d = dayIndex(e.date); return d >= start && d <= end; });
     return D.entries("Longest streak", `${s.streak.days} days in a row, ${dateSpan(isoOfDay(start), isoOfDay(end))} · ${entriesSub(es)}`, es, { order: "asc" });
   },
-  day: (es, iso) => { const list = es.filter((e) => e.date === iso); return D.entries(fmtDate(iso), `${WEEKDAYS_LONG[weekdayOf(iso)]} · ${entriesSub(list)}`, list, { order: "asc" }); },
+  day: (es, iso, list = es.filter((e) => e.date === iso)) => D.entries(fmtDate(iso), `${WEEKDAYS_LONG[weekdayOf(iso)]} · ${entriesSub(list)}`, list, { order: "asc" }),
   month: (es, ym) => { const list = es.filter((e) => e.date.startsWith(ym)); return D.entries(monthName(ym), entriesSub(list), list, { order: "asc" }); },
   year: (es, y) => { const list = es.filter((e) => e.date.startsWith(y)); return D.entries(`Diary of ${y}`, entriesSub(list), list); },
   weekday: (es, i) => {
@@ -2811,7 +2816,7 @@ async function runFix(key, repaint) {
   try {
     const m = await fixMatch(f, text);
     FIXING = null; FIX_NOTE = { key, text: `Matched to TMDB film ${m.id}${m.d.length ? `, directed by ${m.d.join(" and ")}` : ""}. Every stat uses it now.` };
-    SEARCH_INDEX = null; render(); repaint();
+    SEARCH_INDEX = null; DATA_REV++; render(); repaint();
   } catch (e) {
     FIX_NOTE = { key, text: (e && e.message) || "Couldn't reach TMDB." }; repaint();
     const again = document.getElementById("fix-input"); if (again) { again.value = text; again.focus(); }

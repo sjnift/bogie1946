@@ -6,26 +6,26 @@ async function importFiles(files) {
     // a backup from another device restores everything it holds
     if (isBackupFile(files)) {
       const note = await restoreBackup(files[0]);
-      MY_LIB = myLibrary();
+      MY_LIB = myLibrary(); DATA_REV++;
       Object.assign(state, { mode: "mine", scope: "all", view: "profile", stack: [], importNote: note });
-      saveView(); render(); window.scrollTo(0, 0);
+      saveView(); render("tab"); window.scrollTo(0, 0);
       await refreshFeed(); autoLookup(allFilmsLib());
       return;
     }
     const rows = await readExport(files);
     const saved = store.set(KEYS.rows, rows);
-    MY_LIB = myLibrary();
-    Object.assign(state, { mode: "mine", scope: "all", view: "profile", stack: [], peopleLimit: 50, diaryLimit: 60 });
+    MY_LIB = myLibrary(); DATA_REV++;
+    Object.assign(state, { mode: "mine", scope: "all", view: "profile", stack: [], peopleLimit: 50, diaryLimit: 40 });
     job.note = saved ? "" : "This browser wouldn't save your export, so you'll need to import it again next time.";
     job.err = !saved;
     state.importNote = importSummary(rows, MY_LIB);
     setTimeout(async () => { await refreshFeed(); autoLookup(allFilmsLib()); });
   } catch (e) {
     state.importError = (e && e.message) || "Couldn't read that file. Import the ZIP from Letterboxd → Settings → Data.";
-    Object.assign(state, { view: "data", stack: [] });
+    Object.assign(state, { view: "profile", stack: [{ type: "data", title: PUSHED.data, ret: 0 }] });
   }
   saveView();
-  render();
+  render("tab");
   window.scrollTo(0, 0);
 }
 
@@ -34,8 +34,8 @@ let forgetTimer = null;
 function act(t) {
   const a = t.dataset.act;
   if (a === "import") $("#file-input").click();
-  else if (a === "insights") push({ type: "insights", title: "Insights" });
-  else if (a === "compare") push({ type: "compare", title: "Compare" });
+  else if (a === "insights" || a === "compare") goTo(a);
+  else if (a === "settings") push({ type: "data", title: PUSHED.data });
   else if (a === "reviews") { state.reviewLimit = 30; push({ type: "reviews", title: "Reviews" }); }
   else if (a === "add-friend") $("#friend-input").click();
   // back through history when this screen was reached in the app, otherwise straight to the one under it
@@ -44,23 +44,23 @@ function act(t) {
   else if (a === "watchnext") push({ type: "watchnext", title: "Watch next" });
   else if (a === "backup") downloadBackup(state.backupKeys);
   else if (a === "backup-keys") { state.backupKeys = !state.backupKeys; render(); }
-  else if (a === "people") { Object.assign(state, { view: "people", role: t.dataset.role || "c", stack: [], peopleLimit: 50 }); saveView(); render(); window.scrollTo(0, 0); }
+  else if (a === "people") { Object.assign(state, { role: t.dataset.role || "c", peopleLimit: 50 }); goTo("people", { force: true, top: true }); }
   else if (a === "cat") push({ type: "cat", field: t.dataset.field, title: t.dataset.field[0].toUpperCase() + t.dataset.field.slice(1) });
   else if (a === "all-rated" || a === "liked") openSheet(a === "liked" ? DR.liked(STATS) : D.films("Highest rated", filmsSub(STATS.films.filter((f) => f.rating)), STATS.films.filter((f) => f.rating), { scope: STATS.scope }));
   else if (a === "more-people") { state.peopleLimit += 100; render(); }
   else if (a === "more-diary") { state.diaryLimit += 120; render(); }
-  else if (a === "example" || a === "mine") { Object.assign(state, { mode: a === "example" ? "example" : "mine", scope: "all", view: "profile", stack: [] }); saveView(); render(); window.scrollTo(0, 0); }
+  else if (a === "example" || a === "mine") { Object.assign(state, { mode: a === "example" ? "example" : "mine", scope: "all", view: "profile", stack: [] }); saveView(); render("tab"); window.scrollTo(0, 0); }
   else if (a === "forget") {
     if (!state.forgetArmed) {
       state.forgetArmed = true; render();
-      forgetTimer = setTimeout(() => { state.forgetArmed = false; if (state.view === "data") render(); }, 6000);
+      forgetTimer = setTimeout(() => { state.forgetArmed = false; if (state.stack.length) render(); }, 6000);
       return;
     }
     clearTimeout(forgetTimer); state.forgetArmed = false;
     if (job.running && job.ctl) job.ctl.abort();
     Object.values(KEYS).forEach((k) => store.del(k)); store.del(VIEW_KEY);
-    META = {}; PHOTOS = {}; LBX = {}; FRIENDS = []; MY_LIB = null;
-    Object.assign(state, { mode: "example", scope: "all", stack: [] });
+    META = {}; PHOTOS = {}; LBX = {}; FRIENDS = []; MY_LIB = null; DATA_REV++;
+    Object.assign(state, { mode: "example", scope: "all" });
     job.note = "Deleted your saved data from this browser."; job.err = false;
     render();
   }
@@ -72,6 +72,11 @@ function act(t) {
   else if (a === "claude-retry") retryClaudeMisses(MY_LIB);
   else if (a === "stop") job.ctl && job.ctl.abort();
 }
+// A "Show more" scrolled into view loads the next lot by itself.
+function loadMore(el) {
+  if (el.dataset.act) act(el);
+  else if (el.hasAttribute("data-drillmore")) { state.drillLimit += 200; render(); }
+}
 
 function bind() {
   const friendInput = $("#friend-input");
@@ -80,7 +85,8 @@ function bind() {
     if (!files.length) return;
     try {
       state.cmp = await addFriend(files);
-      Object.assign(state, { cmpError: "", mode: "mine" });
+      Object.assign(state, { cmpError: "", mode: "mine", cmpTab: "overview" });
+      DATA_REV++;
       autoLookup(allFilmsLib());
     } catch (e) { state.cmpError = (e && e.message) || "Couldn't read that export."; }
     render();
@@ -98,13 +104,15 @@ function bind() {
   });
   document.addEventListener("click", (e) => {
     const x = e.target.closest("[data-expand],[data-more-reviews]");
-    if (x && x.hasAttribute("data-expand")) { const open = x.previousElementSibling.classList.toggle("clamp") === false; x.textContent = open ? "Less" : "More"; return; }
+    if (x && x.hasAttribute("data-expand")) { const open = x.previousElementSibling.classList.toggle("clamp") === false; x.textContent = open ? "Show less" : "Read more"; return; }
     if (x) { state.reviewLimit += 30; refreshReviewList(); }
   });
-  // the sheet: Back, Done, a tap outside it, and "See all"
+  // the sheet: Back, close, a tap outside it, Escape, a pull down, and "See all"
   const sheet = $("#sheet");
-  sheet.addEventListener("click", (e) => { if (e.target === sheet) sheet.close(); });
+  sheet.addEventListener("click", (e) => { if (e.target === sheet) closeSheet(); });
+  sheet.addEventListener("cancel", (e) => { e.preventDefault(); closeSheet(); });
   sheet.addEventListener("close", onSheetClosed);
+  bindSheetDrag(sheet);
   window.addEventListener("popstate", onPopState);
   document.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && e.target.id === "search-q") { const first = $("#search-results [data-list]"); if (first) first.click(); }
@@ -114,9 +122,9 @@ function bind() {
     const x = e.target.closest("[data-sback],[data-sclose],[data-drillpage],[data-drillmore]");
     if (!x) return;
     if (x.hasAttribute("data-sback")) history.back();
-    else if (x.hasAttribute("data-sclose")) sheet.close();
+    else if (x.hasAttribute("data-sclose")) closeSheet();
     else if (x.hasAttribute("data-drillpage")) sheetToPage();
-    else { state.drillLimit += 200; render(); }
+    else loadMore(x);
   });
   document.addEventListener("click", (e) => {
     const t = e.target.closest("[data-fix],[data-fixsave],[data-fixcancel],[data-wn],[data-sharego]");
@@ -127,31 +135,40 @@ function bind() {
     else if (t.hasAttribute("data-fixcancel")) { FIXING = null; repaintDrill(); }
     else if (t.dataset.wn) { state.wn = t.dataset.wn; render(); }
   });
+  // sections, chips and toggles redraw the screen in place; tabs and screens move
+  const SETS = { instab: "insTab", ytab: "yearTab", cmptab: "cmpTab", trend: "trend", crowdsel: "crowd", sort: "sort", catsort: "catSort" };
   document.addEventListener("click", (e) => {
-    const t = e.target.closest("[data-insyear],[data-cmp],[data-unfriend],[data-lb],[data-crowdsel],[data-act],[data-view],[data-scope],[data-list],[data-role],[data-crew],[data-sort],[data-catsort]");
-    if (!t) return;
-    if (t.dataset.insyear) { state.insYear = t.dataset.insyear; routeReplace = true; render(); routeReplace = false; return; }
-    if (t.dataset.cmp) { Object.assign(state, { cmp: t.dataset.cmp, unfriend: null }); render(); return; }
+    const t = e.target.closest("[data-instab],[data-ytab],[data-cmptab],[data-trend],[data-cmp],[data-unfriend],[data-lb],[data-crowdsel],[data-act],[data-view],[data-scope],[data-list],[data-role],[data-sort],[data-catsort]");
+    if (!t || t.disabled) return;
+    const set = Object.keys(SETS).find((k) => t.dataset[k] != null);
+    if (set) {
+      const section = set === "instab" || set === "ytab" || set === "cmptab";
+      state[SETS[set]] = t.dataset[set];
+      const bar = section && t.closest(".utabs"), barTop = bar ? bar.getBoundingClientRect().top + window.scrollY : 0;
+      render();
+      // a new section starts at its top, just under the header and year chips
+      if (bar) { const y = barTop - $("#top").offsetHeight - (($("#scopes") || {}).offsetHeight || 0); if (window.scrollY > y) window.scrollTo(0, Math.max(0, y)); }
+      return;
+    }
+    if (t.dataset.cmp) { Object.assign(state, { cmp: t.dataset.cmp, unfriend: null }); routeReplace = true; render(); routeReplace = false; return; }
     if (t.dataset.unfriend) {
-      if (state.unfriend === t.dataset.unfriend) { removeFriend(t.dataset.unfriend); state.unfriend = null; } else state.unfriend = t.dataset.unfriend;
+      if (state.unfriend === t.dataset.unfriend) { removeFriend(t.dataset.unfriend); state.unfriend = null; DATA_REV++; } else state.unfriend = t.dataset.unfriend;
       render(); return;
     }
     if (t.dataset.lb) { lbAction(t.dataset.lb, MY_LIB); return; }
-    if (t.dataset.crowdsel) { state.crowd = t.dataset.crowdsel; render(); return; }
     if (t.dataset.act) return act(t);
     if (t.dataset.view) {
-      const same = state.view === t.dataset.view && !state.stack.length;
-      Object.assign(state, { view: t.dataset.view, stack: [], forgetArmed: false, importNote: "" });
-      if ($("#sheet").open) closeSheetThen();
-      saveView(); render();
-      if (!same) window.scrollTo(0, 0);
+      const v = t.dataset.view === "stats" ? state.statsView : t.dataset.view;
+      // the Stats sections replace each other in the address; the tabs are history entries
+      if (STATS_VIEWS.includes(v) && STATS_VIEWS.includes(state.view) && !state.stack.length) { routeReplace = true; goTo(v); routeReplace = false; }
+      else goTo(v);
     }
-    else if (t.dataset.scope) { Object.assign(state, { scope: t.dataset.scope, peopleLimit: 50, diaryLimit: 60 }); saveView(); render(); }
+    else if (t.dataset.scope) {
+      Object.assign(state, { scope: t.dataset.scope, peopleLimit: 50, diaryLimit: 40 }); saveView();
+      routeReplace = true; render(); routeReplace = false;
+    }
     else if (t.dataset.list) openSheet(drillGet(t.dataset.list), sheet.open && sheet.contains(t));
     else if (t.dataset.role) { Object.assign(state, { role: t.dataset.role, peopleLimit: 50 }); render(); }
-    else if (t.dataset.crew) { state.crew = t.dataset.crew; render(); }
-    else if (t.dataset.sort) { state.sort = t.dataset.sort; render(); }
-    else if (t.dataset.catsort) { state.catSort = t.dataset.catsort; render(); }
   });
 
   // tooltips for chart marks; a tap shows one on a phone
@@ -189,7 +206,9 @@ async function init() {
   const view = store.get(VIEW_KEY, {});
   state.mode = MY_LIB && view.mode !== "example" ? "mine" : "example";
   if (view.scope) state.scope = view.scope;
-  if (SCREENS[view.view]) state.view = view.view;
+  if (TOP_VIEWS.includes(view.view)) state.view = view.view;
+  else if (view.view === "data") state.stack = [{ type: "data", title: PUSHED.data, ret: 0 }];
+  if (STATS_VIEWS.includes(state.view)) state.statsView = state.view;
   bind();
   routeFromHash();
   render();
@@ -202,7 +221,7 @@ async function init() {
 async function refreshFeed() {
   const feed = MY_LIB && await loadFeed(MY_LIB.profile.username);
   if (!feed) return;
-  FEED = feed; MY_LIB = myLibrary(); SEARCH_INDEX = null;
+  FEED = feed; MY_LIB = myLibrary(); SEARCH_INDEX = null; DATA_REV++;
   render();
 }
 init();

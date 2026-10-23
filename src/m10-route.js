@@ -1,15 +1,18 @@
 <script>
 /* ---------- phone: addresses you can bookmark, and the back button ----------
-   #/diary, #/films and the other tabs; #/insights/2024, #/compare/<friend>, #/reviews and #/watchnext for
-   pushed screens; /film/<film> on the end opens that film's card. Every screen and sheet is a history
-   entry, so the phone's back gesture steps back the way it came. */
+   #/profile, #/diary, #/films, #/people, #/genres for the tabs; #/insights/2024 for Insights of a year;
+   #/compare/<friend>; #/data (settings), #/reviews, #/watchnext and #/list for pushed screens; /film/<film> on
+   the end opens that film's card. Every tab, screen and sheet is a history entry, so the phone's back gesture
+   steps back the way it came. */
 let sheetDepth = 0, closingByHistory = false, afterClose = null, routeReady = false, routeReplace = false;
-const PUSHED = { insights: "Insights", compare: "Compare", reviews: "Reviews", watchnext: "Watch next" };
+const PUSHED = { data: "Settings", reviews: "Reviews", watchnext: "Watch next" };
 function routeBase() {
   const top = state.stack[state.stack.length - 1];
-  if (!top) return `#/${state.view}`;
-  if (top.type === "insights") return `#/insights${state.insYear !== "all" ? "/" + state.insYear : ""}`;
-  if (top.type === "compare") return `#/compare${state.cmp ? "/" + encodeURIComponent(state.cmp) : ""}`;
+  if (!top) {
+    if (state.view === "insights") return `#/insights${state.scope !== "all" ? "/" + state.scope : ""}`;
+    if (state.view === "compare") return `#/compare${state.cmp ? "/" + encodeURIComponent(state.cmp) : ""}`;
+    return `#/${state.view}`;
+  }
   return PUSHED[top.type] ? `#/${top.type}` : "#/list";
 }
 const hashParts = () => {
@@ -20,15 +23,19 @@ const filmHash = (key) => `${routeBase().replace(/\/$/, "")}/film/${encodeURICom
 function routeFromHash() {
   const [a, b] = hashParts().base.split("/");
   if (!a) return;
-  if (SCREENS[a]) { Object.assign(state, { view: a, stack: [] }); return; }
-  if (PUSHED[a]) {
-    if (a === "insights") state.insYear = b || "all";
+  if (TOP_VIEWS.includes(a)) {
+    Object.assign(state, { view: a, stack: [] });
+    if (STATS_VIEWS.includes(a)) state.statsView = a;
+    if (a === "insights") state.scope = b || "all";
     if (a === "compare" && b) state.cmp = b;
+    return;
+  }
+  if (PUSHED[a]) {
     const top = state.stack[state.stack.length - 1];
     if (!top || top.type !== a) state.stack = [{ type: a, title: PUSHED[a], ret: 0 }];
   } else if (a === "list" && !(state.stack.length && state.stack[state.stack.length - 1].type === "drill")) state.stack = [];
 }
-// After a render: a new tab, screen or year becomes a history entry.
+// After a render: a new tab or screen becomes a history entry; a new year or friend replaces the address.
 function syncHash(replace) {
   if (!routeReady || sheetDepth) return;
   const want = routeBase();
@@ -61,17 +68,21 @@ function onPopState() {
     if (next) next();
     return;
   }
-  if (sheet.open && depth && depth < SSTACK.length) { SSTACK = SSTACK.slice(0, depth); sheetDepth = depth; paintSheet(); return; }
+  if (sheet.open && depth && depth < SSTACK.length) { SSTACK = SSTACK.slice(0, depth); sheetDepth = depth; paintSheet("back"); return; }
   if (sheet.open) { closingByHistory = true; sheet.close(); closingByHistory = false; sheetDepth = 0; }
   // back out of a pushed screen to whatever is under it, where it was scrolled to
   const a = hashParts().base.split("/")[0], top = state.stack[state.stack.length - 1], under = state.stack[state.stack.length - 2];
   routeReplace = true;
-  if (top && (under ? under.type === a || (under.type === "insights" && a === "insights") : !PUSHED[a] && a !== "list")) {
+  if (top && (under ? under.type === a : !PUSHED[a] && a !== "list")) {
     const d = state.stack.pop();
-    if (!state.stack.length && SCREENS[a]) state.view = a;
-    if (a === "insights") state.insYear = hashParts().base.split("/")[1] || "all";
-    render(); window.scrollTo(0, d.ret || 0);
-  } else { routeFromHash(); render(); window.scrollTo(0, 0); }
+    if (!state.stack.length && TOP_VIEWS.includes(a)) state.view = a;
+    render("pop"); window.scrollTo(0, d.ret || 0);
+  } else {
+    const was = state.view, had = state.stack.length;
+    if (!had) SCROLL[was] = window.scrollY;
+    routeFromHash(); render(state.view !== was || had ? "tab" : "");
+    window.scrollTo(0, state.view !== was ? SCROLL[state.view] || 0 : window.scrollY);
+  }
   routeReplace = false;
   if (!depth) openRouteFilm();
 }
