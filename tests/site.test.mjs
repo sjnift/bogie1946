@@ -24,7 +24,8 @@ function fakeGitHub({ token = TOKEN } = {}) {
   gh.ref = commit(tree({ "docs/index.html": blob(Buffer.from("<!doctype html>")) }), []);
   gh.files = () => trees.get(commits.get(gh.ref).tree);
   gh.file = (path) => { const sha = gh.files()[path]; return sha && blobs.get(sha); };
-  gh.write = (changes) => { const files = { ...gh.files() }; for (const [p, buf] of Object.entries(changes)) files[p] = blob(buf); gh.ref = commit(tree(files), [gh.ref]); };
+  // another device's commit, made straight in the repository (null deletes a file)
+  gh.write = (changes) => { const files = { ...gh.files() }; for (const [p, buf] of Object.entries(changes)) { if (buf === null) delete files[p]; else files[p] = blob(buf); } gh.ref = commit(tree(files), [gh.ref]); };
   gh.handler = async (route) => {
     const req = route.request(), url = new URL(req.url()), method = req.method();
     const cors = { "access-control-allow-origin": "*", "access-control-allow-headers": "Authorization, Content-Type, Accept", "access-control-allow-methods": "GET, POST, PATCH, OPTIONS" };
@@ -74,6 +75,18 @@ async function openPart(key, buf) {
   const body = Buffer.from(await subtle.decrypt({ name: "AES-GCM", iv: buf.subarray(1, 13) }, key, buf.subarray(13)));
   return JSON.parse((buf[0] === 2 ? gunzipSync(body) : body).toString("utf8"));
 }
+// The app's grouping of film details and photos into 16 parts (FNV-1a), and everything on the site, opened.
+const hash32 = (str) => { let h = 0x811c9dc5; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193); } return h >>> 0; };
+const shardOf = (k) => `m${hash32(k) % 16}`;
+const diaryFiles = (gh) => Object.keys(gh.files()).filter((f) => f.startsWith("docs/diary/")).map((f) => f.slice(11)).sort();
+async function openAll(gh, key) {
+  const all = { meta: {}, photos: {} };
+  for (const f of diaryFiles(gh).filter((n) => n.endsWith(".bin"))) {
+    const v = await openPart(key, gh.file(`docs/diary/${f}`)), p = f.slice(0, -4);
+    if (/^m\d+$/.test(p)) Object.assign(all.meta, v); else if (/^p\d+$/.test(p)) Object.assign(all.photos, v); else all[p] = v;
+  }
+  return all;
+}
 async function sealPart(key, value) {
   const iv = webcrypto.getRandomValues(new Uint8Array(12)), ct = Buffer.from(await subtle.encrypt({ name: "AES-GCM", iv }, key, gzipSync(Buffer.from(JSON.stringify(value)))));
   return Buffer.concat([Buffer.from([2]), Buffer.from(iv), ct]);
@@ -112,29 +125,39 @@ export default async function ({ browser, base }) {
   await a.click('#site-box [data-site="create"]');
   await until(a, () => !site.job && site.index && SITEPUB && SITEPUB.at, "the first copy to go up");
   const idx = JSON.parse(gh.file("docs/diary/index.json"));
-  assert(["rows", "meta", "extra", "keys"].every((p) => gh.file(`docs/diary/${p}.bin`)) && idx.user === "tester" && idx.parts.rows && idx.parts.keys, `on the site: ${Object.keys(gh.files())}`);
-  const everything = Object.values(gh.files()).map((s) => s).join() + Object.keys(gh.files()).map((f) => gh.file(f).toString("latin1")).join();
-  assert(!/someone@example\.com|k123|om456/.test(everything), "the email address or a key is readable on the site");
+  const wantParts = ["rows", "keys", "lbx", "friends", ...Array.from({ length: 16 }, (_, i) => `m${i}`), ...Array.from({ length: 16 }, (_, i) => `p${i}`)];
+  assert(idx.v === 2 && idx.user === "tester" && wantParts.every((p) => idx.parts[p]) && JSON.stringify(diaryFiles(gh)) === JSON.stringify([...wantParts.map((p) => `${p}.bin`), "index.json"].sort()),
+    `on the site: ${diaryFiles(gh)}`);
+  const everything = () => diaryFiles(gh).map((f) => gh.file(`docs/diary/${f}`).toString("latin1")).join();
+  assert(!/someone@example\.com|k123|om456/.test(everything()) && !everything().includes(TOKEN), "the email address or a key is readable on the site");
   let key = await keyFor(PASS, idx.salt);
-  const up = { rows: await openPart(key, gh.file("docs/diary/rows.bin")), meta: await openPart(key, gh.file("docs/diary/meta.bin")), extra: await openPart(key, gh.file("docs/diary/extra.bin")) };
+  let up = await openAll(gh, key);
   assert(up.rows.watched.length === 1 && up.rows.profile[0].Username === "tester" && up.rows.profile[0]["Given Name"] === "Sam" && !("Email Address" in up.rows.profile[0]) && !("Bio" in up.rows.profile[0]), `rows on the site: ${JSON.stringify(up.rows.profile)}`);
-  assert(up.meta["heat|1995"].d[0] === "Michael Mann" && !/k123|om456/.test(JSON.stringify(up)), "film details missing, or a key is outside its own locked part");
-  // the keys travel in their own locked part; the GitHub key never does
-  const keysUp = await openPart(key, gh.file("docs/diary/keys.bin"));
-  assert(JSON.stringify(keysUp) === JSON.stringify({ tmdb: "k123", omdb: "om456" }), `keys on the site: ${JSON.stringify(keysUp)}`);
-  assert(![JSON.stringify(up), JSON.stringify(keysUp), everything].some((t) => t.includes(TOKEN)), "the GitHub key went up");
+  assert(up.meta["heat|1995"].d[0] === "Michael Mann", "film details missing");
+  // the keys travel in their own locked part, the GitHub key with them; nowhere else
+  assert(JSON.stringify(up.keys) === JSON.stringify({ tmdb: "k123", omdb: "om456", github: TOKEN, repo: REPO }), `keys on the site: ${JSON.stringify(up.keys)}`);
+  assert(!/k123|om456/.test(JSON.stringify({ ...up, keys: null })) && !JSON.stringify({ ...up, keys: null }).includes(TOKEN), "a key is outside its own locked part");
   assert(/On the site/.test(await a.innerText("#site-box")), `computer's box: ${await a.innerText("#site-box")}`);
 
-  // A diary put on the site before keys went along: the computer adds them by itself the next time it opens
-  { const ix = JSON.parse(gh.file("docs/diary/index.json")); delete ix.parts.keys; gh.write({ "docs/diary/index.json": Buffer.from(JSON.stringify(ix)) }); }
+  // A diary put there in the first layout (whole-file parts, no keys): the computer moves it to the new one by itself
+  { const v1 = { rows: up.rows, meta: up.meta, extra: { photos: up.photos, lbx: up.lbx, friends: up.friends } }, at = new Date().toISOString(), out = {};
+    for (const f of diaryFiles(gh)) out[`docs/diary/${f}`] = null;
+    for (const [p, v] of Object.entries(v1)) out[`docs/diary/${p}.bin`] = await sealPart(key, v);
+    out["docs/diary/index.json"] = Buffer.from(JSON.stringify({ ...idx, v: 1, at, parts: { rows: at, meta: at, extra: at } }));
+    gh.write(out); }
   await a.reload(); await a.waitForFunction(() => typeof state === "object" && state.lib && MY_LIB);
-  { const t0 = Date.now(); while (!JSON.parse(gh.file("docs/diary/index.json")).parts.keys && Date.now() - t0 < 12000) await a.waitForTimeout(250); }
-  assert(JSON.parse(gh.file("docs/diary/index.json")).parts.keys, "the keys didn't go up to a diary put there before they travelled");
+  { const t0 = Date.now(); while (JSON.parse(gh.file("docs/diary/index.json")).v !== 2 && Date.now() - t0 < 12000) await a.waitForTimeout(250); }
   await until(a, () => !site.job && !site.busy, "the computer to finish");
+  assert(JSON.stringify(diaryFiles(gh)) === JSON.stringify([...wantParts.map((p) => `${p}.bin`), "index.json"].sort()), `after moving to the new layout: ${diaryFiles(gh)}`);
+  up = await openAll(gh, key);
+  assert(up.meta["heat|1995"] && up.keys.github === TOKEN, "the new layout lost something");
   assert(await a.evaluate(() => state.page) === "settings", "the reload didn't come back to Settings");
 
-  // A phone with nothing on it: the site offers the diary; a wrong password is refused, the right one opens it.
+  // A phone with nothing on it: the site offers the diary; a wrong password is refused, the right one opens it,
+  // with the keys (the GitHub one too: this phone keeps the site up to date as well) and nothing looked up again.
   const b = await device(browser, base, gh, "mobile.html", { phone: true, example: false });
+  let tmdbCalls = 0;
+  await b.context().route(/api\.themoviedb\.org/, (r) => { tmdbCalls++; r.abort(); });
   await b.waitForSelector('[data-sitebox="open"] input[name="pass"]');
   assert(/@tester's diary is on this site/.test(await b.innerText('[data-sitebox="open"]')), "the phone didn't offer the diary");
   await b.fill('[data-sitebox="open"] input[name="pass"]', "not the password");
@@ -144,13 +167,16 @@ export default async function ({ browser, base }) {
   await b.fill('[data-sitebox="open"] input[name="pass"]', PASS);
   await b.press('[data-sitebox="open"] input[name="pass"]', "Enter");
   await until(b, () => MY_LIB && MY_LIB.films.length === 1 && !site.busy, "the phone to open the diary");
-  let got = await b.evaluate(() => ({ dir: META["heat|1995"] && META["heat|1995"].d[0], key: store.get(KEYS.tmdb, ""), omdb: store.get(KEYS.omdb, ""), pub: localStorage.getItem("cr-site-pub-v1"),
+  await b.waitForTimeout(300);
+  let got = await b.evaluate(() => ({ dir: META["heat|1995"] && META["heat|1995"].d[0], key: store.get(KEYS.tmdb, ""), omdb: store.get(KEYS.omdb, ""), pub: SITEPUB && SITEPUB.token,
     mode: state.mode, user: MY_LIB.profile.username, box: !!document.querySelector('[data-sitebox="open"] input'), leads: siteLeadsLookups() }));
-  assert(got.dir === "Michael Mann" && got.key === "k123" && got.omdb === "om456" && !got.pub && got.mode === "mine" && got.user === "tester" && !got.box, `phone after opening: ${JSON.stringify(got)}`);
-  assert(!got.leads && await a.evaluate(() => siteLeadsLookups()), "the daily OMDb allowance would be spent by a device that only reads the site's diary");
+  assert(got.dir === "Michael Mann" && got.key === "k123" && got.omdb === "om456" && got.pub === TOKEN && got.leads && got.mode === "mine" && got.user === "tester" && !got.box,
+    `phone after opening: ${JSON.stringify(got)}`);
+  assert(tmdbCalls === 0, `the phone looked up ${tmdbCalls} films the site already had`);
   await b.reload();
   await b.waitForFunction(() => typeof state === "object" && state.lib && MY_LIB);
   assert(await b.evaluate(() => MY_LIB.films.length === 1 && !document.querySelector('[data-sitebox="open"] input')), "the phone forgot the diary or asked again after a reload");
+
   // A key changed on the computer reaches the phone, without typing it there
   const keysAt = JSON.parse(gh.file("docs/diary/index.json")).parts.keys;
   await a.evaluate(() => store.set(KEYS.tmdb, "k999"));
@@ -159,61 +185,98 @@ export default async function ({ browser, base }) {
   await b.evaluate(() => siteCheck(true));
   assert(await b.evaluate(() => store.get(KEYS.tmdb, "")) === "k999", "the new key didn't reach the phone");
 
-  // A newer export imported on the computer goes up by itself (only the parts that changed), and the phone gets it.
-  const before = { ...gh.files() };
-  const z = new JSZip();
-  z.file("profile.csv", "Date Joined,Username,Email Address\n2020-01-01,tester,someone@example.com\n");
-  z.file("watched.csv", "Date,Name,Year,Letterboxd URI\n2024-01-01,Heat,1995,x\n2026-10-01,Le Samouraï,1967,y\n");
-  z.file("diary.csv", "Date,Name,Year,Letterboxd URI,Rating,Rewatch,Tags,Watched Date\n2024-02-03,Heat,1995,x,4.5,,,2024-02-03\n2026-10-02,Le Samouraï,1967,y,5,,,2026-10-01\n");
-  await a.setInputFiles("#file-input", [{ name: "export.zip", mimeType: "application/zip", buffer: await z.generateAsync({ type: "nodebuffer" }) }]);
-  const t0 = Date.now();
-  while (gh.files()["docs/diary/rows.bin"] === before["docs/diary/rows.bin"] && Date.now() - t0 < 12000) await a.waitForTimeout(250);
-  assert(gh.files()["docs/diary/rows.bin"] !== before["docs/diary/rows.bin"], "the computer's new import didn't go up");
-  assert(gh.files()["docs/diary/extra.bin"] === before["docs/diary/extra.bin"], "a part that didn't change was sent again");
-  assert((await openPart(key, gh.file("docs/diary/rows.bin"))).watched.length === 2, "the new import on the site is wrong");
+  // What the phone looks up goes up (only the one part it falls in) and reaches the computer; then neither has
+  // anything to send
+  const zKey = "z|2010", before = { ...gh.files() };
+  await b.evaluate((k) => { META[k] = cleanMeta({ src: "tmdb", v: 6, id: 10, d: ["Z"], c: [], w: [], p: [], m: [], g: ["Drama"], k: ["Japan"], l: "Japanese", r: 100, t: new Date().toISOString() }); saveMeta(); return sitePublish(); }, zKey);
+  const changed = Object.keys(gh.files()).filter((f) => gh.files()[f] !== before[f]).map((f) => f.slice(11)).sort();
+  assert(JSON.stringify(changed) === JSON.stringify([`${shardOf(zKey)}.bin`, "index.json"].sort()), `the phone sent: ${changed}`);
+  await a.evaluate(() => siteCheck(true));
+  assert(await a.evaluate((k) => !!META[k], zKey), "the computer didn't get what the phone looked up");
+  const patches = () => gh.calls.filter((c) => c.startsWith("PATCH")).length;
+  let p0 = patches();
+  await a.evaluate(() => sitePublish()); await b.evaluate(() => sitePublish());
+  assert(patches() === p0, "a device sent something the site already had");
+
+  // Two devices with different copies of one film's details settle on the newer one, instead of overwriting each other
+  await a.evaluate(() => { META["q|1999"] = cleanMeta({ src: "tmdb", v: 6, id: 5, d: ["Older"], c: [], w: [], p: [], m: [], g: ["Drama"], k: ["USA"], l: "English", r: 90, t: "2026-01-01T00:00:00.000Z" }); return sitePublish(); });
+  await b.evaluate(() => { META["q|1999"] = cleanMeta({ src: "tmdb", v: 6, id: 5, d: ["Newer"], c: [], w: [], p: [], m: [], g: ["Drama"], k: ["USA"], l: "English", r: 90, t: "2026-02-01T00:00:00.000Z" }); });
+  await b.evaluate(() => siteCheck(true)); await b.evaluate(() => sitePublish());
+  await a.evaluate(() => siteCheck(true));
+  p0 = patches();
+  await a.evaluate(() => sitePublish()); await b.evaluate(() => sitePublish());
+  const q = [await a.evaluate(() => META["q|1999"].d[0]), await b.evaluate(() => META["q|1999"].d[0]), (await openAll(gh, key)).meta["q|1999"].d[0]];
+  assert(q.join() === "Newer,Newer,Newer" && patches() === p0, `copies of one film: ${q}, ${patches() - p0} more updates`);
+
+  // A newer export imported on the computer goes up by itself (only the export), and the phone gets it.
+  const beforeImport = { ...gh.files() };
+  const zip = new JSZip();
+  zip.file("profile.csv", "Date Joined,Username,Email Address\n2020-01-01,tester,someone@example.com\n");
+  zip.file("watched.csv", "Date,Name,Year,Letterboxd URI\n2024-01-01,Heat,1995,x\n2026-10-01,Le Samouraï,1967,y\n");
+  zip.file("diary.csv", "Date,Name,Year,Letterboxd URI,Rating,Rewatch,Tags,Watched Date\n2024-02-03,Heat,1995,x,4.5,,,2024-02-03\n2026-10-02,Le Samouraï,1967,y,5,,,2026-10-01\n");
+  await a.setInputFiles("#file-input", [{ name: "export.zip", mimeType: "application/zip", buffer: await zip.generateAsync({ type: "nodebuffer" }) }]);
+  { const t0 = Date.now(); while (gh.files()["docs/diary/rows.bin"] === beforeImport["docs/diary/rows.bin"] && Date.now() - t0 < 12000) await a.waitForTimeout(250); }
   await settled(a, "the computer to finish");
+  const sent = Object.keys(gh.files()).filter((f) => gh.files()[f] !== beforeImport[f]).map((f) => f.slice(11)).sort();
+  assert(JSON.stringify(sent) === JSON.stringify(["index.json", "rows.bin"]), `the import sent: ${sent}`);
+  assert((await openPart(key, gh.file("docs/diary/rows.bin"))).watched.length === 2, "the new import on the site is wrong");
   await b.evaluate(() => siteCheck(true));
   assert(await b.evaluate(() => MY_LIB.films.map((f) => f.name).sort().join()) === "Heat,Le Samouraï", "the phone didn't get the newer import");
+
+  // The computer finds the new film's details; the phone, opened again, takes them from the site before looking
+  // anything up, so it asks TMDB for nothing
+  const samKey = await a.evaluate(() => MY_LIB.films.find((f) => f.name.startsWith("Le Sam")).key);
+  await a.evaluate((k) => { META[k] = cleanMeta({ src: "tmdb", v: 6, id: 5511, d: ["Jean-Pierre Melville"], c: ["Alain Delon"], w: [], p: [], m: [], g: ["Crime"], k: ["France"], l: "French", r: 105, t: new Date().toISOString() }); saveMeta(); return sitePublish(); }, samKey);
+  tmdbCalls = 0;
+  await b.reload();
+  await b.waitForFunction((k) => typeof state === "object" && MY_LIB && META[k], samKey, { timeout: 8000 });
+  await b.waitForTimeout(500);
+  assert(tmdbCalls === 0, `the phone asked TMDB for ${tmdbCalls} films another device had already found`);
 
   // Another device updates the site at the moment the computer does: the computer's first try loses, it brings
   // that change in, and the second try carries both.
   await a.evaluate(() => { META["x|2001"] = cleanMeta({ src: "tmdb", v: 6, id: 1, d: ["A"], c: [], w: [], p: [], m: [], g: ["Drama"], k: ["France"], l: "French", r: 90 }); });
   gh.beforePatch = async () => {
-    const ix = JSON.parse(gh.file("docs/diary/index.json")), m = await openPart(key, gh.file("docs/diary/meta.bin")), at = new Date().toISOString();
+    const ix = JSON.parse(gh.file("docs/diary/index.json")), part = shardOf("y|2002"), m = await openPart(key, gh.file(`docs/diary/${part}.bin`)), at = new Date().toISOString();
     m["y|2002"] = film(2, "B");
-    gh.write({ "docs/diary/meta.bin": await sealPart(key, m), "docs/diary/index.json": Buffer.from(JSON.stringify({ ...ix, at, parts: { ...ix.parts, meta: at } })) });
+    gh.write({ [`docs/diary/${part}.bin`]: await sealPart(key, m), "docs/diary/index.json": Buffer.from(JSON.stringify({ ...ix, at, parts: { ...ix.parts, [part]: at } })) });
   };
-  gh.calls.length = 0;
+  p0 = patches();
   await a.evaluate(() => sitePublish());
-  assert(gh.calls.filter((c) => c.startsWith("PATCH")).length === 2, `expected a lost race and a retry: ${gh.calls.filter((c) => c.startsWith("PATCH"))}`);
-  const merged = await openPart(key, gh.file("docs/diary/meta.bin"));
+  assert(patches() - p0 === 2, `expected a lost race and a retry: ${patches() - p0}`);
+  const merged = (await openAll(gh, key)).meta;
   assert(merged["x|2001"] && merged["y|2002"] && merged["heat|1995"], `merged details: ${Object.keys(merged)}`);
   assert(await a.evaluate(() => !!META["y|2002"]), "the computer didn't take in the other device's change");
 
-  // A new password: the phone asks for it once, then carries on.
-  await a.evaluate(() => { for (const d of document.querySelectorAll("#site-box details")) d.open = true; });
-  await a.fill("#site-newpass-publish", PASS2);
-  await a.click('#site-box [data-site="password"]');
-  await until(a, () => !site.job && /Password changed/.test(site.note), "the password change");
-  assert(JSON.parse(gh.file("docs/diary/index.json")).salt !== idx.salt, "the password change didn't lock it afresh");
-  await b.evaluate(() => siteCheck(true));
-  await b.waitForSelector('[data-sitebox="open"] input[name="pass"]');
-  assert(/new password/.test(await b.innerText('[data-sitebox="open"]')), "the phone didn't say the password changed");
-  await b.fill('[data-sitebox="open"] input[name="pass"]', PASS2);
-  await b.click('[data-sitebox="open"] [data-site="unlock"]');
-  await until(b, () => !site.busy && !document.querySelector('[data-sitebox="open"] input') && META["x|2001"] && META["y|2002"], "the phone to open it with the new password");
+  // A new password, set on the phone this time: the computer asks for it once, then carries on.
+  await b.evaluate(() => push({ type: "data", title: "Settings", ret: 0 }));
+  await b.waitForSelector('[data-sitebox="publish"] [data-site="password"]', { state: "attached" });
+  await b.evaluate(() => { for (const d of document.querySelectorAll('[data-sitebox="publish"] details')) d.open = true; });
+  await b.fill('[data-sitebox="publish"] input[name="newpass"]', PASS2);
+  await b.click('[data-sitebox="publish"] [data-site="password"]');
+  await until(b, () => !site.job && /Password changed/.test(site.note), "the password change");
+  const idx2 = JSON.parse(gh.file("docs/diary/index.json"));
+  assert(idx2.salt !== idx.salt, "the password change didn't lock it afresh");
+  key = await keyFor(PASS2, idx2.salt);
+  assert((await openAll(gh, key)).keys.github === TOKEN, "the new lock lost the keys");
+  await a.evaluate(() => siteCheck(true));
+  await a.waitForSelector('#site-open input[name="pass"]');
+  assert(/new password/.test(await a.innerText("#site-open")), "the computer didn't say the password changed");
+  await a.fill('#site-open input[name="pass"]', PASS2);
+  await a.click('#site-open [data-site="unlock"]');
+  await until(a, () => !site.busy && !document.querySelector('#site-open input') && META["x|2001"] && META["y|2002"], "the computer to open it with the new password");
 
-  // Taking it off the site: the files go, each device keeps its copy, and nothing goes up again by itself.
+  // Taking it off the site: the files go, each device keeps its copy, and no device puts it back by itself.
   await a.click('#site-box [data-site="remove"]');
   await a.click('#site-box [data-site="remove"]');
   await until(a, () => !site.busy && site.index === null, "taking it off");
-  assert(!Object.keys(gh.files()).some((f) => f.startsWith("docs/diary/")), `still on the site: ${Object.keys(gh.files())}`);
+  assert(!diaryFiles(gh).length, `still on the site: ${diaryFiles(gh)}`);
   await b.evaluate(() => siteCheck(true));
-  assert(await b.evaluate(() => MY_LIB.films.length === 2), "the phone lost its copy");
-  const pushes = gh.calls.length;
-  await a.evaluate(() => { META["z|2003"] = META["x|2001"]; saveMeta(); });
-  await a.waitForTimeout(300);
-  assert(gh.calls.length === pushes && /Put your diary on this site/.test(await a.innerText("#site-box")), "something went up after it was taken off");
+  assert(await b.evaluate(() => MY_LIB.films.length === 2 && !SITE), "the phone lost its copy, or would still send");
+  const calls = gh.calls.length;
+  for (const p of [a, b]) await p.evaluate(() => { META["w|2004"] = META["x|2001"]; saveMeta(); store.set(KEYS.omdb, "om789"); });
+  await a.waitForTimeout(5000);
+  assert(gh.calls.length === calls && !diaryFiles(gh).length && /Put your diary on this site/.test(await a.innerText("#site-box")), "something went up after it was taken off");
 
   // A key GitHub doesn't accept isn't kept, and nothing goes up.
   const g2 = fakeGitHub({ token: "the real one" });

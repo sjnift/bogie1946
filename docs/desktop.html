@@ -743,12 +743,12 @@ body.empty #settings, body.empty .foot-settings { display: none !important; }
         <p>With your own TMDB key, film details come from The Movie Database. This product uses the TMDB API but is not endorsed or certified by TMDB.
           Inside the Claude app, details come from Claude's knowledge of each film instead, so check anything surprising.</p>
         <p>On a phone? <a href="mobile.html">Open the phone version</a>. It uses the same import.</p>
-        <p>Updated 23 Oct 2026, 19:02 UTC</p>
+        <p>Updated 23 Oct 2026, 19:22 UTC</p>
       </div>
     </section>
   </main>
   <footer>
-    <p>Updated 23 Oct 2026, 19:02 UTC<span class="foot-settings"> · <button class="linkish" type="button" data-goto="settings">Settings</button></span></p>
+    <p>Updated 23 Oct 2026, 19:22 UTC<span class="foot-settings"> · <button class="linkish" type="button" data-goto="settings">Settings</button></span></p>
   </footer>
 </div>
 
@@ -1001,6 +1001,8 @@ const unescapeText = (s) => String(s).replace(/&(?:#(\d+)|#x([\da-f]+)|(amp|lt|g
 // A title and year that ignore how the title is written (curly or straight apostrophes, codes, accents,
 // punctuation, case) but keep the letters of every script, so one film always counts once.
 const titleKey = (name, year) => `${unescapeText(name).normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim()}|${parseInt(year, 10) || ""}`;
+// A quick number that's always the same for the same text (FNV-1a), for spreading things into groups.
+const hash32 = (s) => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); } return h >>> 0; };
 const personKey = (n) => String(n).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 const dayIndex = (iso) => Math.floor(Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10)) / 864e5);
 const weekdayOf = (iso) => (new Date(iso + "T00:00:00Z").getUTCDay() + 6) % 7; // Monday = 0
@@ -1284,6 +1286,7 @@ function cleanMeta(m) {
     ir: Number(m.ir) || null, iv: Number(m.iv) || null, mc: Number(m.mc) || null, rt: Number(m.rt) || null, om: m.om || null, // IMDb, Metacritic, Rotten Tomatoes
     y: parseInt(m.y, 10) || null, // TMDB's release year
     iy: parseInt(m.iy, 10) || null, ik: Array.isArray(m.ik) ? m.ik : undefined, il: Array.isArray(m.il) ? m.il : undefined, inf: m.inf || undefined, // IMDb's year, countries, languages
+    t: m.t || undefined, // when it was looked up: of two equally good copies on two devices, the newer is kept
   };
 }
 
@@ -1578,7 +1581,7 @@ async function tmdbDetails(id, key, signal) {
     m: names(crew.filter((c) => c.job === "Original Music Composer" || c.job === "Music")),
     g: (d.genres || []).map((g) => g.name),
     k: (d.production_countries || []).map((c) => c.name),
-    l: spokenIn(d), r: d.runtime, va: d.vote_average, vc: d.vote_count, im: d.imdb_id,
+    l: spokenIn(d), r: d.runtime, va: d.vote_average, vc: d.vote_count, im: d.imdb_id, t: new Date().toISOString(),
     ...(FILM_FIXES[d.id] || {}),
   });
 }
@@ -1655,8 +1658,11 @@ let editOmdb = false;
 const IMDB_FIELDS = ["ir", "iv", "mc", "rt", "om", "iy", "ik", "il", "inf"];
 // Films with an IMDb id still to ask OMDb about, including ones asked before IMDb's countries were kept.
 const needsImdb = (lib) => lib.films.filter((f) => { const m = META[f.key]; return m && !m.miss && m.im && (!m.om || (!m.ik && !m.inf)); });
+// Each device goes through films in its own order, so two devices fetching on the same day mostly ask OMDb for
+// different films (their results meet on the site) instead of spending the 1,000 a day twice on the same ones.
+const deviceSeed = () => { let s = ls.get("cr-device", ""); if (!s) { s = Math.random().toString(36).slice(2); ls.set("cr-device", s); } return s; };
 async function runOmdb(lib, key) {
-  const queue = needsImdb(lib);
+  const seed = deviceSeed(), queue = needsImdb(lib).sort((a, b) => hash32(seed + a.key) - hash32(seed + b.key));
   if (!queue.length || imdbJob.running) return;
   Object.assign(imdbJob, { running: true, ctl: new AbortController(), done: 0, total: queue.length, note: "", err: false, badKey: false });
   renderLookup();
@@ -1672,11 +1678,11 @@ async function runOmdb(lib, key) {
         if (d.Response === "False") {
           if (/limit/i.test(d.Error || "")) { stop = "limit"; return; }
           if (/api key/i.test(d.Error || "") || res.status === 401) { stop = "key"; return; }
-          Object.assign(m, { om: today, inf: true }); // OMDb doesn't know this film; don't ask again
+          Object.assign(m, { om: today, inf: true, t: new Date().toISOString() }); // OMDb doesn't know this film; don't ask again
         } else {
           const rt = (d.Ratings || []).find((x) => x.Source === "Rotten Tomatoes");
           const names = (v) => String(v || "").split(/,\s*/).map((x) => x.trim()).filter((x) => x && x !== "N/A");
-          Object.assign(m, { ir: num(d.imdbRating), iv: num(d.imdbVotes), mc: num(d.Metascore), rt: rt ? num(rt.Value) : null, om: today,
+          Object.assign(m, { ir: num(d.imdbRating), iv: num(d.imdbVotes), mc: num(d.Metascore), rt: rt ? num(rt.Value) : null, om: today, t: new Date().toISOString(),
             iy: parseInt(d.Year, 10) || null, ik: names(d.Country).map(country), il: names(d.Language).map(language) });
         }
       } catch (e) {
@@ -3533,23 +3539,25 @@ async function shareGo(Y) {
 </script>
 <script>
 /* ---------- your diary on this site, locked with a password ----------
-   The device where the export is imported puts a copy on the site itself: docs/diary/ in the site's own
-   repository, committed through GitHub's API with a key that only that device keeps. The copy is encrypted
-   (AES-GCM, with a key made from the owner's password by PBKDF2) in four parts: the export, film details,
-   the rest (photos, Letterboxd averages, friends), and the TMDB, OMDb and Apify keys, so a change sends only its
-   own part again. Any device that opens the site and is given the password once shows the diary with no import,
-   keeps up with it, and has the keys without typing them. The export's email address and the GitHub key (which
-   can change the site itself) are never in it, and nothing is ever there unencrypted. index.json says, in the
-   clear, whose diary it is, when each part last changed, and how to make the key from the password. */
+   A copy lives on the site itself: docs/diary/ in the site's own repository, committed through GitHub's API. It is
+   encrypted (AES-GCM, with a key made from the owner's password by PBKDF2) in parts: the export, the keys (TMDB,
+   OMDb, Apify and the GitHub key that lets a device update the site), Letterboxd averages, friends, and film
+   details and people's photos spread over 16 parts each, so a few newly found films send only the few parts they
+   fall in. Every device given the password once shows the diary with no import, has the keys without typing them,
+   and keeps the site up to date itself: what it looks up goes up, what other devices looked up comes down, and
+   nothing is looked up twice. The export's email address is never in it, and nothing is ever there unencrypted.
+   index.json says, in the clear, whose diary it is, when each part last changed, and how to make the key from the
+   password. (Version 1 diaries had parts rows, meta, extra, keys; they're read, and replaced on the next update.) */
 const SITE_REC = "cr-site-v1";      // every device that opened it: { salt, key, user, at, have: { part: at }, sums: { part: sha-256 } }
 const SITE_PUB = "cr-site-pub-v1";  // a device that puts it there: { repo, token, at }
 const SITE_DIRTY = "cr-site-dirty"; // changes here not yet on the site: { at, now: a new import, friend or key }
-const SITE_PARTS = ["rows", "meta", "extra", "keys"];
-const SITE_KEYS = ["tmdb", "omdb", "apify"]; // the keys that travel with the diary (never the GitHub one)
+const SITE_SHARDS = 16;
+const SITE_PARTS = ["rows", "keys", "lbx", "friends", ...Array.from({ length: SITE_SHARDS }, (_, i) => `m${i}`), ...Array.from({ length: SITE_SHARDS }, (_, i) => `p${i}`)];
+const siteShard = (key) => hash32(String(key)) % SITE_SHARDS;
+const SITE_KEYS = ["tmdb", "omdb", "apify"]; // with the GitHub key, these travel with the diary
 const SITE_PATH = "docs/diary/";    // in the repository; the site serves docs/ at its root
 const SITE_ITER = 600000;
 const SITE_MIN_PASS = 10;
-const SITE_META_EVERY = 12 * 3600e3; // film details go up at most twice a day: each update stays in the repository's history
 const SITE_ON = !IN_VIEWER && /^https?:$/.test(location.protocol);
 const SITE_DEVICE = document.querySelector(".tabbar") ? "phone" : "computer";
 const SITE_GH_REPO = SITE_REPO ? SITE_REPO.split("/").slice(3, 5).join("/") : "";
@@ -3647,11 +3655,17 @@ function siteRows(rows) {
   delete r.site;
   return r;
 }
-const siteLocal = () => ({ rows: siteRows(store.get(KEYS.rows, null)), meta: META,
-  extra: { photos: PHOTOS, lbx: LBX, friends: store.get(KEYS.friends, []).map((f) => ({ ...f, rows: siteRows(f.rows) })) },
-  keys: Object.fromEntries(SITE_KEYS.map((k) => [k, store.get(KEYS[k], "")]).filter(([, v]) => v)) });
-// Bulk lookups that use up a daily allowance (OMDb) are left to a device that updates the site, or that has its
-// own import: a device only reading the site's diary would spend the same allowance on the same films.
+function siteLocal() {
+  const keys = Object.fromEntries(SITE_KEYS.map((k) => [k, store.get(KEYS[k], "")]).filter(([, v]) => v));
+  if (SITEPUB) Object.assign(keys, { github: SITEPUB.token, repo: SITEPUB.repo });
+  const out = { rows: siteRows(store.get(KEYS.rows, null)), keys, lbx: LBX, friends: store.get(KEYS.friends, []).map((f) => ({ ...f, rows: siteRows(f.rows) })) };
+  for (let i = 0; i < SITE_SHARDS; i++) { out[`m${i}`] = {}; out[`p${i}`] = {}; }
+  for (const [k, m] of Object.entries(META)) out[`m${siteShard(k)}`][k] = m;
+  for (const [k, v] of Object.entries(PHOTOS)) out[`p${siteShard(k)}`][k] = v;
+  return out;
+}
+// Bulk lookups that use up a daily allowance (OMDb) are left to devices that update the site, or that have their
+// own import: a device that only reads the site's diary would spend the allowance on films others fetch anyway.
 const siteLeadsLookups = () => !SITE_ON || !SITE || !!SITEPUB || !(store.get(KEYS.rows, null) || {}).site;
 const siteUser = (rows) => (((rows && rows.profile) || [])[0] || {}).Username || "";
 // Which of two imports is newer: by when it was imported, or for imports from before that was noted,
@@ -3659,14 +3673,19 @@ const siteUser = (rows) => (((rows && rows.profile) || [])[0] || {}).Username ||
 const rowsWhen = (r) => r.importedAt || (r.diary || []).reduce((m, e) => ((e.Date || "") > m ? e.Date : m), "");
 const rowsSize = (r) => (r.diary || []).length + (r.watched || []).length + (r.reviews || []).length;
 const newerRows = (a, b) => (rowsWhen(a) !== rowsWhen(b) ? rowsWhen(a) > rowsWhen(b) : rowsSize(a) > rowsSize(b));
-// The better of two copies of a film's details: matched by hand, then found, then a newer kind of match, then more filled in.
+/* Merging the site's copy (b) into this device's (a). The site's wins unless this device's is strictly better, so
+   devices settle on one version instead of each sending its own back and forth for ever; what's better here
+   then goes up, and the other devices take it. */
+// The better of two copies of a film's details: matched by hand, then found, then a newer kind of match, then more
+// filled in, then looked up more recently.
 const metaScore = (m) => (!m ? -1 : (m.pin ? 1e6 : 0) + (m.miss ? 0 : 1e4) + (m.v || 0) * 100 + (m.om ? 10 : 0) + (m.ik ? 5 : 0));
-const mergeMeta = (a, b) => { const out = { ...a }; for (const [k, m] of Object.entries(b || {})) if (metaScore(m) > metaScore(out[k])) out[k] = m; return out; };
-const mergeLbx = (a, b) => { const out = { ...a }; for (const [k, x] of Object.entries(b || {})) if (!out[k] || (x && x.r && !out[k].r)) out[k] = x; return out; };
-// friends are matched by name (each device gives a friend its own id); the newer export of each is kept
+const metaBetter = (a, b) => metaScore(a) !== metaScore(b) ? metaScore(a) > metaScore(b) : (a.t || "") > (b.t || "");
+const mergeMeta = (a, b) => { const out = { ...a }; for (const [k, m] of Object.entries(b || {})) if (!out[k] || !metaBetter(out[k], m)) out[k] = m; return out; };
+const mergeLbx = (a, b) => { const out = { ...a }; for (const [k, x] of Object.entries(b || {})) if (!(out[k] && out[k].r && !(x && x.r))) out[k] = x; return out; };
+// friends are matched by name; the newer export of each is kept
 const mergeFriends = (a, b) => {
   const by = new Map((a || []).map((f) => [f.name.toLowerCase(), f]));
-  for (const f of b || []) { const k = f.name.toLowerCase(), had = by.get(k); if (!had || newerRows(f.rows, had.rows)) by.set(k, had ? { ...f, id: had.id } : f); }
+  for (const f of b || []) { const k = f.name.toLowerCase(), had = by.get(k); if (!had || !newerRows(had.rows, f.rows)) by.set(k, f); }
   return [...by.values()];
 };
 // Parts from the site come into this device: an import newer than this device's (or one that came from the site
@@ -3679,20 +3698,29 @@ async function siteTake(parts, idx, draw) {
       const mine = store.get(KEYS.rows, null);
       if (!mine || mine.site || newerRows(parts.rows, mine)) { store.set(KEYS.rows, { ...parts.rows, site: idx.parts.rows }); newRows = true; }
     }
-    if (parts.meta) META = mergeMeta(META, parts.meta);
-    if (parts.extra) {
-      const x = parts.extra;
-      if (x.photos) PHOTOS = { ...x.photos, ...PHOTOS };
-      if (x.lbx) { LBX = mergeLbx(LBX, x.lbx); store.set(KEYS.lbx, LBX); }
-      if (x.friends) { store.set(KEYS.friends, mergeFriends(store.get(KEYS.friends, []), x.friends)); loadFriends(); }
+    // film details and photos come in parts (m0…, p0…), or whole from a version 1 diary (meta, extra)
+    let metaIn = null, photosIn = null, lbxIn = null, friendsIn = null;
+    for (const [p, v] of Object.entries(parts)) {
+      if (p === "meta" || /^m\d+$/.test(p)) metaIn = Object.assign(metaIn || {}, v);
+      else if (/^p\d+$/.test(p)) photosIn = Object.assign(photosIn || {}, v);
+      else if (p === "lbx") lbxIn = v;
+      else if (p === "friends") friendsIn = v;
+      else if (p === "extra") { photosIn = Object.assign(photosIn || {}, v.photos); lbxIn = v.lbx; friendsIn = v.friends; }
     }
+    if (metaIn) META = mergeMeta(META, metaIn);
+    if (photosIn) PHOTOS = { ...PHOTOS, ...photosIn };
+    if (lbxIn) { LBX = mergeLbx(LBX, lbxIn); store.set(KEYS.lbx, LBX); }
+    if (friendsIn) { store.set(KEYS.friends, mergeFriends(store.get(KEYS.friends, []), friendsIn)); loadFriends(); }
     if (parts.keys) {
-      // the site's keys replace this device's, unless a key changed here hasn't gone up yet
-      const waiting = !!ls.get(SITE_DIRTY, null);
-      for (const k of SITE_KEYS) if (parts.keys[k] && (!waiting || !store.get(KEYS[k], ""))) store.set(KEYS[k], parts.keys[k]);
+      // the site's keys replace this device's, unless a key changed here hasn't gone up yet; with the GitHub key
+      // this device keeps the site up to date too
+      const waiting = !!ls.get(SITE_DIRTY, null), x = parts.keys;
+      for (const k of SITE_KEYS) if (x[k] && (!waiting || !store.get(KEYS[k], ""))) store.set(KEYS[k], x[k]);
+      const repo = SITE_GH_REPO || x.repo || (SITEPUB && SITEPUB.repo);
+      if (x.github && repo && !(waiting && SITEPUB)) SITEPUB = { repo, token: x.github, at: (SITEPUB && SITEPUB.at) || null };
       job.badKey = imdbJob.badKey = lbJob.badKey = false;
     }
-    if (parts.meta || parts.extra) saveMeta();
+    if (metaIn || photosIn) saveMeta();
   } finally { site.applying = false; }
   store.flush();
   for (const p of Object.keys(parts)) { SITE.have[p] = idx.parts[p]; SITE.sums[p] = await sha256(canon(parts[p])); }
@@ -3706,18 +3734,23 @@ async function siteTake(parts, idx, draw) {
     if (newRows && MY_LIB) refreshFeed().then(() => autoLookup(allFilmsLib())).catch(() => {});
   }
 }
-// The parts this device doesn't have yet, read from the site (or from GitHub, just before sending).
+// The parts this device doesn't have yet, read from the site (or from GitHub, just before sending), six at a time.
 async function siteBring(idx, read, draw) {
   const key = await importKey(SITE.key), parts = {};
   const have = store.get(KEYS.rows, null) ? SITE.have || {} : {}; // nothing saved here any more: everything again
   SITE.have = SITE.have || {}; SITE.sums = SITE.sums || {};
-  for (const p of SITE_PARTS) {
-    if (!idx.parts[p] || have[p] === idx.parts[p]) continue;
-    const bytes = await read(p);
-    if (bytes) parts[p] = await unseal(key, bytes);
-  }
+  const want = Object.keys(idx.parts).filter((p) => idx.parts[p] && have[p] !== idx.parts[p]);
+  const next = async () => { for (let p; (p = want.shift());) { const bytes = await read(p); if (bytes) parts[p] = await unseal(key, bytes); } };
+  await Promise.all(Array.from({ length: 6 }, next));
   if (Object.keys(parts).length) await siteTake(parts, idx, draw);
   else { SITE.at = idx.at; saveSite(); }
+}
+// Whether this device has something the site doesn't (a part it lacks, or a part that differs): checked at start.
+async function siteDiffers() {
+  if (!SITE || !site.index || site.index.salt !== SITE.salt || !store.get(KEYS.rows, null)) return false;
+  const local = siteLocal();
+  for (const p of SITE_PARTS) if (!site.index.parts[p] || (SITE.sums || {})[p] !== await sha256(canon(local[p]))) return true;
+  return false;
 }
 
 /* ----- checking the site, opening the diary with its password ----- */
@@ -3727,6 +3760,8 @@ async function siteCheck(draw) {
   try { site.index = await siteGet("index.json"); site.offline = false; }
   catch { site.offline = true; if (draw) siteRedraw(); return; } // offline: what's saved here still shows
   const idx = site.index;
+  // taken off the site from another device: this one stops sending, and keeps its copy
+  if (!idx && SITE) { SITE = null; ls.del(SITE_DIRTY); clearTimeout(site.timer); site.timer = null; saveSite(); }
   if (idx && SITE && SITE.salt === idx.salt && (idx.at !== SITE.at || !store.get(KEYS.rows, null))) {
     try { await siteBring(idx, (p) => siteGet(`${p}.bin`, idx.parts[p]), draw); }
     catch (e) { Object.assign(site, { note: e.message || "Couldn't bring in the site's diary.", err: true, noteIn: "publish" }); }
@@ -3766,6 +3801,8 @@ function sitePublish({ password } = {}) {
         const head = await repoHead(), files = await hostedFiles(head.commit);
         const idx = files["index.json"] ? JSON.parse(new TextDecoder().decode(await blobBytes(files["index.json"]))) : null;
         const known = idx && SITE && SITE.salt === idx.salt;
+        // taken off the site from another device: nothing goes back up until it's put there again
+        if (!idx && !fresh) { SITE = null; ls.del(SITE_DIRTY); saveSite(); said = "Your diary was taken off the site from another device. Put it back here if you want it there."; break; }
         if (idx && !known) throw ghFail(fresh && !had ? "A diary was put on this site from another device a moment ago. Refresh the page in a minute and type its password."
           : "The diary on the site has a password this device doesn't know yet. Type it first.");
         if (known && idx.at !== SITE.at) await siteBring(idx, async (p) => files[`${p}.bin`] && blobBytes(files[`${p}.bin`]), true); // another device changed it: that first
@@ -3775,11 +3812,13 @@ function sitePublish({ password } = {}) {
           const sum = await sha256(canon(local[p]));
           if (fresh || !idx || !idx.parts[p] || sums[p] !== sum) up[p] = sum;
         }
-        if (!Object.keys(up).length) break;
-        const parts = { ...(fresh || !idx ? {} : idx.parts) };
-        const out = {};
+        // a version 1 diary's whole-file parts go once their contents are in the new ones
+        const old = Object.keys(files).filter((n) => n.endsWith(".bin") && !SITE_PARTS.includes(n.slice(0, -4)));
+        if (!Object.keys(up).length && !old.length) break;
+        const parts = Object.fromEntries(Object.entries(fresh || !idx ? {} : idx.parts).filter(([p]) => SITE_PARTS.includes(p)));
+        const out = Object.fromEntries(old.map((n) => [n, null]));
         for (const p of Object.keys(up)) { out[`${p}.bin`] = await seal(key, local[p]); parts[p] = now; }
-        const next = { app: "credits-roll", v: 1, user: siteUser(local.rows) || (idx && idx.user) || "", imported: rowsWhen(local.rows), at: now, from: SITE_DEVICE,
+        const next = { app: "credits-roll", v: 2, user: siteUser(local.rows) || (idx && idx.user) || "", imported: rowsWhen(local.rows), at: now, from: SITE_DEVICE,
           salt, iter: SITE_ITER, check, parts };
         out["index.json"] = new TextEncoder().encode(JSON.stringify(next, null, 1) + "\n");
         if (!(await commitFiles(head, out, `Diary on the site: ${fresh ? (idx ? "new password" : "first copy") : "updated"} from a ${SITE_DEVICE}`))) continue;
@@ -3828,8 +3867,8 @@ function siteKey(repo, token) {
 // Forgets everything about the site on this device (with "Delete saved data from this browser").
 function siteForget() { clearTimeout(site.timer); site.timer = null; SITE = null; SITEPUB = null; ls.del(SITE_DIRTY); saveSite(); Object.assign(site, { note: "", err: false }); }
 
-// A change on this device goes up by itself: a new import or friend within seconds, film details and averages
-// once lookups have finished, at most twice a day.
+// A change on this device goes up by itself: a new import, friend or key within seconds; film details, photos and
+// averages a minute after lookups finish, so other devices don't look the same films up again.
 STORE_HOOK = (k) => {
   if (site.applying || !SITEPUB || !SITE || !PUBLISHED.has(k)) return;
   const d = ls.get(SITE_DIRTY, null) || { at: Date.now() };
@@ -3840,7 +3879,7 @@ STORE_HOOK = (k) => {
 function siteLater() {
   const d = ls.get(SITE_DIRTY, null);
   if (!d || !SITEPUB || !SITE) return;
-  const wait = d.now ? 4000 : Math.max(10 * 60e3, (SITEPUB.at ? Date.parse(SITEPUB.at) + SITE_META_EVERY : 0) - Date.now());
+  const wait = d.now ? 4000 : 60e3;
   if (site.timer && site.due <= Date.now() + wait) return; // already going sooner
   clearTimeout(site.timer); site.due = Date.now() + wait;
   site.timer = setTimeout(function go() {
@@ -3886,10 +3925,10 @@ function siteBox(kind) {
   const help = `<details class="site-help"><summary>How to make the GitHub key (once)</summary><ol class="steps">
       <li><a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">Make a fine-grained token</a>: name it Credits Roll site and pick the longest expiry.</li>
       <li>Under Repository access choose <b>Only select repositories</b> and pick <b>${esc((SITE_GH_REPO || "your-name/your-site").split("/")[1])}</b>.</li>
-      <li>Under Permissions → Repository permissions set <b>Contents</b> to <b>Read and write</b>. Generate it, copy it and paste it above. It stays in this browser.</li></ol></details>`;
+      <li>Under Permissions → Repository permissions set <b>Contents</b> to <b>Read and write</b>. Generate it, copy it and paste it above. It goes into your locked diary, so every device you open it on can update the site; you paste it only once.</li></ol></details>`;
   const keyFields = () => (SITE_GH_REPO ? "" : field("repo", "The site's repository", "text", "off", "")) + field("token", "GitHub key for the site", "password", "off");
   if (!idx) {
-    return box("Put your diary on this site", `<p class="status">Lock it with a password and every device can open it: just open the site and type the password once, with no importing. Your TMDB, OMDb and Apify keys go along, locked the same way, so you never type them again; your email address and the GitHub key stay out of it.</p>
+    return box("Put your diary on this site", `<p class="status">Lock it with a password and every device can open it: just open the site and type the password once, with no importing. Your TMDB, OMDb, Apify and GitHub keys go along, locked the same way, so every device you open it on can use them and keeps the site up to date; your email address stays out of it. Choose a long password: it guards all of this.</p>
       ${field("newpass", `Choose a password (at least ${SITE_MIN_PASS} characters; you'll type it once on each device)`, "text", "new-password")}
       ${SITEPUB ? "" : keyFields()}${btn("create", "Put my diary on the site", true)}${say}${SITEPUB ? "" : help}`);
   }
@@ -3898,16 +3937,17 @@ function siteBox(kind) {
   }
   const when = `Updated ${agoText(idx.at)}${idx.from ? ` from a ${esc(idx.from)}` : ""}.`;
   if (!SITEPUB) {
-    return box(title, `<p class="status">This device opens @${esc(user)}'s diary from the site. ${when} To update the site from this device too, add a GitHub key.</p>
+    return box(title, `<p class="status">This device opens @${esc(user)}'s diary from the site. ${when} The site has no working GitHub key, so no device can update it. Add one here and it goes to every device.</p>
       ${keyFields()}${btn("key", "Use this key", true)}${say}${help}`);
   }
   const d = ls.get(SITE_DIRTY, null);
-  const pending = d ? (d.now ? " A change made here goes up in a moment." : " New film details made here go up once lookups finish, at most twice a day.") : "";
-  return box(title, `<p class="status">On the site, locked with your password. ${when}${pending}</p>${say}
+  const pending = d ? (d.now ? " A change made here goes up in a moment." : " Film details found here go up a minute after lookups finish.") : "";
+  return box(title, `<p class="status">On the site, locked with your password. ${when} Every device where you've typed the password keeps it up to date, and what one looks up, the others get.${pending}</p>${say}
     <div class="${phone ? "site-btns" : "site-row"}">${btn("now", "Update the site now", true)}${btn("remove", site.armed ? (phone ? "Tap again to take it off" : "Click again to take it off") : "Take my diary off the site")}</div>
     <details class="site-help"><summary>Change the password</summary>${field("newpass", `New password (at least ${SITE_MIN_PASS} characters)`, "text", "new-password")}${btn("password", "Change the password")}
       <p class="status">Your other devices will ask for the new one.</p></details>
-    <p class="status"><button class="linkish" type="button" data-site="forget">Forget the GitHub key on this ${SITE_DEVICE}</button></p>`);
+    <details class="site-help"><summary>Use a new GitHub key</summary>${field("token", "New GitHub key (when the old one expires)", "password", "off")}${btn("key", "Use this key")}
+      <p class="status">It goes to every device through your locked diary.</p></details>`);
 }
 // Redraws the boxes whose content changed (so a password being typed isn't wiped by an unrelated redraw).
 const siteDrawn = new WeakMap();
@@ -3931,13 +3971,12 @@ document.addEventListener("click", (e) => {
     if (a === "create" && !SITEPUB && !siteKey(val("repo"), val("token"))) return;
     sitePublish({ password: pass });
   }
-  else if (a === "key") { if (siteKey(val("repo"), val("token"))) sitePublish().then(() => { if (SITEPUB && !site.err) siteSay("Key saved. This device now updates the site when something changes here."); }); }
+  else if (a === "key") { if (siteKey(val("repo") || (SITEPUB && SITEPUB.repo), val("token"))) sitePublish().then(() => { if (SITEPUB && !site.err) siteSay("Key saved. It reaches your other devices through your locked diary."); }); }
   else if (a === "now") sitePublish();
   else if (a === "remove") {
     if (!site.armed) { site.armed = setTimeout(() => { site.armed = null; siteRedraw(); }, 6000); return siteRedraw(); }
     clearTimeout(site.armed); site.armed = null; siteRemove();
   }
-  else if (a === "forget") { SITEPUB = null; ls.del(SITE_DIRTY); saveSite(); siteSay("The GitHub key is gone from this device. It still opens your diary from the site."); }
 });
 // Enter in the password box opens the diary
 document.addEventListener("keydown", (e) => {
@@ -3946,17 +3985,20 @@ document.addEventListener("keydown", (e) => {
   const b = e.target.closest("[data-sitebox]").querySelector('[data-site="unlock"]');
   if (b) b.click();
 });
-// After the first screen: check the site for its diary (or a newer copy), and send anything still waiting.
+// After the first screen: bring in what the site has that this device doesn't, then send what this device has that
+// the site doesn't (a part it lacks goes at once: the new layout, or a key). Lookups wait for this (`siteSettled`),
+// so nothing another device already found is looked up again.
 function siteStart() {
   if (!SITE_ON) return;
   siteRedraw();
-  (Date.now() - site.checked < 5000 ? Promise.resolve() : siteCheck(true)).then(() => {
-    if (!SITEPUB || !SITE) return;
-    // a part the site doesn't have yet (the keys, for a diary put there before they went along) goes up now
-    if (site.index && site.index.salt === SITE.salt && SITE_PARTS.some((p) => !site.index.parts[p])) ls.set(SITE_DIRTY, { ...(ls.get(SITE_DIRTY, null) || { at: Date.now() }), now: true });
-    if (ls.get(SITE_DIRTY, null)) siteLater();
-  });
+  site.ready = (Date.now() - site.checked < 5000 ? Promise.resolve() : siteCheck(true)).then(async () => {
+    if (!SITEPUB || !SITE || !(await siteDiffers())) return;
+    const missing = site.index && SITE_PARTS.some((p) => !site.index.parts[p]);
+    ls.set(SITE_DIRTY, { ...(ls.get(SITE_DIRTY, null) || { at: Date.now() }), ...(missing ? { now: true } : {}) });
+    siteLater();
+  }).catch(() => {});
 }
+const siteSettled = () => site.ready || Promise.resolve();
 </script>
 <script>
 /* ---------- page state ---------- */
@@ -5129,7 +5171,8 @@ async function init() {
   openRouteFilm();
   siteStart();
   // New diary entries from the daily feed, then a saved key picks up films not yet looked up.
-  if (MY_LIB) { await refreshFeed(); autoLookup(allFilmsLib()); pollLetterboxd(MY_LIB); }
+  // (lookups wait until this device has what the site has, so nothing found elsewhere is looked up again)
+  if (MY_LIB) { await refreshFeed(); siteSettled().then(() => autoLookup(allFilmsLib())); pollLetterboxd(MY_LIB); }
 }
 // Loads the feed for the imported member and redraws with any entries it adds.
 async function refreshFeed() {

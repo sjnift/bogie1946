@@ -24,6 +24,8 @@ const unescapeText = (s) => String(s).replace(/&(?:#(\d+)|#x([\da-f]+)|(amp|lt|g
 // A title and year that ignore how the title is written (curly or straight apostrophes, codes, accents,
 // punctuation, case) but keep the letters of every script, so one film always counts once.
 const titleKey = (name, year) => `${unescapeText(name).normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim()}|${parseInt(year, 10) || ""}`;
+// A quick number that's always the same for the same text (FNV-1a), for spreading things into groups.
+const hash32 = (s) => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); } return h >>> 0; };
 const personKey = (n) => String(n).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 const dayIndex = (iso) => Math.floor(Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10)) / 864e5);
 const weekdayOf = (iso) => (new Date(iso + "T00:00:00Z").getUTCDay() + 6) % 7; // Monday = 0
@@ -307,6 +309,7 @@ function cleanMeta(m) {
     ir: Number(m.ir) || null, iv: Number(m.iv) || null, mc: Number(m.mc) || null, rt: Number(m.rt) || null, om: m.om || null, // IMDb, Metacritic, Rotten Tomatoes
     y: parseInt(m.y, 10) || null, // TMDB's release year
     iy: parseInt(m.iy, 10) || null, ik: Array.isArray(m.ik) ? m.ik : undefined, il: Array.isArray(m.il) ? m.il : undefined, inf: m.inf || undefined, // IMDb's year, countries, languages
+    t: m.t || undefined, // when it was looked up: of two equally good copies on two devices, the newer is kept
   };
 }
 

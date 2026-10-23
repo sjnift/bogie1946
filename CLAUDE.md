@@ -2,8 +2,8 @@
 
 This file is everything a new session needs to keep working on Credits Roll. Read it fully before changing
 anything. **This repository is public: never write API keys, tokens or the owner's email into any file here** — the one
-exception, at the owner's request (Oct 2026), is their TMDB, OMDb and Apify keys inside the *encrypted* diary on the
-site (`docs/diary/keys.bin`). Never in the clear, and never the GitHub key.
+exception, at the owner's request (Oct 2026), is their TMDB, OMDb, Apify and GitHub keys inside the *encrypted* diary
+on the site (`docs/diary/keys.bin`). Never in the clear.
 
 ## What it is
 
@@ -55,8 +55,10 @@ Where it lives:
     year, and every other kind of person, keeps `minRated` (2, or 3 for 150+ films).
   - The best-rated decade is featured with its films' posters (phone Breakdown and desktop "Released").
   - **Their diary lives on the site, locked with a password** (see "The diary on the site"), so no device needs an
-    import. Never put it there unencrypted, and never with their email address or the GitHub key (the TMDB, OMDb and
-    Apify keys go in their own encrypted part).
+    import. Never put it there unencrypted, and never with their email address (the keys go in their own encrypted part).
+  - **No "main computer"**: every device where the password was typed is equal. It updates the site, and what any
+    device looks up (TMDB, OMDb) reaches the others, so nothing is looked up twice and their allowances aren't spent
+    on films another device already found.
   - **The main page is only stats.** Admin things (the export, lookups and their keys and small print, the diary on
     the site and its GitHub key, backups, deleting data, the disclaimers) live in Settings: the desktop's Settings
     page (`#/settings`) and the phone's Settings screen (gear). The desktop main page shows at most one line
@@ -253,26 +255,35 @@ friend replaces the address instead.
 The owner wanted the site itself to hold their diary, so no device needs an import (a private-repo sync was built
 first and replaced at their request). They chose: **only them, with a password**, put there by **a button in the
 app**. `06j-site.js`:
-- `docs/diary/` in this repository: `index.json` (in the clear: `user`, `imported`, `at`, `from`, PBKDF2 `salt`
-  and `iter` (600,000), `check`, and when each part last changed) and four encrypted parts, `rows.bin` (the
-  export), `meta.bin` (film details), `extra.bin` (photos, Letterboxd averages, friends), `keys.bin` (`SITE_KEYS`:
-  the TMDB, OMDb and Apify keys, so other devices never need them typed). Each part is one byte of kind (2 =
-  gzipped), a 12-byte IV, then AES-GCM. **Never** put anything there in the clear, the export's email address
-  (`siteRows` keeps only Username, Date Joined, Given and Family Name, for friends too), a key outside `keys.bin`, or
-  the GitHub key at all. The `site` check decrypts what goes up and fails on any of these.
-- Keys: a key typed or changed on the device that updates the site goes up within seconds (`SITE_SOON`); the site's
-  keys replace a device's own unless a change made there hasn't gone up yet. A diary put there before keys travelled
-  gets its `keys` part the next time that device opens the site. Bulk OMDb lookups (1,000 a day per key) run only on
-  a device that updates the site or has its own import (`siteLeadsLookups`), not on every device reading the diary.
+- `docs/diary/` in this repository: `index.json` (in the clear: `v` 2, `user`, `imported`, `at`, `from`, PBKDF2 `salt`
+  and `iter` (600,000), `check`, and when each part last changed) and encrypted parts (`SITE_PARTS`): `rows` (the
+  export), `keys` (`SITE_KEYS` TMDB, OMDb, Apify, plus `github` and `repo`), `lbx`, `friends`, and film details and
+  people's photos spread over 16 parts each (`m0`–`m15`, `p0`–`p15`, by `siteShard` = FNV-1a `hash32` of the key), so a
+  few newly found films send a few small parts. Each part is one byte of kind (2 = gzipped), a 12-byte IV, then
+  AES-GCM. Version 1 diaries (`rows`, `meta`, `extra`, `keys`) are read, and replaced by the new layout on the next
+  update. **Never** put anything there in the clear, the export's email address (`siteRows` keeps only Username, Date
+  Joined, Given and Family Name, for friends too), or a key outside `keys`. The `site` check decrypts everything and
+  fails on any of these.
+- Every unlocked device has the GitHub key (from `keys`) and keeps the site up to date. Merging (`siteTake`) always
+  lets the site's copy win unless this device's is strictly better (`metaBetter`: pinned, found, newer match, more
+  filled in, then the newer look-up time `t`; averages with a rating; the newer friend export), so devices settle on
+  one version instead of sending their own back and forth; the `site` check proves two devices converge.
+- Nothing is looked up twice: at start a device brings in what the site has before any lookup (`siteSettled` in both
+  `init()`s), and what it finds goes up a minute after lookups finish. Two devices fetching OMDb the same day go
+  through films in different orders (`deviceSeed`), so they mostly ask for different ones.
+- Keys: a key typed or changed on any device goes up within seconds (`SITE_SOON`); the site's keys replace a device's
+  own unless a change made there hasn't gone up yet. When the GitHub key expires, "Use a new GitHub key" on any device
+  sends the new one to all. Taken off the site from one device, the others stop sending (`SITE` cleared) and keep
+  their copy.
 - Putting it there: Settings (phone) or the foot of the page (desktop) → "Put my diary on the site": a password
-  (10+ characters) and a fine-grained GitHub key for this repository (Contents: Read and write) that stays in that
-  browser (`cr-site-pub-v1`). Each update is one commit through the git data API (`force: false`; on 422 it reads
+  (10+ characters) and a fine-grained GitHub key for this repository (Contents: Read and write), kept in the browser
+  (`cr-site-pub-v1`) and, through `keys`, on every unlocked device. Each update is one commit through the git data API (`force: false`; on 422 it reads
   the repository again, brings in the other device's change, merges, retries). Only parts whose content hash
   (`canon` + SHA-256, compared with `SITE.sums`) changed are sent.
-- Then it goes up by itself (`STORE_HOOK`): a new import or friend within seconds; film details and averages after
-  lookups finish, at most twice a day (`SITE_META_EVERY`), because each update adds a copy to the repository's
-  history. "Update the site now", "Change the password", "Take my diary off the site" (deletes `docs/diary/`;
-  nothing goes up again until it's put back), "Forget the GitHub key".
+- Then it goes up by itself (`STORE_HOOK`): a new import, friend or key within seconds; film details, photos and
+  averages a minute after lookups finish (only the parts that changed). "Update the site now", "Change the password",
+  "Use a new GitHub key", "Take my diary off the site" (deletes `docs/diary/`; nothing goes up again until it's put
+  back). At start a device sends whatever the site lacks or has differently (`siteDiffers`).
 - Opening it: any device with nothing imported shows "@user's diary is on this site" with a password box; the key
   made from it is kept (`cr-site-v1`), the parts are read from the site (`diary/<part>.bin?v=<when>`) and saved
   like an import, and later starts (and coming back to the app after 10 minutes) fetch only changed parts. A device
@@ -357,8 +368,10 @@ day, shared with the owner's own app. The in-app version is the "Check film data
 
 - Putting the diary on the site needs a GitHub key, which can expire (the owner was told to pick the longest
   expiry); when it does, the box says the key wasn't accepted and the owner makes a new one the same way.
-- Each update of the diary on the site stays in the repository's history (a few hundred KB each, so maybe
-  100–200 MB a year at most). If the repository ever gets too big, the history of `docs/diary/` can be squashed.
+- Each update of the diary on the site stays in the repository's history (usually a few small parts, tens of KB; a
+  new import or a full lookup sends more). If the repository ever gets too big, the history of `docs/diary/` can be
+  squashed.
+- The password now guards the GitHub key too (it can change the site), so it should be long and used nowhere else.
 - A forgotten password can't be recovered: the device that puts the diary there changes it (it keeps the key).
 - Inside the Claude artifacts, downloads (backup, year picture) don't work; backups are hidden there and the
   picture can be saved by right-click or long-press. Declaring the artifact `downloads` capability would fix it.

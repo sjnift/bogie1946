@@ -176,7 +176,7 @@ async function tmdbDetails(id, key, signal) {
     m: names(crew.filter((c) => c.job === "Original Music Composer" || c.job === "Music")),
     g: (d.genres || []).map((g) => g.name),
     k: (d.production_countries || []).map((c) => c.name),
-    l: spokenIn(d), r: d.runtime, va: d.vote_average, vc: d.vote_count, im: d.imdb_id,
+    l: spokenIn(d), r: d.runtime, va: d.vote_average, vc: d.vote_count, im: d.imdb_id, t: new Date().toISOString(),
     ...(FILM_FIXES[d.id] || {}),
   });
 }
@@ -253,8 +253,11 @@ let editOmdb = false;
 const IMDB_FIELDS = ["ir", "iv", "mc", "rt", "om", "iy", "ik", "il", "inf"];
 // Films with an IMDb id still to ask OMDb about, including ones asked before IMDb's countries were kept.
 const needsImdb = (lib) => lib.films.filter((f) => { const m = META[f.key]; return m && !m.miss && m.im && (!m.om || (!m.ik && !m.inf)); });
+// Each device goes through films in its own order, so two devices fetching on the same day mostly ask OMDb for
+// different films (their results meet on the site) instead of spending the 1,000 a day twice on the same ones.
+const deviceSeed = () => { let s = ls.get("cr-device", ""); if (!s) { s = Math.random().toString(36).slice(2); ls.set("cr-device", s); } return s; };
 async function runOmdb(lib, key) {
-  const queue = needsImdb(lib);
+  const seed = deviceSeed(), queue = needsImdb(lib).sort((a, b) => hash32(seed + a.key) - hash32(seed + b.key));
   if (!queue.length || imdbJob.running) return;
   Object.assign(imdbJob, { running: true, ctl: new AbortController(), done: 0, total: queue.length, note: "", err: false, badKey: false });
   renderLookup();
@@ -270,11 +273,11 @@ async function runOmdb(lib, key) {
         if (d.Response === "False") {
           if (/limit/i.test(d.Error || "")) { stop = "limit"; return; }
           if (/api key/i.test(d.Error || "") || res.status === 401) { stop = "key"; return; }
-          Object.assign(m, { om: today, inf: true }); // OMDb doesn't know this film; don't ask again
+          Object.assign(m, { om: today, inf: true, t: new Date().toISOString() }); // OMDb doesn't know this film; don't ask again
         } else {
           const rt = (d.Ratings || []).find((x) => x.Source === "Rotten Tomatoes");
           const names = (v) => String(v || "").split(/,\s*/).map((x) => x.trim()).filter((x) => x && x !== "N/A");
-          Object.assign(m, { ir: num(d.imdbRating), iv: num(d.imdbVotes), mc: num(d.Metascore), rt: rt ? num(rt.Value) : null, om: today,
+          Object.assign(m, { ir: num(d.imdbRating), iv: num(d.imdbVotes), mc: num(d.Metascore), rt: rt ? num(rt.Value) : null, om: today, t: new Date().toISOString(),
             iy: parseInt(d.Year, 10) || null, ik: names(d.Country).map(country), il: names(d.Language).map(language) });
         }
       } catch (e) {

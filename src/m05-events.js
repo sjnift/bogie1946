@@ -220,7 +220,8 @@ async function init() {
   openRouteFilm();
   siteStart();
   // New diary entries from the daily feed, then a saved key picks up films not yet looked up.
-  if (MY_LIB) { await refreshFeed(); autoLookup(allFilmsLib()); pollLetterboxd(MY_LIB); }
+  // (lookups wait until this device has what the site has, so nothing found elsewhere is looked up again)
+  if (MY_LIB) { await refreshFeed(); siteSettled().then(() => autoLookup(allFilmsLib())); pollLetterboxd(MY_LIB); }
 }
 async function refreshFeed() {
   const feed = MY_LIB && await loadFeed(MY_LIB.profile.username);
