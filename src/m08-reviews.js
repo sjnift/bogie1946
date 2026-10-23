@@ -1,7 +1,7 @@
 <script>
 /* ---------- phone: reviews, review insights and side-by-side reviews ---------- */
-const mReimport = () => `<div class="card glow notice"><p class="title">Your reviews aren't in yet.</p>
-  <p class="status">The copy of your export saved here was made before review text was kept. Import your Letterboxd export again to bring your reviews in, formatting and all.</p>
+const mReimport = () => `<div class="card glow notice"><p class="title">Your reviews' words aren't saved here yet</p>
+  <p class="status">The copy of your export in this browser lists your reviews but not their text, as it was saved by an older version of this app. Download a fresh export (Letterboxd → Settings → Data → Export your data) and import it here: your reviews come in, formatting and all.</p>
   <button class="btn green block" type="button" data-act="import">Import export</button></div>`;
 
 function mReviewItem(r) {
@@ -21,7 +21,8 @@ function mReviewList(year) {
 }
 function reviewsScreen() {
   const lib = state.lib, year = state.scope === "all" ? null : state.scope;
-  if (lib.reviewTextMissing) return mReimport();
+  // the reviews that do have words (from the daily feed) still show under the note
+  if (lib.reviewTextMissing) return mReimport() + (reviewsIn(lib, year).length ? `<div id="review-list">${mReviewList(year)}</div>` : "");
   if (!reviewsIn(lib, year).length) return `<div class="empty" style="padding-top:28px">No written reviews ${year ? `in ${year}` : "yet"}.</div>`;
   return `<div class="search-field">${SEARCH_ICON}<label class="sr-only" for="review-search">Search your reviews</label>
     <input id="review-search" type="search" autocomplete="off" placeholder="Search your reviews" value="${esc(state.reviewQuery || "")}"></div>

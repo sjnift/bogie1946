@@ -1,7 +1,8 @@
 <script>
 /* ---------- desktop: reviews on the stats page, in Insights and in Compare ---------- */
-const reimportNote = () => `<div class="notice"><p><strong>Your reviews aren't in yet.</strong> The copy of your export saved in this browser was made before
-  review text was kept. Import your Letterboxd export again to bring your reviews in, formatting and all.</p>
+const reimportNote = () => `<div class="notice"><p><strong>Your reviews' words aren't saved here yet.</strong> The copy of your export in this browser lists your
+  reviews but not their text, as it was saved by an older version of this page. Download a fresh export (Letterboxd → Settings → Data → Export your data)
+  and import it here: your reviews come in, formatting and all. Reviews from your daily feed show below meanwhile.</p>
   <button class="btn small" type="button" data-reimport>Import export</button></div>`;
 
 function reviewCard(r) {
@@ -29,8 +30,9 @@ function reviewListHtml(scopeYear) {
 }
 function reviewsBlock(s) {
   const lib = state.lib;
-  if (lib.reviewTextMissing) return reimportNote();
   const year = s.scope === "all" ? null : s.scope;
+  // the reviews that do have words (from the daily feed) still show under the note
+  if (lib.reviewTextMissing) return reimportNote() + (reviewsIn(lib, year).length ? `<div id="review-list">${reviewListHtml(year)}</div>` : "");
   if (!reviewsIn(lib, year).length) return `<div class="empty">No reviews ${year ? `in ${year}` : "yet"}.</div>`;
   return `<div class="review-tools"><label class="sr-only" for="review-search">Search your reviews</label>
     <input id="review-search" type="search" autocomplete="off" placeholder="Search your reviews by word or title" value="${esc(state.reviewQuery || "")}"></div>

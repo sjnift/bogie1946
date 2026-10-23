@@ -290,6 +290,29 @@ img.fade.in { opacity: 1; }
 .pod .avatar.lg { width: 64px; height: 64px; }
 .pod.first .avatar.lg { width: 76px; height: 76px; font-size: 24px; }
 
+/* ---------- the best decade ---------- */
+.decade-hero { position: relative; overflow: hidden; isolation: isolate; margin-top: 16px; gap: 6px; padding-bottom: 6px;
+  background: radial-gradient(120% 120% at 0% 0%, rgba(0, 224, 84, .14), transparent 60%), var(--surface); }
+.dh-bg { position: absolute; inset: 0; z-index: -1; display: flex; opacity: .55; }
+.dh-bg img { flex: 1 1 0; min-width: 0; height: 100%; object-fit: cover; filter: blur(20px) saturate(1.3) brightness(.45); transform: scale(1.3); }
+.dh-bg::after { content: ""; position: absolute; inset: 0; background: linear-gradient(rgba(28, 35, 41, .2), var(--surface) 92%); }
+.dh-k { font-size: 12px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; color: var(--green); }
+.dh-title { all: unset; cursor: pointer; display: grid; gap: 2px; }
+.dh-dec { color: var(--ink); font-size: 34px; font-weight: 800; letter-spacing: -.025em; line-height: 1.05; }
+.dh-sub { display: inline-flex; align-items: center; gap: 4px; font-size: 14.5px; color: var(--ink-1); }
+.decade-hero .scroller { margin-top: 6px; }
+.drank { all: unset; box-sizing: border-box; width: 100%; cursor: pointer; display: grid; grid-template-columns: 22px minmax(0, 1fr) auto 14px; gap: 12px; align-items: center; padding: 10px 14px 10px 12px; transition: background .12s; }
+.drank:active { background: var(--surface-2); }
+.drank:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
+.drank .rk { font-size: 13px; font-weight: 700; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+.drank .nm { display: block; color: var(--ink); font-size: 17px; font-weight: 800; letter-spacing: -.01em; }
+.drank .sub { display: block; font-size: 12.5px; color: var(--ink-2); }
+.drank .chev { width: 14px; height: 14px; }
+.mposters { display: flex; }
+.mposters .poster { width: 32px; border-radius: 3px; box-shadow: 0 0 0 2px var(--surface), 0 3px 8px rgba(0, 0, 0, .35); }
+.mposters .poster + .poster { margin-left: -9px; }
+.mposters .poster .ph { display: none; }
+
 /* ---------- diary ---------- */
 .facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
 .fact { background: var(--surface); border-radius: 16px; padding: 12px 14px; display: grid; gap: 2px; min-width: 0; box-shadow: inset 0 0 0 1px var(--line); }
@@ -992,7 +1015,8 @@ const WANTED = {
 const LOOSE_LIKES = /^films\.csv$/i; // likes/films.csv dropped on its own
 
 function parseCsv(text) {
-  const out = Papa.parse(text.replace(/^﻿/, ""), { header: true, skipEmptyLines: true });
+  // column names as Letterboxd writes them, give or take spaces and capitals ("review " is still the Review)
+  const out = Papa.parse(text.replace(/^﻿/, ""), { header: true, skipEmptyLines: true, transformHeader: (h) => { const t = String(h).trim(); return /^review$/i.test(t) ? "Review" : t; } });
   const rows = out.data.filter((r) => r && r.Name);
   rows.fields = (out.meta && out.meta.fields) || Object.keys(out.data[0] || {});
   return rows;
@@ -1120,7 +1144,7 @@ function buildLibrary(input) {
     if (e) e.review = true;
     const { html, text } = reviewParts(r.Review);
     reviews.push({ film: f, date: /^\d{4}-\d{2}-\d{2}$/.test(d || "") ? d : null, rating: parseFloat(r.Rating) || f.rating || null,
-      html, text, words: text ? text.split(/\s+/).length : 0, tags: r.Tags || "", rewatch: /^yes$/i.test(r.Rewatch || "") });
+      html, text, words: text ? text.split(/\s+/).length : 0, tags: r.Tags || "", rewatch: /^yes$/i.test(r.Rewatch || ""), feed: !!r.feed });
   }
   reviews.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
   entries.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : a.order - b.order);
@@ -1131,8 +1155,9 @@ function buildLibrary(input) {
   const p = rows.profile[0] || {};
   return {
     films: [...films.values()], entries, reviews,
-    // a saved import from before review text was kept: the reviews are counted but their words are missing
-    reviewTextMissing: reviews.length > 0 && reviews.every((r) => !r.text),
+    // a saved import from before review text was kept: the export's reviews are counted but their words are
+    // missing (reviews from the daily feed have words, so they don't count here)
+    reviewTextMissing: reviews.some((r) => !r.feed) && reviews.every((r) => r.feed || !r.text),
     profile: { username: p.Username || "", joined: (p["Date Joined"] || "").slice(0, 10), name: [p["Given Name"], p["Family Name"]].filter(Boolean).join(" ") },
     watchlist: rows.watchlist.length,
     // a film still on the watchlist after it was watched isn't something to watch next
@@ -1196,6 +1221,8 @@ function inScope(lib, scope) {
   return { films: [...new Set(entries.map((e) => e.film))], entries };
 }
 
+// Highest-rated actors need this many rated films each, so one great film doesn't top the list (the owner's call).
+const CAST_MIN_RATED = 6;
 function rankPeople(films, metaOf, role, minRated) {
   const map = new Map();
   for (const f of films) {
@@ -1277,7 +1304,7 @@ function computeStats(lib, metaOf, scope) {
     x.films.push(f); if (f.rating) x.ratings.push(f.rating);
   }
   const decades = [...dec.values()].map((x) => ({ ...x, count: x.films.length, avg: avg(x.ratings),
-    top: [...x.films].filter((f) => f.rating).sort((a, b) => b.rating - a.rating || b.entries.length - a.entries.length).slice(0, 5) }))
+    top: [...x.films].filter((f) => f.rating).sort((a, b) => b.rating - a.rating || b.entries.length - a.entries.length).slice(0, 8) }))
     .sort((a, b) => a.decade - b.decade);
 
   const minRated = films.length >= 150 ? 3 : 2;
@@ -1290,7 +1317,7 @@ function computeStats(lib, metaOf, scope) {
     likes: films.filter((f) => f.liked).length,
     byDay, byMonth, weekday, busiestMonth, busiestDay, streak: longestStreak(entries),
     decades,
-    cast: rankPeople(films, metaOf, "c", minRated), directors: rankPeople(films, metaOf, "d", minRated),
+    cast: rankPeople(films, metaOf, "c", CAST_MIN_RATED), directors: rankPeople(films, metaOf, "d", minRated),
     writers: rankPeople(films, metaOf, "w", minRated), dop: rankPeople(films, metaOf, "p", minRated), music: rankPeople(films, metaOf, "m", minRated),
     genres: rankCategory(films, metaOf, "g"), countries: rankCategory(films, metaOf, "k"), languages: rankCategory(films, metaOf, "l"),
     newReleases: scope === "all" ? null : films.filter((f) => String(f.year) === scope).length,
@@ -2916,7 +2943,7 @@ function withFeed(rows, feed) {
     if (!watched.has(tk)) { out.watched.push({ ...base, Date: x.logged || x.watched, "Letterboxd URI": "" }); watched.add(tk); }
     if (x.rating && !rated.has(tk)) { out.ratings.push({ ...base, Rating: String(x.rating) }); rated.add(tk); }
     if (x.liked && !liked.has(tk)) { out.likes.push(base); liked.add(tk); }
-    if (x.review) out.reviews.push({ ...entry, Review: x.review });
+    if (x.review) out.reviews.push({ ...entry, Review: x.review, feed: true });
     added.push({ ...x, title });
   }
   return { rows: out, added };
@@ -3557,7 +3584,7 @@ function welcomeScreen() {
       <p class="status">A backup file from another device works the same way.</p>
       ${state.importError ? `<p class="status err" role="alert">${esc(state.importError)}</p>` : ""}</div>
     ${IN_VIEWER ? `<p class="note">This Claude version keeps its own copy of an import. Your saved diary is on the website, <a href="https://sjnift.github.io/credits-roll/" target="_blank" rel="noopener">sjnift.github.io/credits-roll</a>.</p>` : ""}
-    <div class="foot"><p class="stamp">Updated 23 Oct 2026, 09:11 UTC</p></div>`;
+    <div class="foot"><p class="stamp">Updated 23 Oct 2026, 09:27 UTC</p></div>`;
 }
 // The header frosts over once the screen scrolls under it.
 function updateTop() { $("#top").classList.toggle("solid", window.scrollY > 12); }
@@ -3681,11 +3708,12 @@ function profileScreen(s) {
         ${avatar(p, "lg")}<span class="nm">${esc(p.name)}</span><span class="ct">${plural(p.count, "film")}</span></button>`).join("")}</div>`;
   };
   const people = s.withMeta ? strip("Most watched actors", s.cast, "c") + strip("Most watched directors", s.directors, "d") : "";
-  return hero + scopeBar() + notice + note + fill + tiles + recentRow + otd + ratings + people;
+  const reimport = !ex && lib.reviewTextMissing ? mReimport() : "";
+  return hero + scopeBar() + notice + note + reimport + fill + tiles + recentRow + otd + ratings + people;
 }
 
 /* ---------- Stats: films, people, genres ---------- */
-const statsHead = () => ltitle("Stats") + scopeBar() + segBar("view", [["films", "Films"], ["people", "People"], ["genres", "Genres"]], state.view);
+const statsHead = () => ltitle("Stats") + scopeBar() + segBar("view", [["films", "Films"], ["people", "People"], ["genres", "Breakdown"]], state.view);
 function peopleScreen(s) {
   const role = state.role;
   const data = { c: s.cast, d: s.directors, w: s.writers, p: s.dop, m: s.music }[role] || s.cast;
@@ -3695,7 +3723,7 @@ function peopleScreen(s) {
     segBar("sort", [["most", "Most watched"], ["best", "Highest rated"]], state.sort, "small");
   if (!s.withMeta) return head + needMeta();
   const note = role === "c" ? `Counts the top ${CAST_DEPTH} billed cast of each film.` : "";
-  const bestNote = best ? `${note ? " " : ""}Highest rated needs ${s.minRated} or more rated films.` : "";
+  const bestNote = best ? `${note ? " " : ""}Highest rated needs ${role === "c" ? CAST_MIN_RATED : s.minRated} or more rated films.` : "";
   const val = (p) => best ? `★ ${p.avg.toFixed(2)}` : plural(p.count, "film");
   const podium = list.length >= 3 ? `<div class="podium">${[1, 0, 2].map((i) => { const p = list[i];
     return `<button class="pod${i ? "" : " first"}" type="button" data-list="${reg(p.name, filmsTitle(p), p.films, p)}">${avatar(p, "lg")}<span class="rkb">${i + 1}</span><span class="nm">${esc(p.name)}</span><span class="ct">${val(p)}</span></button>`; }).join("")}</div>` : "";
@@ -3788,9 +3816,25 @@ function filmsScreen(s) {
   return html;
 }
 
-/* ---------- Stats › Genres, countries, languages, decades ---------- */
+/* ---------- Stats › Breakdown: the best decade, genres, countries, languages, decades ---------- */
+// Decades with three or more rated films, best average first.
+const rankedDecades = (s) => s.decades.filter((x) => x.ratings.length >= 3).sort((a, b) => b.avg - a.avg || b.count - a.count);
+// The best-rated decade, up front, with its best films' posters.
+function bestDecadeCard(x, scope) {
+  const pics = showImages ? x.top.filter((f) => metaOf(f) && metaOf(f).poster).slice(0, 3) : [];
+  return `<section class="card decade-hero"><div class="dh-bg" aria-hidden="true">${pics.map((f) => `<img src="${IMG}${esc(metaOf(f).poster)}" alt="" decoding="async" onerror="this.remove()">`).join("")}</div>
+    <p class="dh-k">Best-rated decade${scope === "all" ? "" : ` · watched in ${esc(scope)}`}</p>
+    <button class="dh-title" type="button" ${dl(DR.decade(x))}><span class="dh-dec">The ${x.decade}s</span>
+      <span class="dh-sub"><span class="stars">★</span> ${x.avg.toFixed(2)} average from ${plural(x.ratings.length, "rated film")}${CHEV}</span></button>
+    <div class="scroller">${x.top.map((f) => posterItem(f)).join("")}</div></section>`;
+}
+// A decade in the ranking: its average and its three best posters.
+const decadeRow = (x, i) => `<button class="drank" type="button" data-k="d${x.decade}" ${dl(DR.decade(x))}><span class="rk">${i + 1}</span>
+  <span style="min-width:0"><span class="nm">${x.decade}s</span><span class="sub"><span class="stars">★</span> ${x.avg.toFixed(2)} average · ${plural(x.count, "film")}</span></span>
+  <span class="mposters" aria-hidden="true">${x.top.slice(0, 3).map(poster).join("")}</span>${CHEV}</button>`;
 function genresScreen(s) {
-  let html = statsHead() + segBar("catsort", [["most", "Most watched"], ["best", "Highest rated"]], state.catSort, "small");
+  const ranked = rankedDecades(s);
+  let html = statsHead() + (ranked.length ? bestDecadeCard(ranked[0], s.scope) : "") + segBar("catsort", [["most", "Most watched"], ["best", "Highest rated"]], state.catSort, "small");
   const best = state.catSort === "best";
   if (s.withMeta) {
     for (const [label, data, field] of [["Genres", s.genres, "genres"], ["Countries", s.countries, "countries"], ["Languages", s.languages, "languages"]]) {
@@ -3805,10 +3849,8 @@ function genresScreen(s) {
       const x = all.find((y) => y.decade === d);
       cols.push({ a: x ? x.count : 0, b: 0, label: `’${String(d).slice(2)}`, tip: `${d}s: ${plural(x ? x.count : 0, "film")}${x && x.avg ? ` · ${x.avg.toFixed(2)} average` : ""}`, to: x && DR.decade(x) });
     }
-    const ranked = all.filter((x) => x.ratings.length >= 3).sort((a, b) => b.avg - a.avg).slice(0, 5)
-      .map((x) => ({ name: `${x.decade}s`, films: x.films, count: x.count, avg: x.avg }));
-    html += sh("Decades") + `<div class="card">${colChart(cols, "Films by decade of release", "", 100)}</div>` +
-      (ranked.length ? sh("Highest-rated decades") + `<div class="group">${ranked.map((c) => catRow(c, 1, true)).join("")}</div>` : "");
+    html += (ranked.length ? sh("Decades, best rated first") + `<div class="group">${ranked.map(decadeRow).join("")}</div>` : "") +
+      sh("Films by decade of release") + `<div class="card">${colChart(cols, "Films by decade of release", "", 100)}</div>`;
   }
   return html;
 }
@@ -3892,7 +3934,7 @@ function dataScreen() {
       <p>With your own TMDB key, film details come from The Movie Database. This product uses the TMDB API but is not endorsed or certified by TMDB.
       Inside the Claude app, details come from Claude's knowledge of each film instead, so check anything surprising.</p>
       <p>On a computer? <a href="desktop.html">Open the desktop version</a>. It uses the same import.</p>
-      <p class="stamp">Updated 23 Oct 2026, 09:11 UTC</p></div>`;
+      <p class="stamp">Updated 23 Oct 2026, 09:27 UTC</p></div>`;
 }
 
 /* ---------- pushed screens ---------- */
@@ -4219,8 +4261,8 @@ function mGroup(profiles) {
 </script>
 <script>
 /* ---------- phone: reviews, review insights and side-by-side reviews ---------- */
-const mReimport = () => `<div class="card glow notice"><p class="title">Your reviews aren't in yet.</p>
-  <p class="status">The copy of your export saved here was made before review text was kept. Import your Letterboxd export again to bring your reviews in, formatting and all.</p>
+const mReimport = () => `<div class="card glow notice"><p class="title">Your reviews' words aren't saved here yet</p>
+  <p class="status">The copy of your export in this browser lists your reviews but not their text, as it was saved by an older version of this app. Download a fresh export (Letterboxd → Settings → Data → Export your data) and import it here: your reviews come in, formatting and all.</p>
   <button class="btn green block" type="button" data-act="import">Import export</button></div>`;
 
 function mReviewItem(r) {
@@ -4240,7 +4282,8 @@ function mReviewList(year) {
 }
 function reviewsScreen() {
   const lib = state.lib, year = state.scope === "all" ? null : state.scope;
-  if (lib.reviewTextMissing) return mReimport();
+  // the reviews that do have words (from the daily feed) still show under the note
+  if (lib.reviewTextMissing) return mReimport() + (reviewsIn(lib, year).length ? `<div id="review-list">${mReviewList(year)}</div>` : "");
   if (!reviewsIn(lib, year).length) return `<div class="empty" style="padding-top:28px">No written reviews ${year ? `in ${year}` : "yet"}.</div>`;
   return `<div class="search-field">${SEARCH_ICON}<label class="sr-only" for="review-search">Search your reviews</label>
     <input id="review-search" type="search" autocomplete="off" placeholder="Search your reviews" value="${esc(state.reviewQuery || "")}"></div>

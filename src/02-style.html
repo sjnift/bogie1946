@@ -443,6 +443,16 @@ dialog.tall { width: min(520px, calc(100vw - 32px)); max-height: 94vh; }
 footer { border-top: 1px solid var(--line); padding-block: 22px 40px; color: var(--muted); font-size: 13px; }
 footer p { margin: 0 0 6px; max-width: 80ch; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+/* the best-rated decade */
+.best-decade { display: grid; grid-template-columns: minmax(180px, 240px) minmax(0, 1fr); gap: 16px 28px; align-items: center; padding: 18px 20px;
+  border: 1px solid var(--line); border-radius: var(--radius); background: linear-gradient(120deg, color-mix(in srgb, var(--gold) 12%, var(--surface)), var(--surface) 60%); }
+.bd-head { display: grid; gap: 6px; }
+.bd-title { font-family: var(--display); font-weight: 800; font-size: 52px; line-height: .9; text-transform: uppercase; letter-spacing: .01em; }
+.bd-title .dlink { text-decoration: none; }
+.bd-title .accent { color: var(--gold-ink); }
+.bd-head p { margin: 0; }
+.best-decade .posters { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+@media (max-width: 760px) { .best-decade { grid-template-columns: minmax(0, 1fr); } .best-decade .posters { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 /* nothing imported yet: just the title band and how to import */
 body.empty #tiles, body.empty #lookup, body.empty #sections, body.empty #insights, body.empty #compare, body.empty #drillpage,
 body.empty .scopes-row, body.empty #btn-search, body.empty #btn-insights, body.empty #btn-compare { display: none !important; }

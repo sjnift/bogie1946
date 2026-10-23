@@ -43,6 +43,9 @@ Where it lives:
     underline under bare numbers, no underlines in tables (a "click any number" line under each table instead),
     rounded tags for genres, countries, languages and cast. No white dotted underlines.
   - They like charts and data views that are accurate, clear and consistent in light and dark mode.
+  - Highest-rated actors need **6 rated films** each (`CAST_MIN_RATED`); other people keep `minRated` (2, or 3
+    for 150+ films).
+  - The best-rated decade is featured with its films' posters (phone Breakdown and desktop "Released").
   - **No example diary** (they got stuck in it and asked for it to go): with a diary saved, the app always shows
     it; with nothing saved it shows an import screen. The made-up example only appears with `?example` in the
     address and nothing imported (`SHOW_EXAMPLE`), which the checks use. There is no switch to it.
@@ -138,7 +141,9 @@ The owner asked for this to be checked every time. A film, diary entry, person o
 
 - Tabs: **Profile** (hero, year chips, tiles for Reviews/Watch next/Liked/Rewatches, recently watched, On this
   day, ratings, most watched people; no "Top rated" row, removed at the owner's request; gear → Settings), **Diary**, **Stats** (a segmented control:
-  `films`, `people`, `genres` are three views; the tab remembers the last), **Insights** (the year chips pick
+  `films`, `people`, `genres` are three views, the last labelled **Breakdown** because it also holds countries,
+  languages and decades; it opens with the best-rated decade and its posters, and ranks decades with three
+  posters each; the tab remembers the last view), **Insights** (the year chips pick
   all years or one; underlined section tabs: `state.insTab` / `state.yearTab`), **Compare** (friend chips,
   section tabs `state.cmpTab`). Pushed screens (`state.stack`): `data` (Settings: import, lookups, backups,
   footer stamp), `reviews`, `watchnext`, `cat`, `drill` ("See all").
@@ -236,7 +241,7 @@ shows the latest ~50, so it accumulates), commits, and asks Pages to rebuild. Th
 service cut off unless a check stands in for it, service worker off unless asked, reduced motion, pages opened
 with `?example` (pass `example: false` for an empty browser; a check's own `goto` must add `?example` too),
 `phoneTour()` which opens every phone tab, Stats view and Insights/Compare section), `run.mjs`, and checks:
-`apify`, `check` (film data check), `counts` (double counting), `welcome` (no example diary; import saved at once), `extras` (year picture, On this day, Watch next, PWA), `feed`, `import`,
+`apify`, `check` (film data check), `counts` (double counting), `reviews` (missing review text spotted; six-film actors), `welcome` (no example diary; import saved at once), `extras` (year picture, On this day, Watch next, PWA), `feed`, `import`,
 `links` (every link opens something), `pages` (nothing broken shows, no sideways scroll on the phone),
 `routes`, `storage` (IndexedDB move, backup and restore), `tmdb` (fixing a match, filmography, search).
 
@@ -270,6 +275,9 @@ day, shared with the owner's own app. The in-app version is the "Check film data
   weighting. Coney Island counted as watched because it was only liked → likes only mark logged films.
 - Reviews went missing: an old cached app version dropped review text (service worker now always checks the
   server), then `likes/reviews.csv` (empty) overwrote the real `reviews.csv` → only top-level files count.
+  Then again (Oct 2026): a saved export without review text went unnoticed because the daily feed's few reviews
+  had words → `reviewTextMissing` looks only at the export's reviews (feed ones carry `feed: true`), the note
+  says to download a fresh export, and the Review column is found whatever its spacing or capitals.
 - 336 films lacked Letterboxd averages because one Apify run stops at 1,300 films → follow-up runs by address.
 - Twilight's Last Gleaming counted twice in 2026: the feed wrote `Twilight&#039;s…` → `titleKey` everywhere,
   and the `counts` check now runs on every push.

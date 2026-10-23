@@ -294,11 +294,12 @@ function profileScreen(s) {
         ${avatar(p, "lg")}<span class="nm">${esc(p.name)}</span><span class="ct">${plural(p.count, "film")}</span></button>`).join("")}</div>`;
   };
   const people = s.withMeta ? strip("Most watched actors", s.cast, "c") + strip("Most watched directors", s.directors, "d") : "";
-  return hero + scopeBar() + notice + note + fill + tiles + recentRow + otd + ratings + people;
+  const reimport = !ex && lib.reviewTextMissing ? mReimport() : "";
+  return hero + scopeBar() + notice + note + reimport + fill + tiles + recentRow + otd + ratings + people;
 }
 
 /* ---------- Stats: films, people, genres ---------- */
-const statsHead = () => ltitle("Stats") + scopeBar() + segBar("view", [["films", "Films"], ["people", "People"], ["genres", "Genres"]], state.view);
+const statsHead = () => ltitle("Stats") + scopeBar() + segBar("view", [["films", "Films"], ["people", "People"], ["genres", "Breakdown"]], state.view);
 function peopleScreen(s) {
   const role = state.role;
   const data = { c: s.cast, d: s.directors, w: s.writers, p: s.dop, m: s.music }[role] || s.cast;
@@ -308,7 +309,7 @@ function peopleScreen(s) {
     segBar("sort", [["most", "Most watched"], ["best", "Highest rated"]], state.sort, "small");
   if (!s.withMeta) return head + needMeta();
   const note = role === "c" ? `Counts the top ${CAST_DEPTH} billed cast of each film.` : "";
-  const bestNote = best ? `${note ? " " : ""}Highest rated needs ${s.minRated} or more rated films.` : "";
+  const bestNote = best ? `${note ? " " : ""}Highest rated needs ${role === "c" ? CAST_MIN_RATED : s.minRated} or more rated films.` : "";
   const val = (p) => best ? `★ ${p.avg.toFixed(2)}` : plural(p.count, "film");
   const podium = list.length >= 3 ? `<div class="podium">${[1, 0, 2].map((i) => { const p = list[i];
     return `<button class="pod${i ? "" : " first"}" type="button" data-list="${reg(p.name, filmsTitle(p), p.films, p)}">${avatar(p, "lg")}<span class="rkb">${i + 1}</span><span class="nm">${esc(p.name)}</span><span class="ct">${val(p)}</span></button>`; }).join("")}</div>` : "";

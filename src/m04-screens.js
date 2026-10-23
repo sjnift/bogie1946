@@ -79,9 +79,25 @@ function filmsScreen(s) {
   return html;
 }
 
-/* ---------- Stats › Genres, countries, languages, decades ---------- */
+/* ---------- Stats › Breakdown: the best decade, genres, countries, languages, decades ---------- */
+// Decades with three or more rated films, best average first.
+const rankedDecades = (s) => s.decades.filter((x) => x.ratings.length >= 3).sort((a, b) => b.avg - a.avg || b.count - a.count);
+// The best-rated decade, up front, with its best films' posters.
+function bestDecadeCard(x, scope) {
+  const pics = showImages ? x.top.filter((f) => metaOf(f) && metaOf(f).poster).slice(0, 3) : [];
+  return `<section class="card decade-hero"><div class="dh-bg" aria-hidden="true">${pics.map((f) => `<img src="${IMG}${esc(metaOf(f).poster)}" alt="" decoding="async" onerror="this.remove()">`).join("")}</div>
+    <p class="dh-k">Best-rated decade${scope === "all" ? "" : ` · watched in ${esc(scope)}`}</p>
+    <button class="dh-title" type="button" ${dl(DR.decade(x))}><span class="dh-dec">The ${x.decade}s</span>
+      <span class="dh-sub"><span class="stars">★</span> ${x.avg.toFixed(2)} average from ${plural(x.ratings.length, "rated film")}${CHEV}</span></button>
+    <div class="scroller">${x.top.map((f) => posterItem(f)).join("")}</div></section>`;
+}
+// A decade in the ranking: its average and its three best posters.
+const decadeRow = (x, i) => `<button class="drank" type="button" data-k="d${x.decade}" ${dl(DR.decade(x))}><span class="rk">${i + 1}</span>
+  <span style="min-width:0"><span class="nm">${x.decade}s</span><span class="sub"><span class="stars">★</span> ${x.avg.toFixed(2)} average · ${plural(x.count, "film")}</span></span>
+  <span class="mposters" aria-hidden="true">${x.top.slice(0, 3).map(poster).join("")}</span>${CHEV}</button>`;
 function genresScreen(s) {
-  let html = statsHead() + segBar("catsort", [["most", "Most watched"], ["best", "Highest rated"]], state.catSort, "small");
+  const ranked = rankedDecades(s);
+  let html = statsHead() + (ranked.length ? bestDecadeCard(ranked[0], s.scope) : "") + segBar("catsort", [["most", "Most watched"], ["best", "Highest rated"]], state.catSort, "small");
   const best = state.catSort === "best";
   if (s.withMeta) {
     for (const [label, data, field] of [["Genres", s.genres, "genres"], ["Countries", s.countries, "countries"], ["Languages", s.languages, "languages"]]) {
@@ -96,10 +112,8 @@ function genresScreen(s) {
       const x = all.find((y) => y.decade === d);
       cols.push({ a: x ? x.count : 0, b: 0, label: `’${String(d).slice(2)}`, tip: `${d}s: ${plural(x ? x.count : 0, "film")}${x && x.avg ? ` · ${x.avg.toFixed(2)} average` : ""}`, to: x && DR.decade(x) });
     }
-    const ranked = all.filter((x) => x.ratings.length >= 3).sort((a, b) => b.avg - a.avg).slice(0, 5)
-      .map((x) => ({ name: `${x.decade}s`, films: x.films, count: x.count, avg: x.avg }));
-    html += sh("Decades") + `<div class="card">${colChart(cols, "Films by decade of release", "", 100)}</div>` +
-      (ranked.length ? sh("Highest-rated decades") + `<div class="group">${ranked.map((c) => catRow(c, 1, true)).join("")}</div>` : "");
+    html += (ranked.length ? sh("Decades, best rated first") + `<div class="group">${ranked.map(decadeRow).join("")}</div>` : "") +
+      sh("Films by decade of release") + `<div class="card">${colChart(cols, "Films by decade of release", "", 100)}</div>`;
   }
   return html;
 }

@@ -611,6 +611,16 @@ dialog.tall { width: min(520px, calc(100vw - 32px)); max-height: 94vh; }
 footer { border-top: 1px solid var(--line); padding-block: 22px 40px; color: var(--muted); font-size: 13px; }
 footer p { margin: 0 0 6px; max-width: 80ch; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+/* the best-rated decade */
+.best-decade { display: grid; grid-template-columns: minmax(180px, 240px) minmax(0, 1fr); gap: 16px 28px; align-items: center; padding: 18px 20px;
+  border: 1px solid var(--line); border-radius: var(--radius); background: linear-gradient(120deg, color-mix(in srgb, var(--gold) 12%, var(--surface)), var(--surface) 60%); }
+.bd-head { display: grid; gap: 6px; }
+.bd-title { font-family: var(--display); font-weight: 800; font-size: 52px; line-height: .9; text-transform: uppercase; letter-spacing: .01em; }
+.bd-title .dlink { text-decoration: none; }
+.bd-title .accent { color: var(--gold-ink); }
+.bd-head p { margin: 0; }
+.best-decade .posters { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+@media (max-width: 760px) { .best-decade { grid-template-columns: minmax(0, 1fr); } .best-decade .posters { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 /* nothing imported yet: just the title band and how to import */
 body.empty #tiles, body.empty #lookup, body.empty #sections, body.empty #insights, body.empty #compare, body.empty #drillpage,
 body.empty .scopes-row, body.empty #btn-search, body.empty #btn-insights, body.empty #btn-compare { display: none !important; }
@@ -660,7 +670,7 @@ body.empty .scopes-row, body.empty #btn-search, body.empty #btn-insights, body.e
     <p>With your own TMDB key, film details come from The Movie Database. This product uses the TMDB API but is not endorsed or certified by TMDB.
       Inside the Claude app, details come from Claude's knowledge of each film instead, so check anything surprising.</p>
     <p>On a phone? <a href="mobile.html">Open the phone version</a>. It uses the same import.</p>
-    <p>Updated 23 Oct 2026, 09:11 UTC</p>
+    <p>Updated 23 Oct 2026, 09:27 UTC</p>
     <p id="backup" hidden><button class="btn small" id="btn-backup" type="button">Back up to a file</button>
       <label class="status backup-keys"><input type="checkbox" id="backup-keys"> with my API keys</label><br>
       <span class="status">To use your diary on another device, import the backup file there like an export. It carries your import, film details, Letterboxd averages and friends.</span></p>
@@ -1003,7 +1013,8 @@ const WANTED = {
 const LOOSE_LIKES = /^films\.csv$/i; // likes/films.csv dropped on its own
 
 function parseCsv(text) {
-  const out = Papa.parse(text.replace(/^﻿/, ""), { header: true, skipEmptyLines: true });
+  // column names as Letterboxd writes them, give or take spaces and capitals ("review " is still the Review)
+  const out = Papa.parse(text.replace(/^﻿/, ""), { header: true, skipEmptyLines: true, transformHeader: (h) => { const t = String(h).trim(); return /^review$/i.test(t) ? "Review" : t; } });
   const rows = out.data.filter((r) => r && r.Name);
   rows.fields = (out.meta && out.meta.fields) || Object.keys(out.data[0] || {});
   return rows;
@@ -1131,7 +1142,7 @@ function buildLibrary(input) {
     if (e) e.review = true;
     const { html, text } = reviewParts(r.Review);
     reviews.push({ film: f, date: /^\d{4}-\d{2}-\d{2}$/.test(d || "") ? d : null, rating: parseFloat(r.Rating) || f.rating || null,
-      html, text, words: text ? text.split(/\s+/).length : 0, tags: r.Tags || "", rewatch: /^yes$/i.test(r.Rewatch || "") });
+      html, text, words: text ? text.split(/\s+/).length : 0, tags: r.Tags || "", rewatch: /^yes$/i.test(r.Rewatch || ""), feed: !!r.feed });
   }
   reviews.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
   entries.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : a.order - b.order);
@@ -1142,8 +1153,9 @@ function buildLibrary(input) {
   const p = rows.profile[0] || {};
   return {
     films: [...films.values()], entries, reviews,
-    // a saved import from before review text was kept: the reviews are counted but their words are missing
-    reviewTextMissing: reviews.length > 0 && reviews.every((r) => !r.text),
+    // a saved import from before review text was kept: the export's reviews are counted but their words are
+    // missing (reviews from the daily feed have words, so they don't count here)
+    reviewTextMissing: reviews.some((r) => !r.feed) && reviews.every((r) => r.feed || !r.text),
     profile: { username: p.Username || "", joined: (p["Date Joined"] || "").slice(0, 10), name: [p["Given Name"], p["Family Name"]].filter(Boolean).join(" ") },
     watchlist: rows.watchlist.length,
     // a film still on the watchlist after it was watched isn't something to watch next
@@ -1207,6 +1219,8 @@ function inScope(lib, scope) {
   return { films: [...new Set(entries.map((e) => e.film))], entries };
 }
 
+// Highest-rated actors need this many rated films each, so one great film doesn't top the list (the owner's call).
+const CAST_MIN_RATED = 6;
 function rankPeople(films, metaOf, role, minRated) {
   const map = new Map();
   for (const f of films) {
@@ -1288,7 +1302,7 @@ function computeStats(lib, metaOf, scope) {
     x.films.push(f); if (f.rating) x.ratings.push(f.rating);
   }
   const decades = [...dec.values()].map((x) => ({ ...x, count: x.films.length, avg: avg(x.ratings),
-    top: [...x.films].filter((f) => f.rating).sort((a, b) => b.rating - a.rating || b.entries.length - a.entries.length).slice(0, 5) }))
+    top: [...x.films].filter((f) => f.rating).sort((a, b) => b.rating - a.rating || b.entries.length - a.entries.length).slice(0, 8) }))
     .sort((a, b) => a.decade - b.decade);
 
   const minRated = films.length >= 150 ? 3 : 2;
@@ -1301,7 +1315,7 @@ function computeStats(lib, metaOf, scope) {
     likes: films.filter((f) => f.liked).length,
     byDay, byMonth, weekday, busiestMonth, busiestDay, streak: longestStreak(entries),
     decades,
-    cast: rankPeople(films, metaOf, "c", minRated), directors: rankPeople(films, metaOf, "d", minRated),
+    cast: rankPeople(films, metaOf, "c", CAST_MIN_RATED), directors: rankPeople(films, metaOf, "d", minRated),
     writers: rankPeople(films, metaOf, "w", minRated), dop: rankPeople(films, metaOf, "p", minRated), music: rankPeople(films, metaOf, "m", minRated),
     genres: rankCategory(films, metaOf, "g"), countries: rankCategory(films, metaOf, "k"), languages: rankCategory(films, metaOf, "l"),
     newReleases: scope === "all" ? null : films.filter((f) => String(f.year) === scope).length,
@@ -2927,7 +2941,7 @@ function withFeed(rows, feed) {
     if (!watched.has(tk)) { out.watched.push({ ...base, Date: x.logged || x.watched, "Letterboxd URI": "" }); watched.add(tk); }
     if (x.rating && !rated.has(tk)) { out.ratings.push({ ...base, Rating: String(x.rating) }); rated.add(tk); }
     if (x.liked && !liked.has(tk)) { out.likes.push(base); liked.add(tk); }
-    if (x.review) out.reviews.push({ ...entry, Review: x.review });
+    if (x.review) out.reviews.push({ ...entry, Review: x.review, feed: true });
     added.push({ ...x, title });
   }
   return { rows: out, added };
@@ -3623,7 +3637,7 @@ function rankRows(list, valueOf, widthOf, startRank, titleOf) {
 function peopleBlock(kind, data, s) {
   const t = state.tab[kind];
   const list = t === "most" ? data.most : data.best;
-  if (!list.length) return `<div class="empty">${t === "best" ? `Nobody here has ${s.minRated} or more rated films yet.` : "Nobody to show for this period."}</div>`;
+  if (!list.length) return `<div class="empty">${t === "best" ? `Nobody here has ${kind === "cast" ? CAST_MIN_RATED : s.minRated} or more rated films yet.` : "Nobody to show for this period."}</div>`;
   const top = list.slice(0, 12);
   const cards = top.map((p, i) => `<button class="person" type="button" data-list="${reg(p.name, personSub(p), p.films, p)}">
     ${faceHtml(p, i + 1)}<span class="nm">${esc(p.name)}</span>
@@ -3694,11 +3708,17 @@ function decadeBlock(s) {
     const x = all.find((y) => y.decade === d);
     cols.push({ a: x ? x.count : 0, b: 0, label: `’${String(d).slice(2)}s`, tip: `${d}s: ${plural(x ? x.count : 0, "film")}${x && x.avg ? ` · ${x.avg.toFixed(2)} average` : ""}`, to: x && DR.decade(x) });
   }
-  const best = all.filter((x) => x.ratings.length >= 3).sort((a, b) => b.avg - a.avg).slice(0, 4);
-  const list = best.length ? `<div class="decades"><div class="k muted" style="font-size:12.5px">Highest-rated decades</div>${best.map((x) => `<div class="decade">
+  const best = all.filter((x) => x.ratings.length >= 3).sort((a, b) => b.avg - a.avg || b.count - a.count).slice(0, 5);
+  // the best-rated decade up front, with its best films' posters
+  const top = best[0];
+  const hero = top ? `<div class="best-decade"><div class="bd-head"><span class="eyebrow">Best-rated decade</span>
+      <h3 class="bd-title">${dlink(DR.decade(top), `The <span class="accent">${top.decade}s</span>`)}</h3>
+      <p class="muted"><span class="stars">★</span> ${top.avg.toFixed(2)} average from ${plural(top.ratings.length, "rated film")}</p></div>
+    <div class="posters">${top.top.slice(0, 6).map(posterHtml).join("")}</div></div>` : "";
+  const list = best.length > 1 ? `<div class="decades"><div class="k muted" style="font-size:12.5px">The next best-rated decades</div>${best.slice(1).map((x) => `<div class="decade">
       <div class="lbl">${dlink(DR.decade(x), `${x.decade}s`)}<small>${x.avg.toFixed(2)} avg</small></div>
       <div class="row">${x.top.slice(0, 4).map((f) => `<button class="chiplet" type="button" ${dl(D.film(f))}>${esc(f.name)} <span class="stars">${stars(f.rating)}</span></button>`).join("")}</div></div>`).join("")}</div>` : "";
-  return colChart(cols, "Films by decade of release") + list;
+  return hero + colChart(cols, "Films by decade of release") + list;
 }
 function crewBlock(s) {
   const t = state.tab.crew;
@@ -3774,7 +3794,7 @@ function renderSections(s) {
   const T = s.scope === "all" ? onThisDay(state.lib) : null, W = state.lib.watchlistFilms.length ? watchNext(state.lib) : undefined;
   $("#sections").innerHTML = [
     T && T.entries.length ? section("onthisday", T.title, T.sub, onThisDayBlock(T)) : "",
-    section("starring", "Starring", `${everyone(s.cast, "Actors")} in the top ${CAST_DEPTH} billed of each film. Highest rated needs ${s.minRated}+ rated films.`, people("cast", s.cast)),
+    section("starring", "Starring", `${everyone(s.cast, "Actors")} in the top ${CAST_DEPTH} billed of each film. Highest rated needs ${CAST_MIN_RATED}+ rated films.`, people("cast", s.cast)),
     section("directed", "Directed by", `${everyone(s.directors, "Directors")}.`, people("directors", s.directors)),
     section("logged", "Logged", s.scope === "all" ? "Diary entries over time, by day and by date." : `Diary entries in ${s.scope}, week by week.`, diaryBlock(s)),
     section("rated", "Rated", "How your ratings spread across half-stars.", ratingBlock(s)),
@@ -4107,8 +4127,9 @@ function groupSections(profiles) {
 </script>
 <script>
 /* ---------- desktop: reviews on the stats page, in Insights and in Compare ---------- */
-const reimportNote = () => `<div class="notice"><p><strong>Your reviews aren't in yet.</strong> The copy of your export saved in this browser was made before
-  review text was kept. Import your Letterboxd export again to bring your reviews in, formatting and all.</p>
+const reimportNote = () => `<div class="notice"><p><strong>Your reviews' words aren't saved here yet.</strong> The copy of your export in this browser lists your
+  reviews but not their text, as it was saved by an older version of this page. Download a fresh export (Letterboxd → Settings → Data → Export your data)
+  and import it here: your reviews come in, formatting and all. Reviews from your daily feed show below meanwhile.</p>
   <button class="btn small" type="button" data-reimport>Import export</button></div>`;
 
 function reviewCard(r) {
@@ -4136,8 +4157,9 @@ function reviewListHtml(scopeYear) {
 }
 function reviewsBlock(s) {
   const lib = state.lib;
-  if (lib.reviewTextMissing) return reimportNote();
   const year = s.scope === "all" ? null : s.scope;
+  // the reviews that do have words (from the daily feed) still show under the note
+  if (lib.reviewTextMissing) return reimportNote() + (reviewsIn(lib, year).length ? `<div id="review-list">${reviewListHtml(year)}</div>` : "");
   if (!reviewsIn(lib, year).length) return `<div class="empty">No reviews ${year ? `in ${year}` : "yet"}.</div>`;
   return `<div class="review-tools"><label class="sr-only" for="review-search">Search your reviews</label>
     <input id="review-search" type="search" autocomplete="off" placeholder="Search your reviews by word or title" value="${esc(state.reviewQuery || "")}"></div>

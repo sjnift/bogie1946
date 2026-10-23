@@ -109,7 +109,8 @@ const WANTED = {
 const LOOSE_LIKES = /^films\.csv$/i; // likes/films.csv dropped on its own
 
 function parseCsv(text) {
-  const out = Papa.parse(text.replace(/^﻿/, ""), { header: true, skipEmptyLines: true });
+  // column names as Letterboxd writes them, give or take spaces and capitals ("review " is still the Review)
+  const out = Papa.parse(text.replace(/^﻿/, ""), { header: true, skipEmptyLines: true, transformHeader: (h) => { const t = String(h).trim(); return /^review$/i.test(t) ? "Review" : t; } });
   const rows = out.data.filter((r) => r && r.Name);
   rows.fields = (out.meta && out.meta.fields) || Object.keys(out.data[0] || {});
   return rows;
@@ -237,7 +238,7 @@ function buildLibrary(input) {
     if (e) e.review = true;
     const { html, text } = reviewParts(r.Review);
     reviews.push({ film: f, date: /^\d{4}-\d{2}-\d{2}$/.test(d || "") ? d : null, rating: parseFloat(r.Rating) || f.rating || null,
-      html, text, words: text ? text.split(/\s+/).length : 0, tags: r.Tags || "", rewatch: /^yes$/i.test(r.Rewatch || "") });
+      html, text, words: text ? text.split(/\s+/).length : 0, tags: r.Tags || "", rewatch: /^yes$/i.test(r.Rewatch || ""), feed: !!r.feed });
   }
   reviews.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
   entries.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : a.order - b.order);
@@ -248,8 +249,9 @@ function buildLibrary(input) {
   const p = rows.profile[0] || {};
   return {
     films: [...films.values()], entries, reviews,
-    // a saved import from before review text was kept: the reviews are counted but their words are missing
-    reviewTextMissing: reviews.length > 0 && reviews.every((r) => !r.text),
+    // a saved import from before review text was kept: the export's reviews are counted but their words are
+    // missing (reviews from the daily feed have words, so they don't count here)
+    reviewTextMissing: reviews.some((r) => !r.feed) && reviews.every((r) => r.feed || !r.text),
     profile: { username: p.Username || "", joined: (p["Date Joined"] || "").slice(0, 10), name: [p["Given Name"], p["Family Name"]].filter(Boolean).join(" ") },
     watchlist: rows.watchlist.length,
     // a film still on the watchlist after it was watched isn't something to watch next
@@ -313,6 +315,8 @@ function inScope(lib, scope) {
   return { films: [...new Set(entries.map((e) => e.film))], entries };
 }
 
+// Highest-rated actors need this many rated films each, so one great film doesn't top the list (the owner's call).
+const CAST_MIN_RATED = 6;
 function rankPeople(films, metaOf, role, minRated) {
   const map = new Map();
   for (const f of films) {
@@ -394,7 +398,7 @@ function computeStats(lib, metaOf, scope) {
     x.films.push(f); if (f.rating) x.ratings.push(f.rating);
   }
   const decades = [...dec.values()].map((x) => ({ ...x, count: x.films.length, avg: avg(x.ratings),
-    top: [...x.films].filter((f) => f.rating).sort((a, b) => b.rating - a.rating || b.entries.length - a.entries.length).slice(0, 5) }))
+    top: [...x.films].filter((f) => f.rating).sort((a, b) => b.rating - a.rating || b.entries.length - a.entries.length).slice(0, 8) }))
     .sort((a, b) => a.decade - b.decade);
 
   const minRated = films.length >= 150 ? 3 : 2;
@@ -407,7 +411,7 @@ function computeStats(lib, metaOf, scope) {
     likes: films.filter((f) => f.liked).length,
     byDay, byMonth, weekday, busiestMonth, busiestDay, streak: longestStreak(entries),
     decades,
-    cast: rankPeople(films, metaOf, "c", minRated), directors: rankPeople(films, metaOf, "d", minRated),
+    cast: rankPeople(films, metaOf, "c", CAST_MIN_RATED), directors: rankPeople(films, metaOf, "d", minRated),
     writers: rankPeople(films, metaOf, "w", minRated), dop: rankPeople(films, metaOf, "p", minRated), music: rankPeople(films, metaOf, "m", minRated),
     genres: rankCategory(films, metaOf, "g"), countries: rankCategory(films, metaOf, "k"), languages: rankCategory(films, metaOf, "l"),
     newReleases: scope === "all" ? null : films.filter((f) => String(f.year) === scope).length,

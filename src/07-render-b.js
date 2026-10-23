@@ -22,7 +22,7 @@ function rankRows(list, valueOf, widthOf, startRank, titleOf) {
 function peopleBlock(kind, data, s) {
   const t = state.tab[kind];
   const list = t === "most" ? data.most : data.best;
-  if (!list.length) return `<div class="empty">${t === "best" ? `Nobody here has ${s.minRated} or more rated films yet.` : "Nobody to show for this period."}</div>`;
+  if (!list.length) return `<div class="empty">${t === "best" ? `Nobody here has ${kind === "cast" ? CAST_MIN_RATED : s.minRated} or more rated films yet.` : "Nobody to show for this period."}</div>`;
   const top = list.slice(0, 12);
   const cards = top.map((p, i) => `<button class="person" type="button" data-list="${reg(p.name, personSub(p), p.films, p)}">
     ${faceHtml(p, i + 1)}<span class="nm">${esc(p.name)}</span>
@@ -93,11 +93,17 @@ function decadeBlock(s) {
     const x = all.find((y) => y.decade === d);
     cols.push({ a: x ? x.count : 0, b: 0, label: `’${String(d).slice(2)}s`, tip: `${d}s: ${plural(x ? x.count : 0, "film")}${x && x.avg ? ` · ${x.avg.toFixed(2)} average` : ""}`, to: x && DR.decade(x) });
   }
-  const best = all.filter((x) => x.ratings.length >= 3).sort((a, b) => b.avg - a.avg).slice(0, 4);
-  const list = best.length ? `<div class="decades"><div class="k muted" style="font-size:12.5px">Highest-rated decades</div>${best.map((x) => `<div class="decade">
+  const best = all.filter((x) => x.ratings.length >= 3).sort((a, b) => b.avg - a.avg || b.count - a.count).slice(0, 5);
+  // the best-rated decade up front, with its best films' posters
+  const top = best[0];
+  const hero = top ? `<div class="best-decade"><div class="bd-head"><span class="eyebrow">Best-rated decade</span>
+      <h3 class="bd-title">${dlink(DR.decade(top), `The <span class="accent">${top.decade}s</span>`)}</h3>
+      <p class="muted"><span class="stars">★</span> ${top.avg.toFixed(2)} average from ${plural(top.ratings.length, "rated film")}</p></div>
+    <div class="posters">${top.top.slice(0, 6).map(posterHtml).join("")}</div></div>` : "";
+  const list = best.length > 1 ? `<div class="decades"><div class="k muted" style="font-size:12.5px">The next best-rated decades</div>${best.slice(1).map((x) => `<div class="decade">
       <div class="lbl">${dlink(DR.decade(x), `${x.decade}s`)}<small>${x.avg.toFixed(2)} avg</small></div>
       <div class="row">${x.top.slice(0, 4).map((f) => `<button class="chiplet" type="button" ${dl(D.film(f))}>${esc(f.name)} <span class="stars">${stars(f.rating)}</span></button>`).join("")}</div></div>`).join("")}</div>` : "";
-  return colChart(cols, "Films by decade of release") + list;
+  return hero + colChart(cols, "Films by decade of release") + list;
 }
 function crewBlock(s) {
   const t = state.tab.crew;
@@ -173,7 +179,7 @@ function renderSections(s) {
   const T = s.scope === "all" ? onThisDay(state.lib) : null, W = state.lib.watchlistFilms.length ? watchNext(state.lib) : undefined;
   $("#sections").innerHTML = [
     T && T.entries.length ? section("onthisday", T.title, T.sub, onThisDayBlock(T)) : "",
-    section("starring", "Starring", `${everyone(s.cast, "Actors")} in the top ${CAST_DEPTH} billed of each film. Highest rated needs ${s.minRated}+ rated films.`, people("cast", s.cast)),
+    section("starring", "Starring", `${everyone(s.cast, "Actors")} in the top ${CAST_DEPTH} billed of each film. Highest rated needs ${CAST_MIN_RATED}+ rated films.`, people("cast", s.cast)),
     section("directed", "Directed by", `${everyone(s.directors, "Directors")}.`, people("directors", s.directors)),
     section("logged", "Logged", s.scope === "all" ? "Diary entries over time, by day and by date." : `Diary entries in ${s.scope}, week by week.`, diaryBlock(s)),
     section("rated", "Rated", "How your ratings spread across half-stars.", ratingBlock(s)),

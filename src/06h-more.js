@@ -41,7 +41,7 @@ function withFeed(rows, feed) {
     if (!watched.has(tk)) { out.watched.push({ ...base, Date: x.logged || x.watched, "Letterboxd URI": "" }); watched.add(tk); }
     if (x.rating && !rated.has(tk)) { out.ratings.push({ ...base, Rating: String(x.rating) }); rated.add(tk); }
     if (x.liked && !liked.has(tk)) { out.likes.push(base); liked.add(tk); }
-    if (x.review) out.reviews.push({ ...entry, Review: x.review });
+    if (x.review) out.reviews.push({ ...entry, Review: x.review, feed: true });
     added.push({ ...x, title });
   }
   return { rows: out, added };
