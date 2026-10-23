@@ -58,32 +58,54 @@ async function tmdbGet(path, params, key, signal) {
   throw { code: "busy" };
 }
 // Bump when matching or the stored fields change, so saved films are looked up again.
-const TMDB_MATCH_VERSION = 3;
-// Letterboxd dates a film by its first showing; TMDB often by a later release (Brick: 2005 vs 2006),
-// and several films can share a title (a feature and a short called "Brick"). So allow a gap of a
-// year or two, insist on the title, and let the number of TMDB votes pick the real film.
-function pickHit(results, f, tolerance, needTitle) {
+// 4: a film only matches a TMDB film with the same (or nearly the same) title; The Ear (1970) had been
+// matched to When Dinosaurs Ruled the Earth, the most-voted film of 1970 that TMDB's search turned up.
+const TMDB_MATCH_VERSION = 4;
+// The words of a title that matter, in any script: "The Ear" → ear, "Love & Mercy" → love, mercy.
+const TITLE_SKIP = new Set(["the", "a", "an", "and", "of", "la", "le", "les", "el", "il", "der", "die", "das"]);
+const titleWords = (s) => new Set(String(s || "").replace(/&/g, " and ").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+  .replace(/[^\p{L}\p{N}]+/gu, " ").trim().split(" ").filter((w) => w && !TITLE_SKIP.has(w)));
+// How alike two titles are: 1 for the same words, 0 for none in common.
+function titleLike(a, b) {
+  const A = titleWords(a), B = titleWords(b);
+  if (!A.size || !B.size) return String(a).trim().toLowerCase() === String(b).trim().toLowerCase() ? 1 : 0;
+  let n = 0;
+  for (const w of A) if (B.has(w)) n++;
+  return 2 * n / (A.size + B.size);
+}
+const NEAR_TITLE = 0.75;
+// Letterboxd dates a film by its first showing; TMDB often by a later release (Brick: 2005 vs 2006), and
+// several films can share a title (a feature and a short called "Brick"). So allow a gap of a year or two,
+// insist on the title, and let the number of TMDB votes pick the real film.
+function pickHit(results, f, tolerance) {
   if (!results || !results.length) return null;
-  const want = personKey(f.name);
   const yearOf = (r) => parseInt((r.release_date || "").slice(0, 4), 10);
-  const titled = (r) => personKey(r.title || "") === want || personKey(r.original_title || "") === want;
   const ranked = results
     .filter((r) => !f.year || !yearOf(r) || Math.abs(yearOf(r) - f.year) <= tolerance)
-    .map((r) => ({ r, score: (titled(r) ? 1000 : 0) + Math.log10((r.vote_count || 0) + 1) * 100 + (yearOf(r) === f.year ? 50 : 0) - (r.video ? 100 : 0) }))
+    .map((r) => ({ r, like: Math.max(titleLike(f.name, r.title), titleLike(f.name, r.original_title)) }))
+    .filter((x) => x.like >= NEAR_TITLE)
+    .map((x) => ({ ...x, score: (x.like === 1 ? 2000 : x.like * 1000) + Math.log10((x.r.vote_count || 0) + 1) * 100 + (yearOf(x.r) === f.year ? 50 : 0) - (x.r.video ? 100 : 0) }))
     .sort((a, b) => b.score - a.score);
-  const best = ranked[0];
-  if (!best || (needTitle && !titled(best.r))) return null;
-  return best.r;
+  return ranked.length ? ranked[0].r : null;
 }
-async function tmdbFilm(f, key, signal) {
+// A film TMDB dates years later than Letterboxd (The Ear: shot in 1970, banned, released in 1990): taken only
+// when it is the one film with exactly that title.
+function onlyTitled(results, f) {
+  const yearOf = (r) => parseInt((r.release_date || "").slice(0, 4), 10);
+  const same = (results || []).filter((r) => titleLike(f.name, r.title) === 1 || titleLike(f.name, r.original_title) === 1);
+  return same.length === 1 && (!f.year || !yearOf(same[0]) || Math.abs(yearOf(same[0]) - f.year) <= 30) ? same[0] : null;
+}
+// `prev` is what the film was matched to before: when the match hasn't changed, its details are kept.
+async function tmdbFilm(f, key, signal, prev) {
   if (KNOWN_IDS[f.key]) { const m = await tmdbDetails(KNOWN_IDS[f.key], key, signal); if (!m.miss) return m; }
   let s = await tmdbGet("/search/movie", { query: f.name, year: f.year || "", include_adult: "false" }, key, signal);
-  let hit = pickHit(s && s.results, f, 2, false);
+  let hit = pickHit(s && s.results, f, 2);
   if (!hit && f.year) {
     s = await tmdbGet("/search/movie", { query: f.name, include_adult: "false" }, key, signal);
-    hit = pickHit(s && s.results, f, 2, true);
+    hit = pickHit(s && s.results, f, 2) || onlyTitled(s && s.results, f);
   }
   if (!hit) return { src: "tmdb", miss: true, v: TMDB_MATCH_VERSION };
+  if (prev && prev.src === "tmdb" && !prev.miss && prev.id === hit.id && prev.c) return { ...prev, v: TMDB_MATCH_VERSION };
   return tmdbDetails(hit.id, key, signal);
 }
 // One TMDB film's details and credits, by its id.
@@ -116,7 +138,7 @@ async function runTmdb(lib, key) {
     while (queue.length && !signal.aborted && !fatal) {
       const f = queue.shift();
       try {
-        const m = await tmdbFilm(f, key, signal);
+        const m = await tmdbFilm(f, key, signal, META[f.key]);
         if (m.miss) { if (!META[f.key] || META[f.key].src === "tmdb") META[f.key] = m; else META[f.key].tmdbMiss = TMDB_MATCH_VERSION; job.failed++; }
         else {
           // keep IMDb scores already fetched for the same film, so OMDb's daily allowance isn't spent twice

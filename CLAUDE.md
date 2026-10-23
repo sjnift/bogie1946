@@ -189,7 +189,10 @@ friend replaces the address instead.
 
 - **TMDB** (owner's key, saved in their browser): search with ±2-year tolerance and vote weighting
   (`pickHit`; Letterboxd and TMDB can disagree on a year, e.g. Brick 2005 vs 2006), details with credits.
-  `TMDB_MATCH_VERSION` (3) re-looks-up films when matching changes. Watchlist films are looked up too.
+  A hit must have the same title, or nearly (`titleLike` ≥ 0.75 on the words that matter, in any script);
+  beyond ±2 years only a single exact-title film is taken (`onlyTitled`: The Ear is 1970 on Letterboxd, 1990 on
+  TMDB). `TMDB_MATCH_VERSION` (4) re-looks-up films when matching changes; a film whose match is unchanged
+  keeps its details without a second request. Watchlist films are looked up too.
 - **OMDb** (free key, 1,000 films a day): IMDb, Metacritic, Rotten Tomatoes scores from the IMDb id.
 - **Apify** actor `solidcode~letterboxd-scraper` for Letterboxd averages. $0.0036 per film + $0.005 per run;
   the free plan's $5 a month is about 1,300 films, so a run stops at `LB_RUN_CAP = 1300`. The first run reads
@@ -240,6 +243,9 @@ only after the checks pass, and `feed.yml` starts it after collecting new entrie
 - 336 films lacked Letterboxd averages because one Apify run stops at 1,300 films → follow-up runs by address.
 - Twilight's Last Gleaming counted twice in 2026: the feed wrote `Twilight&#039;s…` → `titleKey` everywhere,
   and the `counts` check now runs on every push.
+- The Ear (1970) showed under UK and English: TMDB's search for "The Ear" in 1970 offered other films, and the
+  matcher took the most-voted (When Dinosaurs Ruled the Earth) without checking the title → titles must
+  match (version 4). Checked against 74 real titles (old noirs, foreign titles, punctuation): only The Ear changed.
 - The phone app was rebuilt in Oct 2026 (new tabs, sections, speed). With a 1,400-film diary on a slowed CPU,
   opening Insights went from about 1.5 s to about 50 ms, and taps generally take under 0.1 s.
 
