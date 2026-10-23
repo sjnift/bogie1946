@@ -238,6 +238,16 @@ failed check only shows a red mark and an email. If the owner switches Settings 
 Actions (their choice; it can't be done through this environment's proxy), the same workflow publishes `docs/`
 only after the checks pass, and `feed.yml` starts it after collecting new entries.
 
+## Cross-checking film data from a session
+
+The owner wants discrepancies (release year, country, language) between Letterboxd, TMDB and IMDb caught in
+the chat too. Their diary only lives in their browser, so they upload the export ZIP (or a backup `.json`) to
+the session. Keys come from the environment, set by the owner in the environment's settings: `TMDB_KEY` and
+`OMDB_KEY` (OMDb is IMDb's data; imdb.com and letterboxd.com themselves are blocked here). Never ask for a key
+in the chat and never write one into a file. Node's fetch needs `NODE_USE_ENV_PROXY=1` here. Match films the
+way the app does (`pickHit`/`onlyTitled` in `06-lookup.js`), and remember OMDb's free key allows 1,000 films a
+day, shared with the owner's own app. The in-app version is the "Check film data" box (`dataCheck`).
+
 ## This cloud environment's quirks
 
 - `letterboxd.com` and `cdnjs.cloudflare.com` are blocked from the container (tests use local copies);
