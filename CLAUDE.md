@@ -19,6 +19,12 @@ comparisons with friends and more, in two layouts:
 Where it lives:
 - Live site (GitHub Pages, from `docs/` on `main`): https://sjnift.github.io/credits-roll/
   (`index.html` sends phones to `mobile.html`, others to `desktop.html`; both share one origin, so one import).
+  **Moving to the short address https://sjnift.github.io/** (Oct 2026, the owner asked for a more customised
+  address and chose no particular kind): it happens when the owner renames the repository to `sjnift.github.io`
+  (same origin, so browser data stays). The site already works at both: `repoOfPage` reads the repository from
+  either address, a device that updates the diary on the site follows the new name, and `build.sh` writes
+  `docs/credits-roll/` (each old page forwards to the new one with its `#…`; the old service worker removes
+  itself). After the rename: update the links that name the old address, this file, and push access.
 - Claude versions (private artifacts): desktop https://claude.ai/artifact/52oE5x53dcjUZgBYQMfPjR,
   phone https://claude.ai/artifact/2RUkgC4dsysdz66WjJ6gzb. Inside Claude, outside sites are blocked, so the
   page uses the `sample` capability (Claude fills in film details) instead of TMDB, and downloads don't work.

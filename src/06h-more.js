@@ -5,7 +5,15 @@
    left as it was, so a fresh import simply takes over. */
 let FEED = null, FEED_ADDED = [];
 // The repository a GitHub Pages copy is published from, for the link that adds a username to the feed.
-const SITE_REPO = (() => { const m = location.hostname.match(/^([\w-]+)\.github\.io$/); const repo = location.pathname.split("/")[1]; return m && repo ? `https://github.com/${m[1]}/${repo}` : null; })();
+// The site's own GitHub repository, from its address: sjnift.github.io/credits-roll/ is sjnift/credits-roll, and the
+// short sjnift.github.io/ (a repository named sjnift.github.io) is sjnift/sjnift.github.io.
+function repoOfPage(host, path) {
+  const m = String(host).match(/^([\w-]+)\.github\.io$/i);
+  if (!m) return null;
+  const first = String(path).split("/")[1] || "";
+  return `https://github.com/${m[1]}/${first && !first.includes(".") ? first : `${m[1].toLowerCase()}.github.io`}`;
+}
+const SITE_REPO = repoOfPage(location.hostname, location.pathname);
 async function loadFeed(user) {
   if (IN_VIEWER || !user || !/^https?:$/.test(location.protocol)) return null;
   try {

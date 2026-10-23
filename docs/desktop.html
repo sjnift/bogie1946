@@ -738,12 +738,12 @@ body.empty #settings, body.empty .foot-settings { display: none !important; }
         <p>With your own TMDB key, film details come from The Movie Database. This product uses the TMDB API but is not endorsed or certified by TMDB.
           Inside the Claude app, details come from Claude's knowledge of each film instead, so check anything surprising.</p>
         <p>On a phone? <a href="mobile.html">Open the phone version</a>. It uses the same import.</p>
-        <p>Updated 23 Oct 2026, 18:22 UTC</p>
+        <p>Updated 23 Oct 2026, 18:33 UTC</p>
       </div>
     </section>
   </main>
   <footer>
-    <p>Updated 23 Oct 2026, 18:22 UTC<span class="foot-settings"> · <button class="linkish" type="button" data-goto="settings">Settings</button></span></p>
+    <p>Updated 23 Oct 2026, 18:33 UTC<span class="foot-settings"> · <button class="linkish" type="button" data-goto="settings">Settings</button></span></p>
   </footer>
 </div>
 
@@ -3013,7 +3013,15 @@ async function runFix(key, repaint) {
    left as it was, so a fresh import simply takes over. */
 let FEED = null, FEED_ADDED = [];
 // The repository a GitHub Pages copy is published from, for the link that adds a username to the feed.
-const SITE_REPO = (() => { const m = location.hostname.match(/^([\w-]+)\.github\.io$/); const repo = location.pathname.split("/")[1]; return m && repo ? `https://github.com/${m[1]}/${repo}` : null; })();
+// The site's own GitHub repository, from its address: sjnift.github.io/credits-roll/ is sjnift/credits-roll, and the
+// short sjnift.github.io/ (a repository named sjnift.github.io) is sjnift/sjnift.github.io.
+function repoOfPage(host, path) {
+  const m = String(host).match(/^([\w-]+)\.github\.io$/i);
+  if (!m) return null;
+  const first = String(path).split("/")[1] || "";
+  return `https://github.com/${m[1]}/${first && !first.includes(".") ? first : `${m[1].toLowerCase()}.github.io`}`;
+}
+const SITE_REPO = repoOfPage(location.hostname, location.pathname);
 async function loadFeed(user) {
   if (IN_VIEWER || !user || !/^https?:$/.test(location.protocol)) return null;
   try {
@@ -3540,6 +3548,8 @@ const SITE_DEVICE = document.querySelector(".tabbar") ? "phone" : "computer";
 const SITE_GH_REPO = SITE_REPO ? SITE_REPO.split("/").slice(3, 5).join("/") : "";
 const PUBLISHED = new Set([KEYS.rows, KEYS.meta, KEYS.photos, KEYS.lbx, KEYS.friends]);
 let SITE = ls.get(SITE_REC, null), SITEPUB = ls.get(SITE_PUB, null);
+// the key works for the site's repository whatever it's called, so a renamed one is followed
+if (SITEPUB && SITE_GH_REPO && SITEPUB.repo !== SITE_GH_REPO) { SITEPUB.repo = SITE_GH_REPO; ls.set(SITE_PUB, SITEPUB); }
 // index: undefined until the site has been asked, null when it has no diary
 const site = { index: undefined, offline: false, checked: 0, busy: "", note: "", err: false, noteIn: "publish", applying: false, armed: null, timer: null, due: 0, job: null };
 const saveSite = () => { SITE ? ls.set(SITE_REC, SITE) : ls.del(SITE_REC); SITEPUB ? ls.set(SITE_PUB, SITEPUB) : ls.del(SITE_PUB); };

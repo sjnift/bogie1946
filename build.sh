@@ -76,4 +76,21 @@ cat > docs/index.html <<'HTML'
 </html>
 HTML
 touch docs/.nojekyll
+# The old address, sjnift.github.io/credits-roll/, once the repository is renamed sjnift.github.io: each page forwards
+# to the same page at the new address (keeping its #…), and the old app's service worker removes itself.
+mkdir -p docs/credits-roll
+for f in index.html desktop.html mobile.html; do
+  cat > "docs/credits-roll/$f" <<HTML
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Credits Roll has moved</title>
+<script>location.replace("/$( [ "$f" = index.html ] && echo "" || echo "$f" )" + location.search + location.hash);</script>
+<style>body{margin:0;background:#14181C;color:#DDE6EE;font:16px/1.5 system-ui,sans-serif;display:grid;place-items:center;min-height:100vh}a{color:#40BCF4}</style></head>
+<body><p>Credits Roll has moved to <a href="/">sjnift.github.io</a>.</p></body></html>
+HTML
+done
+cat > docs/credits-roll/sw.js <<'JS'
+// The app moved to the root of the site: the worker left at the old address takes itself away.
+self.addEventListener("install", () => self.skipWaiting());
+self.addEventListener("activate", (e) => e.waitUntil(self.registration.unregister()));
+JS
 if grep -rqE '"[0-9a-f]{32}" /\*TMDB_KEY\*/' docs; then echo "A TMDB key ended up in docs/; refusing to build the public site" >&2; rm -rf docs; exit 1; fi

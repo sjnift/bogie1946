@@ -20,6 +20,8 @@ const SITE_DEVICE = document.querySelector(".tabbar") ? "phone" : "computer";
 const SITE_GH_REPO = SITE_REPO ? SITE_REPO.split("/").slice(3, 5).join("/") : "";
 const PUBLISHED = new Set([KEYS.rows, KEYS.meta, KEYS.photos, KEYS.lbx, KEYS.friends]);
 let SITE = ls.get(SITE_REC, null), SITEPUB = ls.get(SITE_PUB, null);
+// the key works for the site's repository whatever it's called, so a renamed one is followed
+if (SITEPUB && SITE_GH_REPO && SITEPUB.repo !== SITE_GH_REPO) { SITEPUB.repo = SITE_GH_REPO; ls.set(SITE_PUB, SITEPUB); }
 // index: undefined until the site has been asked, null when it has no diary
 const site = { index: undefined, offline: false, checked: 0, busy: "", note: "", err: false, noteIn: "publish", applying: false, armed: null, timer: null, due: 0, job: null };
 const saveSite = () => { SITE ? ls.set(SITE_REC, SITE) : ls.del(SITE_REC); SITEPUB ? ls.set(SITE_PUB, SITEPUB) : ls.del(SITE_PUB); };

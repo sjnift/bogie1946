@@ -90,6 +90,14 @@ const settled = (page, what) => until(page, () => !site.job && !site.busy && sit
 export default async function ({ browser, base }) {
   const gh = fakeGitHub();
 
+  // The site knows its own repository from its address, at the long one and the short one
+  const probe = await open(browser, base, "desktop.html");
+  const repos = await probe.evaluate(() => [["sjnift.github.io", "/credits-roll/desktop.html"], ["sjnift.github.io", "/credits-roll"], ["sjnift.github.io", "/mobile.html"], ["sjnift.github.io", "/"],
+    ["127.0.0.1", "/desktop.html"]].map(([h, p]) => repoOfPage(h, p)));
+  assert(JSON.stringify(repos) === JSON.stringify(["https://github.com/sjnift/credits-roll", "https://github.com/sjnift/credits-roll", "https://github.com/sjnift/sjnift.github.io",
+    "https://github.com/sjnift/sjnift.github.io", null]), `repository from the address: ${repos}`);
+  await probe.context().close();
+
   // A computer with a diary puts it on the site.
   const a = await device(browser, base, gh, "desktop.html", {});
   await seed(a, rows, { "cr-meta-v1": meta, "cr-tmdb-key": "k123" });
