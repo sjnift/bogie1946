@@ -19,25 +19,28 @@ function withFeed(rows, feed) {
   if (!rows || !feed) return { rows, added: [] };
   const out = { ...rows, diary: [...(rows.diary || [])], watched: [...(rows.watched || [])], ratings: [...(rows.ratings || [])], reviews: [...(rows.reviews || [])], likes: [...(rows.likes || [])] };
   const k = (r) => filmKey(r.Name, r.Year);
-  // the export's spelling of each title, found by a looser match (apostrophes, accents, punctuation)
-  const loose = (name, year) => `${personKey(String(name).replace(/&#0*39;|&apos;/g, "'").replace(/&amp;/g, "&"))}|${year || ""}`;
+  // the export's spelling of each title, so a feed film is the same film however its title is written
   const spelled = new Map();
-  for (const r of [...out.watched, ...out.diary, ...out.ratings]) if (!spelled.has(loose(r.Name, r.Year))) spelled.set(loose(r.Name, r.Year), r.Name);
-  const unescape = (s) => String(s).replace(/&(?:#(\d+)|#x([\da-f]+)|(amp|lt|gt|quot|apos));/gi, (m, dec, hex, name) => dec ? String.fromCodePoint(+dec) : hex ? String.fromCodePoint(parseInt(hex, 16)) : { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" }[name.toLowerCase()]);
-  const inDiary = new Set(out.diary.map((r) => `${k(r)}|${r["Watched Date"] || r.Date}`));
-  const watched = new Set(out.watched.map(k)), rated = new Set(out.ratings.map(k)), liked = new Set(out.likes.map(k));
+  for (const r of [...out.watched, ...out.diary, ...out.ratings]) if (!spelled.has(titleKey(r.Name, r.Year))) spelled.set(titleKey(r.Name, r.Year), r.Name);
+  // An entry logged before the export's newest one is in the export already, perhaps with its date
+  // changed since; adding it again would count that viewing twice.
+  const exportedUpTo = out.diary.reduce((m, r) => (r.Date || "") > m ? r.Date : m, "");
+  // what the export has, by the title key, so a differently written title still counts as the same film
+  const t = (r) => titleKey(r.Name, r.Year);
+  const inDiary = new Set(out.diary.map((r) => `${t(r)}|${r["Watched Date"] || r.Date}`));
+  const watched = new Set(out.watched.map(t)), rated = new Set(out.ratings.map(t)), liked = new Set(out.likes.map(t));
   const added = [];
   for (const x of [...feed.items].sort((a, b) => a.watched.localeCompare(b.watched))) {
-    const title = spelled.get(loose(x.title, x.year)) || unescape(x.title);
-    const base = { Name: title, Year: x.year ? String(x.year) : "" }, fk = k(base);
+    const title = spelled.get(titleKey(x.title, x.year)) || unescapeText(x.title);
+    const base = { Name: title, Year: x.year ? String(x.year) : "" }, fk = k(base), tk = t(base);
     if (x.tmdb) KNOWN_IDS[fk] = x.tmdb;
-    if (inDiary.has(`${fk}|${x.watched}`)) continue;
-    inDiary.add(`${fk}|${x.watched}`);
+    if (inDiary.has(`${tk}|${x.watched}`) || (x.logged && x.logged < exportedUpTo)) continue;
+    inDiary.add(`${tk}|${x.watched}`);
     const entry = { ...base, Date: x.logged || x.watched, "Watched Date": x.watched, Rating: x.rating ? String(x.rating) : "", Rewatch: x.rewatch ? "Yes" : "", Tags: "" };
     out.diary.push(entry);
-    if (!watched.has(fk)) { out.watched.push({ ...base, Date: x.logged || x.watched, "Letterboxd URI": "" }); watched.add(fk); }
-    if (x.rating && !rated.has(fk)) { out.ratings.push({ ...base, Rating: String(x.rating) }); rated.add(fk); }
-    if (x.liked && !liked.has(fk)) { out.likes.push(base); liked.add(fk); }
+    if (!watched.has(tk)) { out.watched.push({ ...base, Date: x.logged || x.watched, "Letterboxd URI": "" }); watched.add(tk); }
+    if (x.rating && !rated.has(tk)) { out.ratings.push({ ...base, Rating: String(x.rating) }); rated.add(tk); }
+    if (x.liked && !liked.has(tk)) { out.likes.push(base); liked.add(tk); }
     if (x.review) out.reviews.push({ ...entry, Review: x.review });
     added.push({ ...x, title });
   }
@@ -111,7 +114,7 @@ function searchIndex(lib) {
       if (!p) { p = { key: k, name, films: new Set(), roles: new Map(), k }; people.set(k, p); }
       p.films.add(f); p.roles.set(role, (p.roles.get(role) || 0) + 1);
     }
-    for (const [field, vals] of [["g", m.g], ["k", m.k], ["l", m.l ? [m.l] : []]]) for (const v of vals) {
+    for (const [field, vals] of [["g", m.g], ["k", m.k], ["l", m.l ? [m.l] : []]]) for (const v of new Set(vals)) {
       let c = cats.get(v);
       if (!c) { c = { name: v, field, films: [], k: personKey(v) }; cats.set(v, c); }
       c.films.push(f);
@@ -170,7 +173,7 @@ function watchNext(lib) {
   const add = (map, k, name, r) => { let x = map.get(k); if (!x) map.set(k, x = { name, n: 0, sum: 0 }); x.n++; x.sum += r; };
   for (const f of rated) {
     const m = metaOf(f); if (!m) continue;
-    m.d.forEach((n) => add(dirs, personKey(n), n, f.rating)); m.c.slice(0, 6).forEach((n) => add(cast, personKey(n), n, f.rating)); m.g.forEach((g) => add(genres, g, g, f.rating));
+    new Set(m.d).forEach((n) => add(dirs, personKey(n), n, f.rating)); new Set(m.c.slice(0, 6)).forEach((n) => add(cast, personKey(n), n, f.rating)); new Set(m.g).forEach((g) => add(genres, g, g, f.rating));
   }
   const lean = (x, k) => x ? (x.sum - x.n * base) / (x.n + k) : 0; // pulled towards your average when there are few films
   const crowdOf = (f, m) => { const lb = LBX[f.key]; return lb && lb.r ? lb.r : m && m.ir && (m.iv || 0) >= 100 ? m.ir / 2 : m && m.va && (m.vc || 0) >= 25 ? m.va / 2 : null; };

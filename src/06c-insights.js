@@ -88,8 +88,8 @@ function computeInsights(lib, metaOf, crowdKey) {
     let withMeta = 0;
     for (const f of films) {
       const m = metaOf(f); if (!m) continue; withMeta++;
-      m.g.forEach((g) => bump(genres, g)); m.d.forEach((d) => bump(directors, d));
-      m.c.slice(0, CAST_DEPTH).forEach((c) => bump(actors, c)); m.k.forEach((k) => countries.add(k));
+      new Set(m.g).forEach((g) => bump(genres, g)); new Set(m.d).forEach((d) => bump(directors, d));
+      new Set(m.c.slice(0, CAST_DEPTH)).forEach((c) => bump(actors, c)); m.k.forEach((k) => countries.add(k));
     }
     const pace = y === thisYear && dayOfYear > 30 && dayOfYear < 360 ? Math.round(films.length / dayOfYear * 365) : null;
     return {
@@ -148,7 +148,7 @@ function computeInsights(lib, metaOf, crowdKey) {
   const gmap = new Map();
   for (const f of lib.films) {
     const m = metaOf(f); if (!m) continue;
-    for (const g of m.g) {
+    for (const g of new Set(m.g)) {
       let x = gmap.get(g); if (!x) { x = { name: g, films: [], mine: [], vsCrowd: [] }; gmap.set(g, x); }
       x.films.push(f);
       if (f.rating) { x.mine.push(f.rating); const c = crowd.score(m, f); if (c) x.vsCrowd.push(f.rating - c / 2); }

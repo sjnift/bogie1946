@@ -12,6 +12,12 @@ const fmtDate = (iso) => { if (!iso) return ""; const [y, m, d] = iso.split("-")
 const stars = (r) => r ? "★".repeat(Math.floor(r)) + (r % 1 ? "½" : "") : "";
 const avg = (a) => a.length ? a.reduce((s, x) => s + x, 0) / a.length : null;
 const filmKey = (name, year) => `${String(name).trim().toLowerCase()}|${year || ""}`;
+// Character codes (&#039;, &amp;) turned back into characters.
+const unescapeText = (s) => String(s).replace(/&(?:#(\d+)|#x([\da-f]+)|(amp|lt|gt|quot|apos));/gi, (m, dec, hex, name) =>
+  dec ? String.fromCodePoint(+dec) : hex ? String.fromCodePoint(parseInt(hex, 16)) : { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" }[name.toLowerCase()]);
+// A title and year that ignore how the title is written (curly or straight apostrophes, codes, accents,
+// punctuation, case) but keep the letters of every script, so one film always counts once.
+const titleKey = (name, year) => `${unescapeText(name).normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim()}|${parseInt(year, 10) || ""}`;
 const personKey = (n) => String(n).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 const dayIndex = (iso) => Math.floor(Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10)) / 864e5);
 const weekdayOf = (iso) => (new Date(iso + "T00:00:00Z").getUTCDay() + 6) % 7; // Monday = 0
@@ -182,8 +188,11 @@ function reviewParts(raw) {
 function buildLibrary(input) {
   const rows = { diary: [], watched: [], ratings: [], reviews: [], likes: [], watchlist: [], profile: [], ...input };
   const films = new Map();
+  // every spelling of a title in the export (and the feed) leads to the same film: the first spelling seen
+  const spelling = new Map();
+  const keyOf = (r) => { const t = titleKey(r.Name, r.Year); if (!spelling.has(t)) spelling.set(t, filmKey(r.Name, r.Year)); return spelling.get(t); };
   const get = (r) => {
-    const k = filmKey(r.Name, r.Year);
+    const k = keyOf(r);
     let f = films.get(k);
     if (!f) { f = { key: k, name: String(r.Name).trim(), year: parseInt(r.Year, 10) || null, rating: null, liked: false, entries: [], reviews: 0, uri: "" }; films.set(k, f); }
     if (!f.uri && /^https?:\/\//.test(r["Letterboxd URI"] || "")) f.uri = r["Letterboxd URI"];
@@ -191,7 +200,7 @@ function buildLibrary(input) {
   };
   // Watched films and diary entries decide what counts as seen. Likes and reviews only mark films
   // already in it: Letterboxd lets you like a film you never logged.
-  const find = (r) => films.get(filmKey(r.Name, r.Year));
+  const find = (r) => films.get(keyOf(r));
   rows.watched.forEach(get);
   const rated = rows.watched.length ? find : get; // without watched.csv, a rating is the only sign of a watch
   for (const r of rows.ratings) { const v = parseFloat(r.Rating); const f = v && rated(r); if (f) f.rating = v; }
@@ -230,7 +239,8 @@ function buildLibrary(input) {
     reviewTextMissing: reviews.length > 0 && reviews.every((r) => !r.text),
     profile: { username: p.Username || "", joined: (p["Date Joined"] || "").slice(0, 10), name: [p["Given Name"], p["Family Name"]].filter(Boolean).join(" ") },
     watchlist: rows.watchlist.length,
-    watchlistFilms: rows.watchlist.map((r) => ({ key: filmKey(r.Name, r.Year), name: String(r.Name).trim(), year: parseInt(r.Year, 10) || null,
+    // a film still on the watchlist after it was watched isn't something to watch next
+    watchlistFilms: rows.watchlist.filter((r) => !films.has(keyOf(r))).map((r) => ({ key: filmKey(r.Name, r.Year), name: String(r.Name).trim(), year: parseInt(r.Year, 10) || null,
       rating: null, liked: false, entries: [], reviews: 0, uri: /^https?:\/\//.test(r["Letterboxd URI"] || "") ? r["Letterboxd URI"] : "", watchlist: true })),
   };
 }
@@ -317,7 +327,7 @@ function rankCategory(films, metaOf, field) {
   for (const f of films) {
     const m = metaOf(f);
     if (!m) continue;
-    const vals = field === "l" ? (m.l ? [m.l] : []) : m[field] || [];
+    const vals = field === "l" ? (m.l ? [m.l] : []) : [...new Set(m[field] || [])];
     for (const v of vals) {
       let c = map.get(v);
       if (!c) { c = { key: v, name: v, films: [], ratings: [] }; map.set(v, c); }

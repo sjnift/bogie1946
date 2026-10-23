@@ -53,9 +53,11 @@ async function update(user) {
   const file = `docs/feed/${user.toLowerCase()}.json`;
   let old = { items: [] };
   try { old = JSON.parse(await readFile(file, "utf8")); } catch {}
-  const byGuid = new Map(old.items.map((x) => [x.guid, x]));
+  // a viewing keeps its number when a review is added to it (watch-123 becomes review-123), so it stays one entry
+  const viewing = (x) => x.guid.replace(/^letterboxd-(watch|review)-/, "viewing-");
+  const byGuid = new Map(old.items.map((x) => [viewing(x), x]));
   let added = 0;
-  for (const x of fresh) { if (!byGuid.has(x.guid)) added++; byGuid.set(x.guid, x); } // an edited entry replaces the old copy
+  for (const x of fresh) { if (!byGuid.has(viewing(x))) added++; byGuid.set(viewing(x), x); } // an edited entry replaces the old copy
   const items = [...byGuid.values()].sort((a, b) => (b.watched + (b.logged || "")).localeCompare(a.watched + (a.logged || ""))).slice(0, KEEP);
   await mkdir("docs/feed", { recursive: true });
   // the file only changes when the entries do, so a quiet day makes no commit

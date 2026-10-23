@@ -16,7 +16,7 @@ async function addFriend(files) {
   const rows = await readExport(files);
   const lib = buildLibrary(rows);
   const name = lib.profile.username || `Friend ${FRIENDS.length + 1}`;
-  const existing = FRIENDS.find((f) => f.name === name);
+  const existing = FRIENDS.find((f) => f.name.toLowerCase() === name.toLowerCase());
   if (existing) Object.assign(existing, { rows, lib }); // a newer export of the same member replaces the old one
   else FRIENDS.push({ id: "f" + Date.now().toString(36), name, rows, lib });
   saveFriends();
@@ -46,7 +46,7 @@ function tasteProfile(p, metaOf) {
   for (const f of films) {
     const m = metaOf(f); if (!m) continue;
     withMeta++;
-    m.g.forEach((g) => bump(genres, g)); m.d.forEach((d) => bump(directors, d)); m.c.slice(0, CAST_DEPTH).forEach((c) => bump(actors, c));
+    new Set(m.g).forEach((g) => bump(genres, g)); new Set(m.d).forEach((d) => bump(directors, d)); new Set(m.c.slice(0, CAST_DEPTH)).forEach((c) => bump(actors, c));
     if (m.l) { langKnown++; if (m.l !== "English") nonEng++; }
   }
   const spread = Array(10).fill(0);

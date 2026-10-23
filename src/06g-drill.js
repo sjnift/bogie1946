@@ -210,7 +210,7 @@ function filmCardHtml(d) {
   if (m) {
     if (m.d.length) facts.push(`<p class="fc-dir">Directed by ${m.d.map((n) => dlink(personDrill(lib, n, "d"), esc(n))).join(", ")}</p>`);
     if (m.r) facts.push(`<p>${m.r} min</p>`);
-    tags.push(...m.g.map((g) => dlink(catDrill(lib, g, "g"), esc(g))), ...m.k.map((k) => dlink(catDrill(lib, k, "k"), esc(k))), ...(m.l ? [dlink(catDrill(lib, m.l, "l"), esc(m.l))] : []));
+    tags.push(...[...new Set(m.g)].map((g) => dlink(catDrill(lib, g, "g"), esc(g))), ...[...new Set(m.k)].map((k) => dlink(catDrill(lib, k, "k"), esc(k))), ...(m.l ? [dlink(catDrill(lib, m.l, "l"), esc(m.l))] : []));
   }
   const crowd = crowdBits(f, m);
   const cast = m && m.c.length ? `<section class="fc-sec"><h4>Cast</h4><div class="fc-chips">${m.c.slice(0, 12).map((n) => dlink(personDrill(lib, n, "c"), esc(n))).join("")}</div></section>` : "";
