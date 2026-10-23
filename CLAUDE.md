@@ -190,10 +190,12 @@ friend replaces the address instead.
   credits, cached 30 days), **Watch next** (watchlist ranked by a predicted rating with reasons, length filter),
   **year picture** (1080×1350 PNG, Share/Download), **backups** (download a file, import it on another device,
   optionally with API keys), **installable app** (PWA), **film data check** (in the lookup box / Settings:
-  `dataCheck` in `06h-more.js` lists every film whose release year differs between Letterboxd, TMDB and IMDb,
-  whose countries or language differ between TMDB and IMDb, and smaller differences; "Copy the list" gives it
-  as text for pasting into a chat. Letterboxd's export has no countries or languages; Letterboxd takes those
-  from TMDB.)
+  `dataCheck` in `06h-more.js`: "Worth a look" (TMDB year >2 years from Letterboxd's unless the match is pinned
+  or from the feed, countries or language with nothing in common between TMDB and IMDb), "No TMDB match",
+  "Corrected by hand" (`FILM_FIXES`), then small differences marked "not an error": TMDB a year or two apart,
+  IMDb's year (OMDb gives the US release year: Spirited Away 2003, L'Âge d'or 1979), IMDb listing more
+  co-producing countries or another language first. "Copy the list" gives the real problems in full and the
+  small ones as counts. The app always uses Letterboxd's year and TMDB's (Letterboxd's) countries/language.)
 
 ## Outside services
 
@@ -201,8 +203,13 @@ friend replaces the address instead.
   (`pickHit`; Letterboxd and TMDB can disagree on a year, e.g. Brick 2005 vs 2006), details with credits.
   A hit must have the same title, or nearly (`titleLike` ≥ 0.75 on the words that matter, in any script);
   beyond ±2 years only a single exact-title film is taken (`onlyTitled`: The Ear is 1970 on Letterboxd, 1990 on
-  TMDB). `TMDB_MATCH_VERSION` (4) re-looks-up films when matching changes; a film whose match is unchanged
-  keeps its details without a second request (5 added TMDB's release year `y`). Watchlist films are looked up too.
+  TMDB), and never one TMDB dates more than 2 years *earlier* (A Cop, 1972, had matched a 1947 film).
+  `FILM_IDS` pins films TMDB's search can't find by title and year (A Cop → Un flic 42741, The Ear → 88953);
+  `FILM_FIXES` (by TMDB id, with a `why`) corrects facts TMDB has wrong (The Prowler 1951 is American; Breaking
+  the Waves is in English; The Battle of Algiers in French). A film's language is TMDB's original language unless
+  it's spoken in exactly one other (`spokenIn`). Every TMDB country is kept (it used to stop at 6, which made
+  lists differ from Letterboxd's). `TMDB_MATCH_VERSION` (6) re-looks-up films when matching changes; from 6 on, a
+  film whose match is unchanged keeps its details without a second request. Watchlist films are looked up too.
 - **OMDb** (free key, 1,000 films a day): IMDb, Metacritic, Rotten Tomatoes scores from the IMDb id, plus IMDb's
   year, countries and languages (`iy`, `ik`, `il`; `inf` when IMDb doesn't know the id). Films fetched before
   those were kept are fetched again, a day's allowance at a time.
@@ -269,6 +276,9 @@ day, shared with the owner's own app. The in-app version is the "Check film data
 - The Ear (1970) showed under UK and English: TMDB's search for "The Ear" in 1970 offered other films, and the
   matcher took the most-voted (When Dinosaurs Ruled the Earth) without checking the title → titles must
   match (version 4). Checked against 74 real titles (old noirs, foreign titles, punctuation): only The Ear changed.
+- The owner's first full data check (1,556 films, Oct 2026) listed 445 differences; the real problems were A Cop
+  (wrong match), The Prowler, Breaking the Waves, The Battle of Algiers (TMDB errors) and the 6-country cap.
+  The rest were release-date conventions and co-production lists, now shown as "not an error".
 - The phone app was rebuilt in Oct 2026 (new tabs, sections, speed). With a 1,400-film diary on a slowed CPU,
   opening Insights went from about 1.5 s to about 50 ms, and taps generally take under 0.1 s.
 

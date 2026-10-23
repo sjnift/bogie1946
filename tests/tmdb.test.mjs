@@ -46,24 +46,42 @@ export default async function ({ browser, base }) {
   await q.context().route(/api\.themoviedb\.org/, (r) => {
     const u = new URL(r.request().url()), json = (o) => r.fulfill({ contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: JSON.stringify(o) });
     const hit = (id, title, date, votes, original = title) => ({ id, title, original_title: original, release_date: date, vote_count: votes });
-    if (u.pathname.startsWith("/3/movie/")) { looked.push(u.pathname.slice(9));
-      return json({ ...movie(+u.pathname.slice(9), "x", "1990-01-01", "Karel Kachyňa", ["Radoslav Brzobohatý"]), production_countries: [{ name: "Czechoslovakia" }], original_language: "cs" }); }
+    if (u.pathname.startsWith("/3/movie/")) {
+      const id = +u.pathname.slice(9); looked.push(String(id));
+      const countries = (...n) => n.map((name) => ({ name }));
+      const details = {
+        88953: { production_countries: countries("Czechoslovakia"), original_language: "cs", spoken_languages: [{ iso_639_1: "cs" }] },
+        42741: { production_countries: countries("France", "Italy"), original_language: "fr", spoken_languages: [{ iso_639_1: "fr" }], release_date: "1972-10-25" },
+        145: { production_countries: countries("Denmark", "France", "Netherlands", "Norway", "Sweden", "Finland", "Iceland", "United Kingdom", "Italy", "Belgium", "Germany", "Switzerland", "United States of America"),
+          original_language: "da", spoken_languages: [{ iso_639_1: "en" }], release_date: "1996-07-05" },
+        22985: { production_countries: countries("United Kingdom"), original_language: "en", spoken_languages: [{ iso_639_1: "en" }], release_date: "1951-05-25" },
+      }[id] || {};
+      return json({ ...movie(id, "x", "1990-01-01", "Someone", ["Someone Else"]), ...details });
+    }
     const query = u.searchParams.get("query"), year = u.searchParams.get("year");
     if (query === "The Ear") return json({ results: year ? [hit(35002, "When Dinosaurs Ruled the Earth", "1970-10-25", 97), hit(186296, "From Ear to Ear", "1970-09-25", 9)]
       : [hit(1288220, "A Mosquito in the Ear", "2026-06-11", 2), hit(88953, "The Ear", "1990-01-01", 75, "Ucho"), hit(1276412, "The Internal Ear", "2016-07-01", 0)] });
     if (query === "Heat") return json({ results: year ? [] : [hit(949, "Heat", "1995-12-15", 9000), hit(4, "Heat", "1986-03-14", 90), hit(5, "Heat", "1972-10-06", 20)] });
     if (query === "Brick") return json({ results: [hit(9270, "Brick", "2006-03-31", 900), hit(7, "Brick", "2005-01-01", 3)] });
+    if (query === "A Cop") return json({ results: year ? [] : [hit(781867, "Call a Cop", "1921-06-26", 1), hit(8, "A Cop", "1947-01-01", 2)] });
+    if (query === "Breaking the Waves") return json({ results: [hit(145, "Breaking the Waves", "1996-07-05", 3000)] });
+    if (query === "The Prowler") return json({ results: [hit(22985, "The Prowler", "1951-05-25", 97)] });
     json({ results: [] });
   });
-  await seed(q, { profile: [{ Username: "tester" }], watched: [{ Name: "The Ear", Year: "1970" }, { Name: "Heat", Year: "1934" }, { Name: "Brick", Year: "2005" }], diary: [], ratings: [] },
+  await seed(q, { profile: [{ Username: "tester" }], watched: [{ Name: "The Ear", Year: "1970" }, { Name: "Heat", Year: "1934" }, { Name: "Brick", Year: "2005" },
+    { Name: "A Cop", Year: "1972" }, { Name: "Breaking the Waves", Year: "1996" }, { Name: "The Prowler", Year: "1951" }], diary: [], ratings: [] },
     { "cr-meta-v1": { "the ear|1970": { src: "tmdb", v: 3, id: 35002, d: ["Don Chaffey"], c: ["Victoria Vetri"], w: [], p: [], m: [], g: ["Adventure"], k: ["UK"], l: "English", r: 100 },
-      "brick|2005": { src: "tmdb", v: 3, id: 9270, d: ["Rian Johnson"], c: ["Joseph Gordon-Levitt"], w: [], p: [], m: [], g: ["Crime"], k: ["USA"], l: "English", r: 110 } }, "cr-tmdb-key": "k123" });
-  await q.waitForFunction(() => META["the ear|1970"].v === TMDB_MATCH_VERSION && META["heat|1934"] && META["brick|2005"].v === TMDB_MATCH_VERSION, null, { timeout: 8000 });
+      "brick|2005": { src: "tmdb", v: 6, id: 9270, d: ["Rian Johnson"], c: ["Joseph Gordon-Levitt"], w: [], p: [], m: [], g: ["Crime"], k: ["USA"], l: "English", r: 110 } }, "cr-tmdb-key": "k123" });
+  await q.waitForFunction(() => ["the ear|1970", "heat|1934", "brick|2005", "a cop|1972", "breaking the waves|1996", "the prowler|1951"].every((k) => META[k] && META[k].v === TMDB_MATCH_VERSION), null, { timeout: 8000 });
   const ear = await q.evaluate(() => { const s = computeStats(MY_LIB, metaOf, "all"), where = (list) => list.most.filter((x) => x.films.some((f) => f.name === "The Ear")).map((x) => x.name).join();
     return { id: META["the ear|1970"].id, country: where(s.countries), language: where(s.languages), heat: !!META["heat|1934"].miss, brick: META["brick|2005"].id };
   });
   assert(ear.id === 88953 && ear.country === "Czechoslovakia" && ear.language === "Czech", `The Ear: ${JSON.stringify(ear)}`);
   assert(ear.heat, "a 1934 film matched a Heat from decades later, though several films share that title");
   assert(ear.brick === 9270 && !looked.includes("9270"), `Brick, matched to the same film as before, was fetched again: ${looked}`);
+  const more = await q.evaluate(() => ({ cop: META["a cop|1972"].id, waves: [META["breaking the waves|1996"].l, META["breaking the waves|1996"].k.length], prowler: META["the prowler|1951"].k.join(), why: META["the prowler|1951"].why }));
+  assert(more.cop === 42741, `A Cop (1972) should be Melville's Un flic, not a 1947 film: ${more.cop}`);
+  assert(more.waves[0] === "English" && more.waves[1] === 13, `Breaking the Waves: language ${more.waves[0]} (spoken in English), ${more.waves[1]} of 13 countries kept`);
+  assert(more.prowler === "USA" && /American/.test(more.why || ""), `The Prowler's country: ${more.prowler}`);
   noErrors(q, "phone");
 }

@@ -27,12 +27,24 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // TMDB ids known for sure: from the Letterboxd feed. A film matched to another id is looked up again.
 let KNOWN_IDS = {};
+// Films TMDB's search can't find by their Letterboxd title and year, found by hand (from the film data check).
+const FILM_IDS = {
+  "a cop|1972": 42741, // Melville's Un flic; TMDB knows no film called "A Cop" from 1972
+  "the ear|1970": 88953, // Ucho: banned on completion, released in 1990
+};
+// Facts TMDB has wrong for a film, by its TMDB id, checked against the film itself (from the film data check).
+const FILM_FIXES = {
+  22985: { k: ["USA"], why: "an American film; TMDB lists it as British" }, // The Prowler (1951)
+  145: { l: "English", why: "in English; TMDB gives Danish as its language" }, // Breaking the Waves (1996)
+  17295: { l: "French", why: "in French and Arabic; TMDB gives Italian" }, // The Battle of Algiers (1966)
+};
+const knownId = (f) => KNOWN_IDS[f.key] || FILM_IDS[titleKey(f.name, f.year)];
 function needsLookup(lib, kind) {
   return lib.films.filter((f) => {
     const m = META[f.key];
     if (kind === "tmdb") {
       if (m && m.pin) return false;
-      if (KNOWN_IDS[f.key] && (!m || m.id !== KNOWN_IDS[f.key])) return true;
+      if (knownId(f) && (!m || m.id !== knownId(f))) return true;
       if (!m) return true;
       if (m.src === "tmdb") return (m.v || 1) < TMDB_MATCH_VERSION;
       return !(m.tmdbMiss >= TMDB_MATCH_VERSION);
@@ -61,7 +73,8 @@ async function tmdbGet(path, params, key, signal) {
 // 4: a film only matches a TMDB film with the same (or nearly the same) title; The Ear (1970) had been
 // matched to When Dinosaurs Ruled the Earth, the most-voted film of 1970 that TMDB's search turned up.
 // 5: TMDB's release year is kept too (`y`), for the film data check.
-const TMDB_MATCH_VERSION = 5;
+// 6: every country TMDB lists (it used to stop at 6), the language a film is spoken in, hand-checked fixes.
+const TMDB_MATCH_VERSION = 6;
 // The words of a title that matter, in any script: "The Ear" → ear, "Love & Mercy" → love, mercy.
 const TITLE_SKIP = new Set(["the", "a", "an", "and", "of", "la", "le", "les", "el", "il", "der", "die", "das"]);
 const titleWords = (s) => new Set(String(s || "").replace(/&/g, " and ").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
@@ -94,11 +107,12 @@ function pickHit(results, f, tolerance) {
 function onlyTitled(results, f) {
   const yearOf = (r) => parseInt((r.release_date || "").slice(0, 4), 10);
   const same = (results || []).filter((r) => titleLike(f.name, r.title) === 1 || titleLike(f.name, r.original_title) === 1);
-  return same.length === 1 && (!f.year || !yearOf(same[0]) || Math.abs(yearOf(same[0]) - f.year) <= 30) ? same[0] : null;
+  // later only: a film can come out years after it was made, never years before (A Cop, 1972, isn't a 1947 film)
+  return same.length === 1 && (!f.year || !yearOf(same[0]) || (yearOf(same[0]) >= f.year - 2 && yearOf(same[0]) - f.year <= 30)) ? same[0] : null;
 }
 // `prev` is what the film was matched to before: when the match hasn't changed, its details are kept.
 async function tmdbFilm(f, key, signal, prev) {
-  if (KNOWN_IDS[f.key]) { const m = await tmdbDetails(KNOWN_IDS[f.key], key, signal); if (!m.miss) return m; }
+  if (knownId(f)) { const m = await tmdbDetails(knownId(f), key, signal); if (!m.miss) return m; }
   let s = await tmdbGet("/search/movie", { query: f.name, year: f.year || "", include_adult: "false" }, key, signal);
   let hit = pickHit(s && s.results, f, 2);
   if (!hit && f.year) {
@@ -106,7 +120,7 @@ async function tmdbFilm(f, key, signal, prev) {
     hit = pickHit(s && s.results, f, 2) || onlyTitled(s && s.results, f);
   }
   if (!hit) return { src: "tmdb", miss: true, v: TMDB_MATCH_VERSION };
-  if (prev && prev.src === "tmdb" && !prev.miss && prev.id === hit.id && prev.c) return { ...prev, v: TMDB_MATCH_VERSION, y: parseInt((hit.release_date || "").slice(0, 4), 10) || prev.y || null };
+  if (prev && prev.src === "tmdb" && !prev.miss && prev.id === hit.id && prev.c && prev.v >= 6) return { ...prev, v: TMDB_MATCH_VERSION, y: parseInt((hit.release_date || "").slice(0, 4), 10) || prev.y || null };
   return tmdbDetails(hit.id, key, signal);
 }
 // One TMDB film's details and credits, by its id.
@@ -126,8 +140,16 @@ async function tmdbDetails(id, key, signal) {
     m: names(crew.filter((c) => c.job === "Original Music Composer" || c.job === "Music")),
     g: (d.genres || []).map((g) => g.name),
     k: (d.production_countries || []).map((c) => c.name),
-    l: d.original_language, r: d.runtime, va: d.vote_average, vc: d.vote_count, im: d.imdb_id,
+    l: spokenIn(d), r: d.runtime, va: d.vote_average, vc: d.vote_count, im: d.imdb_id,
+    ...(FILM_FIXES[d.id] || {}),
   });
+}
+// A film's language: TMDB's original language, unless the film is spoken only in another one (Breaking the
+// Waves: original language Danish, spoken in English). Cantonese and Mandarin are left as TMDB has them.
+function spokenIn(d) {
+  const spoken = (d.spoken_languages || []).map((x) => x.iso_639_1).filter((x) => x && x !== "xx");
+  const chinese = ["cn", "zh"];
+  return spoken.length === 1 && d.original_language && spoken[0] !== d.original_language && !(chinese.includes(spoken[0]) && chinese.includes(d.original_language)) ? spoken[0] : d.original_language;
 }
 async function runTmdb(lib, key) {
   const queue = needsLookup(lib, "tmdb");

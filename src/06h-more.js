@@ -267,52 +267,66 @@ function fillFilmo(root) {
 }
 /* ---------- the film data check: release year, countries and language on Letterboxd, TMDB and IMDb ----------
    Letterboxd's export gives each film's title and year; Letterboxd takes countries and languages from TMDB,
-   so for those the check sets TMDB against IMDb (from OMDb). */
+   so for those the check sets TMDB against IMDb (from OMDb). What's worth a look comes first: a TMDB film dated
+   years away from Letterboxd's (maybe the wrong film), countries or a language with nothing in common, and films
+   with no match. Differences that aren't errors are listed apart: a release a year or two apart, IMDb's year
+   (OMDb gives the year of the US release), IMDb listing more co-producing countries or another language first. */
 const LANG_SAME = { "norwegian bokmal": "norwegian", "norwegian bokmål": "norwegian", filipino: "tagalog", farsi: "persian", chinese: "mandarin", none: "no language" };
 const langKey = (l) => { const t = String(l || "").trim().toLowerCase().replace(/-/g, " "); return LANG_SAME[t] || t; };
+const CHECK_GROUPS = [
+  ["look", "Worth a look"], ["nomatch", "No TMDB match"], ["fixed", "Corrected by hand"],
+  ["yearSmall", "Release year a year or two apart"], ["imdbYear", "IMDb's year is the US release"],
+  ["countryPart", "IMDb lists more or fewer countries"], ["langPart", "IMDb lists another language first"],
+];
+const CHECK_SMALL = new Set(["yearSmall", "imdbYear", "countryPart", "langPart"]);
 function dataCheck(lib) {
-  const out = { year: [], country: [], countryPart: [], lang: [], langPart: [], films: 0, noTmdb: 0, noImdb: 0, notOnImdb: 0 };
+  const out = { films: 0, noImdb: 0, notOnImdb: 0 };
+  for (const [k] of CHECK_GROUPS) out[k] = [];
   const row = (f, note, sort = 0) => ({ name: `${f.name}${f.year ? ` (${f.year})` : ""}`, note, value: "", sort, to: D.film(f) });
   const list = (a) => a.length ? a.map((x) => x === "None" ? "none (silent)" : x).join(", ") : "none listed";
   for (const f of lib.films) {
     const m = META[f.key];
-    if (!m || m.miss || m.src !== "tmdb") { out.noTmdb++; continue; }
+    if (!m || m.miss || m.src !== "tmdb") { out.nomatch.push(row(f, "TMDB has no film by this title and year. Fix it from its card: Wrong film?")); continue; }
     out.films++;
     if (m.inf) out.notOnImdb++; else if (!m.ik) out.noImdb++;
-    const ys = [["Letterboxd", f.year], ["TMDB", m.y], ["IMDb", m.iy]].filter(([, y]) => y);
-    const yv = ys.map(([, y]) => y);
-    if (new Set(yv).size > 1) out.year.push(row(f, ys.map(([w, y]) => `${w} ${y}`).join(" · "), Math.max(...yv) - Math.min(...yv)));
+    if (m.why) out.fixed.push(row(f, `Corrected: ${m.why}`));
+    // a match by hand, from the feed or checked by hand is the right film whatever its year
+    const sure = m.pin || KNOWN_IDS[f.key] === m.id || FILM_IDS[titleKey(f.name, f.year)] === m.id;
+    const wrong = m.y && f.year && Math.abs(m.y - f.year) > 2 && !sure;
+    if (wrong) out.look.push(row(f, `Letterboxd ${f.year} · TMDB ${m.y}: maybe matched to the wrong film`, 100 + Math.abs(m.y - f.year)));
+    else if (m.y && f.year && m.y !== f.year) out.yearSmall.push(row(f, `Letterboxd ${f.year} · TMDB ${m.y}${sure ? " (checked: the right film)" : ""}`, Math.abs(m.y - f.year)));
+    if (!wrong && m.iy && f.year && m.iy !== f.year) out.imdbYear.push(row(f, `Letterboxd ${f.year} · IMDb ${m.iy}`, Math.abs(m.iy - f.year)));
     if (m.ik && m.ik.length && m.k.length) {
       const a = new Set(m.k.map((c) => c.toLowerCase())), b = new Set(m.ik.map((c) => c.toLowerCase()));
       const shared = [...a].filter((c) => b.has(c)).length;
-      if (!shared) out.country.push(row(f, `TMDB ${list(m.k)} · IMDb ${list(m.ik)}`));
+      if (!shared) out.look.push(row(f, `Countries: TMDB ${list(m.k)} · IMDb ${list(m.ik)}`, 50));
       else if (shared !== a.size || shared !== b.size) out.countryPart.push(row(f, `TMDB ${list(m.k)} · IMDb ${list(m.ik)}`));
     }
     if (m.il && m.il.length && m.l) {
       const t = langKey(m.l), i = m.il.map(langKey);
-      if (!i.includes(t)) out.lang.push(row(f, `TMDB ${m.l} · IMDb ${list(m.il)}`));
-      else if (i[0] !== t) out.langPart.push(row(f, `TMDB ${m.l} · IMDb ${list(m.il)} (IMDb lists ${m.il[0]} first)`));
+      if (!i.includes(t)) out.look.push(row(f, `Language: TMDB ${m.l} · IMDb ${list(m.il)}`, 50));
+      else if (i[0] !== t) out.langPart.push(row(f, `TMDB ${m.l} · IMDb ${list(m.il)}`));
     }
   }
-  out.year.sort((a, b) => b.sort - a.sort || a.name.localeCompare(b.name));
-  for (const k of ["country", "countryPart", "lang", "langPart"]) out[k].sort((a, b) => a.name.localeCompare(b.name));
-  out.groups = [["year", "Release year differs"], ["country", "Country: nothing in common"], ["lang", "Language differs"],
-    ["countryPart", "Country: lists differ"], ["langPart", "Language: IMDb lists another first"]].map(([k, title]) => ({ k, title, items: out[k] }));
-  out.total = out.groups.reduce((n, g) => n + g.items.length, 0);
+  for (const [k] of CHECK_GROUPS) out[k].sort((a, b) => b.sort - a.sort || a.name.localeCompare(b.name));
+  out.groups = CHECK_GROUPS.map(([k, title]) => ({ k, title, small: CHECK_SMALL.has(k), items: out[k] }));
+  out.total = out.look.length + out.nomatch.length;
+  out.small = out.groups.filter((g) => g.small).reduce((n, g) => n + g.items.length, 0);
   return out;
 }
 const checkPending = (C) => [C.noImdb ? `IMDb details are still to come for ${plural(C.noImdb, "film")} (OMDb's free key allows 1,000 a day; they fill in by themselves)` : "",
-  C.notOnImdb ? `${plural(C.notOnImdb, "film")} ${C.notOnImdb === 1 ? "isn't" : "aren't"} on IMDb by the id TMDB gives` : "",
-  C.noTmdb ? `${plural(C.noTmdb, "film")} ${C.noTmdb === 1 ? "has" : "have"} no TMDB match` : ""].filter(Boolean);
+  C.notOnImdb ? `${plural(C.notOnImdb, "film")} ${C.notOnImdb === 1 ? "isn't" : "aren't"} on IMDb by the id TMDB gives` : ""].filter(Boolean);
 function dataCheckDrill(C) {
-  return D.groups("Film data check", `${plural(C.total, "mismatch", "mismatches")} in ${plural(C.films, "film")}`,
-    C.groups.filter((g) => g.items.length).map((g) => D.names(g.title, plural(g.items.length, "film"), g.items)), { empty: "Every film agrees." });
+  return D.groups("Film data check", `${plural(C.total, "film")} worth a look, ${plural(C.small, "small difference")}`,
+    C.groups.filter((g) => g.items.length).map((g) => D.names(g.small ? `${g.title} (not an error)` : g.title, plural(g.items.length, "film"), g.items)), { empty: "Every film agrees." });
 }
-// The whole list as plain text, for pasting into a message.
+// The list as plain text, for pasting into a message: what's worth a look in full, small differences counted.
 function dataCheckText(lib) {
   const C = dataCheck(lib);
-  const parts = [`Film data check: ${plural(C.total, "mismatch", "mismatches")} in ${plural(C.films, "film")} (Letterboxd, TMDB, IMDb)`, ...checkPending(C).map((x) => `(${x}.)`)];
-  for (const g of C.groups) if (g.items.length) parts.push("", `${g.title} (${g.items.length})`, ...g.items.map((x) => `- ${x.name}: ${x.note}`));
+  const parts = [`Film data check: ${plural(C.total, "film")} worth a look in ${plural(C.films + C.nomatch.length, "film")} (Letterboxd, TMDB, IMDb)`, ...checkPending(C).map((x) => `(${x}.)`)];
+  for (const g of C.groups) if (g.items.length && !g.small) parts.push("", `${g.title} (${g.items.length})`, ...g.items.map((x) => `- ${x.name}: ${x.note}`));
+  const small = C.groups.filter((g) => g.small && g.items.length);
+  if (small.length) parts.push("", "Small differences, not errors:", ...small.map((g) => `- ${g.title}: ${plural(g.items.length, "film")}`));
   return parts.join("\n");
 }
 function dataCheckBlock(lib, phone) {
@@ -321,14 +335,12 @@ function dataCheckBlock(lib, phone) {
   const C = dataCheck(lib);
   if (!C.films) return title + `<p class="status">Compares each film's release year, countries and language on Letterboxd, TMDB and IMDb, once your films have TMDB details.</p>`;
   const why = `Compares each film's release year, countries and language on Letterboxd, TMDB and IMDb. Letterboxd takes countries and languages from TMDB, so those are TMDB against IMDb${omdbKey() ? "" : "; add an OMDb key above to bring IMDb in"}.`;
-  const small = C.countryPart.length + C.langPart.length;
-  const kinds = [C.year.length && plural(C.year.length, "release year"), C.country.length && plural(C.country.length, "country", "countries"),
-    C.lang.length && plural(C.lang.length, "language"), small && plural(small, "smaller difference")].filter(Boolean);
-  const found = C.total ? `${dlink(dataCheckDrill(C), plural(C.total, "mismatch", "mismatches"))} in ${plural(C.films, "film")}: ${kinds.join(", ").replace(/, ([^,]*)$/, " and $1")}.`
-    : `No mismatches in ${plural(C.films, "film")}.`;
+  const drillTo = dataCheckDrill(C);
+  const found = (C.total ? `${dlink(drillTo, plural(C.total, "film"))} worth a look` : `Nothing that looks wrong`) + ` in ${plural(C.films + C.nomatch.length, "film")}` +
+    (C.fixed.length ? `, ${plural(C.fixed.length, "film")} corrected by hand` : "") + (C.small ? `, and ${dlink(drillTo, plural(C.small, "small difference"))} that ${C.small === 1 ? "isn't an error" : "aren't errors"}` : "") + ".";
   const pending = checkPending(C);
-  const btns = C.total ? (phone ? `<button class="btn green block" type="button" ${dl(dataCheckDrill(C))}>Show the mismatches</button><button class="btn block" type="button" data-copycheck>Copy the list</button>`
-    : `<div class="lookup-row"><button class="btn primary" type="button" ${dl(dataCheckDrill(C))}>Show the mismatches</button><button class="btn" type="button" data-copycheck>Copy the list</button></div>`) : "";
+  const btns = C.total || C.small ? (phone ? `<button class="btn green block" type="button" ${dl(drillTo)}>Show the list</button><button class="btn block" type="button" data-copycheck>Copy the list</button>`
+    : `<div class="lookup-row"><button class="btn primary" type="button" ${dl(drillTo)}>Show the list</button><button class="btn" type="button" data-copycheck>Copy the list</button></div>`) : "";
   return title + `<p class="status">${why}</p><p class="status">${found}${pending.length ? ` ${esc(pending.join("; "))}.` : ""}</p>` + btns;
 }
 // Copies the list, and says so on the button.

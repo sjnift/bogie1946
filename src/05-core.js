@@ -294,7 +294,7 @@ function cleanMeta(m) {
     src: m.src, v: m.v || null, id: m.id || null, poster: m.poster || null,
     d: list(m.d, 6), c: list(m.c, 15), w: list(m.w, 6), p: list(m.p, 4), m: list(m.m, 4),
     g: list((m.g || []).map(genre).filter((g) => GENRES.includes(g)), 6),
-    k: list((m.k || []).map(country), 6), l: language(m.l), r: Math.round(Number(m.r)) || null,
+    k: list((m.k || []).map(country), 20), l: language(m.l), why: m.why || undefined, r: Math.round(Number(m.r)) || null,
     va: Number(m.va) || null, vc: Number(m.vc) || null, // TMDB audience score out of 10, and how many votes
     im: /^tt\d+$/.test(m.im || "") ? m.im : null, // IMDb id, for IMDb scores from OMDb
     pin: m.pin || undefined, // matched by hand, so lookups leave it alone
