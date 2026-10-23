@@ -282,8 +282,6 @@ function profileScreen(s) {
   const T = s.scope === "all" ? onThisDay(lib) : null;
   const otd = T && T.entries.length ? sh(esc(T.title), T.entries.length > 4 ? seeAll(dl(T.to)) : "") +
     `<div class="scroller">${T.entries.slice(0, 12).map((e) => posterItem(e.film, D.film(e.film, { entry: e }), `<span class="pmeta"><span class="stars">${stars(e.rating)}</span></span><span class="mdate">${T.week ? fmtDate(e.date) : e.date.slice(0, 4)}</span>`)).join("")}</div>` : "";
-  const top = s.films.filter((f) => f.rating).sort((a, b) => b.rating - a.rating || b.entries.length - a.entries.length || (b.year || 0) - (a.year || 0));
-  const topRated = top.length ? sh("Top rated", seeAll(`data-act="all-rated"`)) + posterGrid(top.slice(0, 4)) : "";
   const ratings = s.rated ? sh("Ratings", `<span class="count">${plural(s.rated, "film")} · ★ ${s.avgRating.toFixed(2)}</span>`) + `<div class="card">` +
     colChart(s.spread.map((x) => ({ a: x.count, b: 0, tip: `${stars(x.r)} · ${plural(x.count, "film")}`, to: x.count && DR.rating(s.films, x.r) })), "How many films you gave each rating", "", 84)
       .replace('class="chart"', 'class="chart slate"').replace(/<div class="axis"[^]*?<\/div>/, "") +
@@ -296,7 +294,7 @@ function profileScreen(s) {
         ${avatar(p, "lg")}<span class="nm">${esc(p.name)}</span><span class="ct">${plural(p.count, "film")}</span></button>`).join("")}</div>`;
   };
   const people = s.withMeta ? strip("Most watched actors", s.cast, "c") + strip("Most watched directors", s.directors, "d") : "";
-  return hero + scopeBar() + notice + note + fill + tiles + recentRow + otd + topRated + ratings + people;
+  return hero + scopeBar() + notice + note + fill + tiles + recentRow + otd + ratings + people;
 }
 
 /* ---------- Stats: films, people, genres ---------- */

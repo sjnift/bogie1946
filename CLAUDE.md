@@ -137,7 +137,7 @@ The owner asked for this to be checked every time. A film, diary entry, person o
 ### The phone app's structure and speed
 
 - Tabs: **Profile** (hero, year chips, tiles for Reviews/Watch next/Liked/Rewatches, recently watched, On this
-  day, top rated, ratings, most watched people; gear → Settings), **Diary**, **Stats** (a segmented control:
+  day, ratings, most watched people; no "Top rated" row, removed at the owner's request; gear → Settings), **Diary**, **Stats** (a segmented control:
   `films`, `people`, `genres` are three views; the tab remembers the last), **Insights** (the year chips pick
   all years or one; underlined section tabs: `state.insTab` / `state.yearTab`), **Compare** (friend chips,
   section tabs `state.cmpTab`). Pushed screens (`state.stack`): `data` (Settings: import, lookups, backups,
