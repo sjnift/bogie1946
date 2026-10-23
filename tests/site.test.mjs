@@ -92,9 +92,9 @@ export default async function ({ browser, base }) {
 
   // The site knows its own repository from its address, at the long one and the short one
   const probe = await open(browser, base, "desktop.html");
-  const repos = await probe.evaluate(() => [["sjnift.github.io", "/credits-roll/desktop.html"], ["sjnift.github.io", "/credits-roll"], ["sjnift.github.io", "/mobile.html"], ["sjnift.github.io", "/"],
+  const repos = await probe.evaluate(() => [["sjnift.github.io", "/credits-roll/desktop.html"], ["sjnift.github.io", "/bogie1946/mobile.html"], ["sjnift.github.io", "/mobile.html"], ["sjnift.github.io", "/"],
     ["127.0.0.1", "/desktop.html"]].map(([h, p]) => repoOfPage(h, p)));
-  assert(JSON.stringify(repos) === JSON.stringify(["https://github.com/sjnift/credits-roll", "https://github.com/sjnift/credits-roll", "https://github.com/sjnift/sjnift.github.io",
+  assert(JSON.stringify(repos) === JSON.stringify(["https://github.com/sjnift/credits-roll", "https://github.com/sjnift/bogie1946", "https://github.com/sjnift/sjnift.github.io",
     "https://github.com/sjnift/sjnift.github.io", null]), `repository from the address: ${repos}`);
   await probe.context().close();
 
