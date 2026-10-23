@@ -56,6 +56,7 @@ function bind() {
   });
   $("#btn-mine").addEventListener("click", () => { state.mode = "mine"; state.scope = "all"; saveView(); render(); });
 
+  document.addEventListener("click", (e) => { const c = e.target.closest("[data-copycheck]"); if (c) copyDataCheck(c); });
   document.addEventListener("click", (e) => {
     const t = e.target.closest("[data-expand],[data-more-reviews],[data-reimport],[data-insyear],#btn-add-friend,[data-cmp],[data-unfriend],[data-lb],[data-crowd],[data-scope],[data-tab],[data-more],[data-list],[data-close],[data-dback],[data-drillpage],[data-drillback],[data-drillmore],[data-fix],[data-fixsave],[data-fixcancel],[data-wn],#btn-search,#btn-backup,[data-sharego],#btn-tmdb,#btn-change-key,#btn-omdb,#btn-change-omdb,#btn-claude,#btn-claude-retry,#btn-stop");
     if (!t) return;

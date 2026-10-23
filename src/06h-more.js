@@ -264,4 +264,81 @@ function fillFilmo(root) {
     }).catch(() => { if (el.isConnected) el.innerHTML = `<p class="dr-s">Couldn't reach TMDB for the filmography.</p>`; });
   }
 }
+/* ---------- the film data check: release year, countries and language on Letterboxd, TMDB and IMDb ----------
+   Letterboxd's export gives each film's title and year; Letterboxd takes countries and languages from TMDB,
+   so for those the check sets TMDB against IMDb (from OMDb). */
+const LANG_SAME = { "norwegian bokmal": "norwegian", "norwegian bokmål": "norwegian", filipino: "tagalog", farsi: "persian", chinese: "mandarin", none: "no language" };
+const langKey = (l) => { const t = String(l || "").trim().toLowerCase().replace(/-/g, " "); return LANG_SAME[t] || t; };
+function dataCheck(lib) {
+  const out = { year: [], country: [], countryPart: [], lang: [], langPart: [], films: 0, noTmdb: 0, noImdb: 0, notOnImdb: 0 };
+  const row = (f, note, sort = 0) => ({ name: `${f.name}${f.year ? ` (${f.year})` : ""}`, note, value: "", sort, to: D.film(f) });
+  const list = (a) => a.length ? a.map((x) => x === "None" ? "none (silent)" : x).join(", ") : "none listed";
+  for (const f of lib.films) {
+    const m = META[f.key];
+    if (!m || m.miss || m.src !== "tmdb") { out.noTmdb++; continue; }
+    out.films++;
+    if (m.inf) out.notOnImdb++; else if (!m.ik) out.noImdb++;
+    const ys = [["Letterboxd", f.year], ["TMDB", m.y], ["IMDb", m.iy]].filter(([, y]) => y);
+    const yv = ys.map(([, y]) => y);
+    if (new Set(yv).size > 1) out.year.push(row(f, ys.map(([w, y]) => `${w} ${y}`).join(" · "), Math.max(...yv) - Math.min(...yv)));
+    if (m.ik && m.ik.length && m.k.length) {
+      const a = new Set(m.k.map((c) => c.toLowerCase())), b = new Set(m.ik.map((c) => c.toLowerCase()));
+      const shared = [...a].filter((c) => b.has(c)).length;
+      if (!shared) out.country.push(row(f, `TMDB ${list(m.k)} · IMDb ${list(m.ik)}`));
+      else if (shared !== a.size || shared !== b.size) out.countryPart.push(row(f, `TMDB ${list(m.k)} · IMDb ${list(m.ik)}`));
+    }
+    if (m.il && m.il.length && m.l) {
+      const t = langKey(m.l), i = m.il.map(langKey);
+      if (!i.includes(t)) out.lang.push(row(f, `TMDB ${m.l} · IMDb ${list(m.il)}`));
+      else if (i[0] !== t) out.langPart.push(row(f, `TMDB ${m.l} · IMDb ${list(m.il)} (IMDb lists ${m.il[0]} first)`));
+    }
+  }
+  out.year.sort((a, b) => b.sort - a.sort || a.name.localeCompare(b.name));
+  for (const k of ["country", "countryPart", "lang", "langPart"]) out[k].sort((a, b) => a.name.localeCompare(b.name));
+  out.groups = [["year", "Release year differs"], ["country", "Country: nothing in common"], ["lang", "Language differs"],
+    ["countryPart", "Country: lists differ"], ["langPart", "Language: IMDb lists another first"]].map(([k, title]) => ({ k, title, items: out[k] }));
+  out.total = out.groups.reduce((n, g) => n + g.items.length, 0);
+  return out;
+}
+const checkPending = (C) => [C.noImdb ? `IMDb details are still to come for ${plural(C.noImdb, "film")} (OMDb's free key allows 1,000 a day; they fill in by themselves)` : "",
+  C.notOnImdb ? `${plural(C.notOnImdb, "film")} ${C.notOnImdb === 1 ? "isn't" : "aren't"} on IMDb by the id TMDB gives` : "",
+  C.noTmdb ? `${plural(C.noTmdb, "film")} ${C.noTmdb === 1 ? "has" : "have"} no TMDB match` : ""].filter(Boolean);
+function dataCheckDrill(C) {
+  return D.groups("Film data check", `${plural(C.total, "mismatch", "mismatches")} in ${plural(C.films, "film")}`,
+    C.groups.filter((g) => g.items.length).map((g) => D.names(g.title, plural(g.items.length, "film"), g.items)), { empty: "Every film agrees." });
+}
+// The whole list as plain text, for pasting into a message.
+function dataCheckText(lib) {
+  const C = dataCheck(lib);
+  const parts = [`Film data check: ${plural(C.total, "mismatch", "mismatches")} in ${plural(C.films, "film")} (Letterboxd, TMDB, IMDb)`, ...checkPending(C).map((x) => `(${x}.)`)];
+  for (const g of C.groups) if (g.items.length) parts.push("", `${g.title} (${g.items.length})`, ...g.items.map((x) => `- ${x.name}: ${x.note}`));
+  return parts.join("\n");
+}
+function dataCheckBlock(lib, phone) {
+  if (IN_VIEWER || !lib || state.mode !== "mine") return "";
+  const title = phone ? `<p class="title" style="margin-top:6px">Check film data</p>` : `<h3 class="sub-h">Check film data</h3>`;
+  const C = dataCheck(lib);
+  if (!C.films) return title + `<p class="status">Compares each film's release year, countries and language on Letterboxd, TMDB and IMDb, once your films have TMDB details.</p>`;
+  const why = `Compares each film's release year, countries and language on Letterboxd, TMDB and IMDb. Letterboxd takes countries and languages from TMDB, so those are TMDB against IMDb${omdbKey() ? "" : "; add an OMDb key above to bring IMDb in"}.`;
+  const small = C.countryPart.length + C.langPart.length;
+  const kinds = [C.year.length && plural(C.year.length, "release year"), C.country.length && plural(C.country.length, "country", "countries"),
+    C.lang.length && plural(C.lang.length, "language"), small && plural(small, "smaller difference")].filter(Boolean);
+  const found = C.total ? `${dlink(dataCheckDrill(C), plural(C.total, "mismatch", "mismatches"))} in ${plural(C.films, "film")}: ${kinds.join(", ").replace(/, ([^,]*)$/, " and $1")}.`
+    : `No mismatches in ${plural(C.films, "film")}.`;
+  const pending = checkPending(C);
+  const btns = C.total ? (phone ? `<button class="btn green block" type="button" ${dl(dataCheckDrill(C))}>Show the mismatches</button><button class="btn block" type="button" data-copycheck>Copy the list</button>`
+    : `<div class="lookup-row"><button class="btn primary" type="button" ${dl(dataCheckDrill(C))}>Show the mismatches</button><button class="btn" type="button" data-copycheck>Copy the list</button></div>`) : "";
+  return title + `<p class="status">${why}</p><p class="status">${found}${pending.length ? ` ${esc(pending.join("; "))}.` : ""}</p>` + btns;
+}
+// Copies the list, and says so on the button.
+async function copyDataCheck(btn) {
+  const text = dataCheckText(MY_LIB);
+  try { await navigator.clipboard.writeText(text); btn.textContent = "Copied. Paste it into a message"; }
+  catch {
+    const area = Object.assign(document.createElement("textarea"), { value: text, readOnly: true, className: "key copy-area" });
+    area.style.cssText = "width:100%;min-height:200px;margin-top:8px";
+    btn.after(area); area.focus(); area.select();
+    btn.textContent = "Select all and copy";
+  }
+}
 </script>

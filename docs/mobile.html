@@ -1167,6 +1167,8 @@ function cleanMeta(m) {
     im: /^tt\d+$/.test(m.im || "") ? m.im : null, // IMDb id, for IMDb scores from OMDb
     pin: m.pin || undefined, // matched by hand, so lookups leave it alone
     ir: Number(m.ir) || null, iv: Number(m.iv) || null, mc: Number(m.mc) || null, rt: Number(m.rt) || null, om: m.om || null, // IMDb, Metacritic, Rotten Tomatoes
+    y: parseInt(m.y, 10) || null, // TMDB's release year
+    iy: parseInt(m.iy, 10) || null, ik: Array.isArray(m.ik) ? m.ik : undefined, il: Array.isArray(m.il) ? m.il : undefined, inf: m.inf || undefined, // IMDb's year, countries, languages
   };
 }
 
@@ -1342,7 +1344,8 @@ async function tmdbGet(path, params, key, signal) {
 // Bump when matching or the stored fields change, so saved films are looked up again.
 // 4: a film only matches a TMDB film with the same (or nearly the same) title; The Ear (1970) had been
 // matched to When Dinosaurs Ruled the Earth, the most-voted film of 1970 that TMDB's search turned up.
-const TMDB_MATCH_VERSION = 4;
+// 5: TMDB's release year is kept too (`y`), for the film data check.
+const TMDB_MATCH_VERSION = 5;
 // The words of a title that matter, in any script: "The Ear" → ear, "Love & Mercy" → love, mercy.
 const TITLE_SKIP = new Set(["the", "a", "an", "and", "of", "la", "le", "les", "el", "il", "der", "die", "das"]);
 const titleWords = (s) => new Set(String(s || "").replace(/&/g, " and ").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
@@ -1387,7 +1390,7 @@ async function tmdbFilm(f, key, signal, prev) {
     hit = pickHit(s && s.results, f, 2) || onlyTitled(s && s.results, f);
   }
   if (!hit) return { src: "tmdb", miss: true, v: TMDB_MATCH_VERSION };
-  if (prev && prev.src === "tmdb" && !prev.miss && prev.id === hit.id && prev.c) return { ...prev, v: TMDB_MATCH_VERSION };
+  if (prev && prev.src === "tmdb" && !prev.miss && prev.id === hit.id && prev.c) return { ...prev, v: TMDB_MATCH_VERSION, y: parseInt((hit.release_date || "").slice(0, 4), 10) || prev.y || null };
   return tmdbDetails(hit.id, key, signal);
 }
 // One TMDB film's details and credits, by its id.
@@ -1399,7 +1402,7 @@ async function tmdbDetails(id, key, signal) {
   const names = (list) => [...new Set(list.map((x) => x.name))];
   for (const p of [...cast, ...crew.filter((c) => c.job === "Director")]) if (p.profile_path && !PHOTOS[personKey(p.name)]) PHOTOS[personKey(p.name)] = p.profile_path;
   return cleanMeta({
-    src: "tmdb", v: TMDB_MATCH_VERSION, id: d.id, poster: d.poster_path,
+    src: "tmdb", v: TMDB_MATCH_VERSION, id: d.id, poster: d.poster_path, y: parseInt((d.release_date || "").slice(0, 4), 10),
     d: names(crew.filter((c) => c.job === "Director")),
     c: cast.map((c) => c.name),
     w: names(crew.filter((c) => ["Screenplay", "Writer", "Story"].includes(c.job))),
@@ -1425,7 +1428,7 @@ async function runTmdb(lib, key) {
         else {
           // keep IMDb scores already fetched for the same film, so OMDb's daily allowance isn't spent twice
           const prev = META[f.key];
-          if (prev && prev.om && prev.im === m.im) for (const k of ["ir", "iv", "mc", "rt", "om"]) m[k] = prev[k];
+          if (prev && prev.om && prev.im === m.im) for (const k of IMDB_FIELDS) m[k] = prev[k];
           META[f.key] = m;
         }
       } catch (e) {
@@ -1472,7 +1475,10 @@ async function autoLookup(lib) {
 const omdbKey = () => store.get(KEYS.omdb, "");
 const imdbJob = { running: false, ctl: null, done: 0, total: 0, note: "", err: false, badKey: false };
 let editOmdb = false;
-const needsImdb = (lib) => lib.films.filter((f) => { const m = META[f.key]; return m && !m.miss && m.im && !m.om; });
+// What OMDb tells about a film: scores, and its year, countries and languages on IMDb (`inf`: IMDb doesn't know it).
+const IMDB_FIELDS = ["ir", "iv", "mc", "rt", "om", "iy", "ik", "il", "inf"];
+// Films with an IMDb id still to ask OMDb about, including ones asked before IMDb's countries were kept.
+const needsImdb = (lib) => lib.films.filter((f) => { const m = META[f.key]; return m && !m.miss && m.im && (!m.om || (!m.ik && !m.inf)); });
 async function runOmdb(lib, key) {
   const queue = needsImdb(lib);
   if (!queue.length || imdbJob.running) return;
@@ -1490,10 +1496,12 @@ async function runOmdb(lib, key) {
         if (d.Response === "False") {
           if (/limit/i.test(d.Error || "")) { stop = "limit"; return; }
           if (/api key/i.test(d.Error || "") || res.status === 401) { stop = "key"; return; }
-          m.om = today; // OMDb doesn't know this film; don't ask again
+          Object.assign(m, { om: today, inf: true }); // OMDb doesn't know this film; don't ask again
         } else {
           const rt = (d.Ratings || []).find((x) => x.Source === "Rotten Tomatoes");
-          Object.assign(m, { ir: num(d.imdbRating), iv: num(d.imdbVotes), mc: num(d.Metascore), rt: rt ? num(rt.Value) : null, om: today });
+          const names = (v) => String(v || "").split(/,\s*/).map((x) => x.trim()).filter((x) => x && x !== "N/A");
+          Object.assign(m, { ir: num(d.imdbRating), iv: num(d.imdbVotes), mc: num(d.Metascore), rt: rt ? num(rt.Value) : null, om: today,
+            iy: parseInt(d.Year, 10) || null, ik: names(d.Country).map(country), il: names(d.Language).map(language) });
         }
       } catch (e) {
         if (signal.aborted) return;
@@ -3094,6 +3102,83 @@ function fillFilmo(root) {
     }).catch(() => { if (el.isConnected) el.innerHTML = `<p class="dr-s">Couldn't reach TMDB for the filmography.</p>`; });
   }
 }
+/* ---------- the film data check: release year, countries and language on Letterboxd, TMDB and IMDb ----------
+   Letterboxd's export gives each film's title and year; Letterboxd takes countries and languages from TMDB,
+   so for those the check sets TMDB against IMDb (from OMDb). */
+const LANG_SAME = { "norwegian bokmal": "norwegian", "norwegian bokmål": "norwegian", filipino: "tagalog", farsi: "persian", chinese: "mandarin", none: "no language" };
+const langKey = (l) => { const t = String(l || "").trim().toLowerCase().replace(/-/g, " "); return LANG_SAME[t] || t; };
+function dataCheck(lib) {
+  const out = { year: [], country: [], countryPart: [], lang: [], langPart: [], films: 0, noTmdb: 0, noImdb: 0, notOnImdb: 0 };
+  const row = (f, note, sort = 0) => ({ name: `${f.name}${f.year ? ` (${f.year})` : ""}`, note, value: "", sort, to: D.film(f) });
+  const list = (a) => a.length ? a.map((x) => x === "None" ? "none (silent)" : x).join(", ") : "none listed";
+  for (const f of lib.films) {
+    const m = META[f.key];
+    if (!m || m.miss || m.src !== "tmdb") { out.noTmdb++; continue; }
+    out.films++;
+    if (m.inf) out.notOnImdb++; else if (!m.ik) out.noImdb++;
+    const ys = [["Letterboxd", f.year], ["TMDB", m.y], ["IMDb", m.iy]].filter(([, y]) => y);
+    const yv = ys.map(([, y]) => y);
+    if (new Set(yv).size > 1) out.year.push(row(f, ys.map(([w, y]) => `${w} ${y}`).join(" · "), Math.max(...yv) - Math.min(...yv)));
+    if (m.ik && m.ik.length && m.k.length) {
+      const a = new Set(m.k.map((c) => c.toLowerCase())), b = new Set(m.ik.map((c) => c.toLowerCase()));
+      const shared = [...a].filter((c) => b.has(c)).length;
+      if (!shared) out.country.push(row(f, `TMDB ${list(m.k)} · IMDb ${list(m.ik)}`));
+      else if (shared !== a.size || shared !== b.size) out.countryPart.push(row(f, `TMDB ${list(m.k)} · IMDb ${list(m.ik)}`));
+    }
+    if (m.il && m.il.length && m.l) {
+      const t = langKey(m.l), i = m.il.map(langKey);
+      if (!i.includes(t)) out.lang.push(row(f, `TMDB ${m.l} · IMDb ${list(m.il)}`));
+      else if (i[0] !== t) out.langPart.push(row(f, `TMDB ${m.l} · IMDb ${list(m.il)} (IMDb lists ${m.il[0]} first)`));
+    }
+  }
+  out.year.sort((a, b) => b.sort - a.sort || a.name.localeCompare(b.name));
+  for (const k of ["country", "countryPart", "lang", "langPart"]) out[k].sort((a, b) => a.name.localeCompare(b.name));
+  out.groups = [["year", "Release year differs"], ["country", "Country: nothing in common"], ["lang", "Language differs"],
+    ["countryPart", "Country: lists differ"], ["langPart", "Language: IMDb lists another first"]].map(([k, title]) => ({ k, title, items: out[k] }));
+  out.total = out.groups.reduce((n, g) => n + g.items.length, 0);
+  return out;
+}
+const checkPending = (C) => [C.noImdb ? `IMDb details are still to come for ${plural(C.noImdb, "film")} (OMDb's free key allows 1,000 a day; they fill in by themselves)` : "",
+  C.notOnImdb ? `${plural(C.notOnImdb, "film")} ${C.notOnImdb === 1 ? "isn't" : "aren't"} on IMDb by the id TMDB gives` : "",
+  C.noTmdb ? `${plural(C.noTmdb, "film")} ${C.noTmdb === 1 ? "has" : "have"} no TMDB match` : ""].filter(Boolean);
+function dataCheckDrill(C) {
+  return D.groups("Film data check", `${plural(C.total, "mismatch", "mismatches")} in ${plural(C.films, "film")}`,
+    C.groups.filter((g) => g.items.length).map((g) => D.names(g.title, plural(g.items.length, "film"), g.items)), { empty: "Every film agrees." });
+}
+// The whole list as plain text, for pasting into a message.
+function dataCheckText(lib) {
+  const C = dataCheck(lib);
+  const parts = [`Film data check: ${plural(C.total, "mismatch", "mismatches")} in ${plural(C.films, "film")} (Letterboxd, TMDB, IMDb)`, ...checkPending(C).map((x) => `(${x}.)`)];
+  for (const g of C.groups) if (g.items.length) parts.push("", `${g.title} (${g.items.length})`, ...g.items.map((x) => `- ${x.name}: ${x.note}`));
+  return parts.join("\n");
+}
+function dataCheckBlock(lib, phone) {
+  if (IN_VIEWER || !lib || state.mode !== "mine") return "";
+  const title = phone ? `<p class="title" style="margin-top:6px">Check film data</p>` : `<h3 class="sub-h">Check film data</h3>`;
+  const C = dataCheck(lib);
+  if (!C.films) return title + `<p class="status">Compares each film's release year, countries and language on Letterboxd, TMDB and IMDb, once your films have TMDB details.</p>`;
+  const why = `Compares each film's release year, countries and language on Letterboxd, TMDB and IMDb. Letterboxd takes countries and languages from TMDB, so those are TMDB against IMDb${omdbKey() ? "" : "; add an OMDb key above to bring IMDb in"}.`;
+  const small = C.countryPart.length + C.langPart.length;
+  const kinds = [C.year.length && plural(C.year.length, "release year"), C.country.length && plural(C.country.length, "country", "countries"),
+    C.lang.length && plural(C.lang.length, "language"), small && plural(small, "smaller difference")].filter(Boolean);
+  const found = C.total ? `${dlink(dataCheckDrill(C), plural(C.total, "mismatch", "mismatches"))} in ${plural(C.films, "film")}: ${kinds.join(", ").replace(/, ([^,]*)$/, " and $1")}.`
+    : `No mismatches in ${plural(C.films, "film")}.`;
+  const pending = checkPending(C);
+  const btns = C.total ? (phone ? `<button class="btn green block" type="button" ${dl(dataCheckDrill(C))}>Show the mismatches</button><button class="btn block" type="button" data-copycheck>Copy the list</button>`
+    : `<div class="lookup-row"><button class="btn primary" type="button" ${dl(dataCheckDrill(C))}>Show the mismatches</button><button class="btn" type="button" data-copycheck>Copy the list</button></div>`) : "";
+  return title + `<p class="status">${why}</p><p class="status">${found}${pending.length ? ` ${esc(pending.join("; "))}.` : ""}</p>` + btns;
+}
+// Copies the list, and says so on the button.
+async function copyDataCheck(btn) {
+  const text = dataCheckText(MY_LIB);
+  try { await navigator.clipboard.writeText(text); btn.textContent = "Copied. Paste it into a message"; }
+  catch {
+    const area = Object.assign(document.createElement("textarea"), { value: text, readOnly: true, className: "key copy-area" });
+    area.style.cssText = "width:100%;min-height:200px;margin-top:8px";
+    btn.after(area); area.focus(); area.select();
+    btn.textContent = "Select all and copy";
+  }
+}
 </script>
 <script>
 /* ---------- a year in film, as a picture to share ----------
@@ -3694,7 +3779,7 @@ function lookupInner() {
   } else {
     body = `<p class="status">Lookups aren't available in this view. Open the downloadable copy of this page in a browser and use a TMDB key.</p>`;
   }
-  const extra = [imdbBlock(MY_LIB, true), letterboxdBlock(MY_LIB, true), feedBlock(MY_LIB, true)].filter(Boolean).map((h) => `</div><div class="card">${h}`).join("");
+  const extra = [imdbBlock(MY_LIB, true), letterboxdBlock(MY_LIB, true), feedBlock(MY_LIB, true), dataCheckBlock(MY_LIB, true)].filter(Boolean).map((h) => `</div><div class="card">${h}`).join("");
   return head + body + note + saveNote + extra;
 }
 function progressText() {
@@ -3737,7 +3822,7 @@ function dataScreen() {
       <p>With your own TMDB key, film details come from The Movie Database. This product uses the TMDB API but is not endorsed or certified by TMDB.
       Inside the Claude app, details come from Claude's knowledge of each film instead, so check anything surprising.</p>
       <p>On a computer? <a href="desktop.html">Open the desktop version</a>. It uses the same import.</p>
-      <p class="stamp">Updated 23 Oct 2026, 06:20 UTC</p></div>`;
+      <p class="stamp">Updated 23 Oct 2026, 06:31 UTC</p></div>`;
 }
 
 /* ---------- pushed screens ---------- */
@@ -4408,6 +4493,7 @@ function bind() {
     if (e.target.id !== "review-search") return;
     state.reviewQuery = e.target.value; state.reviewLimit = 30; refreshReviewList();
   });
+  document.addEventListener("click", (e) => { const c = e.target.closest("[data-copycheck]"); if (c) copyDataCheck(c); });
   document.addEventListener("click", (e) => {
     const x = e.target.closest("[data-expand],[data-more-reviews]");
     if (x && x.hasAttribute("data-expand")) { const open = x.previousElementSibling.classList.toggle("clamp") === false; x.textContent = open ? "Show less" : "Read more"; return; }

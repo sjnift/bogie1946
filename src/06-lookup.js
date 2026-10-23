@@ -60,7 +60,8 @@ async function tmdbGet(path, params, key, signal) {
 // Bump when matching or the stored fields change, so saved films are looked up again.
 // 4: a film only matches a TMDB film with the same (or nearly the same) title; The Ear (1970) had been
 // matched to When Dinosaurs Ruled the Earth, the most-voted film of 1970 that TMDB's search turned up.
-const TMDB_MATCH_VERSION = 4;
+// 5: TMDB's release year is kept too (`y`), for the film data check.
+const TMDB_MATCH_VERSION = 5;
 // The words of a title that matter, in any script: "The Ear" → ear, "Love & Mercy" → love, mercy.
 const TITLE_SKIP = new Set(["the", "a", "an", "and", "of", "la", "le", "les", "el", "il", "der", "die", "das"]);
 const titleWords = (s) => new Set(String(s || "").replace(/&/g, " and ").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
@@ -105,7 +106,7 @@ async function tmdbFilm(f, key, signal, prev) {
     hit = pickHit(s && s.results, f, 2) || onlyTitled(s && s.results, f);
   }
   if (!hit) return { src: "tmdb", miss: true, v: TMDB_MATCH_VERSION };
-  if (prev && prev.src === "tmdb" && !prev.miss && prev.id === hit.id && prev.c) return { ...prev, v: TMDB_MATCH_VERSION };
+  if (prev && prev.src === "tmdb" && !prev.miss && prev.id === hit.id && prev.c) return { ...prev, v: TMDB_MATCH_VERSION, y: parseInt((hit.release_date || "").slice(0, 4), 10) || prev.y || null };
   return tmdbDetails(hit.id, key, signal);
 }
 // One TMDB film's details and credits, by its id.
@@ -117,7 +118,7 @@ async function tmdbDetails(id, key, signal) {
   const names = (list) => [...new Set(list.map((x) => x.name))];
   for (const p of [...cast, ...crew.filter((c) => c.job === "Director")]) if (p.profile_path && !PHOTOS[personKey(p.name)]) PHOTOS[personKey(p.name)] = p.profile_path;
   return cleanMeta({
-    src: "tmdb", v: TMDB_MATCH_VERSION, id: d.id, poster: d.poster_path,
+    src: "tmdb", v: TMDB_MATCH_VERSION, id: d.id, poster: d.poster_path, y: parseInt((d.release_date || "").slice(0, 4), 10),
     d: names(crew.filter((c) => c.job === "Director")),
     c: cast.map((c) => c.name),
     w: names(crew.filter((c) => ["Screenplay", "Writer", "Story"].includes(c.job))),
@@ -143,7 +144,7 @@ async function runTmdb(lib, key) {
         else {
           // keep IMDb scores already fetched for the same film, so OMDb's daily allowance isn't spent twice
           const prev = META[f.key];
-          if (prev && prev.om && prev.im === m.im) for (const k of ["ir", "iv", "mc", "rt", "om"]) m[k] = prev[k];
+          if (prev && prev.om && prev.im === m.im) for (const k of IMDB_FIELDS) m[k] = prev[k];
           META[f.key] = m;
         }
       } catch (e) {
@@ -190,7 +191,10 @@ async function autoLookup(lib) {
 const omdbKey = () => store.get(KEYS.omdb, "");
 const imdbJob = { running: false, ctl: null, done: 0, total: 0, note: "", err: false, badKey: false };
 let editOmdb = false;
-const needsImdb = (lib) => lib.films.filter((f) => { const m = META[f.key]; return m && !m.miss && m.im && !m.om; });
+// What OMDb tells about a film: scores, and its year, countries and languages on IMDb (`inf`: IMDb doesn't know it).
+const IMDB_FIELDS = ["ir", "iv", "mc", "rt", "om", "iy", "ik", "il", "inf"];
+// Films with an IMDb id still to ask OMDb about, including ones asked before IMDb's countries were kept.
+const needsImdb = (lib) => lib.films.filter((f) => { const m = META[f.key]; return m && !m.miss && m.im && (!m.om || (!m.ik && !m.inf)); });
 async function runOmdb(lib, key) {
   const queue = needsImdb(lib);
   if (!queue.length || imdbJob.running) return;
@@ -208,10 +212,12 @@ async function runOmdb(lib, key) {
         if (d.Response === "False") {
           if (/limit/i.test(d.Error || "")) { stop = "limit"; return; }
           if (/api key/i.test(d.Error || "") || res.status === 401) { stop = "key"; return; }
-          m.om = today; // OMDb doesn't know this film; don't ask again
+          Object.assign(m, { om: today, inf: true }); // OMDb doesn't know this film; don't ask again
         } else {
           const rt = (d.Ratings || []).find((x) => x.Source === "Rotten Tomatoes");
-          Object.assign(m, { ir: num(d.imdbRating), iv: num(d.imdbVotes), mc: num(d.Metascore), rt: rt ? num(rt.Value) : null, om: today });
+          const names = (v) => String(v || "").split(/,\s*/).map((x) => x.trim()).filter((x) => x && x !== "N/A");
+          Object.assign(m, { ir: num(d.imdbRating), iv: num(d.imdbVotes), mc: num(d.Metascore), rt: rt ? num(rt.Value) : null, om: today,
+            iy: parseInt(d.Year, 10) || null, ik: names(d.Country).map(country), il: names(d.Language).map(language) });
         }
       } catch (e) {
         if (signal.aborted) return;

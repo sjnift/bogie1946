@@ -142,7 +142,7 @@ function lookupInner() {
   } else {
     body = `<p class="status">Lookups aren't available in this view. Open the downloadable copy of this page in a browser and use a TMDB key.</p>`;
   }
-  const extra = [imdbBlock(MY_LIB, true), letterboxdBlock(MY_LIB, true), feedBlock(MY_LIB, true)].filter(Boolean).map((h) => `</div><div class="card">${h}`).join("");
+  const extra = [imdbBlock(MY_LIB, true), letterboxdBlock(MY_LIB, true), feedBlock(MY_LIB, true), dataCheckBlock(MY_LIB, true)].filter(Boolean).map((h) => `</div><div class="card">${h}`).join("");
   return head + body + note + saveNote + extra;
 }
 function progressText() {

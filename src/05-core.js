@@ -288,6 +288,8 @@ function cleanMeta(m) {
     im: /^tt\d+$/.test(m.im || "") ? m.im : null, // IMDb id, for IMDb scores from OMDb
     pin: m.pin || undefined, // matched by hand, so lookups leave it alone
     ir: Number(m.ir) || null, iv: Number(m.iv) || null, mc: Number(m.mc) || null, rt: Number(m.rt) || null, om: m.om || null, // IMDb, Metacritic, Rotten Tomatoes
+    y: parseInt(m.y, 10) || null, // TMDB's release year
+    iy: parseInt(m.iy, 10) || null, ik: Array.isArray(m.ik) ? m.ik : undefined, il: Array.isArray(m.il) ? m.il : undefined, inf: m.inf || undefined, // IMDb's year, countries, languages
   };
 }
 

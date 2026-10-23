@@ -183,7 +183,11 @@ friend replaces the address instead.
 - **Search** (desktop button or `/`; phone magnifier), **filmography progress** for people (TMDB person
   credits, cached 30 days), **Watch next** (watchlist ranked by a predicted rating with reasons, length filter),
   **year picture** (1080×1350 PNG, Share/Download), **backups** (download a file, import it on another device,
-  optionally with API keys), **installable app** (PWA).
+  optionally with API keys), **installable app** (PWA), **film data check** (in the lookup box / Settings:
+  `dataCheck` in `06h-more.js` lists every film whose release year differs between Letterboxd, TMDB and IMDb,
+  whose countries or language differ between TMDB and IMDb, and smaller differences; "Copy the list" gives it
+  as text for pasting into a chat. Letterboxd's export has no countries or languages; Letterboxd takes those
+  from TMDB.)
 
 ## Outside services
 
@@ -192,8 +196,10 @@ friend replaces the address instead.
   A hit must have the same title, or nearly (`titleLike` ≥ 0.75 on the words that matter, in any script);
   beyond ±2 years only a single exact-title film is taken (`onlyTitled`: The Ear is 1970 on Letterboxd, 1990 on
   TMDB). `TMDB_MATCH_VERSION` (4) re-looks-up films when matching changes; a film whose match is unchanged
-  keeps its details without a second request. Watchlist films are looked up too.
-- **OMDb** (free key, 1,000 films a day): IMDb, Metacritic, Rotten Tomatoes scores from the IMDb id.
+  keeps its details without a second request (5 added TMDB's release year `y`). Watchlist films are looked up too.
+- **OMDb** (free key, 1,000 films a day): IMDb, Metacritic, Rotten Tomatoes scores from the IMDb id, plus IMDb's
+  year, countries and languages (`iy`, `ik`, `il`; `inf` when IMDb doesn't know the id). Films fetched before
+  those were kept are fetched again, a day's allowance at a time.
 - **Apify** actor `solidcode~letterboxd-scraper` for Letterboxd averages. $0.0036 per film + $0.005 per run;
   the free plan's $5 a month is about 1,300 films, so a run stops at `LB_RUN_CAP = 1300`. The first run reads
   the member's films page (`/<user>/films/`); follow-up runs ask for each missing film at both addresses
@@ -216,7 +222,7 @@ shows the latest ~50, so it accumulates), commits, and asks Pages to rebuild. Th
 `tests/`: `lib.mjs` (server, browser, stand-ins: papaparse/jszip served from `node_modules`, every outside
 service cut off unless a check stands in for it, service worker off unless asked, reduced motion,
 `phoneTour()` which opens every phone tab, Stats view and Insights/Compare section), `run.mjs`, and checks:
-`apify`, `counts` (double counting), `extras` (year picture, On this day, Watch next, PWA), `feed`, `import`,
+`apify`, `check` (film data check), `counts` (double counting), `extras` (year picture, On this day, Watch next, PWA), `feed`, `import`,
 `links` (every link opens something), `pages` (nothing broken shows, no sideways scroll on the phone),
 `routes`, `storage` (IndexedDB move, backup and restore), `tmdb` (fixing a match, filmography, search).
 

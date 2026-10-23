@@ -102,6 +102,7 @@ function bind() {
     if (e.target.id !== "review-search") return;
     state.reviewQuery = e.target.value; state.reviewLimit = 30; refreshReviewList();
   });
+  document.addEventListener("click", (e) => { const c = e.target.closest("[data-copycheck]"); if (c) copyDataCheck(c); });
   document.addEventListener("click", (e) => {
     const x = e.target.closest("[data-expand],[data-more-reviews]");
     if (x && x.hasAttribute("data-expand")) { const open = x.previousElementSibling.classList.toggle("clamp") === false; x.textContent = open ? "Show less" : "Read more"; return; }
