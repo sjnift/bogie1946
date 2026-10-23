@@ -88,7 +88,7 @@ async function drawYear(lib, Y, withPosters) {
   // where it came from
   if (SITE_REPO) { ctx.fillStyle = C.muted; ctx.font = `500 17px ${F.mono}`; ctx.textAlign = "right"; ctx.fillText(location.host + location.pathname.replace(/[^/]*$/, ""), C.w - M, 730); ctx.textAlign = "left"; }
   const best = R.best.slice(0, 4), pw = 216, ph = 324, gap = (C.w - 2 * M - 4 * pw) / 3;
-  const imgs = await Promise.all(best.map((x) => { const m = metaOf(x.f); return withPosters && showImages && m && m.poster ? loadImg(`https://image.tmdb.org/t/p/w342${m.poster}`) : null; }));
+  const imgs = await Promise.all(best.map((x) => { const m = metaOf(x.f); return withPosters && showImages && m && imagePath(m.poster) ? loadImg(`https://image.tmdb.org/t/p/w342${m.poster}`) : null; }));
   best.forEach((x, i) => {
     const px = M + i * (pw + gap), py = 752;
     ctx.save(); ctx.beginPath(); ctx.roundRect(px, py, pw, ph, 10); ctx.clip();

@@ -35,9 +35,12 @@ fi
 
 # The GitHub Pages site in docs/: both layouts on one origin, so they share one import and one saved key.
 # Never takes TMDB_KEY: this site is public. It installs as an app: a manifest, icons and a service worker.
-mkdir -p docs/icons
+mkdir -p docs/icons docs/vendor
 cp src/site/manifest.webmanifest src/site/sw.js docs/
 cp src/site/icons/*.png docs/icons/
+# Papa Parse and JSZip come from the site itself, not a CDN, so nobody else can change what runs here
+cp src/site/vendor/*.js docs/vendor/
+VENDOR='s|https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js|vendor/papaparse.min.js|; s|https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js|vendor/jszip.min.js|' 
 APP_HEAD='<link rel="manifest" href="manifest.webmanifest">\
 <meta name="theme-color" content="#1B2128">\
 <meta name="mobile-web-app-capable" content="yes">\
@@ -50,10 +53,10 @@ SW_REGISTER='<script>if ("serviceWorker" in navigator) navigator.serviceWorker.r
 app() { sed -e "s|<meta charset=\"utf-8\">|<meta charset=\"utf-8\">\\
 $APP_HEAD|" -e "s|</body>|$SW_REGISTER\\
 </body>|"; }
-standalone "$DESK_HEAD" "$DESK_BODY" | stamp | app | sed \
+standalone "$DESK_HEAD" "$DESK_BODY" | stamp | app | sed -e "$VENDOR" \
   -e 's|https://claude.ai/artifact/2RUkgC4dsysdz66WjJ6gzb" target="_blank" rel="noopener"|mobile.html"|' \
   -e 's|It keeps its own copy of your import, so import there too.|It uses the same import.|' > docs/desktop.html
-standalone "$MOB_HEAD" "$MOB_BODY" | stamp | app | sed \
+standalone "$MOB_HEAD" "$MOB_BODY" | stamp | app | sed -e "$VENDOR" \
   -e 's|https://claude.ai/artifact/52oE5x53dcjUZgBYQMfPjR" target="_blank" rel="noopener"|desktop.html"|' \
   -e 's|It keeps its own copy of your import.|It uses the same import.|' > docs/mobile.html
 cat > docs/index.html <<'HTML'
@@ -76,4 +79,7 @@ cat > docs/index.html <<'HTML'
 </html>
 HTML
 touch docs/.nojekyll
+# the site's pages run only their own code (see tools/csp.mjs)
+node tools/csp.mjs docs/desktop.html docs/mobile.html docs/index.html
+if grep -q "cdnjs.cloudflare.com" docs/*.html; then echo "A page still loads a script from a CDN" >&2; exit 1; fi
 if grep -rqE '"[0-9a-f]{32}" /\*TMDB_KEY\*/' docs; then echo "A TMDB key ended up in docs/; refusing to build the public site" >&2; rm -rf docs; exit 1; fi

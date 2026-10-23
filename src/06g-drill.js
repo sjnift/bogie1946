@@ -92,7 +92,7 @@ function catDrill(lib, v, field) {
 /* ----- rendering, shared by the pop-up and the full page ----- */
 function thumb(f, big) {
   const m = metaOf(f);
-  const img = showImages && m && m.poster ? `<img src="${IMG}${esc(m.poster)}" alt="" loading="lazy" onerror="this.remove()">` : "";
+  const img = showImages && m && m.poster ? `<img src="${IMG}${esc(m.poster)}" alt="" loading="lazy">` : "";
   return `<span class="thumb${big ? " big" : ""}" aria-hidden="true"><span class="tt">${big ? esc(f.name) : esc(initials(f.name) || "?")}</span>${img}</span>`;
 }
 const SORTS = {
@@ -188,8 +188,8 @@ function crowdBits(f, m) {
   if (x && x.r) out.push(`Letterboxd <b>${x.r.toFixed(1)}★</b>${x.n ? ` <small>${fmtN(x.n)} ratings</small>` : ""}`);
   if (m && m.ir) out.push(`IMDb <b>${m.ir.toFixed(1)}</b>${m.iv ? ` <small>${fmtN(m.iv)} votes</small>` : ""}`);
   if (m && m.va && (m.vc || 0) >= 25) out.push(`TMDB <b>${m.va.toFixed(1)}</b>`);
-  if (m && m.mc) out.push(`Metacritic <b>${m.mc}</b>`);
-  if (m && m.rt) out.push(`Rotten Tomatoes <b>${m.rt}%</b>`);
+  if (m && m.mc) out.push(`Metacritic <b>${esc(m.mc)}</b>`);
+  if (m && m.rt) out.push(`Rotten Tomatoes <b>${esc(m.rt)}%</b>`);
   return out;
 }
 function recordHtml(p, d, solo) {
@@ -209,15 +209,15 @@ function filmCardHtml(d) {
   const facts = [], tags = [];
   if (m) {
     if (m.d.length) facts.push(`<p class="fc-dir">Directed by ${m.d.map((n) => dlink(personDrill(lib, n, "d"), esc(n))).join(", ")}</p>`);
-    if (m.r) facts.push(`<p>${m.r} min</p>`);
+    if (m.r) facts.push(`<p>${esc(m.r)} min</p>`);
     tags.push(...[...new Set(m.g)].map((g) => dlink(catDrill(lib, g, "g"), esc(g))), ...[...new Set(m.k)].map((k) => dlink(catDrill(lib, k, "k"), esc(k))), ...(m.l ? [dlink(catDrill(lib, m.l, "l"), esc(m.l))] : []));
   }
   const crowd = crowdBits(f, m);
   const cast = m && m.c.length ? `<section class="fc-sec"><h4>Cast</h4><div class="fc-chips">${m.c.slice(0, 12).map((n) => dlink(personDrill(lib, n, "c"), esc(n))).join("")}</div></section>` : "";
   const tm = META[f.key];
   const links = [`<a href="${esc(lbUrl(f))}" target="_blank" rel="noopener">Letterboxd ↗</a>`,
-    tm && tm.src === "tmdb" && tm.id && !IN_VIEWER ? `<a href="https://www.themoviedb.org/movie/${tm.id}" target="_blank" rel="noopener">TMDB ↗</a>` : "",
-    m && m.im ? `<a href="https://www.imdb.com/title/${m.im}/" target="_blank" rel="noopener">IMDb ↗</a>` : ""].filter(Boolean).join("");
+    tm && tm.src === "tmdb" && Number(tm.id) && !IN_VIEWER ? `<a href="https://www.themoviedb.org/movie/${Number(tm.id)}" target="_blank" rel="noopener">TMDB ↗</a>` : "",
+    m && /^tt\d+$/.test(m.im || "") ? `<a href="https://www.imdb.com/title/${m.im}/" target="_blank" rel="noopener">IMDb ↗</a>` : ""].filter(Boolean).join("");
   return `<div class="fcard">${d.badge ? `<p class="fc-badge">${esc(d.badge)}</p>` : ""}<div class="fc-top">${thumb(f, true)}<div class="fc-facts">
       ${facts.join("")}${m ? "" : `<p class="dr-s">No cast &amp; crew details yet.</p>`}
       ${crowd.length ? `<p class="fc-crowd">${crowd.join('<span class="sep"> · </span>')}</p>` : ""}${tags.length ? `<p class="fc-tags">${tags.join("")}</p>` : ""}</div></div>

@@ -214,7 +214,7 @@ const seeAll = (attrs, label = "See all") => `<button class="more" type="button"
 const ltitle = (t, sub = "") => `<div class="lt"><div><h2 class="ltitle">${t}</h2>${sub ? `<p class="lt-sub">${sub}</p>` : ""}</div></div>`;
 const scopeBar = (label = "All time") => `<div class="scopes" id="scopes" role="group" aria-label="Time period">${["all", ...YEARS].map((y) =>
   `<button class="scope" type="button" data-scope="${y}" aria-pressed="${y === state.scope}">${y === "all" ? label : y}</button>`).join("")}</div>`;
-const imgTag = (src) => `<img class="fade" src="${IMG}${esc(src)}" alt="" loading="lazy" decoding="async" onload="this.classList.add('in')" onerror="this.remove()">`;
+const imgTag = (src) => `<img class="fade" src="${IMG}${esc(src)}" alt="" loading="lazy" decoding="async">`;
 function avatar(p, size) {
   const ph = showImages && p.key && PHOTOS[p.key];
   return `<span class="avatar ${size}" aria-hidden="true">${esc(initials(p.name || "?"))}${ph ? imgTag(ph) : ""}</span>`;
@@ -258,7 +258,7 @@ function profileScreen(s) {
   const stat = (to, v, label) => to ? `<button type="button" ${dl(to)}><b>${v}</b><span>${label}</span></button>` : `<div><b>${v}</b><span>${label}</span></div>`;
   // the backdrop: the best-rated films with posters, blurred
   const pics = showImages ? s.films.filter((f) => f.rating && metaOf(f) && metaOf(f).poster).sort((a, b) => b.rating - a.rating || lastSeen(b).localeCompare(lastSeen(a))).slice(0, 3) : [];
-  const hero = `<section class="hero"><div class="hero-bg" aria-hidden="true">${pics.map((f) => `<img src="${IMG}${esc(metaOf(f).poster)}" alt="" decoding="async" onerror="this.remove()">`).join("")}</div>
+  const hero = `<section class="hero"><div class="hero-bg" aria-hidden="true">${pics.map((f) => `<img src="${IMG}${esc(metaOf(f).poster)}" alt="" decoding="async">`).join("")}</div>
     <div class="hero-in">${avatar({ name: ex ? "Example" : lib.profile.username || "You" }, "xl")}<h2 class="hname">${esc(name)}</h2><p class="hhandle">${handle}</p>
     <div class="hstats">${stat(s.films.length && DR.films(s), fmtN(s.films.length), "Films")}${stat(s.timed && DR.runtime(s), s.timed ? fmtN(hours) : "—", "Hours")}
       ${stat(s.entries.length && DR.diary(s), fmtN(s.entries.length), "Entries")}${stat(s.rated && DR.rated(s), s.avgRating ? s.avgRating.toFixed(2) : "—", "Average")}</div></div></section>`;

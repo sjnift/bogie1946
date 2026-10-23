@@ -9,7 +9,7 @@ function tabs(group, items, current) {
 }
 function faceHtml(p, rank) {
   const ph = showImages && PHOTOS[p.key];
-  return `<div class="face"><span class="initials" aria-hidden="true">${esc(initials(p.name))}</span>${ph ? `<img src="${IMG}${esc(ph)}" alt="" loading="lazy" onerror="this.remove()">` : ""}${rank ? `<span class="rank">${rank}</span>` : ""}</div>`;
+  return `<div class="face"><span class="initials" aria-hidden="true">${esc(initials(p.name))}</span>${ph ? `<img src="${IMG}${esc(ph)}" alt="" loading="lazy">` : ""}${rank ? `<span class="rank">${rank}</span>` : ""}</div>`;
 }
 const emptyMeta = () => `<div class="empty">Cast and crew aren't part of the Letterboxd export. Fill them in from <button class="linkish" type="button" data-goto="settings">Settings</button>.</div>`;
 function rankRows(list, valueOf, widthOf, startRank, titleOf) {
@@ -126,7 +126,7 @@ function milestonesBlock(s) {
 // The poster itself: TMDB's image where there is one, otherwise a title card.
 function artHtml(f) {
   const m = metaOf(f);
-  const img = showImages && m && m.poster ? `<img src="${IMG}${esc(m.poster)}" alt="" loading="lazy" onerror="this.remove()">` : "";
+  const img = showImages && m && m.poster ? `<img src="${IMG}${esc(m.poster)}" alt="" loading="lazy">` : "";
   return `<div class="art" title="${esc(f.name)}${f.year ? ` (${f.year})` : ""}">${img}<div class="t">${esc(f.name)}</div><div class="y">${f.year || ""}</div></div>`;
 }
 function posterHtml(f) {

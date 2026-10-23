@@ -85,7 +85,7 @@ const rankedDecades = (s) => s.decades.filter((x) => x.ratings.length >= 3).sort
 // The best-rated decade, up front, with its best films' posters.
 function bestDecadeCard(x, scope) {
   const pics = showImages ? x.top.filter((f) => metaOf(f) && metaOf(f).poster).slice(0, 3) : [];
-  return `<section class="card decade-hero"><div class="dh-bg" aria-hidden="true">${pics.map((f) => `<img src="${IMG}${esc(metaOf(f).poster)}" alt="" decoding="async" onerror="this.remove()">`).join("")}</div>
+  return `<section class="card decade-hero"><div class="dh-bg" aria-hidden="true">${pics.map((f) => `<img src="${IMG}${esc(metaOf(f).poster)}" alt="" decoding="async">`).join("")}</div>
     <p class="dh-k">Best-rated decade${scope === "all" ? "" : ` · watched in ${esc(scope)}`}</p>
     <button class="dh-title" type="button" ${dl(DR.decade(x))}><span class="dh-dec">The ${x.decade}s</span>
       <span class="dh-sub"><span class="stars">★</span> ${x.avg.toFixed(2)} average from ${plural(x.ratings.length, "rated film")}${CHEV}</span></button>

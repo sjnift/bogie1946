@@ -2,8 +2,8 @@
 // with the server (never taken from the browser's short-term cache), so a new version shows up on the
 // next open; the saved copy is only for offline.
 // Calls to TMDB, OMDb, Apify and GitHub, poster images, and the diary kept on the site (saved by the app itself) are left alone.
-const CACHE = "credits-roll-v2";
-const SHELL = ["./", "index.html", "mobile.html", "desktop.html", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png"];
+const CACHE = "credits-roll-v3";
+const SHELL = ["./", "index.html", "mobile.html", "desktop.html", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png", "vendor/papaparse.min.js", "vendor/jszip.min.js"];
 
 self.addEventListener("install", (e) => {
   self.skipWaiting();

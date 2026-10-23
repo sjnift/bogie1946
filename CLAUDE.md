@@ -294,6 +294,34 @@ app**. `06j-site.js`:
   service worker leaves `diary/` alone, and `build.sh` never touches it. Hidden in the Claude artifacts and in
   files opened from disk (`SITE_ON`). Checks see no diary on the site unless they stand in for it (`lib.mjs`).
 
+## Security (reviewed Oct 2026; keep it this way)
+
+- **Nothing from outside can run code.** Every value from outside (the export, TMDB, OMDb, Apify, friends, the feed,
+  the diary on the site, search, the address) is escaped with `esc()` when written into markup; numbers and ids that
+  go into links are coerced (`Number(...)`, `/^tt\d+$/`). Reviews are rebuilt from an allowlist (`reviewParts`).
+  Data arriving from the site or a backup passes `safeMeta`/`safePhotos`/`safeLbx`/`safeFriends` first; a backup may
+  set only the TMDB, OMDb and Apify keys. The `xss` check fills every source with booby-trapped text and opens every
+  screen on both layouts (about a minute): run it after any change to what's shown.
+- **Content security policy** on the site's pages (`tools/csp.mjs`, run by `build.sh`): only the pages' own inline
+  scripts (by SHA-256) and same-origin files run; images, fonts and calls only from the places the app uses
+  (`connect-src`: TMDB, OMDb, Apify, GitHub's API). So **no inline `on…=` handlers** in markup: image errors and the
+  phone's fade-in are handled by listeners in `05-core.js`. A new outside service needs adding to the policy. Checks
+  count anything the policy blocks as an error (`lib.mjs`). Pages refuse to show inside another site's frame, and
+  send no referrer. Papa Parse and JSZip are served from the site (`src/site/vendor/`), not a CDN; the Claude
+  artifacts still use cdnjs (allowed there).
+- **The diary on the site is signed and can't be rolled back**: `index.json` carries `sig` (the diary key sealing the
+  SHA-256 of the rest) and an update count `n`; parts are sealed tied to `name|when` (kinds 3 and 4; 1 and 2 are the
+  untied ones from before). A device refuses an index that doesn't verify, counts fewer updates than it has seen, or
+  (once it has seen a signed one) isn't signed; its next update then puts its own copy back whole. The `site` check
+  covers an edited index, an older copy put back, a swapped part, and the repair.
+- **Commits the app makes** are signed `Credits Roll <owner@users.noreply.github.com>`, never the account's email.
+  (Eleven older commits carry the owner's email; see "Known limits".)
+- What is in the clear on the site: `index.json` (`user`, `at`, `from`, `n`, salt, iterations, `check`, part times).
+  Anyone can download the encrypted parts and try passwords offline; PBKDF2 at 600,000 iterations and a 10+
+  character password are what stand in the way, and the password guards the GitHub key (which can change the site).
+- Everything secret on a device (keys, GitHub key, the diary key) is in that browser's storage for the origin
+  `sjnift.github.io`, which every GitHub Pages site of the owner's account shares.
+
 ## Daily diary updates
 
 `.github/workflows/feed.yml` runs at 06:23 UTC each day (and on demand: `gh workflow run feed.yml --repo
@@ -313,8 +341,9 @@ with `?example` (pass `example: false` for an empty browser; a check's own `goto
 `apify`, `check` (film data check), `counts` (double counting), `reviews` (missing review text spotted; six-film actors), `welcome` (no example diary; import saved at once), `extras` (year picture, On this day, Watch next, PWA), `feed`, `import`,
 `links` (every link opens something), `pages` (nothing broken shows, no sideways scroll on the phone),
 `routes`, `storage` (IndexedDB move, backup and restore), `site` (the diary on the site: a stand-in GitHub and site),
-`tmdb` (fixing a match, filmography, search). `lib.mjs` also cuts off api.github.com and jsdelivr, and answers
-`diary/` with "not found".
+`tmdb` (fixing a match, filmography, search), `xss` (nothing from outside can run code, about a minute). `lib.mjs`
+also cuts off api.github.com and jsdelivr, answers `diary/` with "not found", and counts anything the security policy
+blocks as a page error.
 
 `.github/workflows/site.yml` runs the checks on every push. Pages currently deploys from the branch, so a
 failed check only shows a red mark and an email. If the owner switches Settings → Pages → Source to GitHub
@@ -372,6 +401,9 @@ day, shared with the owner's own app. The in-app version is the "Check film data
   new import or a full lookup sends more). If the repository ever gets too big, the history of `docs/diary/` can be
   squashed.
 - The password now guards the GitHub key too (it can change the site), so it should be long and used nowhere else.
+- The owner's email is in the author line of eleven commits from 22–23 Oct 2026 (ten early ones, and the first diary
+  upload); new commits never carry it. Removing it from those means rewriting the repository's history (the owner's
+  choice).
 - A forgotten password can't be recovered: the device that puts the diary there changes it (it keeps the key).
 - Inside the Claude artifacts, downloads (backup, year picture) don't work; backups are hidden there and the
   picture can be saved by right-click or long-press. Declaring the artifact `downloads` capability would fix it.

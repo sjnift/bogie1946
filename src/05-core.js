@@ -30,6 +30,10 @@ const personKey = (n) => String(n).normalize("NFD").replace(/[̀-ͯ]/g, "").toLo
 const dayIndex = (iso) => Math.floor(Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10)) / 864e5);
 const weekdayOf = (iso) => (new Date(iso + "T00:00:00Z").getUTCDay() + 6) % 7; // Monday = 0
 
+// Pictures that fail to load are taken away, and a phone poster fades in once it has loaded. Done here, for the whole
+// page, rather than with onerror/onload in the markup: the page's security policy runs no code written in the markup.
+addEventListener("error", (e) => { const t = e.target; if (t && t.tagName === "IMG" && !t.closest("#share-img, .share-img")) t.remove(); }, true);
+addEventListener("load", (e) => { const t = e.target; if (t && t.tagName === "IMG" && t.classList.contains("fade")) t.classList.add("in"); }, true);
 const KEYS = { rows: "cr-rows-v1", meta: "cr-meta-v1", photos: "cr-photos-v1", tmdb: "cr-tmdb-key", omdb: "cr-omdb-key", apify: "cr-apify-key", lbx: "cr-letterboxd-v1", lbRun: "cr-letterboxd-run", friends: "cr-friends-v1", view: "cr-view-v1", filmo: "cr-filmo-v1" };
 /* Small things (keys, the view) live in localStorage. The big ones (the export, film details, Letterboxd
    averages, friends' exports) live in IndexedDB, which holds far more than localStorage's few megabytes.
@@ -312,6 +316,24 @@ function cleanMeta(m) {
     t: m.t || undefined, // when it was looked up: of two equally good copies on two devices, the newer is kept
   };
 }
+// Film details, people's photos, Letterboxd averages and friends that arrive from outside this device (the diary on
+// the site, a backup file) pass through these before they're kept: names stay plain text, numbers numbers, ids and
+// picture paths in their expected shape. (Everything is escaped when shown as well; this is a second lock.)
+const imagePath = (p) => (typeof p === "string" && /^\/[\w.-]+$/.test(p) ? p : null);
+function safeMeta(m) {
+  if (!m || typeof m !== "object") return null;
+  const keep = { src: m.src === "claude" ? "claude" : "tmdb", ...(m.via != null ? { via: String(m.via) } : {}), ...(m.tmdbMiss ? { tmdbMiss: Number(m.tmdbMiss) || 0 } : {}) };
+  if (m.miss) return { ...keep, miss: true, v: Number(m.v) || null };
+  const c = cleanMeta(m);
+  return { ...c, ...keep, poster: imagePath(c.poster), id: Number(c.id) || null, t: typeof m.t === "string" ? m.t.slice(0, 30) : undefined };
+}
+const safeMetaMap = (o) => Object.fromEntries(Object.entries(o || {}).map(([k, m]) => [k, safeMeta(m)]).filter(([, m]) => m));
+const safePhotos = (o) => Object.fromEntries(Object.entries(o || {}).map(([k, p]) => [k, imagePath(p)]).filter(([, p]) => p));
+const safeLbx = (o) => Object.fromEntries(Object.entries(o || {}).filter(([, x]) => x && typeof x === "object").map(([k, x]) =>
+  [k, { ...(x.r != null ? { r: Number(x.r) || null } : {}), ...(x.n != null ? { n: Number(x.n) || 0 } : {}), ...(typeof x.slug === "string" && /^[a-z0-9-]+$/.test(x.slug) ? { slug: x.slug } : {}),
+    ...(x.tries != null ? { tries: Number(x.tries) || 0 } : {}), ...(x.v != null ? { v: Number(x.v) || 0 } : {}) }]));
+const safeFriends = (a) => (Array.isArray(a) ? a : []).filter((f) => f && f.rows && typeof f.name === "string")
+  .map((f) => ({ id: String(f.id || "").replace(/[^\w-]/g, "").slice(0, 40) || `f${hash32(f.name)}`, name: f.name.slice(0, 100), rows: f.rows }));
 
 /* ---------- stats ---------- */
 const CAST_DEPTH = 15; // top-billed cast counted per film

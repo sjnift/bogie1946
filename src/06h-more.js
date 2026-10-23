@@ -100,10 +100,10 @@ async function restoreBackup(file) {
   try { b = JSON.parse(await file.text()); } catch { throw new Error("That file isn't a Credits Roll backup."); }
   if (!b || b.app !== "credits-roll" || !b.rows) throw new Error("That file isn't a Credits Roll backup.");
   store.set(KEYS.rows, b.rows);
-  META = { ...META, ...(b.meta || {}) }; PHOTOS = { ...PHOTOS, ...(b.photos || {}) }; LBX = { ...LBX, ...(b.lbx || {}) };
+  META = { ...META, ...safeMetaMap(b.meta) }; PHOTOS = { ...PHOTOS, ...safePhotos(b.photos) }; LBX = { ...LBX, ...safeLbx(b.lbx) };
   saveMeta(); store.set(KEYS.lbx, LBX);
-  if (Array.isArray(b.friends) && b.friends.length) { store.set(KEYS.friends, b.friends); loadFriends(); }
-  for (const [k, v] of Object.entries(b.keys || {})) if (v && KEYS[k]) store.set(KEYS[k], v);
+  if (Array.isArray(b.friends) && b.friends.length) { store.set(KEYS.friends, safeFriends(b.friends)); loadFriends(); }
+  for (const k of ["tmdb", "omdb", "apify"]) if (typeof (b.keys || {})[k] === "string" && b.keys[k]) store.set(KEYS[k], b.keys[k]); // only the keys, nothing else
   await store.flush();
   return `Restored the backup from ${fmtDate(String(b.at || "").slice(0, 10))}${b.keys ? ", keys included" : ""}.`;
 }
@@ -269,7 +269,7 @@ function fillFilmo(root) {
       el.innerHTML = `<div class="filmo-head"><span><b>Seen ${fmtN(have.length)} of ${fmtN(c.credits.length)}</b> films ${esc(name)} has ${roleWord}</span><span class="num">${pct}%</span></div>
         <div class="filmo-bar" aria-hidden="true"><i style="width:${pct}%"></i></div>
         ${left.length ? `<details class="filmo-left"><summary>${plural(left.length, "film")} you haven't seen</summary>${left.map((x) => `<div class="drill-row plain"><span class="dr-main"><span class="dr-t">${esc(x.title)} <span class="dr-y">${x.year}</span></span>${wl.has(`${personKey(x.title)}|${x.year}`) ? `<span class="dr-s">On your watchlist</span>` : ""}</span>
-          <a class="dr-r" href="https://www.themoviedb.org/movie/${x.id}" target="_blank" rel="noopener">TMDB ↗</a></div>`).join("")}</details>` : `<p class="dr-s">You've seen every one.</p>`}`;
+          <a class="dr-r" href="https://www.themoviedb.org/movie/${Number(x.id) || ""}" target="_blank" rel="noopener">TMDB ↗</a></div>`).join("")}</details>` : `<p class="dr-s">You've seen every one.</p>`}`;
     }).catch(() => { if (el.isConnected) el.innerHTML = `<p class="dr-s">Couldn't reach TMDB for the filmography.</p>`; });
   }
 }

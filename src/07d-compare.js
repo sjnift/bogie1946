@@ -18,7 +18,7 @@ function renderCompare() {
 function whoBlock(friends) {
   const ex = state.mode === "example";
   const chips = friends.map((f) => `<span class="who">
-      <button class="chip" type="button" data-cmp="${f.id}" aria-pressed="${state.cmp === f.id}">You and ${esc(f.name)}</button>
+      <button class="chip" type="button" data-cmp="${esc(f.id)}" aria-pressed="${state.cmp === f.id}">You and ${esc(f.name)}</button>
       ${f.example ? "" : `<button class="linkish who-x" type="button" data-unfriend="${f.id}">${state.unfriend === f.id ? "Remove?" : `<span aria-hidden="true">×</span><span class="sr-only">Remove ${esc(f.name)}</span>`}</button>`}</span>`).join("");
   const all = friends.length >= 2 ? `<button class="chip" type="button" data-cmp="all" aria-pressed="${state.cmp === "all"}">Everyone</button>` : "";
   const add = `<button class="btn small" type="button" id="btn-add-friend"${!MY_LIB ? " disabled" : ""}>Add a friend's export</button>`;

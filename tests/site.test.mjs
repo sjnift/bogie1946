@@ -17,7 +17,7 @@ const meta = { "heat|1995": film(949, "Michael Mann") };
 // The repository as a map of path → blob sha for each tree; blobs are named the way git names them.
 function fakeGitHub({ token = TOKEN } = {}) {
   const blobs = new Map(), trees = new Map(), commits = new Map(), sha1 = (x) => createHash("sha1").update(x).digest("hex");
-  const gh = { calls: [], beforePatch: null };
+  const gh = { calls: [], beforePatch: null, authors: [] };
   const blob = (buf) => { const sha = sha1(Buffer.concat([Buffer.from(`blob ${buf.length}\0`), buf])); blobs.set(sha, buf); return sha; };
   const tree = (files) => { const sha = sha1("tree " + JSON.stringify(Object.entries(files).sort())); trees.set(sha, files); return sha; };
   const commit = (t, parents) => { const sha = sha1(`commit ${t} ${parents} ${Math.random()}`); commits.set(sha, { tree: t, parents }); return sha; };
@@ -52,7 +52,7 @@ function fakeGitHub({ token = TOKEN } = {}) {
       for (const e of body.tree) if (e.sha) files[e.path] = e.sha; else delete files[e.path];
       return reply(201, { sha: tree(files) });
     }
-    if (method === "POST" && p === "/git/commits") return reply(201, { sha: commit(body.tree, body.parents) });
+    if (method === "POST" && p === "/git/commits") { gh.authors.push(`${(body.author || {}).email} ${(body.committer || {}).email}`); return reply(201, { sha: commit(body.tree, body.parents) }); }
     if (method === "PATCH" && p === "/git/refs/heads/main") {
       if (gh.beforePatch) { const f = gh.beforePatch; gh.beforePatch = null; await f(); }
       if (!body.force && commits.get(body.sha).parents[0] !== gh.ref) return reply(422, { message: "Update is not a fast forward" });
@@ -71,26 +71,33 @@ function fakeGitHub({ token = TOKEN } = {}) {
 const subtle = webcrypto.subtle;
 const keyFor = async (pass, salt) => subtle.deriveKey({ name: "PBKDF2", hash: "SHA-256", salt: Buffer.from(salt, "base64"), iterations: 600000 },
   await subtle.importKey("raw", Buffer.from(pass), "PBKDF2", false, ["deriveKey"]), { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
-async function openPart(key, buf) {
-  const body = Buffer.from(await subtle.decrypt({ name: "AES-GCM", iv: buf.subarray(1, 13) }, key, buf.subarray(13)));
-  return JSON.parse((buf[0] === 2 ? gunzipSync(body) : body).toString("utf8"));
+// kinds 1 and 2 untied (from before), 3 and 4 tied to a label: the part's name and when it changed
+async function openPart(key, buf, label) {
+  const tied = buf[0] === 3 || buf[0] === 4;
+  const body = Buffer.from(await subtle.decrypt({ name: "AES-GCM", iv: buf.subarray(1, 13), ...(tied ? { additionalData: Buffer.from(label || "") } : {}) }, key, buf.subarray(13)));
+  return JSON.parse((buf[0] === 2 || buf[0] === 3 ? gunzipSync(body) : body).toString("utf8"));
 }
+const canon = (v) => JSON.stringify(v, (k, x) => (x && typeof x === "object" && !Array.isArray(x) ? Object.fromEntries(Object.keys(x).sort().map((n) => [n, x[n]])) : x));
+const sha256 = (t) => createHash("sha256").update(t).digest("hex");
 // The app's grouping of film details and photos into 16 parts (FNV-1a), and everything on the site, opened.
 const hash32 = (str) => { let h = 0x811c9dc5; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193); } return h >>> 0; };
 const shardOf = (k) => `m${hash32(k) % 16}`;
 const diaryFiles = (gh) => Object.keys(gh.files()).filter((f) => f.startsWith("docs/diary/")).map((f) => f.slice(11)).sort();
 async function openAll(gh, key) {
-  const all = { meta: {}, photos: {} };
+  const all = { meta: {}, photos: {} }, ix = JSON.parse(gh.file("docs/diary/index.json"));
   for (const f of diaryFiles(gh).filter((n) => n.endsWith(".bin"))) {
-    const v = await openPart(key, gh.file(`docs/diary/${f}`)), p = f.slice(0, -4);
+    const p = f.slice(0, -4), v = await openPart(key, gh.file(`docs/diary/${f}`), `${p}|${ix.parts[p]}`);
     if (/^m\d+$/.test(p)) Object.assign(all.meta, v); else if (/^p\d+$/.test(p)) Object.assign(all.photos, v); else all[p] = v;
   }
   return all;
 }
-async function sealPart(key, value) {
-  const iv = webcrypto.getRandomValues(new Uint8Array(12)), ct = Buffer.from(await subtle.encrypt({ name: "AES-GCM", iv }, key, gzipSync(Buffer.from(JSON.stringify(value)))));
-  return Buffer.concat([Buffer.from([2]), Buffer.from(iv), ct]);
+async function sealPart(key, value, label, plain) {
+  const body = plain ? Buffer.from(JSON.stringify(value)) : gzipSync(Buffer.from(JSON.stringify(value)));
+  const iv = webcrypto.getRandomValues(new Uint8Array(12)), ct = Buffer.from(await subtle.encrypt({ name: "AES-GCM", iv, ...(label ? { additionalData: Buffer.from(label) } : {}) }, key, body));
+  return Buffer.concat([Buffer.from([label ? (plain ? 4 : 3) : (plain ? 1 : 2)]), Buffer.from(iv), ct]);
 }
+// an index signed the way the app signs it (the diary's key sealing the SHA-256 of everything else in it)
+async function signed(key, ix) { const { sig, ...rest } = ix; return { ...rest, sig: (await sealPart(key, sha256(canon(rest)), "index", true)).toString("base64") }; }
 async function device(browser, base, gh, file, opts) {
   const page = await open(browser, base, null, opts);
   await page.context().route(/api\.github\.com/, gh.handler);
@@ -139,14 +146,20 @@ export default async function ({ browser, base }) {
   assert(!/k123|om456/.test(JSON.stringify({ ...up, keys: null })) && !JSON.stringify({ ...up, keys: null }).includes(TOKEN), "a key is outside its own locked part");
   assert(/On the site/.test(await a.innerText("#site-box")), `computer's box: ${await a.innerText("#site-box")}`);
 
-  // A diary put there in the first layout (whole-file parts, no keys): the computer moves it to the new one by itself
+  // The index is signed and counts its updates; every part is tied to its name and when it changed
+  assert(idx.sig && idx.n === 1 && diaryFiles(gh).filter((f) => f.endsWith(".bin")).every((f) => gh.file(`docs/diary/${f}`)[0] === 3), "the diary on the site isn't signed, or a part isn't tied to its label");
+
+  // A diary put there in the first layout (whole-file parts, no keys, no signature), on a device that has never seen
+  // a signed one, as the owner's devices hadn't: it moves to the new layout, signed, by itself
+  await a.evaluate(() => { SITE.signed = false; SITE.n = 0; saveSite(); });
   { const v1 = { rows: up.rows, meta: up.meta, extra: { photos: up.photos, lbx: up.lbx, friends: up.friends } }, at = new Date().toISOString(), out = {};
     for (const f of diaryFiles(gh)) out[`docs/diary/${f}`] = null;
     for (const [p, v] of Object.entries(v1)) out[`docs/diary/${p}.bin`] = await sealPart(key, v);
-    out["docs/diary/index.json"] = Buffer.from(JSON.stringify({ ...idx, v: 1, at, parts: { rows: at, meta: at, extra: at } }));
+    const { sig, n, ...unsigned } = idx;
+    out["docs/diary/index.json"] = Buffer.from(JSON.stringify({ ...unsigned, v: 1, at, parts: { rows: at, meta: at, extra: at } }));
     gh.write(out); }
   await a.reload(); await a.waitForFunction(() => typeof state === "object" && state.lib && MY_LIB);
-  { const t0 = Date.now(); while (JSON.parse(gh.file("docs/diary/index.json")).v !== 2 && Date.now() - t0 < 12000) await a.waitForTimeout(250); }
+  { const t0 = Date.now(); while (!JSON.parse(gh.file("docs/diary/index.json")).sig && Date.now() - t0 < 12000) await a.waitForTimeout(250); }
   await until(a, () => !site.job && !site.busy, "the computer to finish");
   assert(JSON.stringify(diaryFiles(gh)) === JSON.stringify([...wantParts.map((p) => `${p}.bin`), "index.json"].sort()), `after moving to the new layout: ${diaryFiles(gh)}`);
   up = await openAll(gh, key);
@@ -219,7 +232,8 @@ export default async function ({ browser, base }) {
   await settled(a, "the computer to finish");
   const sent = Object.keys(gh.files()).filter((f) => gh.files()[f] !== beforeImport[f]).map((f) => f.slice(11)).sort();
   assert(JSON.stringify(sent) === JSON.stringify(["index.json", "rows.bin"]), `the import sent: ${sent}`);
-  assert((await openPart(key, gh.file("docs/diary/rows.bin"))).watched.length === 2, "the new import on the site is wrong");
+  assert((await openPart(key, gh.file("docs/diary/rows.bin"), `rows|${JSON.parse(gh.file("docs/diary/index.json")).parts.rows}`)).watched.length === 2, "the new import on the site is wrong");
+  const snapshot = Object.fromEntries(diaryFiles(gh).map((f) => [`docs/diary/${f}`, gh.file(`docs/diary/${f}`)])); // for the rollback test below
   await b.evaluate(() => siteCheck(true));
   assert(await b.evaluate(() => MY_LIB.films.map((f) => f.name).sort().join()) === "Heat,Le Samouraï", "the phone didn't get the newer import");
 
@@ -237,9 +251,9 @@ export default async function ({ browser, base }) {
   // that change in, and the second try carries both.
   await a.evaluate(() => { META["x|2001"] = cleanMeta({ src: "tmdb", v: 6, id: 1, d: ["A"], c: [], w: [], p: [], m: [], g: ["Drama"], k: ["France"], l: "French", r: 90 }); });
   gh.beforePatch = async () => {
-    const ix = JSON.parse(gh.file("docs/diary/index.json")), part = shardOf("y|2002"), m = await openPart(key, gh.file(`docs/diary/${part}.bin`)), at = new Date().toISOString();
+    const ix = JSON.parse(gh.file("docs/diary/index.json")), part = shardOf("y|2002"), m = await openPart(key, gh.file(`docs/diary/${part}.bin`), `${part}|${ix.parts[part]}`), at = new Date().toISOString();
     m["y|2002"] = film(2, "B");
-    gh.write({ [`docs/diary/${part}.bin`]: await sealPart(key, m), "docs/diary/index.json": Buffer.from(JSON.stringify({ ...ix, at, parts: { ...ix.parts, [part]: at } })) });
+    gh.write({ [`docs/diary/${part}.bin`]: await sealPart(key, m, `${part}|${at}`), "docs/diary/index.json": Buffer.from(JSON.stringify(await signed(key, { ...ix, n: ix.n + 1, at, parts: { ...ix.parts, [part]: at } }))) });
   };
   p0 = patches();
   await a.evaluate(() => sitePublish());
@@ -247,6 +261,33 @@ export default async function ({ browser, base }) {
   const merged = (await openAll(gh, key)).meta;
   assert(merged["x|2001"] && merged["y|2002"] && merged["heat|1995"], `merged details: ${Object.keys(merged)}`);
   assert(await a.evaluate(() => !!META["y|2002"]), "the computer didn't take in the other device's change");
+
+  // Tampering: whoever changes the site without the password can't get a device to take it in, and the next update
+  // from a device puts the real diary back
+  await b.evaluate(() => siteCheck(true));
+  const good = Object.fromEntries(diaryFiles(gh).map((f) => [`docs/diary/${f}`, gh.file(`docs/diary/${f}`)]));
+  const phoneState = async () => b.evaluate(() => JSON.stringify([MY_LIB.films.length, Object.keys(META).length, SITE && SITE.n]));
+  const before2 = await phoneState();
+  const refuses = async (what) => {
+    await b.evaluate(() => { site.note = ""; site.err = false; return siteCheck(true); });
+    const r = await b.evaluate(() => [site.err, site.note]);
+    assert(r[0] && /doesn't check out/.test(r[1]) && await phoneState() === before2, `${what}: ${JSON.stringify(r)}`);
+  };
+  // an index changed without the password (another part listed as newer)
+  { const ix = JSON.parse(good["docs/diary/index.json"]); gh.write({ "docs/diary/index.json": Buffer.from(JSON.stringify({ ...ix, n: ix.n + 5, at: new Date().toISOString(), parts: { ...ix.parts, rows: new Date().toISOString() } })) }); }
+  await refuses("an index changed without the password");
+  // an older copy put back whole (signed, but counting fewer updates than the phone has seen)
+  gh.write(snapshot);
+  await refuses("an older copy put back");
+  // one part swapped for another (both genuine, and the index genuine and newest)
+  gh.write(good);
+  { const ix = JSON.parse(good["docs/diary/index.json"]), at = new Date().toISOString(), m1 = good["docs/diary/m1.bin"];
+    gh.write({ "docs/diary/m2.bin": m1, "docs/diary/index.json": Buffer.from(JSON.stringify(await signed(await keyFor(PASS, ix.salt), { ...ix, n: ix.n + 1, at, parts: { ...ix.parts, m2: ix.parts.m1 } }))) }); }
+  await refuses("a part swapped for another");
+  // the computer's next update puts the real diary back, and the phone takes it
+  await a.evaluate(() => sitePublish());
+  await b.evaluate(() => { site.note = ""; site.err = false; return siteCheck(true); });
+  assert(!(await b.evaluate(() => site.err)) && (await openAll(gh, key)).meta["y|2002"], "the computer didn't put the real diary back");
 
   // A new password, set on the phone this time: the computer asks for it once, then carries on.
   await b.evaluate(() => push({ type: "data", title: "Settings", ret: 0 }));
@@ -292,6 +333,8 @@ export default async function ({ browser, base }) {
   const r = await c.evaluate(() => ({ pub: SITEPUB, stored: localStorage.getItem("cr-site-pub-v1"), note: site.note }));
   assert(!r.pub && !r.stored && /didn't accept the key/.test(r.note) && !Object.keys(g2.files()).some((f) => f.startsWith("docs/diary/")), `wrong key: ${JSON.stringify(r)}`);
 
+  // every change the app made is signed with GitHub's no-reply address, never the owner's email
+  assert(gh.authors.length && gh.authors.every((x) => x === "sjnift@users.noreply.github.com sjnift@users.noreply.github.com"), `commits signed as: ${[...new Set(gh.authors)]}`);
   noErrors(a, "computer"); noErrors(b, "phone"); noErrors(c, "phone with a wrong key");
   for (const p of [a, b, c]) await p.context().close();
 }

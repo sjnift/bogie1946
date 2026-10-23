@@ -2,6 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-AvJVfx2PmsGik4emJ4mkbu4bU2b6DR2iv7AkwsjQuR0=' 'sha256-elv+wPfA3yRbWyozTo9h+JYTHilloJthhEsFWyPJiPU=' 'sha256-lS2T9lrp5dL1riIF2QWIxm+KKYfO01n7E9hau3grw1Q=' 'sha256-1Dfm5gOkkkpMsbSVCiQavYlAGUrA0Qxd2R/3W6Y20bg=' 'sha256-QotJleCfHISN3+UWYrdyQOkc2QD+SRscxZq071vW47w=' 'sha256-C0hWWdsCi6D/yQNhk31M5G6/fT3KqDMe8xby6dcTLyo=' 'sha256-STKttJjnrA+jEbRzNZ7xFJBJySxOcmsooQDEruvl97I=' 'sha256-jpTMZLGyqdl74CSoMtqaF3XC+h0MSMqoSuIZukpu6Lw=' 'sha256-znwkbpFSaI5ilRcgyhheMIcPY9P21c2upQThl0tMz4w=' 'sha256-EIkU92DApQizQfyhiZygaktaJhdOkCvkn6yIkbXrkts=' 'sha256-wiulVK1bluIWlWCc6MQUzJmX6B3JfaKX5p1SEUUzPb4=' 'sha256-gj+eCFyH6G21HETOIj/4NxkvTlZyp5g1QPMKyc4aVcg=' 'sha256-FS6UNbIhNni/iqJfDbgPTRPqwl+fkb2zsCn+7PdmjiQ=' 'sha256-2yHaboF06ElzIyHTdEmXFkIr0LX/oS6qx5OBvMqb3qo=' 'sha256-m6ESBKZhNhs56IIRaytSWkXOzOldiSupQi/8xvtB+ac=' 'sha256-5XkO92CRxOpAqYAbIkn1rgdFZ7XQ5/IgLQ7wK85plXI=' 'sha256-QBFjFgfaLq51IZ8viaBZBJeGyJF2aYxMGrzHXa364Ds=' 'sha256-w53Hr390kZJKBBCHbbN4UPvFxSS7SURJuuyqDO8zEFk=' 'sha256-UkSdLL90AnuCXUUOkXIupgtJ1kJ0GLljsxrJXu17FPI=' 'sha256-W3RYTxCetGwHPZHdZPAmbrtQhDADFWV8la8MCpQ8Tok=' 'sha256-JoAQ7l5vEqm3+fOzJ7xFDaky3iVAsQz98/U4gBnx1NA=' 'sha256-yi9QeCjTYGsP0lWaYqokVgZAtr+ztko2CiMnfEfhp24=' 'sha256-VRGtNK6KEQip9qg6Unj0RgAW0g3hvSX5eQu57VcH4eI='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://image.tmdb.org; connect-src 'self' https://api.themoviedb.org https://www.omdbapi.com https://api.apify.com https://api.github.com; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
+<meta name="referrer" content="no-referrer">
+<style id="unframed">html{display:none}</style>
+<script>if (self === top) document.getElementById("unframed").remove(); else top.location = self.location.href;</script>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#1B2128">
 <meta name="mobile-web-app-capable" content="yes">
@@ -692,8 +696,8 @@ body.nodata .hero .avatar svg { width: 40px; height: 40px; color: var(--green); 
 <dialog class="sheet" id="sheet" aria-labelledby="sheet-title"></dialog>
 <div id="tip" role="tooltip" hidden></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="vendor/papaparse.min.js"></script>
+<script src="vendor/jszip.min.js"></script>
 <script>
 /* Example diary shown before anyone imports an export. The films are real; the dates,
    ratings and likes are invented for the example. Columns:
@@ -942,6 +946,10 @@ const personKey = (n) => String(n).normalize("NFD").replace(/[̀-ͯ]/g, "").toLo
 const dayIndex = (iso) => Math.floor(Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10)) / 864e5);
 const weekdayOf = (iso) => (new Date(iso + "T00:00:00Z").getUTCDay() + 6) % 7; // Monday = 0
 
+// Pictures that fail to load are taken away, and a phone poster fades in once it has loaded. Done here, for the whole
+// page, rather than with onerror/onload in the markup: the page's security policy runs no code written in the markup.
+addEventListener("error", (e) => { const t = e.target; if (t && t.tagName === "IMG" && !t.closest("#share-img, .share-img")) t.remove(); }, true);
+addEventListener("load", (e) => { const t = e.target; if (t && t.tagName === "IMG" && t.classList.contains("fade")) t.classList.add("in"); }, true);
 const KEYS = { rows: "cr-rows-v1", meta: "cr-meta-v1", photos: "cr-photos-v1", tmdb: "cr-tmdb-key", omdb: "cr-omdb-key", apify: "cr-apify-key", lbx: "cr-letterboxd-v1", lbRun: "cr-letterboxd-run", friends: "cr-friends-v1", view: "cr-view-v1", filmo: "cr-filmo-v1" };
 /* Small things (keys, the view) live in localStorage. The big ones (the export, film details, Letterboxd
    averages, friends' exports) live in IndexedDB, which holds far more than localStorage's few megabytes.
@@ -1224,6 +1232,24 @@ function cleanMeta(m) {
     t: m.t || undefined, // when it was looked up: of two equally good copies on two devices, the newer is kept
   };
 }
+// Film details, people's photos, Letterboxd averages and friends that arrive from outside this device (the diary on
+// the site, a backup file) pass through these before they're kept: names stay plain text, numbers numbers, ids and
+// picture paths in their expected shape. (Everything is escaped when shown as well; this is a second lock.)
+const imagePath = (p) => (typeof p === "string" && /^\/[\w.-]+$/.test(p) ? p : null);
+function safeMeta(m) {
+  if (!m || typeof m !== "object") return null;
+  const keep = { src: m.src === "claude" ? "claude" : "tmdb", ...(m.via != null ? { via: String(m.via) } : {}), ...(m.tmdbMiss ? { tmdbMiss: Number(m.tmdbMiss) || 0 } : {}) };
+  if (m.miss) return { ...keep, miss: true, v: Number(m.v) || null };
+  const c = cleanMeta(m);
+  return { ...c, ...keep, poster: imagePath(c.poster), id: Number(c.id) || null, t: typeof m.t === "string" ? m.t.slice(0, 30) : undefined };
+}
+const safeMetaMap = (o) => Object.fromEntries(Object.entries(o || {}).map(([k, m]) => [k, safeMeta(m)]).filter(([, m]) => m));
+const safePhotos = (o) => Object.fromEntries(Object.entries(o || {}).map(([k, p]) => [k, imagePath(p)]).filter(([, p]) => p));
+const safeLbx = (o) => Object.fromEntries(Object.entries(o || {}).filter(([, x]) => x && typeof x === "object").map(([k, x]) =>
+  [k, { ...(x.r != null ? { r: Number(x.r) || null } : {}), ...(x.n != null ? { n: Number(x.n) || 0 } : {}), ...(typeof x.slug === "string" && /^[a-z0-9-]+$/.test(x.slug) ? { slug: x.slug } : {}),
+    ...(x.tries != null ? { tries: Number(x.tries) || 0 } : {}), ...(x.v != null ? { v: Number(x.v) || 0 } : {}) }]));
+const safeFriends = (a) => (Array.isArray(a) ? a : []).filter((f) => f && f.rows && typeof f.name === "string")
+  .map((f) => ({ id: String(f.id || "").replace(/[^\w-]/g, "").slice(0, 40) || `f${hash32(f.name)}`, name: f.name.slice(0, 100), rows: f.rows }));
 
 /* ---------- stats ---------- */
 const CAST_DEPTH = 15; // top-billed cast counted per film
@@ -1768,7 +1794,7 @@ const ordinal = (n) => { const s = ["th", "st", "nd", "rd"], v = n % 100; return
 // A small link to the TMDB page a film was matched to, so a wrong match is easy to spot.
 const tmdbLink = (f) => {
   const m = f && META[f.key];
-  return m && m.src === "tmdb" && m.id && !IN_VIEWER ? ` <a class="tmdb-link" href="https://www.themoviedb.org/movie/${m.id}" target="_blank" rel="noopener" title="See the film this was matched to on TMDB">TMDB ↗</a>` : "";
+  return m && m.src === "tmdb" && Number(m.id) && !IN_VIEWER ? ` <a class="tmdb-link" href="https://www.themoviedb.org/movie/${Number(m.id)}" target="_blank" rel="noopener" title="See the film this was matched to on TMDB">TMDB ↗</a>` : "";
 };
 const isoOfDay = (d) => new Date(d * 864e5).toISOString().slice(0, 10);
 function niceTick(max) {
@@ -2794,7 +2820,7 @@ function catDrill(lib, v, field) {
 /* ----- rendering, shared by the pop-up and the full page ----- */
 function thumb(f, big) {
   const m = metaOf(f);
-  const img = showImages && m && m.poster ? `<img src="${IMG}${esc(m.poster)}" alt="" loading="lazy" onerror="this.remove()">` : "";
+  const img = showImages && m && m.poster ? `<img src="${IMG}${esc(m.poster)}" alt="" loading="lazy">` : "";
   return `<span class="thumb${big ? " big" : ""}" aria-hidden="true"><span class="tt">${big ? esc(f.name) : esc(initials(f.name) || "?")}</span>${img}</span>`;
 }
 const SORTS = {
@@ -2890,8 +2916,8 @@ function crowdBits(f, m) {
   if (x && x.r) out.push(`Letterboxd <b>${x.r.toFixed(1)}★</b>${x.n ? ` <small>${fmtN(x.n)} ratings</small>` : ""}`);
   if (m && m.ir) out.push(`IMDb <b>${m.ir.toFixed(1)}</b>${m.iv ? ` <small>${fmtN(m.iv)} votes</small>` : ""}`);
   if (m && m.va && (m.vc || 0) >= 25) out.push(`TMDB <b>${m.va.toFixed(1)}</b>`);
-  if (m && m.mc) out.push(`Metacritic <b>${m.mc}</b>`);
-  if (m && m.rt) out.push(`Rotten Tomatoes <b>${m.rt}%</b>`);
+  if (m && m.mc) out.push(`Metacritic <b>${esc(m.mc)}</b>`);
+  if (m && m.rt) out.push(`Rotten Tomatoes <b>${esc(m.rt)}%</b>`);
   return out;
 }
 function recordHtml(p, d, solo) {
@@ -2911,15 +2937,15 @@ function filmCardHtml(d) {
   const facts = [], tags = [];
   if (m) {
     if (m.d.length) facts.push(`<p class="fc-dir">Directed by ${m.d.map((n) => dlink(personDrill(lib, n, "d"), esc(n))).join(", ")}</p>`);
-    if (m.r) facts.push(`<p>${m.r} min</p>`);
+    if (m.r) facts.push(`<p>${esc(m.r)} min</p>`);
     tags.push(...[...new Set(m.g)].map((g) => dlink(catDrill(lib, g, "g"), esc(g))), ...[...new Set(m.k)].map((k) => dlink(catDrill(lib, k, "k"), esc(k))), ...(m.l ? [dlink(catDrill(lib, m.l, "l"), esc(m.l))] : []));
   }
   const crowd = crowdBits(f, m);
   const cast = m && m.c.length ? `<section class="fc-sec"><h4>Cast</h4><div class="fc-chips">${m.c.slice(0, 12).map((n) => dlink(personDrill(lib, n, "c"), esc(n))).join("")}</div></section>` : "";
   const tm = META[f.key];
   const links = [`<a href="${esc(lbUrl(f))}" target="_blank" rel="noopener">Letterboxd ↗</a>`,
-    tm && tm.src === "tmdb" && tm.id && !IN_VIEWER ? `<a href="https://www.themoviedb.org/movie/${tm.id}" target="_blank" rel="noopener">TMDB ↗</a>` : "",
-    m && m.im ? `<a href="https://www.imdb.com/title/${m.im}/" target="_blank" rel="noopener">IMDb ↗</a>` : ""].filter(Boolean).join("");
+    tm && tm.src === "tmdb" && Number(tm.id) && !IN_VIEWER ? `<a href="https://www.themoviedb.org/movie/${Number(tm.id)}" target="_blank" rel="noopener">TMDB ↗</a>` : "",
+    m && /^tt\d+$/.test(m.im || "") ? `<a href="https://www.imdb.com/title/${m.im}/" target="_blank" rel="noopener">IMDb ↗</a>` : ""].filter(Boolean).join("");
   return `<div class="fcard">${d.badge ? `<p class="fc-badge">${esc(d.badge)}</p>` : ""}<div class="fc-top">${thumb(f, true)}<div class="fc-facts">
       ${facts.join("")}${m ? "" : `<p class="dr-s">No cast &amp; crew details yet.</p>`}
       ${crowd.length ? `<p class="fc-crowd">${crowd.join('<span class="sep"> · </span>')}</p>` : ""}${tags.length ? `<p class="fc-tags">${tags.join("")}</p>` : ""}</div></div>
@@ -3054,10 +3080,10 @@ async function restoreBackup(file) {
   try { b = JSON.parse(await file.text()); } catch { throw new Error("That file isn't a Credits Roll backup."); }
   if (!b || b.app !== "credits-roll" || !b.rows) throw new Error("That file isn't a Credits Roll backup.");
   store.set(KEYS.rows, b.rows);
-  META = { ...META, ...(b.meta || {}) }; PHOTOS = { ...PHOTOS, ...(b.photos || {}) }; LBX = { ...LBX, ...(b.lbx || {}) };
+  META = { ...META, ...safeMetaMap(b.meta) }; PHOTOS = { ...PHOTOS, ...safePhotos(b.photos) }; LBX = { ...LBX, ...safeLbx(b.lbx) };
   saveMeta(); store.set(KEYS.lbx, LBX);
-  if (Array.isArray(b.friends) && b.friends.length) { store.set(KEYS.friends, b.friends); loadFriends(); }
-  for (const [k, v] of Object.entries(b.keys || {})) if (v && KEYS[k]) store.set(KEYS[k], v);
+  if (Array.isArray(b.friends) && b.friends.length) { store.set(KEYS.friends, safeFriends(b.friends)); loadFriends(); }
+  for (const k of ["tmdb", "omdb", "apify"]) if (typeof (b.keys || {})[k] === "string" && b.keys[k]) store.set(KEYS[k], b.keys[k]); // only the keys, nothing else
   await store.flush();
   return `Restored the backup from ${fmtDate(String(b.at || "").slice(0, 10))}${b.keys ? ", keys included" : ""}.`;
 }
@@ -3223,7 +3249,7 @@ function fillFilmo(root) {
       el.innerHTML = `<div class="filmo-head"><span><b>Seen ${fmtN(have.length)} of ${fmtN(c.credits.length)}</b> films ${esc(name)} has ${roleWord}</span><span class="num">${pct}%</span></div>
         <div class="filmo-bar" aria-hidden="true"><i style="width:${pct}%"></i></div>
         ${left.length ? `<details class="filmo-left"><summary>${plural(left.length, "film")} you haven't seen</summary>${left.map((x) => `<div class="drill-row plain"><span class="dr-main"><span class="dr-t">${esc(x.title)} <span class="dr-y">${x.year}</span></span>${wl.has(`${personKey(x.title)}|${x.year}`) ? `<span class="dr-s">On your watchlist</span>` : ""}</span>
-          <a class="dr-r" href="https://www.themoviedb.org/movie/${x.id}" target="_blank" rel="noopener">TMDB ↗</a></div>`).join("")}</details>` : `<p class="dr-s">You've seen every one.</p>`}`;
+          <a class="dr-r" href="https://www.themoviedb.org/movie/${Number(x.id) || ""}" target="_blank" rel="noopener">TMDB ↗</a></div>`).join("")}</details>` : `<p class="dr-s">You've seen every one.</p>`}`;
     }).catch(() => { if (el.isConnected) el.innerHTML = `<p class="dr-s">Couldn't reach TMDB for the filmography.</p>`; });
   }
 }
@@ -3407,7 +3433,7 @@ async function drawYear(lib, Y, withPosters) {
   // where it came from
   if (SITE_REPO) { ctx.fillStyle = C.muted; ctx.font = `500 17px ${F.mono}`; ctx.textAlign = "right"; ctx.fillText(location.host + location.pathname.replace(/[^/]*$/, ""), C.w - M, 730); ctx.textAlign = "left"; }
   const best = R.best.slice(0, 4), pw = 216, ph = 324, gap = (C.w - 2 * M - 4 * pw) / 3;
-  const imgs = await Promise.all(best.map((x) => { const m = metaOf(x.f); return withPosters && showImages && m && m.poster ? loadImg(`https://image.tmdb.org/t/p/w342${m.poster}`) : null; }));
+  const imgs = await Promise.all(best.map((x) => { const m = metaOf(x.f); return withPosters && showImages && m && imagePath(m.poster) ? loadImg(`https://image.tmdb.org/t/p/w342${m.poster}`) : null; }));
   best.forEach((x, i) => {
     const px = M + i * (pw + gap), py = 752;
     ctx.save(); ctx.beginPath(); ctx.roundRect(px, py, pw, ph, 10); ctx.clip();
@@ -3519,23 +3545,41 @@ async function deriveKey(password, salt) {
 const importKey = (b64) => crypto.subtle.importKey("raw", b64ToBytes(b64), "AES-GCM", true, ["encrypt", "decrypt"]);
 const exportKey = async (key) => bytesToB64(new Uint8Array(await crypto.subtle.exportKey("raw", key)));
 const squeeze = async (bytes, how) => new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(how === "in" ? new CompressionStream("gzip") : new DecompressionStream("gzip"))).arrayBuffer());
-// One byte for the kind (1 plain, 2 gzipped), 12 for the IV, then the encrypted data.
-async function seal(key, value, plain) {
-  let body = new TextEncoder().encode(JSON.stringify(value)), kind = 1;
-  if (!plain && typeof CompressionStream === "function") { body = await squeeze(body, "in"); kind = 2; }
+// One byte for the kind, 12 for the IV, then the encrypted data. Kinds 1 (plain) and 2 (gzipped) are from before parts
+// were tied to a label; 3 (gzipped) and 4 (plain) carry one (AES-GCM's additional data) that must match when opened:
+// a part's name and when it last changed, so no part can be swapped for another, or for an older copy of itself.
+async function seal(key, value, plain, aad) {
+  let body = new TextEncoder().encode(JSON.stringify(value)), gz = false;
+  if (!plain && typeof CompressionStream === "function") { body = await squeeze(body, "in"); gz = true; }
+  const kind = aad ? (gz ? 3 : 4) : (gz ? 2 : 1);
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, body));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv, ...(aad ? { additionalData: new TextEncoder().encode(aad) } : {}) }, key, body));
   const out = new Uint8Array(13 + ct.length); out[0] = kind; out.set(iv, 1); out.set(ct, 13);
   return out;
 }
-async function unseal(key, bytes) {
-  let body = new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv: bytes.subarray(1, 13) }, key, bytes.subarray(13)));
-  if (bytes[0] === 2) {
+// `untiedOk`: whether a part without a label is still accepted (only from a diary this device has never seen signed)
+async function unseal(key, bytes, aad, untiedOk = true) {
+  const kind = bytes[0], tied = kind === 3 || kind === 4;
+  if (!tied && !untiedOk) throw new Error(SITE_TAMPERED);
+  let body = new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv: bytes.subarray(1, 13), ...(tied ? { additionalData: new TextEncoder().encode(aad || "") } : {}) }, key, bytes.subarray(13)));
+  if (kind === 2 || kind === 3) {
     if (typeof DecompressionStream !== "function") throw new Error("This browser is too old to unpack the diary. Update it and try again.");
     body = await squeeze(body, "out");
   }
   return JSON.parse(new TextDecoder().decode(body));
 }
+// The index is signed with the diary's key (its SHA-256, sealed), and counts its updates (`n`): a device takes it only
+// when the signature holds and the count isn't lower than one it has seen, so nobody can change what it lists or put
+// an older copy back. An unsigned index (from before) is taken only by a device that has never seen a signed one.
+const SITE_TAMPERED = "The diary on the site doesn't check out: it was changed by something other than your devices, or an older copy was put back. This device kept its own copy, and puts it back on the site at its next update.";
+const indexBody = (idx) => { const { sig, ...rest } = idx; return canon(rest); };
+const signIndex = async (key, idx) => ({ ...idx, sig: bytesToB64(await seal(key, await sha256(indexBody(idx)), true, "index")) });
+async function siteTrusts(key, idx) {
+  if (!idx.sig) return !(SITE && SITE.signed);
+  try { if ((await unseal(key, b64ToBytes(idx.sig), "index", false)) !== await sha256(indexBody(idx))) return false; } catch { return false; }
+  return (Number(idx.n) || 0) >= ((SITE && SITE.n) || 0);
+}
+const partLabel = (p, idx) => `${p}|${idx.parts[p]}`;
 
 /* ----- the site (for reading) and GitHub (for changing it) ----- */
 async function siteGet(name, version) {
@@ -3577,7 +3621,9 @@ async function commitFiles(head, files, message) {
     tree.push({ path: SITE_PATH + name, mode: "100644", type: "blob", sha: sha || null });
   }
   const t = await gh("/git/trees", { method: "POST", body: JSON.stringify({ base_tree: head.tree, tree }) });
-  const c = await gh("/git/commits", { method: "POST", body: JSON.stringify({ message, tree: t.sha, parents: [head.commit] }) });
+  // signed with GitHub's private no-reply address, not the account's email (which a public repository shows to all)
+  const by = { name: "Credits Roll", email: `${SITEPUB.repo.split("/")[0]}@users.noreply.github.com` };
+  const c = await gh("/git/commits", { method: "POST", body: JSON.stringify({ message, tree: t.sha, parents: [head.commit], author: by, committer: by }) });
   try { await gh(`/git/refs/heads/${head.branch}`, { method: "PATCH", body: JSON.stringify({ sha: c.sha, force: false }) }); return true; }
   catch (e) { if (e.status === 422 || e.status === 409) return false; throw e; }
 }
@@ -3642,10 +3688,10 @@ async function siteTake(parts, idx, draw) {
       else if (p === "friends") friendsIn = v;
       else if (p === "extra") { photosIn = Object.assign(photosIn || {}, v.photos); lbxIn = v.lbx; friendsIn = v.friends; }
     }
-    if (metaIn) META = mergeMeta(META, metaIn);
-    if (photosIn) PHOTOS = { ...PHOTOS, ...photosIn };
-    if (lbxIn) { LBX = mergeLbx(LBX, lbxIn); store.set(KEYS.lbx, LBX); }
-    if (friendsIn) { store.set(KEYS.friends, mergeFriends(store.get(KEYS.friends, []), friendsIn)); loadFriends(); }
+    if (metaIn) META = mergeMeta(META, safeMetaMap(metaIn));
+    if (photosIn) PHOTOS = { ...PHOTOS, ...safePhotos(photosIn) };
+    if (lbxIn) { LBX = mergeLbx(LBX, safeLbx(lbxIn)); store.set(KEYS.lbx, LBX); }
+    if (friendsIn) { store.set(KEYS.friends, mergeFriends(store.get(KEYS.friends, []), safeFriends(friendsIn))); loadFriends(); }
     if (parts.keys) {
       // the site's keys replace this device's, unless a key changed here hasn't gone up yet; with the GitHub key
       // this device keeps the site up to date too
@@ -3675,8 +3721,9 @@ async function siteBring(idx, read, draw) {
   const have = store.get(KEYS.rows, null) ? SITE.have || {} : {}; // nothing saved here any more: everything again
   SITE.have = SITE.have || {}; SITE.sums = SITE.sums || {};
   const want = Object.keys(idx.parts).filter((p) => idx.parts[p] && have[p] !== idx.parts[p]);
-  const next = async () => { for (let p; (p = want.shift());) { const bytes = await read(p); if (bytes) parts[p] = await unseal(key, bytes); } };
+  const next = async () => { for (let p; (p = want.shift());) { const bytes = await read(p); if (bytes) parts[p] = await unseal(key, bytes, partLabel(p, idx), !idx.sig); } };
   await Promise.all(Array.from({ length: 6 }, next));
+  SITE.n = Math.max(SITE.n || 0, Number(idx.n) || 0); SITE.signed = SITE.signed || !!idx.sig;
   if (Object.keys(parts).length) await siteTake(parts, idx, draw);
   else { SITE.at = idx.at; saveSite(); }
 }
@@ -3684,6 +3731,7 @@ async function siteBring(idx, read, draw) {
 async function siteDiffers() {
   if (!SITE || !site.index || site.index.salt !== SITE.salt || !store.get(KEYS.rows, null)) return false;
   const local = siteLocal();
+  if (!site.index.sig || !(await siteTrusts(await importKey(SITE.key), site.index))) return true; // unsigned, or not to be trusted: send this device's
   for (const p of SITE_PARTS) if (!site.index.parts[p] || (SITE.sums || {})[p] !== await sha256(canon(local[p]))) return true;
   return false;
 }
@@ -3698,8 +3746,10 @@ async function siteCheck(draw) {
   // taken off the site from another device: this one stops sending, and keeps its copy
   if (!idx && SITE) { SITE = null; ls.del(SITE_DIRTY); clearTimeout(site.timer); site.timer = null; saveSite(); }
   if (idx && SITE && SITE.salt === idx.salt && (idx.at !== SITE.at || !store.get(KEYS.rows, null))) {
-    try { await siteBring(idx, (p) => siteGet(`${p}.bin`, idx.parts[p]), draw); }
-    catch (e) { Object.assign(site, { note: e.message || "Couldn't bring in the site's diary.", err: true, noteIn: "publish" }); }
+    try {
+      if (!(await siteTrusts(await importKey(SITE.key), idx))) throw new Error(SITE_TAMPERED);
+      await siteBring(idx, (p) => siteGet(`${p}.bin`, idx.parts[p]), draw);
+    } catch (e) { Object.assign(site, { note: /operation|decrypt/i.test(e.message || "") || e.name === "OperationError" ? SITE_TAMPERED : e.message || "Couldn't bring in the site's diary.", err: true, noteIn: "publish" }); }
   }
   if (draw) siteRedraw();
 }
@@ -3711,8 +3761,11 @@ async function siteUnlock(pass, where) {
     if (!idx) throw new Error("There's no diary on this site any more.");
     const key = await deriveKey(pass, idx.salt);
     try { await unseal(key, b64ToBytes(idx.check)); } catch { throw new Error("That password doesn't open it. Check it and try again."); }
+    // (a fresh look: this device's record of an earlier diary doesn't count against a new password's)
+    const prev = SITE; SITE = null;
+    if (!(await siteTrusts(key, idx))) { SITE = prev; throw new Error(SITE_TAMPERED.replace(" This device kept its own copy, and puts it back on the site at its next update.", "")); }
     site.index = idx;
-    SITE = { salt: idx.salt, key: await exportKey(key), user: idx.user, at: null, have: {}, sums: {} };
+    SITE = { salt: idx.salt, key: await exportKey(key), user: idx.user, at: null, have: {}, sums: {}, n: 0, signed: false };
     saveSite();
     await siteBring(idx, (p) => siteGet(`${p}.bin`, idx.parts[p]), true);
     siteDone("", where);
@@ -3740,25 +3793,32 @@ function sitePublish({ password } = {}) {
         if (!idx && !fresh) { SITE = null; ls.del(SITE_DIRTY); saveSite(); said = "Your diary was taken off the site from another device. Put it back here if you want it there."; break; }
         if (idx && !known) throw ghFail(fresh && !had ? "A diary was put on this site from another device a moment ago. Refresh the page in a minute and type its password."
           : "The diary on the site has a password this device doesn't know yet. Type it first.");
-        if (known && idx.at !== SITE.at) await siteBring(idx, async (p) => files[`${p}.bin`] && blobBytes(files[`${p}.bin`]), true); // another device changed it: that first
         if (!fresh) { key = await importKey(SITE.key); salt = SITE.salt; check = idx ? idx.check : bytesToB64(await seal(key, "credits-roll", true)); }
-        const local = siteLocal(), now = new Date().toISOString(), sums = (!fresh && known && SITE.sums) || {}, up = {};
+        // a diary that doesn't check out isn't brought in: this device's copy goes back up whole, signed afresh
+        let trusted = known && await siteTrusts(key, idx);
+        if (trusted && idx.at !== SITE.at) { // another device changed it: that first (unless a part of it doesn't open)
+          try { await siteBring(idx, async (p) => files[`${p}.bin`] && blobBytes(files[`${p}.bin`]), true); }
+          catch (e) { if (e.name === "OperationError" || e.message === SITE_TAMPERED) trusted = false; else throw e; }
+        }
+        const whole = fresh || !idx || !trusted || !idx.sig; // (unsigned, from before: every part is sealed again, tied to its label)
+        const local = siteLocal(), now = new Date().toISOString(), sums = (!whole && SITE.sums) || {}, up = {};
         for (const p of SITE_PARTS) {
           const sum = await sha256(canon(local[p]));
-          if (fresh || !idx || !idx.parts[p] || sums[p] !== sum) up[p] = sum;
+          if (whole || !idx.parts[p] || sums[p] !== sum) up[p] = sum;
         }
         // a version 1 diary's whole-file parts go once their contents are in the new ones
         const old = Object.keys(files).filter((n) => n.endsWith(".bin") && !SITE_PARTS.includes(n.slice(0, -4)));
         if (!Object.keys(up).length && !old.length) break;
-        const parts = Object.fromEntries(Object.entries(fresh || !idx ? {} : idx.parts).filter(([p]) => SITE_PARTS.includes(p)));
+        const parts = Object.fromEntries(Object.entries(whole ? {} : idx.parts).filter(([p]) => SITE_PARTS.includes(p)));
         const out = Object.fromEntries(old.map((n) => [n, null]));
-        for (const p of Object.keys(up)) { out[`${p}.bin`] = await seal(key, local[p]); parts[p] = now; }
-        const next = { app: "credits-roll", v: 2, user: siteUser(local.rows) || (idx && idx.user) || "", imported: rowsWhen(local.rows), at: now, from: SITE_DEVICE,
-          salt, iter: SITE_ITER, check, parts };
+        for (const p of Object.keys(up)) { parts[p] = now; out[`${p}.bin`] = await seal(key, local[p], false, `${p}|${now}`); }
+        const n = Math.max(Number(idx && idx.n) || 0, (SITE && SITE.n) || 0) + 1;
+        const next = await signIndex(key, { app: "credits-roll", v: 2, n, user: siteUser(local.rows) || (idx && idx.user) || "", at: now, from: SITE_DEVICE,
+          salt, iter: SITE_ITER, check, parts });
         out["index.json"] = new TextEncoder().encode(JSON.stringify(next, null, 1) + "\n");
         if (!(await commitFiles(head, out, `Diary on the site: ${fresh ? (idx ? "new password" : "first copy") : "updated"} from a ${SITE_DEVICE}`))) continue;
-        SITE = { salt, key: await exportKey(key), user: next.user, at: now, have: { ...(fresh ? {} : SITE.have), ...Object.fromEntries(Object.keys(up).map((p) => [p, now])) },
-          sums: { ...sums, ...up } };
+        SITE = { salt, key: await exportKey(key), user: next.user, at: now, have: { ...(whole ? {} : SITE.have), ...Object.fromEntries(Object.keys(up).map((p) => [p, now])) },
+          sums: { ...sums, ...up }, n, signed: true };
         SITEPUB.at = now; site.index = next; saveSite();
         said = fresh ? (idx ? "Password changed. Your other devices will ask for the new one." : "Your diary is on the site. On your other devices, open the site and type the password.") : "Updated the site.";
         break;
@@ -3928,7 +3988,7 @@ function siteStart() {
   siteRedraw();
   site.ready = (Date.now() - site.checked < 5000 ? Promise.resolve() : siteCheck(true)).then(async () => {
     if (!SITEPUB || !SITE || !(await siteDiffers())) return;
-    const missing = site.index && SITE_PARTS.some((p) => !site.index.parts[p]);
+    const missing = site.index && (!site.index.sig || SITE_PARTS.some((p) => !site.index.parts[p]));
     ls.set(SITE_DIRTY, { ...(ls.get(SITE_DIRTY, null) || { at: Date.now() }), ...(missing ? { now: true } : {}) });
     siteLater();
   }).catch(() => {});
@@ -4107,7 +4167,7 @@ function welcomeScreen() {
       <p class="status">A backup file from another device works the same way.</p>
       ${state.importError ? `<p class="status err" role="alert">${esc(state.importError)}</p>` : ""}</div>
     ${IN_VIEWER ? `<p class="note">This Claude version keeps its own copy of an import. Your saved diary is on the website, <a href="https://sjnift.github.io/bogie1946/" target="_blank" rel="noopener">sjnift.github.io/bogie1946</a>.</p>` : ""}
-    <div class="foot"><p class="stamp">Updated 23 Oct 2026, 19:22 UTC</p></div>`;
+    <div class="foot"><p class="stamp">Updated 23 Oct 2026, 20:04 UTC</p></div>`;
 }
 // The header frosts over once the screen scrolls under it.
 function updateTop() { $("#top").classList.toggle("solid", window.scrollY > 12); }
@@ -4151,7 +4211,7 @@ const seeAll = (attrs, label = "See all") => `<button class="more" type="button"
 const ltitle = (t, sub = "") => `<div class="lt"><div><h2 class="ltitle">${t}</h2>${sub ? `<p class="lt-sub">${sub}</p>` : ""}</div></div>`;
 const scopeBar = (label = "All time") => `<div class="scopes" id="scopes" role="group" aria-label="Time period">${["all", ...YEARS].map((y) =>
   `<button class="scope" type="button" data-scope="${y}" aria-pressed="${y === state.scope}">${y === "all" ? label : y}</button>`).join("")}</div>`;
-const imgTag = (src) => `<img class="fade" src="${IMG}${esc(src)}" alt="" loading="lazy" decoding="async" onload="this.classList.add('in')" onerror="this.remove()">`;
+const imgTag = (src) => `<img class="fade" src="${IMG}${esc(src)}" alt="" loading="lazy" decoding="async">`;
 function avatar(p, size) {
   const ph = showImages && p.key && PHOTOS[p.key];
   return `<span class="avatar ${size}" aria-hidden="true">${esc(initials(p.name || "?"))}${ph ? imgTag(ph) : ""}</span>`;
@@ -4195,7 +4255,7 @@ function profileScreen(s) {
   const stat = (to, v, label) => to ? `<button type="button" ${dl(to)}><b>${v}</b><span>${label}</span></button>` : `<div><b>${v}</b><span>${label}</span></div>`;
   // the backdrop: the best-rated films with posters, blurred
   const pics = showImages ? s.films.filter((f) => f.rating && metaOf(f) && metaOf(f).poster).sort((a, b) => b.rating - a.rating || lastSeen(b).localeCompare(lastSeen(a))).slice(0, 3) : [];
-  const hero = `<section class="hero"><div class="hero-bg" aria-hidden="true">${pics.map((f) => `<img src="${IMG}${esc(metaOf(f).poster)}" alt="" decoding="async" onerror="this.remove()">`).join("")}</div>
+  const hero = `<section class="hero"><div class="hero-bg" aria-hidden="true">${pics.map((f) => `<img src="${IMG}${esc(metaOf(f).poster)}" alt="" decoding="async">`).join("")}</div>
     <div class="hero-in">${avatar({ name: ex ? "Example" : lib.profile.username || "You" }, "xl")}<h2 class="hname">${esc(name)}</h2><p class="hhandle">${handle}</p>
     <div class="hstats">${stat(s.films.length && DR.films(s), fmtN(s.films.length), "Films")}${stat(s.timed && DR.runtime(s), s.timed ? fmtN(hours) : "—", "Hours")}
       ${stat(s.entries.length && DR.diary(s), fmtN(s.entries.length), "Entries")}${stat(s.rated && DR.rated(s), s.avgRating ? s.avgRating.toFixed(2) : "—", "Average")}</div></div></section>`;
@@ -4346,7 +4406,7 @@ const rankedDecades = (s) => s.decades.filter((x) => x.ratings.length >= 3).sort
 // The best-rated decade, up front, with its best films' posters.
 function bestDecadeCard(x, scope) {
   const pics = showImages ? x.top.filter((f) => metaOf(f) && metaOf(f).poster).slice(0, 3) : [];
-  return `<section class="card decade-hero"><div class="dh-bg" aria-hidden="true">${pics.map((f) => `<img src="${IMG}${esc(metaOf(f).poster)}" alt="" decoding="async" onerror="this.remove()">`).join("")}</div>
+  return `<section class="card decade-hero"><div class="dh-bg" aria-hidden="true">${pics.map((f) => `<img src="${IMG}${esc(metaOf(f).poster)}" alt="" decoding="async">`).join("")}</div>
     <p class="dh-k">Best-rated decade${scope === "all" ? "" : ` · watched in ${esc(scope)}`}</p>
     <button class="dh-title" type="button" ${dl(DR.decade(x))}><span class="dh-dec">The ${x.decade}s</span>
       <span class="dh-sub"><span class="stars">★</span> ${x.avg.toFixed(2)} average from ${plural(x.ratings.length, "rated film")}${CHEV}</span></button>
@@ -4459,7 +4519,7 @@ function dataScreen() {
       <p>With your own TMDB key, film details come from The Movie Database. This product uses the TMDB API but is not endorsed or certified by TMDB.
       Inside the Claude app, details come from Claude's knowledge of each film instead, so check anything surprising.</p>
       <p>On a computer? <a href="desktop.html">Open the desktop version</a>. It uses the same import.</p>
-      <p class="stamp">Updated 23 Oct 2026, 19:22 UTC</p></div>`;
+      <p class="stamp">Updated 23 Oct 2026, 20:04 UTC</p></div>`;
 }
 
 /* ---------- pushed screens ---------- */

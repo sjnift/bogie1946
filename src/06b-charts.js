@@ -5,7 +5,7 @@ const ordinal = (n) => { const s = ["th", "st", "nd", "rd"], v = n % 100; return
 // A small link to the TMDB page a film was matched to, so a wrong match is easy to spot.
 const tmdbLink = (f) => {
   const m = f && META[f.key];
-  return m && m.src === "tmdb" && m.id && !IN_VIEWER ? ` <a class="tmdb-link" href="https://www.themoviedb.org/movie/${m.id}" target="_blank" rel="noopener" title="See the film this was matched to on TMDB">TMDB ↗</a>` : "";
+  return m && m.src === "tmdb" && Number(m.id) && !IN_VIEWER ? ` <a class="tmdb-link" href="https://www.themoviedb.org/movie/${Number(m.id)}" target="_blank" rel="noopener" title="See the film this was matched to on TMDB">TMDB ↗</a>` : "";
 };
 const isoOfDay = (d) => new Date(d * 864e5).toISOString().slice(0, 10);
 function niceTick(max) {

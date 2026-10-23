@@ -45,23 +45,41 @@ async function deriveKey(password, salt) {
 const importKey = (b64) => crypto.subtle.importKey("raw", b64ToBytes(b64), "AES-GCM", true, ["encrypt", "decrypt"]);
 const exportKey = async (key) => bytesToB64(new Uint8Array(await crypto.subtle.exportKey("raw", key)));
 const squeeze = async (bytes, how) => new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(how === "in" ? new CompressionStream("gzip") : new DecompressionStream("gzip"))).arrayBuffer());
-// One byte for the kind (1 plain, 2 gzipped), 12 for the IV, then the encrypted data.
-async function seal(key, value, plain) {
-  let body = new TextEncoder().encode(JSON.stringify(value)), kind = 1;
-  if (!plain && typeof CompressionStream === "function") { body = await squeeze(body, "in"); kind = 2; }
+// One byte for the kind, 12 for the IV, then the encrypted data. Kinds 1 (plain) and 2 (gzipped) are from before parts
+// were tied to a label; 3 (gzipped) and 4 (plain) carry one (AES-GCM's additional data) that must match when opened:
+// a part's name and when it last changed, so no part can be swapped for another, or for an older copy of itself.
+async function seal(key, value, plain, aad) {
+  let body = new TextEncoder().encode(JSON.stringify(value)), gz = false;
+  if (!plain && typeof CompressionStream === "function") { body = await squeeze(body, "in"); gz = true; }
+  const kind = aad ? (gz ? 3 : 4) : (gz ? 2 : 1);
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, body));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv, ...(aad ? { additionalData: new TextEncoder().encode(aad) } : {}) }, key, body));
   const out = new Uint8Array(13 + ct.length); out[0] = kind; out.set(iv, 1); out.set(ct, 13);
   return out;
 }
-async function unseal(key, bytes) {
-  let body = new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv: bytes.subarray(1, 13) }, key, bytes.subarray(13)));
-  if (bytes[0] === 2) {
+// `untiedOk`: whether a part without a label is still accepted (only from a diary this device has never seen signed)
+async function unseal(key, bytes, aad, untiedOk = true) {
+  const kind = bytes[0], tied = kind === 3 || kind === 4;
+  if (!tied && !untiedOk) throw new Error(SITE_TAMPERED);
+  let body = new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv: bytes.subarray(1, 13), ...(tied ? { additionalData: new TextEncoder().encode(aad || "") } : {}) }, key, bytes.subarray(13)));
+  if (kind === 2 || kind === 3) {
     if (typeof DecompressionStream !== "function") throw new Error("This browser is too old to unpack the diary. Update it and try again.");
     body = await squeeze(body, "out");
   }
   return JSON.parse(new TextDecoder().decode(body));
 }
+// The index is signed with the diary's key (its SHA-256, sealed), and counts its updates (`n`): a device takes it only
+// when the signature holds and the count isn't lower than one it has seen, so nobody can change what it lists or put
+// an older copy back. An unsigned index (from before) is taken only by a device that has never seen a signed one.
+const SITE_TAMPERED = "The diary on the site doesn't check out: it was changed by something other than your devices, or an older copy was put back. This device kept its own copy, and puts it back on the site at its next update.";
+const indexBody = (idx) => { const { sig, ...rest } = idx; return canon(rest); };
+const signIndex = async (key, idx) => ({ ...idx, sig: bytesToB64(await seal(key, await sha256(indexBody(idx)), true, "index")) });
+async function siteTrusts(key, idx) {
+  if (!idx.sig) return !(SITE && SITE.signed);
+  try { if ((await unseal(key, b64ToBytes(idx.sig), "index", false)) !== await sha256(indexBody(idx))) return false; } catch { return false; }
+  return (Number(idx.n) || 0) >= ((SITE && SITE.n) || 0);
+}
+const partLabel = (p, idx) => `${p}|${idx.parts[p]}`;
 
 /* ----- the site (for reading) and GitHub (for changing it) ----- */
 async function siteGet(name, version) {
@@ -103,7 +121,9 @@ async function commitFiles(head, files, message) {
     tree.push({ path: SITE_PATH + name, mode: "100644", type: "blob", sha: sha || null });
   }
   const t = await gh("/git/trees", { method: "POST", body: JSON.stringify({ base_tree: head.tree, tree }) });
-  const c = await gh("/git/commits", { method: "POST", body: JSON.stringify({ message, tree: t.sha, parents: [head.commit] }) });
+  // signed with GitHub's private no-reply address, not the account's email (which a public repository shows to all)
+  const by = { name: "Credits Roll", email: `${SITEPUB.repo.split("/")[0]}@users.noreply.github.com` };
+  const c = await gh("/git/commits", { method: "POST", body: JSON.stringify({ message, tree: t.sha, parents: [head.commit], author: by, committer: by }) });
   try { await gh(`/git/refs/heads/${head.branch}`, { method: "PATCH", body: JSON.stringify({ sha: c.sha, force: false }) }); return true; }
   catch (e) { if (e.status === 422 || e.status === 409) return false; throw e; }
 }
@@ -168,10 +188,10 @@ async function siteTake(parts, idx, draw) {
       else if (p === "friends") friendsIn = v;
       else if (p === "extra") { photosIn = Object.assign(photosIn || {}, v.photos); lbxIn = v.lbx; friendsIn = v.friends; }
     }
-    if (metaIn) META = mergeMeta(META, metaIn);
-    if (photosIn) PHOTOS = { ...PHOTOS, ...photosIn };
-    if (lbxIn) { LBX = mergeLbx(LBX, lbxIn); store.set(KEYS.lbx, LBX); }
-    if (friendsIn) { store.set(KEYS.friends, mergeFriends(store.get(KEYS.friends, []), friendsIn)); loadFriends(); }
+    if (metaIn) META = mergeMeta(META, safeMetaMap(metaIn));
+    if (photosIn) PHOTOS = { ...PHOTOS, ...safePhotos(photosIn) };
+    if (lbxIn) { LBX = mergeLbx(LBX, safeLbx(lbxIn)); store.set(KEYS.lbx, LBX); }
+    if (friendsIn) { store.set(KEYS.friends, mergeFriends(store.get(KEYS.friends, []), safeFriends(friendsIn))); loadFriends(); }
     if (parts.keys) {
       // the site's keys replace this device's, unless a key changed here hasn't gone up yet; with the GitHub key
       // this device keeps the site up to date too
@@ -201,8 +221,9 @@ async function siteBring(idx, read, draw) {
   const have = store.get(KEYS.rows, null) ? SITE.have || {} : {}; // nothing saved here any more: everything again
   SITE.have = SITE.have || {}; SITE.sums = SITE.sums || {};
   const want = Object.keys(idx.parts).filter((p) => idx.parts[p] && have[p] !== idx.parts[p]);
-  const next = async () => { for (let p; (p = want.shift());) { const bytes = await read(p); if (bytes) parts[p] = await unseal(key, bytes); } };
+  const next = async () => { for (let p; (p = want.shift());) { const bytes = await read(p); if (bytes) parts[p] = await unseal(key, bytes, partLabel(p, idx), !idx.sig); } };
   await Promise.all(Array.from({ length: 6 }, next));
+  SITE.n = Math.max(SITE.n || 0, Number(idx.n) || 0); SITE.signed = SITE.signed || !!idx.sig;
   if (Object.keys(parts).length) await siteTake(parts, idx, draw);
   else { SITE.at = idx.at; saveSite(); }
 }
@@ -210,6 +231,7 @@ async function siteBring(idx, read, draw) {
 async function siteDiffers() {
   if (!SITE || !site.index || site.index.salt !== SITE.salt || !store.get(KEYS.rows, null)) return false;
   const local = siteLocal();
+  if (!site.index.sig || !(await siteTrusts(await importKey(SITE.key), site.index))) return true; // unsigned, or not to be trusted: send this device's
   for (const p of SITE_PARTS) if (!site.index.parts[p] || (SITE.sums || {})[p] !== await sha256(canon(local[p]))) return true;
   return false;
 }
@@ -224,8 +246,10 @@ async function siteCheck(draw) {
   // taken off the site from another device: this one stops sending, and keeps its copy
   if (!idx && SITE) { SITE = null; ls.del(SITE_DIRTY); clearTimeout(site.timer); site.timer = null; saveSite(); }
   if (idx && SITE && SITE.salt === idx.salt && (idx.at !== SITE.at || !store.get(KEYS.rows, null))) {
-    try { await siteBring(idx, (p) => siteGet(`${p}.bin`, idx.parts[p]), draw); }
-    catch (e) { Object.assign(site, { note: e.message || "Couldn't bring in the site's diary.", err: true, noteIn: "publish" }); }
+    try {
+      if (!(await siteTrusts(await importKey(SITE.key), idx))) throw new Error(SITE_TAMPERED);
+      await siteBring(idx, (p) => siteGet(`${p}.bin`, idx.parts[p]), draw);
+    } catch (e) { Object.assign(site, { note: /operation|decrypt/i.test(e.message || "") || e.name === "OperationError" ? SITE_TAMPERED : e.message || "Couldn't bring in the site's diary.", err: true, noteIn: "publish" }); }
   }
   if (draw) siteRedraw();
 }
@@ -237,8 +261,11 @@ async function siteUnlock(pass, where) {
     if (!idx) throw new Error("There's no diary on this site any more.");
     const key = await deriveKey(pass, idx.salt);
     try { await unseal(key, b64ToBytes(idx.check)); } catch { throw new Error("That password doesn't open it. Check it and try again."); }
+    // (a fresh look: this device's record of an earlier diary doesn't count against a new password's)
+    const prev = SITE; SITE = null;
+    if (!(await siteTrusts(key, idx))) { SITE = prev; throw new Error(SITE_TAMPERED.replace(" This device kept its own copy, and puts it back on the site at its next update.", "")); }
     site.index = idx;
-    SITE = { salt: idx.salt, key: await exportKey(key), user: idx.user, at: null, have: {}, sums: {} };
+    SITE = { salt: idx.salt, key: await exportKey(key), user: idx.user, at: null, have: {}, sums: {}, n: 0, signed: false };
     saveSite();
     await siteBring(idx, (p) => siteGet(`${p}.bin`, idx.parts[p]), true);
     siteDone("", where);
@@ -266,25 +293,32 @@ function sitePublish({ password } = {}) {
         if (!idx && !fresh) { SITE = null; ls.del(SITE_DIRTY); saveSite(); said = "Your diary was taken off the site from another device. Put it back here if you want it there."; break; }
         if (idx && !known) throw ghFail(fresh && !had ? "A diary was put on this site from another device a moment ago. Refresh the page in a minute and type its password."
           : "The diary on the site has a password this device doesn't know yet. Type it first.");
-        if (known && idx.at !== SITE.at) await siteBring(idx, async (p) => files[`${p}.bin`] && blobBytes(files[`${p}.bin`]), true); // another device changed it: that first
         if (!fresh) { key = await importKey(SITE.key); salt = SITE.salt; check = idx ? idx.check : bytesToB64(await seal(key, "credits-roll", true)); }
-        const local = siteLocal(), now = new Date().toISOString(), sums = (!fresh && known && SITE.sums) || {}, up = {};
+        // a diary that doesn't check out isn't brought in: this device's copy goes back up whole, signed afresh
+        let trusted = known && await siteTrusts(key, idx);
+        if (trusted && idx.at !== SITE.at) { // another device changed it: that first (unless a part of it doesn't open)
+          try { await siteBring(idx, async (p) => files[`${p}.bin`] && blobBytes(files[`${p}.bin`]), true); }
+          catch (e) { if (e.name === "OperationError" || e.message === SITE_TAMPERED) trusted = false; else throw e; }
+        }
+        const whole = fresh || !idx || !trusted || !idx.sig; // (unsigned, from before: every part is sealed again, tied to its label)
+        const local = siteLocal(), now = new Date().toISOString(), sums = (!whole && SITE.sums) || {}, up = {};
         for (const p of SITE_PARTS) {
           const sum = await sha256(canon(local[p]));
-          if (fresh || !idx || !idx.parts[p] || sums[p] !== sum) up[p] = sum;
+          if (whole || !idx.parts[p] || sums[p] !== sum) up[p] = sum;
         }
         // a version 1 diary's whole-file parts go once their contents are in the new ones
         const old = Object.keys(files).filter((n) => n.endsWith(".bin") && !SITE_PARTS.includes(n.slice(0, -4)));
         if (!Object.keys(up).length && !old.length) break;
-        const parts = Object.fromEntries(Object.entries(fresh || !idx ? {} : idx.parts).filter(([p]) => SITE_PARTS.includes(p)));
+        const parts = Object.fromEntries(Object.entries(whole ? {} : idx.parts).filter(([p]) => SITE_PARTS.includes(p)));
         const out = Object.fromEntries(old.map((n) => [n, null]));
-        for (const p of Object.keys(up)) { out[`${p}.bin`] = await seal(key, local[p]); parts[p] = now; }
-        const next = { app: "credits-roll", v: 2, user: siteUser(local.rows) || (idx && idx.user) || "", imported: rowsWhen(local.rows), at: now, from: SITE_DEVICE,
-          salt, iter: SITE_ITER, check, parts };
+        for (const p of Object.keys(up)) { parts[p] = now; out[`${p}.bin`] = await seal(key, local[p], false, `${p}|${now}`); }
+        const n = Math.max(Number(idx && idx.n) || 0, (SITE && SITE.n) || 0) + 1;
+        const next = await signIndex(key, { app: "credits-roll", v: 2, n, user: siteUser(local.rows) || (idx && idx.user) || "", at: now, from: SITE_DEVICE,
+          salt, iter: SITE_ITER, check, parts });
         out["index.json"] = new TextEncoder().encode(JSON.stringify(next, null, 1) + "\n");
         if (!(await commitFiles(head, out, `Diary on the site: ${fresh ? (idx ? "new password" : "first copy") : "updated"} from a ${SITE_DEVICE}`))) continue;
-        SITE = { salt, key: await exportKey(key), user: next.user, at: now, have: { ...(fresh ? {} : SITE.have), ...Object.fromEntries(Object.keys(up).map((p) => [p, now])) },
-          sums: { ...sums, ...up } };
+        SITE = { salt, key: await exportKey(key), user: next.user, at: now, have: { ...(whole ? {} : SITE.have), ...Object.fromEntries(Object.keys(up).map((p) => [p, now])) },
+          sums: { ...sums, ...up }, n, signed: true };
         SITEPUB.at = now; site.index = next; saveSite();
         said = fresh ? (idx ? "Password changed. Your other devices will ask for the new one." : "Your diary is on the site. On your other devices, open the site and type the password.") : "Updated the site.";
         break;
@@ -454,7 +488,7 @@ function siteStart() {
   siteRedraw();
   site.ready = (Date.now() - site.checked < 5000 ? Promise.resolve() : siteCheck(true)).then(async () => {
     if (!SITEPUB || !SITE || !(await siteDiffers())) return;
-    const missing = site.index && SITE_PARTS.some((p) => !site.index.parts[p]);
+    const missing = site.index && (!site.index.sig || SITE_PARTS.some((p) => !site.index.parts[p]));
     ls.set(SITE_DIRTY, { ...(ls.get(SITE_DIRTY, null) || { at: Date.now() }), ...(missing ? { now: true } : {}) });
     siteLater();
   }).catch(() => {});
