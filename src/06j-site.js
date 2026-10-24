@@ -273,13 +273,15 @@ async function siteUnlock(pass, where) {
 }
 
 /* ----- putting the diary on the site ----- */
-// `password` locks it afresh: the first time, or a new password.
-function sitePublish({ password } = {}) {
+// `password` locks it afresh: the first time, or a new password. `restart` (a forgotten password) replaces a diary
+// this device can't open with this device's own, under the new password: the GitHub key just typed is what proves
+// it's the owner, since only they can make one for the site.
+function sitePublish({ password, restart, where = "publish" } = {}) {
   if (!SITE_ON || !SITEPUB || (!password && !SITE)) return Promise.resolve();
   if (site.job) return site.job;
   site.job = (async () => {
     const dirty = JSON.stringify(ls.get(SITE_DIRTY, null)), fresh = !!password, had = site.index;
-    siteBusy(fresh ? (had ? "Changing the password…" : "Putting your diary on the site…") : "Updating the site…");
+    siteBusy(restart ? "Replacing the diary on the site…" : fresh ? (had ? "Changing the password…" : "Putting your diary on the site…") : "Updating the site…", where);
     try {
       if (!store.get(KEYS.rows, null)) throw ghFail("Import your Letterboxd export first.");
       let key, salt, check, said = "The site is up to date.";
@@ -291,7 +293,7 @@ function sitePublish({ password } = {}) {
         const known = idx && SITE && SITE.salt === idx.salt;
         // taken off the site from another device: nothing goes back up until it's put there again
         if (!idx && !fresh) { SITE = null; ls.del(SITE_DIRTY); saveSite(); said = "Your diary was taken off the site from another device. Put it back here if you want it there."; break; }
-        if (idx && !known) throw ghFail(fresh && !had ? "A diary was put on this site from another device a moment ago. Refresh the page in a minute and type its password."
+        if (idx && !known && !restart) throw ghFail(fresh && !had ? "A diary was put on this site from another device a moment ago. Refresh the page in a minute and type its password."
           : "The diary on the site has a password this device doesn't know yet. Type it first.");
         if (!fresh) { key = await importKey(SITE.key); salt = SITE.salt; check = idx ? idx.check : bytesToB64(await seal(key, "credits-roll", true)); }
         // a diary that doesn't check out isn't brought in: this device's copy goes back up whole, signed afresh
@@ -316,19 +318,21 @@ function sitePublish({ password } = {}) {
         const next = await signIndex(key, { app: "credits-roll", v: 2, n, user: siteUser(local.rows) || (idx && idx.user) || "", at: now, from: SITE_DEVICE,
           salt, iter: SITE_ITER, check, parts });
         out["index.json"] = new TextEncoder().encode(JSON.stringify(next, null, 1) + "\n");
-        if (!(await commitFiles(head, out, `Diary on the site: ${fresh ? (idx ? "new password" : "first copy") : "updated"} from a ${SITE_DEVICE}`))) continue;
+        if (!(await commitFiles(head, out, `Diary on the site: ${restart && idx && !known ? "started over with a new password" : fresh ? (idx ? "new password" : "first copy") : "updated"} from a ${SITE_DEVICE}`))) continue;
         SITE = { salt, key: await exportKey(key), user: next.user, at: now, have: { ...(whole ? {} : SITE.have), ...Object.fromEntries(Object.keys(up).map((p) => [p, now])) },
           sums: { ...sums, ...up }, n, signed: true };
-        SITEPUB.at = now; site.index = next; saveSite();
-        said = fresh ? (idx ? "Password changed. Your other devices will ask for the new one." : "Your diary is on the site. On your other devices, open the site and type the password.") : "Updated the site.";
+        SITEPUB.at = now; delete SITEPUB.prev; site.index = next; saveSite();
+        said = restart ? "Done: the diary on the site is this device's, locked with your new password. Your other devices will ask for it, then add what they have."
+          : fresh ? (idx ? "Password changed. Your other devices will ask for the new one." : "Your diary is on the site. On your other devices, open the site and type the password.") : "Updated the site.";
         break;
       }
       if (JSON.stringify(ls.get(SITE_DIRTY, null)) === dirty) ls.del(SITE_DIRTY); // a change made meanwhile goes next time
-      siteDone(said);
+      if (SITEPUB && SITEPUB.prev) { delete SITEPUB.prev; saveSite(); }
+      siteDone(said, where.split(":")[0]);
     } catch (e) {
-      if (e.key && !SITEPUB.at) SITEPUB = null; // a key that never worked isn't kept
+      if (e.key && !SITEPUB.at) SITEPUB = SITEPUB.prev || null; // a key that never worked isn't kept (the one before it is)
       saveSite();
-      siteDone(e.message || "Couldn't update the site.", "publish", true);
+      siteDone(e.message || "Couldn't update the site.", where, true);
     } finally {
       site.job = null;
       if (ls.get(SITE_DIRTY, null) && !site.err) siteLater();
@@ -351,12 +355,13 @@ async function siteRemove() {
     throw ghFail("Another device kept changing the site at the same moment. Try again in a minute.");
   } catch (e) { siteDone(e.message || "Couldn't take it off.", "publish", true); }
 }
-function siteKey(repo, token) {
+function siteKey(repo, token, where) {
   repo = String(repo || SITE_GH_REPO).trim().replace(/^https?:\/\/github\.com\//i, "").replace(/\.git$|\/+$/g, "");
   token = String(token || "").trim();
-  if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) return siteSay("Type the site's repository as name/repository, for example sjnift/bogie1946.", true), false;
-  if (!token) return siteSay("Paste the GitHub key.", true), false;
-  SITEPUB = { repo, token, at: null }; saveSite();
+  if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) return siteSay("Type the site's repository as name/repository, for example sjnift/bogie1946.", true, where), false;
+  if (!token) return siteSay("Paste the GitHub key.", true, where), false;
+  const prev = SITEPUB && SITEPUB.at ? { repo: SITEPUB.repo, token: SITEPUB.token, at: SITEPUB.at } : null; // back if the new one isn't accepted
+  SITEPUB = { repo, token, at: null, ...(prev ? { prev } : {}) }; saveSite();
   return true;
 }
 // Forgets everything about the site on this device (with "Delete saved data from this browser").
@@ -403,32 +408,41 @@ function siteBox(kind) {
   const btn = (act, label, main) => `<button class="${phone ? `btn${main ? " green" : ""} block` : `btn${main ? " primary" : ""} small`}" type="button" data-site="${act}"${site.busy ? " disabled" : ""}>${label}</button>`;
   const field = (name, label, type, auto, value = "") => `<label class="status" for="site-${name}-${kind}">${label}</label>
     <input class="key" id="site-${name}-${kind}" name="${name}" type="${type}" autocomplete="${auto}" spellcheck="false" value="${esc(value)}">`;
-  const say = site.noteIn !== kind ? "" : site.busy ? `<p class="status" role="status">${esc(site.busy)}</p>` : site.note ? `<p class="status${site.err ? " err" : ""}" role="status">${esc(site.note)}</p>` : "";
+  const sayIn = (w) => site.noteIn !== w ? "" : site.busy ? `<p class="status" role="status">${esc(site.busy)}</p>` : site.note ? `<p class="status${site.err ? " err" : ""}" role="status">${esc(site.note)}</p>` : "";
+  const say = sayIn(kind);
   const box = (title, body, glow) => phone ? `<div class="card${glow ? " glow" : ""} site-card"><p class="title">${title}</p>${body}</div>` : `<div class="site-in"><h3 class="sub-h">${title}</h3>${body}</div>`;
   const passForm = () => field("pass", "Password", "password", "current-password") + btn("unlock", "Open", true) + say;
-
-  if (kind === "open") {
-    if (!idx || unlocked || !sameUser) return "";
-    const [title, text] = !MY_LIB ? [`@${esc(user)}'s diary is on this site`, "Type its password to open it here. This device remembers it, so you only do this once."]
-      : SITE ? ["The diary on this site has a new password", "Type it to keep this device up to date."]
-      : ["Your diary is on this site", "Type its password and this device keeps up with it from now on, with no importing."];
-    return box(title, `<p class="status">${text}</p>${passForm()}`, true);
-  }
-  if (!MY_LIB || (idx && !sameUser)) return "";
-  const title = "Your diary on this site";
-  if (idx === undefined) return box(title, `<p class="status">${site.offline ? "Couldn't reach the site just now." : "Checking the site…"}</p>`);
   const help = `<details class="site-help"><summary>How to make the GitHub key (once)</summary><ol class="steps">
       <li><a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">Make a fine-grained token</a>: name it Credits Roll site and pick the longest expiry.</li>
       <li>Under Repository access choose <b>Only select repositories</b> and pick <b>${esc((SITE_GH_REPO || "your-name/your-site").split("/")[1])}</b>.</li>
       <li>Under Permissions → Repository permissions set <b>Contents</b> to <b>Read and write</b>. Generate it, copy it and paste it above. It goes into your locked diary, so every device you open it on can update the site; you paste it only once.</li></ol></details>`;
   const keyFields = () => (SITE_GH_REPO ? "" : field("repo", "The site's repository", "text", "off", "")) + field("token", "GitHub key for the site", "password", "off");
+  // a forgotten password: nobody can open the copy on the site, but the owner (who alone can make a GitHub key for
+  // the site) can replace it with this device's diary under a new password
+  const forgot = () => `<details class="site-help"><summary>Forgot the password?</summary><div class="site-form">${!MY_LIB
+      ? `<p class="status">Nobody can open the copy on the site without it, but you can replace it. Import your Letterboxd export or a backup file on this device ${phone ? "below" : "first"}, then come back here and choose a new password.</p>`
+      : `<p class="status">Nobody can open the copy on the site without it, but you can replace it with this device's diary, locked with a new password. If this device's copy is old, import a fresh Letterboxd export here first. To show it's you, paste a GitHub key for the site: only you can make one. Your other devices will then ask for the new password, and add what they have.</p>
+      ${field("newpass", `New password (at least ${SITE_MIN_PASS} characters)`, "text", "new-password")}${SITEPUB ? field("token", "GitHub key for the site", "password", "off") : keyFields()}${btn("restart", "Replace it with a new password")}${sayIn(`${kind}:forgot`)}${help}`}</div></details>`;
+
+  if (kind === "open") {
+    // just replaced after a forgotten password: say so here, where it was done
+    if (unlocked && site.noteIn === "open" && site.note && !site.err) return box("Your diary is on the site again", say, true);
+    if (!idx || unlocked || !sameUser) return "";
+    const [title, text] = !MY_LIB ? [`@${esc(user)}'s diary is on this site`, "Type its password to open it here. This device remembers it, so you only do this once."]
+      : SITE ? ["The diary on this site has a new password", "Type it to keep this device up to date."]
+      : ["Your diary is on this site", "Type its password and this device keeps up with it from now on, with no importing."];
+    return box(title, `<p class="status">${text}</p>${passForm()}${forgot()}`, true);
+  }
+  if (!MY_LIB || (idx && !sameUser)) return "";
+  const title = "Your diary on this site";
+  if (idx === undefined) return box(title, `<p class="status">${site.offline ? "Couldn't reach the site just now." : "Checking the site…"}</p>`);
   if (!idx) {
     return box("Put your diary on this site", `<p class="status">Lock it with a password and every device can open it: just open the site and type the password once, with no importing. Your TMDB, OMDb, Apify and GitHub keys go along, locked the same way, so every device you open it on can use them and keeps the site up to date; your email address stays out of it. Choose a long password: it guards all of this.</p>
       ${field("newpass", `Choose a password (at least ${SITE_MIN_PASS} characters; you'll type it once on each device)`, "text", "new-password")}
       ${SITEPUB ? "" : keyFields()}${btn("create", "Put my diary on the site", true)}${say}${SITEPUB ? "" : help}`);
   }
   if (!unlocked) {
-    return box(title, `<p class="status">${SITE ? "The diary on this site has a new password." : "Your diary is on this site."} ${phone ? "Type its password to keep this device up to date." : "Type its password at the top of the page to keep this device up to date."}</p>${phone ? passForm() : ""}`);
+    return box(title, `<p class="status">${SITE ? "The diary on this site has a new password." : "Your diary is on this site."} ${phone ? "Type its password to keep this device up to date." : "Type its password at the top of the page to keep this device up to date."}</p>${phone ? passForm() + forgot() : ""}`);
   }
   const when = `Updated ${agoText(idx.at)}${idx.from ? ` from a ${esc(idx.from)}` : ""}.`;
   if (!SITEPUB) {
@@ -444,12 +458,22 @@ function siteBox(kind) {
     <details class="site-help"><summary>Use a new GitHub key</summary>${field("token", "New GitHub key (when the old one expires)", "password", "off")}${btn("key", "Use this key")}
       <p class="status">It goes to every device through your locked diary.</p></details>`);
 }
-// Redraws the boxes whose content changed (so a password being typed isn't wiped by an unrelated redraw).
+// Redraws the boxes whose content changed (so a password being typed isn't wiped by an unrelated redraw). What's
+// typed and which sections are open stay as they were (while it works, and when it didn't), unless it just worked.
 const siteDrawn = new WeakMap();
 function siteRedraw() {
+  const keep = !(site.note && !site.err && !site.busy);
   for (const el of document.querySelectorAll("[data-sitebox]")) {
     const html = siteBox(el.dataset.sitebox);
-    if (siteDrawn.get(el) !== html || el.innerHTML.trim() === "" !== !html.trim()) { el.innerHTML = html; siteDrawn.set(el, html); }
+    if (siteDrawn.get(el) !== html || el.innerHTML.trim() === "" !== !html.trim()) {
+      const summary = (d) => (d.querySelector("summary") || {}).textContent;
+      const open = new Set([...el.querySelectorAll("details[open]")].map(summary));
+      const typed = Object.fromEntries([...el.querySelectorAll("input[name]")].map((i) => [i.name, i.value]));
+      el.innerHTML = html; siteDrawn.set(el, html);
+      if (!keep) continue;
+      for (const d of el.querySelectorAll("details")) if (open.has(summary(d))) d.open = true;
+      for (const i of el.querySelectorAll("input[name]")) if (typed[i.name] && !i.value) i.value = typed[i.name];
+    }
   }
 }
 document.addEventListener("click", (e) => {
@@ -465,6 +489,13 @@ document.addEventListener("click", (e) => {
     if (pass.length < SITE_MIN_PASS) return siteSay(`Choose a password of at least ${SITE_MIN_PASS} characters.`, true);
     if (a === "create" && !SITEPUB && !siteKey(val("repo"), val("token"))) return;
     sitePublish({ password: pass });
+  }
+  else if (a === "restart") {
+    const pass = val("newpass"), w = `${where}:forgot`;
+    if (!store.get(KEYS.rows, null)) return siteSay("Import your Letterboxd export or a backup file on this device first.", true, w);
+    if (pass.length < SITE_MIN_PASS) return siteSay(`Choose a password of at least ${SITE_MIN_PASS} characters.`, true, w);
+    if (!siteKey(val("repo") || (SITEPUB && SITEPUB.repo), val("token"), w)) return;
+    sitePublish({ password: pass, restart: true, where: w });
   }
   else if (a === "key") { if (siteKey(val("repo") || (SITEPUB && SITEPUB.repo), val("token"))) sitePublish().then(() => { if (SITEPUB && !site.err) siteSay("Key saved. It reaches your other devices through your locked diary."); }); }
   else if (a === "now") sitePublish();

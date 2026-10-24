@@ -2,12 +2,13 @@
 // the site itself (what Pages serves from docs/). A computer puts its diary there; what goes up is encrypted
 // and carries no email address or API keys; a phone opens it with the password (a wrong one is refused) and
 // keeps it after a reload; a newer import on the computer goes up by itself and reaches the phone; a change
-// from another device at the same moment is merged; a new password, taking it off, and a wrong key all behave.
+// from another device at the same moment is merged; a new password, a forgotten one, taking it off, and a wrong key
+// all behave.
 import { createHash, webcrypto } from "node:crypto";
 import { gzipSync, gunzipSync } from "node:zlib";
 import { open, seed, assert, noErrors, until, JSZip } from "./lib.mjs";
 
-const REPO = "sjnift/bogie1946", TOKEN = "github_pat_test", PASS = "popcorn and credits", PASS2 = "second reel of film";
+const REPO = "sjnift/bogie1946", TOKEN = "github_pat_test", PASS = "popcorn and credits", PASS2 = "second reel of film", PASS3 = "a third reel entirely";
 const rows = { profile: [{ "Date Joined": "2020-01-01", Username: "tester", "Given Name": "Sam", "Email Address": "someone@example.com", Bio: "hi" }],
   watched: [{ Name: "Heat", Year: "1995", Date: "2024-01-01" }], diary: [{ Name: "Heat", Year: "1995", Date: "2024-02-03", "Watched Date": "2024-02-03", Rating: "4.5" }],
   ratings: [{ Name: "Heat", Year: "1995", Rating: "4.5" }] };
@@ -173,6 +174,9 @@ export default async function ({ browser, base }) {
   await b.context().route(/api\.themoviedb\.org/, (r) => { tmdbCalls++; r.abort(); });
   await b.waitForSelector('[data-sitebox="open"] input[name="pass"]');
   assert(/@tester's diary is on this site/.test(await b.innerText('[data-sitebox="open"]')), "the phone didn't offer the diary");
+  // (forgot the password? with nothing here to put there instead, it says to import first)
+  assert(await b.evaluate(() => /Forgot the password/.test(document.querySelector('[data-sitebox="open"]').textContent) && /Import your Letterboxd export/.test(document.querySelector('[data-sitebox="open"] details').textContent)
+    && !document.querySelector('[data-site="restart"]')), "the phone with nothing on it didn't explain a forgotten password");
   await b.fill('[data-sitebox="open"] input[name="pass"]', "not the password");
   await b.click('[data-sitebox="open"] [data-site="unlock"]');
   await until(b, () => !site.busy && site.err, "the wrong password to be refused");
@@ -306,6 +310,41 @@ export default async function ({ browser, base }) {
   await a.fill('#site-open input[name="pass"]', PASS2);
   await a.click('#site-open [data-site="unlock"]');
   await until(a, () => !site.busy && !document.querySelector('#site-open input') && META["x|2001"] && META["y|2002"], "the computer to open it with the new password");
+
+  // A forgotten password: the computer, which has its own copy, can't open the diary on the site any more, so it
+  // replaces it under a new password, shown to be the owner by a GitHub key. A short password and a key GitHub
+  // refuses change nothing (what was typed stays, and the key that worked is kept). The phone then asks for the new
+  // password, and keeps what it has.
+  await a.evaluate(() => { SITE = null; saveSite(); return siteCheck(true); });
+  await a.waitForSelector('#site-open [data-site="restart"]', { state: "attached" });
+  const ixText = gh.file("docs/diary/index.json").toString();
+  await a.evaluate(() => { for (const d of document.querySelectorAll("#site-open details")) d.open = true; });
+  const form = () => a.evaluate(() => ({ text: document.querySelector("#site-open").innerText, open: document.querySelector("#site-open details").open,
+    typed: document.querySelector('#site-open input[name="newpass"]').value, pub: SITEPUB && SITEPUB.token }));
+  await a.fill('#site-open input[name="newpass"]', "short");
+  await a.click('#site-open [data-site="restart"]');
+  let f = await form();
+  assert(/at least 10/.test(f.text) && f.open && f.typed === "short", `a short new password: ${JSON.stringify(f)}`);
+  await a.fill('#site-open input[name="newpass"]', PASS3);
+  await a.fill('#site-open input[name="token"]', "not a real key");
+  await a.click('#site-open [data-site="restart"]');
+  await until(a, () => !site.job && site.err, "a wrong key to be refused");
+  f = await form();
+  assert(/didn't accept the key/.test(f.text) && f.open && f.typed === PASS3 && f.pub === TOKEN && gh.file("docs/diary/index.json").toString() === ixText, `a wrong key: ${JSON.stringify(f)}`);
+  await a.fill('#site-open input[name="token"]', TOKEN);
+  await a.click('#site-open [data-site="restart"]');
+  await until(a, () => !site.job && !site.busy && /locked with your new password/.test(site.note), "starting over");
+  const idx3 = JSON.parse(gh.file("docs/diary/index.json")), ixBefore = JSON.parse(ixText);
+  assert(idx3.salt !== ixBefore.salt && idx3.n > ixBefore.n && idx3.sig, `the new copy's index: ${JSON.stringify({ n: idx3.n, was: ixBefore.n })}`);
+  key = await keyFor(PASS3, idx3.salt);
+  up = await openAll(gh, key);
+  assert(up.rows.profile[0].Username === "tester" && !JSON.stringify(up).includes("someone@example.com") && up.keys.github === TOKEN && up.meta["x|2001"], "the new copy lost something, or carries the email");
+  assert(/Your diary is on the site again/.test(await a.innerText("#site-open")) && !(await a.$('#site-open input')), "the computer didn't say it was done");
+  await b.evaluate(() => siteCheck(true));
+  await b.waitForSelector('[data-sitebox="publish"] [data-site="restart"]', { state: "attached" }); // the phone's Settings offers it too
+  await b.fill('[data-sitebox="publish"] input[name="pass"]', PASS3);
+  await b.click('[data-sitebox="publish"] [data-site="unlock"]');
+  await until(b, () => !site.busy && SITE && site.index && SITE.salt === site.index.salt && META["x|2001"] && META["y|2002"] && MY_LIB.films.length === 2, "the phone to open it with the new password");
 
   // Taking it off the site: the files go, each device keeps its copy, and no device puts it back by itself.
   await a.click('#site-box [data-site="remove"]');

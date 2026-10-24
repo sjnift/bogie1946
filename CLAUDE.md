@@ -283,7 +283,8 @@ app**. `06j-site.js`:
 - Then it goes up by itself (`STORE_HOOK`): a new import, friend or key within seconds; film details, photos and
   averages a minute after lookups finish (only the parts that changed). "Update the site now", "Change the password",
   "Use a new GitHub key", "Take my diary off the site" (deletes `docs/diary/`; nothing goes up again until it's put
-  back). At start a device sends whatever the site lacks or has differently (`siteDiffers`).
+  back), and, where the password is asked for, "Forgot the password?" (see "Known limits"). The boxes keep what's
+  typed and which sections are open across redraws, unless something just worked (`siteRedraw`). At start a device sends whatever the site lacks or has differently (`siteDiffers`).
 - Opening it: any device with nothing imported shows "@user's diary is on this site" with a password box; the key
   made from it is kept (`cr-site-v1`), the parts are read from the site (`diary/<part>.bin?v=<when>`) and saved
   like an import, and later starts (and coming back to the app after 10 minutes) fetch only changed parts. A device
@@ -409,7 +410,13 @@ day, shared with the owner's own app. The in-app version is the "Check film data
 - The owner's email is in the author line of eleven commits from 22–23 Oct 2026 (ten early ones, and the first diary
   upload); new commits never carry it. Removing it from those means rewriting the repository's history (offered;
   the owner's choice, not done).
-- A forgotten password can't be recovered: the device that puts the diary there changes it (it keeps the key).
+- A forgotten password can't be recovered, but it can be replaced: any device that has opened the diary sets a new one
+  with "Change the password" (it keeps the key, so the old one isn't asked for); if none can, "Forgot the password?"
+  (in the password box on both layouts, and the phone's Settings) replaces the site's diary with this device's own
+  under a new password, once a GitHub key for the site is typed there (only the owner can make one):
+  `sitePublish({ restart })`. Other devices then ask for the new password and merge what they have. With nothing
+  imported, the section says to import the export or a backup first. A rejected key leaves the one that worked
+  (`SITEPUB.prev`). The `site` check covers it.
 - Inside the Claude artifacts, downloads (backup, year picture) don't work; backups are hidden there and the
   picture can be saved by right-click or long-press. Declaring the artifact `downloads` capability would fix it.
 - The feed sees only the latest ~50 diary entries each day; more than that between runs needs a fresh export.
