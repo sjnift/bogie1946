@@ -519,12 +519,7 @@ function threadStudy(B) {
       text: `${dateSpan(a.date, z.date)}: one film led to the next ${path.length - 1} times in a row, through ${joinAnd(vias.slice(0, 3))}${vias.length > 3 ? " and others" : ""}, from ${a.f.name} to ${z.f.name}.`,
       to: D.films("One film to the next", `${dateSpan(a.date, z.date)} · ${plural(path.length, "film")}`, path.map((i) => xs[i].f), { sort: "given", note: (f) => `${viaOf.get(f)} · ${fmtDate(B.byFilm.get(f).date)}` }) });
   }
-  // the directors you keep coming back to, year after year
-  const loyal = [...people.values()].filter((p) => p.role === "d").map((p) => ({ ...p, years: [...new Set(p.xs.map((x) => x.date.slice(0, 4)))].sort() }))
-    .filter((p) => p.years.length >= 4).sort((a, b) => b.years.length - a.years.length || b.xs.length - a.xs.length).slice(0, 3)
-    .map((p) => ({ name: p.name, text: `You keep coming back to ${p.name}: ${plural(p.xs.length, "film")} across ${p.years.length} different years (${p.years[0]} to ${p.years[p.years.length - 1]}).`,
-      to: D.films(p.name, `${plural(p.xs.length, "film")} · ${p.years.join(", ")}`, xsFilms(p.xs), { sort: "given", note: (f) => watched(B.byFilm.get(f)), person: { key: personKey(p.name), name: p.name, films: xsFilms(p.xs) } }) }));
-  return { gateways, chains, loyal };
+  return { gateways, chains };
 }
 
 /* ----- habits, and what they say ----- */
@@ -670,10 +665,10 @@ function habitStudy(B) {
   return out.sort((a, b) => b.z - a.z);
 }
 
-/* ----- against the crowd ----- */
+/* ----- against the crowd (shown with the stats, for all time or a year) ----- */
 // Films you rated against a crowd's score: how far apart, how closely you follow them, where you part ways most.
-function crowdStudy(B, films, ratingOf = (f) => f.rating) {
-  const C = B.crowd, key = B.crowdKey in CROWDS ? B.crowdKey : "tmdb", rated = films.filter((f) => ratingOf(f));
+function crowdOf(crowdKey, films, ratingOf = (f) => f.rating) {
+  const key = crowdKey in CROWDS ? crowdKey : "tmdb", C = CROWDS[key], rated = films.filter((f) => ratingOf(f));
   const pairs = rated.map((f) => { const s = C.score(metaOf(f), f); return s ? { f, you: ratingOf(f), crowd: s / 2, diff: ratingOf(f) - s / 2 } : null; }).filter(Boolean);
   const out = { key, label: C.label, short: C.short, n: pairs.length, available: {}, to: crowdDrill(rated, key, `You against ${C.label}`, ratingOf), higher: [], lower: [], gems: [] };
   for (const k of Object.keys(CROWDS)) out.available[k] = rated.filter((f) => CROWDS[k].score(metaOf(f), f)).length;
@@ -719,7 +714,6 @@ function computeStudy(lib, metaOf, crowdKey) {
   S.threads = threadStudy(B);
   S.habits = habitStudy(B);
   S.chapters = notSeasonal(S.chapters, S.habits);
-  S.crowd = crowdStudy(B, [...new Set(B.E.map((e) => e.film))]);
   // the short version: the strongest finding of each kind
   const o = [], R = S.ratings, T = S.threads;
   if (S.chapters.length) { const c = S.chapters[S.chapters.length - 1]; o.push({ k: S.chapters.length > 1 ? `Latest of ${S.chapters.length} chapters` : "A chapter", big: c.title, text: c.text, to: c.to }); }
@@ -833,7 +827,6 @@ function computeYearStudy(lib, metaOf, crowdKey, Y, S = computeStudy(lib, metaOf
     R.newCountries = R.first ? [] : newIn(firstYear((x) => x.k));
     R.newLangs = R.first ? [] : newIn(firstYear((x) => x.l ? [x.l] : []));
   }
-  R.crowd = crowdStudy(B, [...new Set(EY.map((e) => e.film))], (f) => { const es = EY.filter((e) => e.film === f && e.rating); return es.length ? es[es.length - 1].rating : f.rating; });
   // the short version
   const o = [];
   if (R.differ.length) o.push({ k: "What set it apart", big: R.differ[0].big, text: R.differ[0].text, to: R.differ[0].to });

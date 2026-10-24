@@ -9,7 +9,7 @@ let MY_LIB = null, EXAMPLE_LIB = null, STATS = null, YEARS = [];
 const IMG = "https://image.tmdb.org/t/p/w185";
 const showImages = !IN_VIEWER; // pages inside Claude can't load outside images
 const VIEW_KEY = "cr-mview-v1";
-const STATS_VIEWS = ["films", "people", "genres"];
+const STATS_VIEWS = ["films", "people", "genres", "years", "crowd"];
 const TOP_VIEWS = ["profile", "diary", ...STATS_VIEWS, "insights", "compare"];
 const TITLES = { diary: "Diary", films: "Stats", people: "Stats", genres: "Stats", insights: "Insights", compare: "Compare" };
 const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -142,9 +142,9 @@ function warmUp() {
     warmQueued = false;
     const lib = state.lib;
     if (!lib.entries.length) return;
-    allStudy();
+    allStudy(); allInsights();
     const Y = state.scope !== "all" ? state.scope : YEARS[0];
-    if (Y) yearStudy(Y);
+    if (Y) { yearStudy(Y); yearInsights(Y); }
   }, { timeout: 5000 });
 }
 $("#screen").addEventListener("animationend", (e) => { if (e.target.id === "screen") e.target.classList.remove("enter-push", "enter-pop", "enter-tab"); });
@@ -300,7 +300,7 @@ function profileScreen(s) {
 }
 
 /* ---------- Stats: films, people, genres ---------- */
-const statsHead = () => ltitle("Stats") + scopeBar() + segBar("view", [["films", "Films"], ["people", "People"], ["genres", "Breakdown"]], state.view);
+const statsHead = () => ltitle("Stats") + scopeBar() + segBar("view", [["films", "Films"], ["people", "People"], ["genres", "Breakdown"], ["years", "Years"], ["crowd", "Crowd"]], state.view, "five");
 function peopleScreen(s) {
   const role = state.role;
   const data = { c: s.cast, d: s.directors, w: s.writers, p: s.dop, m: s.music }[role] || s.cast;

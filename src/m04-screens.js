@@ -47,6 +47,8 @@ function filmsScreen(s) {
   let html = statsHead();
   if (!s.films.length) return html + `<div class="empty">No films in this period.</div>`;
   if (rated.length) html += sh("Highest rated", seeAll(`data-act="all-rated"`)) + posterGrid(rated.slice(0, 8));
+  const low = rated.filter((f) => f.rating <= 2.5).reverse();
+  if (low.length) html += sh("Lowest rated", low.length > 8 ? seeAll(dl(D.films("Lowest rated", filmsSub(low, "2½★ and under"), low, { scope: s.scope, sort: "given" }))) : "") + posterGrid(low.slice(0, 8));
 
   const E = s.entries;
   if (E.length) {
@@ -75,8 +77,10 @@ function filmsScreen(s) {
     oldest && fact("Oldest", `${oldest.name} · ${oldest.year}`, oldest), newest && fact("Newest", `${newest.name} · ${newest.year}`, newest),
   ].filter(Boolean).join("");
   if (rec) html += sh("Records") + `<div class="facts" style="margin-top:0">${rec}</div>`;
+  const habits = s.scope === "all" ? allInsights().habits : yearInsights(s.scope).habits.filter((h) => !["Longest streak", "Biggest day", "Oldest film"].includes(h.k));
+  if (habits.length) html += mHabits(habits, "Habits");
   if (!s.withMeta) html += needMeta();
-  return html;
+  return html + (mReviewInsights(state.lib, s.scope === "all" ? null : s.scope) || "");
 }
 
 /* ---------- Stats › Breakdown: the best decade, genres, countries, languages, decades ---------- */
@@ -115,6 +119,7 @@ function genresScreen(s) {
     html += (ranked.length ? sh("Decades, best rated first") + `<div class="group">${ranked.map(decadeRow).join("")}</div>` : "") +
       sh("Films by decade of release") + `<div class="card">${colChart(cols, "Films by decade of release", "", 100)}</div>`;
   }
+  if (s.scope === "all" && s.withMeta) html += mGenres(allInsights());
   return html;
 }
 
@@ -226,5 +231,5 @@ function watchNextScreen() {
   return chipBar("wn", WN_LENGTHS, state.wn) + `<p class="note">Best bets first: a guess at your rating from how you rate each film's director, leads and genres, and its crowd score.</p>` + rows +
     (W.missing ? `<p class="note">${plural(W.missing, "film")} on your watchlist ${W.missing === 1 ? "has" : "have"} no details yet.</p>` : "");
 }
-const SCREENS = { profile: profileScreen, diary: diaryScreen, films: filmsScreen, people: peopleScreen, genres: genresScreen, insights: () => insightsScreen(), compare: () => compareScreen() };
+const SCREENS = { profile: profileScreen, diary: diaryScreen, films: filmsScreen, people: peopleScreen, genres: genresScreen, years: (s) => yearsScreen(s), crowd: (s) => crowdScreen(s), insights: () => insightsScreen(), compare: () => compareScreen() };
 </script>

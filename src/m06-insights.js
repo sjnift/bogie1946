@@ -1,8 +1,8 @@
 <script>
 /* ---------- phone: Insights, a study of the diary (worked out in 06k-study.js). The year chips pick all years or
    one; the tabs under them pick a section. ---------- */
-const INS_TABS = [["overview", "In short"], ["chapters", "Chapters"], ["taste", "Taste"], ["ratings", "Ratings"], ["threads", "Threads"], ["habits", "Habits"], ["crowd", "The crowd"], ["reviews", "Reviews"]];
-const YEAR_TABS = [["overview", "In short"], ["apart", "Stood out"], ["ratings", "Ratings"], ["threads", "Threads"], ["habits", "Habits"], ["crowd", "The crowd"], ["reviews", "Reviews"]];
+const INS_TABS = [["overview", "In short"], ["chapters", "Chapters"], ["taste", "Taste"], ["ratings", "Ratings"], ["threads", "Threads"], ["habits", "Habits"]];
+const YEAR_TABS = [["overview", "In short"], ["apart", "Stood out"], ["ratings", "Ratings"], ["threads", "Threads"], ["habits", "Habits"]];
 // the crowd picked with the chips, or the one with the most scores
 const crowdKey = () => state.crowd || memo("crowd", () => defaultCrowd(state.lib, metaOf));
 const allStudy = () => memo(`study|${crowdKey()}`, () => computeStudy(state.lib, metaOf, crowdKey()));
@@ -25,8 +25,6 @@ function mAllInsights(tab) {
   if (tab === "ratings") return mRatings(S.ratings);
   if (tab === "threads") return mThreads(S.threads);
   if (tab === "habits") return sh("Habits, and what they say") + mFindings(S.habits, "No habit stands out clearly yet.");
-  if (tab === "crowd") return mCrowd(S.crowd);
-  if (tab === "reviews") return mReviewInsights(lib, null) || `<div class="empty">No written reviews yet.</div>`;
   const intro = `<p class="lead" style="margin-top:16px">A study of ${dlink(D.entries("Your diary", entriesSub(lib.entries), lib.entries), plural(S.n.entries, "diary entry", "diary entries"))}, ${fmtDate(S.n.from)} to ${fmtDate(S.n.to)}. Only clear patterns are reported; tap any of them to see the films behind it.</p>`;
   return intro + (S.overview.length ? mGlance(S.overview, "In short") : `<div class="empty">No clear patterns yet. They'll show as your diary grows.</div>`);
 }
@@ -87,26 +85,7 @@ function mThreads(T, empty = "No film has led to a run of others yet: four or mo
   const card = (x) => `<div class="card chap"><p class="ctext">${dline(x.to, esc(x.text))}</p>${mStrip(x.films)}</div>`;
   if (T.gateways.length) h += sh("Doors that opened") + T.gateways.map(card).join("");
   if ((T.chains || []).length) h += sh("Chains") + `<p class="note" style="margin:-4px 0 12px">Runs where each film shared someone with one you'd watched in the days before.</p>` + T.chains.map(card).join("");
-  if ((T.loyal || []).length) h += sh("The ones you come back to") + mLines(T.loyal, () => "↻");
   return h || `<div class="empty">${empty}</div>`;
-}
-
-function mCrowd(C, Y) {
-  const toggles = chipBar("crowdsel", Object.entries(CROWDS).filter(([k]) => (C.available[k] || 0) >= (Y ? 3 : 5) || k === C.key).map(([k, c]) => [k, c.short]), C.key);
-  if (C.n < (Y ? 3 : 5)) {
-    const why = Y ? `Comparing with the crowd needs three or more rated films with crowd scores in ${esc(Y)}.`
-      : IN_VIEWER ? `Crowd scores come from TMDB and OMDb, which pages inside Claude can't reach. Open <a href="https://sjnift.github.io/bogie1946/" target="_blank" rel="noopener">the web version</a>.`
-      : C.key === "tmdb" ? "Crowd scores come with TMDB details. Look your films up in Settings."
-      : C.key === "letterboxd" ? "Letterboxd averages need an Apify token, added in Settings." : "IMDb and critics' scores need a free OMDb key, added in Settings.";
-    return toggles + `<div class="empty">${why}</div>`;
-  }
-  const cap = (p) => `<span class="pmeta"><span class="stars">${stars(p.you)}</span></span><span class="mdate">${C.short} ${crowdScore(C.key, p.crowd)} · <b class="dv">${signed(p.diff)}★</b></span>`;
-  let html = toggles + `<div class="card glow" style="margin-top:12px"><p class="lead" style="margin:0">${Y ? `In ${esc(Y)} you gave` : "You give"} <b class="dv">${Math.abs(C.meanDiff).toFixed(2)}★ ${C.meanDiff >= 0 ? "more" : "less"}</b> than ${esc(C.label)} on average${Y ? "" : followText(C.r)}, across ${dlink(C.to, plural(C.n, "film"))}.</p></div>`;
-  html += sh(`Liked more than ${esc(C.short)}`) + (C.higher.length ? mPosters(C.higher, cap) : `<div class="empty">No film you rated ¾★ or more above them.</div>`);
-  html += sh(`Liked less than ${esc(C.short)}`) + (C.lower.length ? mPosters(C.lower, cap) : `<div class="empty">No film you rated ¾★ or more below them.</div>`);
-  if (C.gems.length) html += sh("Hidden gems") + `<p class="note" style="margin:-4px 0 12px">Rated 4½★ or more by you, and by few others.</p>` +
-    mPosters(C.gems, (g) => `<span class="pmeta"><span class="stars">${stars(g.f.rating)}</span></span><span class="mdate">${fmtN(g.pop.n)} ${g.pop.src} votes</span>`);
-  return html;
 }
 
 /* ----- one year ----- */
@@ -125,8 +104,6 @@ function mYearInsights(Y, tab) {
   if (tab === "ratings") return sh(`Ratings in ${esc(Y)}`) + mFindings(R.ratings, `Not enough rated films in ${esc(Y)}.`);
   if (tab === "threads") return mThreads(R.threads, `No run of films by one person began in ${esc(Y)}.`);
   if (tab === "habits") return sh(`Habits in ${esc(Y)}`) + mFindings(R.habits, `${esc(Y)} was much like your other years.`);
-  if (tab === "crowd") return mCrowd(R.crowd, Y);
-  if (tab === "reviews") return mReviewInsights(lib, Y) || `<div class="empty">No written reviews in ${esc(Y)}.</div>`;
   const es = lib.entries.filter((e) => e.date.startsWith(Y));
   return `<p class="lead" style="margin-top:16px">How ${dlink(D.entries(`Diary of ${Y}`, entriesSub(es), es), `${esc(Y)}'s ${plural(es.length, "diary entry", "diary entries")}`)} compared with the rest of your diary.</p>` +
     (es.length ? `<button class="btn green block" type="button" ${dl(D.share(Y))} style="margin-top:14px">${ICON.share}Share ${esc(Y)} as an image</button>` : "") +

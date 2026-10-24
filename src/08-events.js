@@ -82,7 +82,7 @@ function bind() {
       renderCompare();
     }
     else if (t.dataset.lb) lbAction(t.dataset.lb, MY_LIB);
-    else if (t.dataset.crowd) { state.crowd = t.dataset.crowd; renderInsights(); $(`[data-crowd="${t.dataset.crowd}"]`)?.focus(); }
+    else if (t.dataset.crowd) { state.crowd = t.dataset.crowd; render(); $(`[data-crowd="${t.dataset.crowd}"]`)?.focus(); }
     else if (t.dataset.scope) { state.scope = t.dataset.scope; state.more = { cast: false, directors: false }; saveView(); routeReplace = true; render(); routeReplace = false; }
     else if (t.dataset.tab) { state.tab[t.dataset.tab] = t.dataset.val; renderSections(STATS); $(`[data-tab="${t.dataset.tab}"][data-val="${t.dataset.val}"]`)?.focus(); }
     else if (t.dataset.more) { state.more[t.dataset.more] = true; renderSections(STATS); }

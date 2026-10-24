@@ -30,8 +30,6 @@ function renderInsights() {
     section("i-ratings", "What your ratings follow", "What tells most about how you'll rate a film, and what you like beyond its reputation.", ratingsBlock(S.ratings)),
     section("i-threads", "One film to the next", "How a film led you to more by the same people.", threadsBlock(S.threads)),
     section("i-habits", "Habits, and what they say", "How you watch, and how it shapes what you pick and how you rate it.", findings(S.habits, "No habit stands out clearly yet.")),
-    section("i-crowd", "Against the crowd", "Where your ratings part ways with everyone else's.", crowdBlock(S.crowd)),
-    section("i-reviews", "Your reviews", "What you write, and when you bother.", reviewInsightsBlock(lib, null)),
   ].join("");
   syncHash();
 }
@@ -86,35 +84,9 @@ function ratingsBlock(R) {
 function threadsBlock(T, empty = "No film has led to a run of others yet: four or more by one person within a few months.") {
   const gates = T.gateways.map((g) => `<div class="thread"><p>${dline(g.to, esc(g.text))}</p>${posterStrip(g.films)}</div>`).join("");
   const chains = (T.chains || []).map((c) => `<div class="thread"><p>${dline(c.to, esc(c.text))}</p>${posterStrip(c.films)}</div>`).join("");
-  const loyal = (T.loyal || []).length ? `<h3 class="sub-h">The ones you come back to</h3>` + lineItems(T.loyal, () => "↻") : "";
-  if (!gates && !chains && !loyal) return `<div class="empty">${empty}</div>`;
+  if (!gates && !chains) return `<div class="empty">${empty}</div>`;
   return (gates ? `<h3 class="sub-h">Doors that opened</h3><div class="threads">${gates}</div>` : "") +
-    (chains ? `<h3 class="sub-h">Chains</h3><p class="status">Runs where each film shared someone with one you'd watched in the days before.</p><div class="threads">${chains}</div>` : "") + loyal;
-}
-
-function crowdBlock(C, Y) {
-  const tabs = `<div class="tabs" role="tablist">${Object.entries(CROWDS).map(([k, c]) => {
-    const n = C.available[k] || 0;
-    return `<button class="tab" role="tab" type="button" data-crowd="${k}" aria-selected="${k === C.key}" ${n < (Y ? 3 : 5) ? "disabled" : ""} title="${n} rated films have this score">${c.label}</button>`; }).join("")}</div>`;
-  if (C.n < (Y ? 3 : 5)) {
-    const why = Y ? `Not enough crowd scores for ${Y}'s films yet.`
-      : IN_VIEWER ? `Crowd scores come from TMDB and OMDb, which pages inside Claude can't reach. Open <a href="https://sjnift.github.io/bogie1946/" target="_blank" rel="noopener">the web version</a> with your keys.`
-      : C.key === "letterboxd" ? "Letterboxd averages come through Apify. Add your Apify token in Settings → Film details."
-      : C.key === "imdb" || C.key === "critics" ? "IMDb and critics' scores come from OMDb. Add a free OMDb key in Settings → Film details."
-      : "Crowd scores come with TMDB details. Look your films up from Settings → Film details.";
-    return tabs + `<div class="empty">${why}</div>`;
-  }
-  const lead = `<p class="lead">${Y ? `On the ${dlink(C.to, plural(C.n, "film"))} you rated in ${esc(Y)}, you gave` : `Across ${dlink(C.to, plural(C.n, "film"))} you rated, you give`} ${Math.abs(C.meanDiff).toFixed(2)}★ ${C.meanDiff >= 0 ? "more" : "less"} than ${esc(C.label)} on average${Y ? "" : followText(C.r)}.</p>`;
-  const cap = (p) => `<span class="cap"><span class="stars">${stars(p.you)}</span>
-    <span class="muted">${esc(C.short)} ${crowdScore(C.key, p.crowd)} · <b class="diff">${signed(p.diff)}★</b></span></span>`;
-  const row = (items, empty) => items && items.length ? `<div class="posters">${items.map((p) => posterBtn(p.f, cap(p))).join("")}</div>` : `<div class="empty">${empty}</div>`;
-  const gemsTo = C.gems.length && D.films("Hidden gems", "Films you rated 4½★ or more that few people have rated", C.gems.map((g) => g.f), { sort: "given", note: (f) => { const g = C.gems.find((x) => x.f === f); return `${fmtN(g.pop.n)} ${g.pop.src} votes`; } });
-  const gems = C.gems.length ? `<h3>${dlink(gemsTo, "Hidden gems")}</h3><p class="status">Films you rated 4½★ or more that few people have rated.</p>
-    <div class="posters">${C.gems.map((g) => posterBtn(g.f, `<span class="cap"><span class="stars">${stars(g.f.rating)}</span><span class="muted">${fmtN(g.pop.n)} ${g.pop.src} votes</span></span>`)).join("")}</div>` : "";
-  return tabs + lead + `<div class="crowd">
-    <h3>You liked more than ${esc(C.label)}</h3>${row(C.higher, "No film you rated ¾★ or more above them.")}
-    <h3>You liked less than ${esc(C.label)}</h3>${row(C.lower, "No film you rated ¾★ or more below them.")}
-    ${gems}</div>`;
+    (chains ? `<h3 class="sub-h">Chains</h3><p class="status">Runs where each film shared someone with one you'd watched in the days before.</p><div class="threads">${chains}</div>` : "");
 }
 
 /* ----- one year, against the rest of the diary ----- */
@@ -134,8 +106,6 @@ function renderYearInsights(Y) {
     section("y-ratings", `Ratings in ${esc(Y)}`, "The year against your usual, with the crowd's view of the same films.", findings(R.ratings, `Not enough rated films in ${esc(Y)}.`)),
     section("y-threads", `Threads in ${esc(Y)}`, "Runs of films by the same people that began this year.", threadsBlock(R.threads, `No run of films by one person began in ${esc(Y)}.`)),
     section("y-habits", `Habits in ${esc(Y)}`, "How the year's watching differed from your usual.", findings(R.habits, `${esc(Y)} was much like your other years.`)),
-    section("y-crowd", "Against the crowd", `Films you rated in ${esc(Y)}.`, crowdBlock(R.crowd, Y)),
-    section("y-reviews", `Reviews in ${esc(Y)}`, "What you wrote that year.", reviewInsightsBlock(lib, Y)),
   ].join("");
   syncHash();
 }

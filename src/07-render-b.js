@@ -151,7 +151,11 @@ function highlightsBlock(s) {
   const reList = re.length ? `<div><div class="muted" style="font-size:12.5px; margin-bottom:6px">Most rewatched</div>${rankRows(
     re.map((f) => ({ name: `${f.name}${f.year ? ` (${f.year})` : ""}`, films: [f], count: views(f), to: D.film(f) })),
     (p) => `${p.count} viewings`, (p) => p.count / views(re[0]), 1, (p) => plural(p.count, "viewing"))}</div>` : "";
-  return `<div class="facts">${facts}</div>${top.length ? `<div class="posters">${top.map(posterHtml).join("")}</div>` : `<div class="empty">No rated films in this period.</div>`}${reList}`;
+  // the lowest rated, 2½★ and under, lowest first
+  const low = s.films.filter((f) => f.rating && f.rating <= 2.5).sort((a, b) => a.rating - b.rating || views(b) - views(a) || a.name.localeCompare(b.name));
+  const lowRow = low.length ? `<h3 class="sub-h">${dlink(low.length > 8 && D.films("Lowest rated", filmsSub(low, "2½★ and under"), low, { scope: s.scope, sort: "given" }), "Lowest rated")}</h3>
+    <div class="posters">${low.slice(0, 8).map(posterHtml).join("")}</div>` : "";
+  return `<div class="facts">${facts}</div>${top.length ? `<div class="posters">${top.map(posterHtml).join("")}</div>` : `<div class="empty">No rated films in this period.</div>`}${lowRow}${reList}`;
 }
 
 // Films watched on this date in earlier years.
@@ -183,20 +187,26 @@ function renderSections(s) {
   const everyone = (data, label) => dlink(data.total && D.names(label, `${fmtN(data.total)} in all, most watched first`, data.most, { faces: true }), `${fmtN(data.total)} ${label.toLowerCase()}`);
   const people = (kind, data) => noMeta ? emptyMeta() : tabs(kind, [["most", "Most watched"], ["best", "Highest rated"]], state.tab[kind]) + peopleBlock(kind, data, s);
   const T = s.scope === "all" ? onThisDay(state.lib) : null, W = state.lib.watchlistFilms.length ? watchNext(state.lib) : undefined;
+  const M = moreSections(s);
   $("#sections").innerHTML = [
     s.entries.length ? section("recent", s.scope === "all" ? "Recently watched" : `Last watched in ${s.scope}`,
       s.entries.length > RECENT_N ? dlink(DR.diary(s), `All ${fmtN(s.entries.length)} diary entries`) : "Your latest diary entries.", recentBlock(s)) : "",
     T && T.entries.length ? section("onthisday", T.title, T.sub, onThisDayBlock(T)) : "",
     section("starring", "Starring", `${everyone(s.cast, "Actors")} in the top ${CAST_DEPTH} billed of each film. Highest rated needs ${s.castMinRated}+ rated films.`, people("cast", s.cast)),
     section("directed", "Directed by", `${everyone(s.directors, "Directors")}.`, people("directors", s.directors)),
+    M.peopleYears, M.newIn,
     section("logged", "Logged", s.scope === "all" ? "Diary entries over time, by day and by date." : `Diary entries in ${s.scope}, week by week.`, diaryBlock(s)),
+    M.years, M.vsprev, M.habits,
     section("rated", "Rated", "How your ratings spread across half-stars.", ratingBlock(s)),
+    M.crowd,
     section("origin", "Genre &amp; origin", "Genres, production countries and original languages.", noMeta ? emptyMeta() : catBlock(s)),
+    M.genreYears, M.genreRates,
     section("released", "Released", "Films by decade of release.", decadeBlock(s)),
     section("crew", "Crew", "Writers, cinematographers and composers.", noMeta ? emptyMeta() : crewBlock(s)),
     section("milestones", "Milestones", "Counted through your diary in date order.", milestonesBlock(s)),
     section("reviews", "Reviewed", s.scope === "all" ? "Your latest reviews. Search finds any of them." : `What you wrote about films you watched in ${s.scope}, latest first.`, reviewsBlock(s)),
-    section("top", "Top billing", "Your highest-rated films.", highlightsBlock(s)),
+    M.reviewStats,
+    section("top", "Top billing", "Your highest-rated films, and your lowest.", highlightsBlock(s)),
     W !== undefined ? section("next", "Watch next", "Your watchlist, likeliest favourites first.", watchNextBlock(W)) : "",
   ].join("");
 }

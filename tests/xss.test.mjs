@@ -121,7 +121,7 @@ export default async function ({ browser, base }) {
     await clickAround(m, "#screen", "#sheet", `phone ${v}`, 12);
   }
   await tab("stats");
-  for (const v of ["films", "people", "genres"]) { await tab(v); await check(m, `phone stats ${v}`); await clickAround(m, "#screen", "#sheet", `phone ${v}`, 8); }
+  for (const v of ["films", "people", "genres", "years", "crowd"]) { await tab(v); await check(m, `phone stats ${v}`); await clickAround(m, "#screen", "#sheet", `phone ${v}`, 8); }
   await tab("profile");
   for (const act of ["reviews", "watchnext", "settings"]) {
     if (!(await m.$(`[data-act="${act}"]`))) continue;

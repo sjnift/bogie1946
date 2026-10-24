@@ -70,7 +70,14 @@ export async function phoneTour(m, each) {
   await tab("profile"); await each("profile");
   await tab("diary"); await each("diary");
   await tab("stats");
-  for (const v of ["films", "people", "genres"]) { await m.click(`#screen .seg [data-view="${v}"]`); await m.waitForTimeout(60); await each(v); }
+  for (const v of ["films", "people", "genres", "years", "crowd"]) { await m.click(`#screen .seg [data-view="${v}"]`); await m.waitForTimeout(60); await each(v); }
+  // and each Stats view for a year
+  const y0 = await m.$$eval("#scopes [data-scope]", (x) => x.map((b) => b.dataset.scope).filter((y) => y !== "all")[0]);
+  if (y0) {
+    await m.click(`[data-scope="${y0}"]`);
+    for (const v of ["films", "people", "genres", "years", "crowd"]) { await m.click(`#screen .seg [data-view="${v}"]`); await m.waitForTimeout(60); await each(`${v} ${y0}`); }
+    await m.click('[data-scope="all"]');
+  }
   await tab("insights"); await m.click('[data-scope="all"]');
   for (const t of await m.$$eval("[data-instab]", (x) => x.map((b) => b.dataset.instab))) { await m.click(`[data-instab="${t}"]`); await m.waitForTimeout(60); await each(`insights ${t}`); }
   await m.click('[data-instab="overview"]');

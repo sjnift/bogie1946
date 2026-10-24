@@ -59,6 +59,10 @@ Where it lives:
     another, and habits with what they explain. No counts or top lists the Stats page already shows (the `study` check
     looks for them). It's worked out in the browser with no AI: they were offered Claude writing it through an
     Anthropic API key (about 20–50 cents a study) and chose to keep it free.
+  - **The Stats page has every number; Insights has only findings** (asked Oct 2026): the numbers the old Insights page
+    had (year by year, genres year by year and as you rate them, people over the years, against the crowd, habits,
+    review numbers; for a year, against the year before and what was new) moved to the Stats page on both layouts, and
+    are not shown again on Insights.
   - **Their diary lives on the site, locked with a password** (see "The diary on the site"), so no device needs an
     import. Never put it there unencrypted, and never with their email address (the keys go in their own encrypted part).
   - **No "main computer"**: every device where the password was typed is equal. It updates the site, and what any
@@ -116,23 +120,29 @@ The owner asked for this to be checked every time. A film, diary entry, person o
 - Desktop: `01-head.html` (fonts, colour tokens, base CSS), `02-style.html` (all other desktop CSS),
   `03-body.html` (page skeleton), shared files, `07-render-a.js` (state, render(), hero, tiles, the Settings page `renderSettings`, the lookup box and its one-line
   version on the stats page `renderLookupMini`),
-  `07-render-b.js` (Stats sections), `07c-insights.js`, `07d-compare.js`, `07e-reviews.js`,
+  `07-render-b.js` (Stats sections), `07-render-c.js` (more Stats sections, the numbers from the old Insights page:
+  `moreSections` places year by year, genres year by year, genres as you rate them, people over the years, against
+  the crowd, habits, review numbers, and for a year against the year before and new in the year; `homeInsights`
+  keeps `computeInsights`/`computeYearInsights` in `HOME_INS` until the data changes), `07c-insights.js` (the study),
+  `07d-compare.js`, `07e-reviews.js`,
   `07f-drill.js` (pop-up, full page, hash routes, back button), `08-events.js` (import, clicks, init).
 - Phone: `m01-head.html` (all phone CSS), `m02-body.html` (header, five-tab bar), shared files,
   `m03-screens.js` (state, `memo`, `morph`, render(), header, `goTo`/`push`/`pop`, pieces, Profile, People),
-  `m04-screens.js` (Diary, Films, Genres, Settings, Watch next, pushed screens, `SCREENS`), `m06-insights.js`,
+  `m04-screens.js` (Diary, Films, Genres, Settings, Watch next, pushed screens, `SCREENS`), `m04b-stats.js` (Stats ›
+  Years and Stats › Crowd, genres as you rate them for Breakdown, habits for Films; `allInsights`/`yearInsights`),
+  `m06-insights.js` (the study),
   `m07-compare.js`, `m08-reviews.js`, `m09-drill.js` (bottom sheet with swipe-to-close, drill screens),
   `m10-route.js` (hash routes, back button), `m05-events.js` (import, taps, init).
 - Shared, in order: `04-example.js` (the example diary and example friends), `05-core.js` (helpers, storage,
   reading the export, `buildLibrary`, `reviewParts`, `cleanMeta`, `computeStats`), `06-lookup.js` (TMDB,
   OMDb, Claude lookups, `fixMatch`), `06b-charts.js` (column chart, timeline, calendar heatmap),
-  `06d-letterboxd.js` (Letterboxd averages through Apify), `06c-insights.js` (`CROWDS`, `crowdDrill`, `defaultCrowd`;
-  `computeInsights`/`computeYearInsights` now only feed the year picture), `06e-compare.js` (friends, `tasteProfile`, `comparePair`,
+  `06d-letterboxd.js` (Letterboxd averages through Apify), `06c-insights.js` (`CROWDS`, `crowdDrill`, `defaultCrowd`,
+  and `computeInsights`/`computeYearInsights`, the numbers behind the Stats page's moved sections and the year picture), `06e-compare.js` (friends, `tasteProfile`, `comparePair`,
   `compareGroup`, `habitRows`), `06f-reviews.js` (review insights), `06g-drill.js` (the drill system and the
   film card), `06h-more.js` (daily feed merge, backups, search, On this day, Watch next, filmographies),
   `06i-share.js` (the year picture), `06j-site.js` (the diary kept on the site, locked with a password),
   `06k-study.js` (Insights: `computeStudy`, `computeYearStudy`, and the pieces both layouts draw, `driftCols`,
-  `chapterStrip`; see "Insights, the study").
+  `chapterStrip`; see "Insights, the study"; also `crowdOf`, the Stats page's against-the-crowd numbers).
 - `src/site/`: `manifest.webmanifest`, `sw.js` (network-first service worker; skips TMDB, OMDb, Apify),
   icons (drawn by `tools/make_icons.py`).
 - `scripts/feed.mjs` and `.github/workflows/`: the daily feed and the checks (below).
@@ -165,10 +175,12 @@ The owner asked for this to be checked every time. A film, diary entry, person o
 ### The phone app's structure and speed
 
 - Tabs: **Profile** (hero, year chips, tiles for Reviews/Watch next/Liked/Rewatches, recently watched, On this
-  day, ratings, most watched people; no "Top rated" row, removed at the owner's request; gear → Settings), **Diary**, **Stats** (a segmented control:
-  `films`, `people`, `genres` are three views, the last labelled **Breakdown** because it also holds countries,
-  languages and decades; it opens with the best-rated decade and its posters, and ranks decades with three
-  posters each; the tab remembers the last view), **Insights** (the year chips pick
+  day, ratings, most watched people; no "Top rated" row, removed at the owner's request; gear → Settings), **Diary**, **Stats** (a segmented control
+  of five views: `films` (highest and lowest rated, milestones, rewatched, records, habits, review numbers),
+  `people`, `genres` labelled **Breakdown** because it also holds countries, languages, decades and genres as you
+  rate them (it opens with the best-rated decade and its posters, and ranks decades with three posters each),
+  `years` (year by year, genres year by year, people over the years; for a year, against the year before and what
+  was new) and `crowd`; the tab remembers the last view), **Insights** (the year chips pick
   all years or one; underlined section tabs: `state.insTab` (`INS_TABS`) / `state.yearTab` (`YEAR_TABS`)), **Compare** (friend chips,
   section tabs `state.cmpTab`). Pushed screens (`state.stack`): `data` (Settings: import, lookups, backups,
   footer stamp), `reviews`, `watchnext`, `cat`, `drill` ("See all").
@@ -203,7 +215,7 @@ pinned). In Compare it shows each person's record.
 
 Desktop: `#/`, `#/2024`, `#/insights`, `#/insights/2024`, `#/compare/<friend>`, `#/list`, `#/settings`; `/film/<filmKey>`
 on the end opens a card. The "Credits Roll" title (`#home-link`) goes to `#/` (the stats, all time) from any page. Phone: `#/profile`, `#/diary`, `#/films`, `#/people`, `#/genres`, `#/insights`,
-`#/insights/2024`, `#/compare/<friend>` (tabs) and `#/data`, `#/reviews`, `#/watchnext`, `#/list` (pushed),
+`#/years`, `#/crowd`, `#/insights/2024`, `#/compare/<friend>` (tabs) and `#/data`, `#/reviews`, `#/watchnext`, `#/list` (pushed),
 plus `/film/…`. Tabs, pop-ups, sheets and pushed screens are history entries; changing year, Stats section or
 friend replaces the address instead.
 
@@ -211,12 +223,14 @@ friend replaces the address instead.
 
 - **Stats**: recently watched (8 latest entries on the desktop main page, `recentBlock`; 12 on the phone's Profile;
   a year shows its last ones), films, hours, diary, ratings, rewatches, reviews, most watched actors/directors/crew, genres,
-  countries, languages, decades, milestones with posters, records, On this day, Watch next, Reviewed (search; the desktop
-  main page shows the latest 3, cut short, and "All N reviews" opens the rest: `REVIEWS_SHOWN`).
-- **Insights**: a study of the diary (below): all years (in short, chapters, how taste has moved, what ratings
-  follow, one film to the next, habits, against the crowd, reviews) and each year against the rest of the diary (in
-  short, what set it apart, its months, ratings, threads, habits, crowd, reviews, the year picture).
+  countries, languages, decades, milestones with posters, records, highest and lowest rated, On this day, Watch next,
+  Reviewed (search; the desktop main page shows the latest 3, cut short, and "All N reviews" opens the rest:
+  `REVIEWS_SHOWN`) and, from the old Insights page, year by year, genres year by year and as you rate them, people over
+  the years, against the crowd, habits, review numbers, and for a year against the year before and new in the year.
   "Against the crowd" uses Letterboxd (Apify), IMDb/Metacritic (OMDb) or TMDB scores.
+- **Insights**: a study of the diary (below), findings only: all years (in short, chapters, how taste has moved, what
+  ratings follow, one film to the next, habits) and each year against the rest of the diary (in short, what set it
+  apart, its months, ratings, threads, habits, the year picture).
 
 ### Insights, the study (`06k-study.js`)
 
@@ -236,7 +250,7 @@ standard errors or more from what the rest of the diary gives; every sentence op
   ratings and the crowd's view of the same films, early against late; a lower bar, t ≥ 2.5), directors who never let
   you down or divide you.
 - Threads: doors that opened (four or more by one person within 120 days), chains (each film sharing someone with one
-  seen in the ten days before), people you keep coming back to. Habits: weekends, a genre's month, a month for
+  seen in the ten days before). Habits: weekends, a genre's month, a month for
   rewatching, comfort after a break, busy against quiet months, marathon days, logging and rating over time, second looks.
 - It works for any account's export. Without film details (no TMDB key) it still finds decades, release-year
   drifts, ratings by decade and timing, and every habit; genres, countries, people and threads need cast & crew.
@@ -379,7 +393,7 @@ shows the latest ~50, so it accumulates), commits, and asks Pages to rebuild. Th
 `tests/`: `lib.mjs` (server, browser, stand-ins: papaparse/jszip served from `node_modules`, every outside
 service cut off unless a check stands in for it, service worker off unless asked, reduced motion, pages opened
 with `?example` (pass `example: false` for an empty browser; a check's own `goto` must add `?example` too),
-`phoneTour()` which opens every phone tab, Stats view and Insights/Compare section), `run.mjs`, and checks:
+`phoneTour()` which opens every phone tab, every Stats view for all time and for a year, and every Insights/Compare section), `run.mjs`, and checks:
 `apify`, `check` (film data check), `counts` (double counting), `reviews` (missing review text spotted; six-film actors), `welcome` (no example diary; import saved at once), `extras` (year picture, On this day, Watch next, PWA), `feed`, `import`,
 `links` (every link opens something), `pages` (nothing broken shows, no sideways scroll on the phone),
 `routes`, `storage` (IndexedDB move, backup and restore), `site` (the diary on the site: a stand-in GitHub and site),
