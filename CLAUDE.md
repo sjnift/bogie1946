@@ -238,6 +238,8 @@ standard errors or more from what the rest of the diary gives; every sentence op
 - Threads: doors that opened (four or more by one person within 120 days), chains (each film sharing someone with one
   seen in the ten days before), people you keep coming back to. Habits: weekends, a genre's month, a month for
   rewatching, comfort after a break, busy against quiet months, marathon days, logging and rating over time, second looks.
+- It works for any account's export. Without film details (no TMDB key) it still finds decades, release-year
+  drifts, ratings by decade and timing, and every habit; genres, countries, people and threads need cast & crew.
 - Speed: about 0.5 s for 2,000 films on a phone slowed four times; the phone works it out in idle time (`warmUp`) and
   keeps it (`memo`: `study|crowd`, `ystudy|year|crowd`); the desktop keeps it until the data changes (`STUDY_CACHE`).
 - **Compare**: add friends' export ZIPs (stored in the browser); taste match, overlap, agree/disagree, rating
@@ -323,7 +325,10 @@ app**. `06j-site.js`:
   import replaces this device's when it is newer or came from the site; details, averages, photos and friends are
   merged (`mergeMeta` keeps the better match). The daily feed still adds new entries on top.
 - The app commits to `main`, so **`git pull` before working here**. `site.yml` ignores `docs/diary/**`, the
-  service worker leaves `diary/` alone, and `build.sh` never touches it. Hidden in the Claude artifacts and in
+  service worker leaves `diary/` alone, and `build.sh` never touches it.
+- Someone else's export imported on a device that has the diary (`siteSameUser`: the export's Username against the
+  site's `user`) never goes up in its place and isn't replaced by it: nothing is sent or brought in, and Settings says
+  so. (Before Oct 2026 it would have gone up and replaced the owner's diary on every device; the `site` check covers it.) Hidden in the Claude artifacts and in
   files opened from disk (`SITE_ON`). Checks see no diary on the site unless they stand in for it (`lib.mjs`).
 
 ## Security (reviewed Oct 2026; keep it this way)

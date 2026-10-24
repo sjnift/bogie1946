@@ -149,6 +149,12 @@ function siteLocal() {
 // own import: a device that only reads the site's diary would spend the allowance on films others fetch anyway.
 const siteLeadsLookups = () => !SITE_ON || !SITE || !!SITEPUB || !(store.get(KEYS.rows, null) || {}).site;
 const siteUser = (rows) => (((rows && rows.profile) || [])[0] || {}).Username || "";
+// Whether this device's diary belongs to the account whose diary is on the site. An export of someone else's account
+// imported here never goes up in its place, and the site's diary doesn't replace it either.
+const siteSameUser = (rows = store.get(KEYS.rows, null), user = (site.index && site.index.user) || (SITE && SITE.user)) => {
+  const mine = siteUser(rows);
+  return !mine || !user || mine.toLowerCase() === String(user).toLowerCase();
+};
 // Which of two imports is newer: by when it was imported, or for imports from before that was noted,
 // by the newest diary entry and then by size.
 const rowsWhen = (r) => r.importedAt || (r.diary || []).reduce((m, e) => ((e.Date || "") > m ? e.Date : m), "");
@@ -229,7 +235,7 @@ async function siteBring(idx, read, draw) {
 }
 // Whether this device has something the site doesn't (a part it lacks, or a part that differs): checked at start.
 async function siteDiffers() {
-  if (!SITE || !site.index || site.index.salt !== SITE.salt || !store.get(KEYS.rows, null)) return false;
+  if (!SITE || !site.index || site.index.salt !== SITE.salt || !store.get(KEYS.rows, null) || !siteSameUser()) return false;
   const local = siteLocal();
   if (!site.index.sig || !(await siteTrusts(await importKey(SITE.key), site.index))) return true; // unsigned, or not to be trusted: send this device's
   for (const p of SITE_PARTS) if (!site.index.parts[p] || (SITE.sums || {})[p] !== await sha256(canon(local[p]))) return true;
@@ -245,7 +251,7 @@ async function siteCheck(draw) {
   const idx = site.index;
   // taken off the site from another device: this one stops sending, and keeps its copy
   if (!idx && SITE) { SITE = null; ls.del(SITE_DIRTY); clearTimeout(site.timer); site.timer = null; saveSite(); }
-  if (idx && SITE && SITE.salt === idx.salt && (idx.at !== SITE.at || !store.get(KEYS.rows, null))) {
+  if (idx && SITE && SITE.salt === idx.salt && (idx.at !== SITE.at || !store.get(KEYS.rows, null)) && siteSameUser(store.get(KEYS.rows, null), idx.user)) {
     try {
       if (!(await siteTrusts(await importKey(SITE.key), idx))) throw new Error(SITE_TAMPERED);
       await siteBring(idx, (p) => siteGet(`${p}.bin`, idx.parts[p]), draw);
@@ -293,6 +299,8 @@ function sitePublish({ password, restart, where = "publish" } = {}) {
         const known = idx && SITE && SITE.salt === idx.salt;
         // taken off the site from another device: nothing goes back up until it's put there again
         if (!idx && !fresh) { SITE = null; ls.del(SITE_DIRTY); saveSite(); said = "Your diary was taken off the site from another device. Put it back here if you want it there."; break; }
+        // another account's diary on this device stays here: it never replaces the one on the site
+        if (idx && !siteSameUser(store.get(KEYS.rows, null), idx.user)) { ls.del(SITE_DIRTY); said = `This device has @${siteUser(store.get(KEYS.rows, null))}'s diary, so it leaves @${idx.user}'s on the site alone.`; break; }
         if (idx && !known && !restart) throw ghFail(fresh && !had ? "A diary was put on this site from another device a moment ago. Refresh the page in a minute and type its password."
           : "The diary on the site has a password this device doesn't know yet. Type it first.");
         if (!fresh) { key = await importKey(SITE.key); salt = SITE.salt; check = idx ? idx.check : bytesToB64(await seal(key, "credits-roll", true)); }
@@ -370,7 +378,7 @@ function siteForget() { clearTimeout(site.timer); site.timer = null; SITE = null
 // A change on this device goes up by itself: a new import, friend or key within seconds; film details, photos and
 // averages a minute after lookups finish, so other devices don't look the same films up again.
 STORE_HOOK = (k) => {
-  if (site.applying || !SITEPUB || !SITE || !PUBLISHED.has(k)) return;
+  if (site.applying || !SITEPUB || !SITE || !PUBLISHED.has(k) || !siteSameUser()) return;
   const d = ls.get(SITE_DIRTY, null) || { at: Date.now() };
   if (SITE_SOON.has(k)) d.now = true;
   ls.set(SITE_DIRTY, d);
@@ -433,7 +441,9 @@ function siteBox(kind) {
       : ["Your diary is on this site", "Type its password and this device keeps up with it from now on, with no importing."];
     return box(title, `<p class="status">${text}</p>${passForm()}${forgot()}`, true);
   }
-  if (!MY_LIB || (idx && !sameUser)) return "";
+  if (!MY_LIB) return "";
+  // a device that had the site's diary, now holding someone else's
+  if (idx && !sameUser) return SITE ? box("Your diary on this site", `<p class="status">This device now has @${esc(mine)}'s diary, so it leaves @${esc(user)}'s diary on the site alone: nothing goes up from here, and nothing comes down. Import @${esc(user)}'s own export again to keep this device in step.</p>`) : "";
   const title = "Your diary on this site";
   if (idx === undefined) return box(title, `<p class="status">${site.offline ? "Couldn't reach the site just now." : "Checking the site…"}</p>`);
   if (!idx) {

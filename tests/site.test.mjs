@@ -346,6 +346,23 @@ export default async function ({ browser, base }) {
   await b.click('[data-sitebox="publish"] [data-site="unlock"]');
   await until(b, () => !site.busy && SITE && site.index && SITE.salt === site.index.salt && META["x|2001"] && META["y|2002"] && MY_LIB.films.length === 2, "the phone to open it with the new password");
 
+  // Someone else's export imported on a device that has the diary: it never goes up in place of the diary, the
+  // site's diary doesn't replace it, and Settings says so. Importing the right export again puts the device back in step.
+  {
+    const before = gh.file("docs/diary/index.json").toString(), commits = gh.authors.length;
+    const other = { ...rows, profile: [{ Username: "someone_else", "Date Joined": "2021-01-01" }], watched: [{ Name: "Alien", Year: "1979", Date: "2024-01-01" }],
+      diary: [{ Name: "Alien", Year: "1979", Date: "2024-03-03", "Watched Date": "2024-03-03", Rating: "4" }], ratings: [] };
+    const mineRows = await b.evaluate(() => store.get(KEYS.rows, null));
+    await b.evaluate((r) => { store.set(KEYS.rows, { ...r, importedAt: new Date().toISOString() }); MY_LIB = myLibrary(); DATA_REV++; render(); }, other);
+    await b.waitForTimeout(5500);
+    await b.evaluate(() => { site.checked = 0; return siteCheck(true); });
+    const now = await b.evaluate(() => ({ user: MY_LIB.profile.username, dirty: localStorage.getItem("cr-site-dirty"), box: document.querySelector('[data-sitebox="publish"]').textContent }));
+    assert(gh.file("docs/diary/index.json").toString() === before && gh.authors.length === commits, "another account's export went up in place of the diary");
+    assert(now.user === "someone_else" && !now.dirty && /leaves @tester's diary on the site alone/.test(now.box), `the other account's diary on the phone: ${JSON.stringify(now).slice(0, 300)}`);
+    await b.evaluate((r) => { store.set(KEYS.rows, r); MY_LIB = myLibrary(); DATA_REV++; render(); }, mineRows);
+    await until(b, () => MY_LIB.profile.username === "tester" && !site.job, "the phone to have its own diary again");
+  }
+
   // Taking it off the site: the files go, each device keeps its copy, and no device puts it back by itself.
   await a.click('#site-box [data-site="remove"]');
   await a.click('#site-box [data-site="remove"]');
