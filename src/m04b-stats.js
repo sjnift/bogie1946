@@ -21,19 +21,20 @@ function crowdScreen(s) {
 }
 
 const TRENDS = {
-  films: { label: "Films", value: (p) => p.films, tip: (p) => `${p.year}: ${plural(p.films, "film")}${p.pace ? `, on pace for about ${fmtN(p.pace)}` : ""}`, extra: (p) => p.pace && p.pace > p.films ? p.pace - p.films : 0 },
-  hours: { label: "Hours", value: (p) => Math.round(p.hours), tip: (p) => `${p.year}: ${fmtN(Math.round(p.hours))} hours` },
+  films: { label: "Films", unit: "films", value: (p) => p.films, tip: (p) => `${p.year}: ${plural(p.films, "film")}${p.pace ? `, on pace for about ${fmtN(p.pace)}` : ""}`, extra: (p) => p.pace && p.pace > p.films ? p.pace - p.films : 0 },
+  hours: { label: "Hours", unit: "h", value: (p) => Math.round(p.hours), tip: (p) => `${p.year}: ${fmtN(Math.round(p.hours))} hours` },
   rating: { label: "Rating", value: (p) => p.avgRating, tip: (p) => `${p.year}: ${p.avgRating ? starsNum(p.avgRating) : "no ratings"}` },
-  age: { label: "Film age", value: (p) => p.age, tip: (p) => `${p.year}: ${p.age != null ? Math.round(p.age) + " years old on average" : "—"}` },
-  nonEnglish: { label: "Not English", value: (p) => p.nonEnglish, tip: (p) => `${p.year}: ${p.nonEnglish != null ? p.nonEnglish + "% not in English" : "not enough details"}` },
-  rewatches: { label: "Rewatches", value: (p) => pctOf(p.rewatches, p.entries), tip: (p) => `${p.year}: ${pctOf(p.rewatches, p.entries)}% of entries were rewatches` },
+  age: { label: "Film age", unit: "yrs", value: (p) => p.age, tip: (p) => `${p.year}: ${p.age != null ? Math.round(p.age) + " years old on average" : "—"}` },
+  nonEnglish: { label: "Not English", unit: "%", value: (p) => p.nonEnglish, tip: (p) => `${p.year}: ${p.nonEnglish != null ? p.nonEnglish + "% not in English" : "not enough details"}` },
+  rewatches: { label: "Rewatches", unit: "%", value: (p) => pctOf(p.rewatches, p.entries), tip: (p) => `${p.year}: ${pctOf(p.rewatches, p.entries)}% of entries were rewatches` },
 };
 function mYears(I) {
   if (I.years.length < 2) return sh("Year by year") + twoYears("Year-by-year trends");
   const t = TRENDS[state.trend] ? state.trend : "films", T = TRENDS[t];
   const anyPace = t === "films" && I.years.some((p) => p.pace && p.pace > p.films);
   const legend = anyPace ? `<div class="legend"><span><i style="background:var(--green-mark)"></i>Watched</span><span><i style="background:var(--blue-mark)"></i>Rest of this year at your pace</span></div>` : "";
-  const chart = colChart(I.years.map((p) => ({ a: Math.max(0, T.value(p) || 0), b: T.extra ? T.extra(p) : 0, label: `’${p.year.slice(2)}`, tip: T.tip(p), to: p.entries ? yearDrill(p, t) : null })), `${T.label} by year`, legend, 130);
+  const chart = colChart(I.years.map((p) => ({ a: Math.max(0, T.value(p) || 0), b: T.extra ? T.extra(p) : 0, label: `’${p.year.slice(2)}`, tip: T.tip(p), to: p.entries ? yearDrill(p, t) : null })), `${T.label} by year`, legend, 130,
+    t === "rating" ? { values: (c) => c.a.toFixed(2), base: valuesBase(I.years.map((p) => p.avgRating), 0.25) } : { unit: T.unit });
   const rows = [...I.years].reverse().map((p) => {
     const cell = (what, v, label) => `<span class="c"><b>${v == null ? "—" : dlink(yearDrill(p, what), v)}</b><small>${label}</small></span>`;
     const g = p.topGenre, gf = g && p.F.filter(hasGenre(g[0]));
@@ -81,7 +82,7 @@ function mPeopleYears(I) {
   if (comp.length) html += sh("Long-time companions") + `<div class="group">${comp.map((p, i) => row(p, i, `${p.years.size}y`, (q) => `${q.role} · ${plural(q.years.size, "year")} of your diary`)).join("")}</div>`;
   if (P.discoveries.length >= 2) html += sh("Directors discovered each year") + `<div class="card">` +
     colChart(P.discoveries.map((d) => ({ a: d.count, b: 0, label: `’${d.year.slice(2)}`, tip: `${d.year}: ${plural(d.count, "new director")}`,
-      to: d.count && D.names(`Directors new in ${d.year}`, plural(d.count, "director"), d.people, { faces: true }) })), "New directors by year", "", 80) + `</div>`;
+      to: d.count && D.names(`Directors new in ${d.year}`, plural(d.count, "director"), d.people, { faces: true }) })), "New directors by year", "", 80, { unit: "new" }) + `</div>`;
   return html;
 }
 
@@ -115,7 +116,9 @@ function mNewIn(R) {
 }
 
 function mCrowd(C, Y) {
-  const toggles = chipBar("crowdsel", Object.entries(CROWDS).filter(([k]) => (C.available[k] || 0) >= (Y ? 3 : 5) || k === C.key).map(([k, c]) => [k, c.short]), C.key);
+  // only the crowds this diary has scores from, and no switch at all when there's just one
+  const crowds = Object.entries(CROWDS).filter(([k]) => (C.available[k] || 0) >= (Y ? 3 : 5) || k === C.key);
+  const toggles = crowds.length > 1 ? chipBar("crowdsel", crowds.map(([k, c]) => [k, c.short]), C.key) : "";
   if (C.n < (Y ? 3 : 5)) {
     const why = Y ? `Comparing with the crowd needs three or more rated films with crowd scores in ${esc(Y)}.`
       : IN_VIEWER ? `Crowd scores come from TMDB and OMDb, which pages inside Claude can't reach. Open <a href="https://sjnift.github.io/bogie1946/" target="_blank" rel="noopener">the web version</a>.`

@@ -75,7 +75,8 @@ function feedBlock(lib, phone) {
     return title + `<p class="status">Your Letterboxd feed is read once a day.${newest ? ` Newest entry: ${esc(newest.title)}, ${fmtDate(newest.watched)}.` : ""}
       ${es.length ? `${dlink(D.entries("From your Letterboxd feed", `${entriesSub(es)} logged since your export`, es), plural(es.length, "diary entry", "diary entries"))} came from it since your export.` : "Your export already has everything in it."}</p>`;
   }
-  if (!user || !SITE_REPO) return "";
+  // switching it on means changing this site's repository: only for the device of the site's owner (it has their GitHub key)
+  if (!user || !SITE_REPO || !SITEPUB || !siteSameUser()) return "";
   return title + `<p class="status">New diary entries can show up here each day without a fresh export. Add <b>${esc(user)}</b> on a line of its own to
     <a href="${SITE_REPO}/edit/main/feed-users.txt" target="_blank" rel="noopener">feed-users.txt</a> in your GitHub repository and commit it.
     Your diary must be public on Letterboxd; the entries are then also public on this site.</p>`;
@@ -362,4 +363,13 @@ async function copyDataCheck(btn) {
     btn.textContent = "Select all and copy";
   }
 }
+
+/* ---------- iPhone and iPad: keep the diary by adding the site to the Home Screen ----------
+   Safari clears what a website saved when it isn't opened for about a week; an app on the Home Screen keeps it. */
+const IOS_TIP = "cr-ios-tip";
+const iosTipDue = () => !IN_VIEWER && !!MY_LIB && !ls.get(IOS_TIP, false) && /^https?:$/.test(location.protocol)
+  && (/iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1))
+  && !(navigator.standalone || matchMedia("(display-mode: standalone)").matches);
+const IOS_TIP_TEXT = "Keep your diary on this device: tap Share, then Add to Home Screen. Safari clears a website's saved data when it isn't opened for about a week; the Home Screen app keeps it.";
+document.addEventListener("click", (e) => { if (e.target.closest("[data-iostip]")) { ls.set(IOS_TIP, true); render(); } });
 </script>

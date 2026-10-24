@@ -32,12 +32,15 @@ function render() {
   document.body.classList.toggle("empty", empty);
   siteRedraw();
   if (empty) { renderWelcome(); return; }
-  const years = [...new Set(state.lib.entries.map((e) => e.date.slice(0, 4)))].sort().reverse();
+  const base = state.lib, page = state.page;
+  const years = [...new Set(base.entries.map((e) => e.date.slice(0, 4)))].sort().reverse();
   if (state.scope !== "all" && !years.includes(state.scope)) state.scope = "all";
+  if (page === "stats") state.lib = filteredLib(base, metaOf); // the filters narrow the stats, not Insights or Compare
   STATS = computeStats(state.lib, metaOf, state.scope);
   renderHero(STATS, years);
-  const page = state.page;
-  for (const sel of ["#tiles", "#lookup-mini", "#sections", ".scopes-row"]) $(sel).hidden = page !== "stats";
+  $("#filters-row").innerHTML = page === "stats" ? filterBar(base, metaOf) : "";
+  syncFilterMenus($("#filters-row"));
+  for (const sel of ["#tiles", "#lookup-mini", "#ios-tip", "#sections", "#jump", ".scopes-row", "#filters-row"]) $(sel).hidden = page !== "stats";
   $("#settings").hidden = page !== "settings";
   $("footer").hidden = page === "settings"; // Settings ends with its own About
   $("#btn-settings span").textContent = page === "settings" ? "Back to stats" : "Settings";
@@ -52,6 +55,9 @@ function render() {
   if (page === "compare") { renderCompare(); return; }
   if (page === "settings") { $(".scopes-row").hidden = true; renderSettings(); syncHash(); return; }
   renderTiles(STATS);
+  const tip = $("#ios-tip");
+  tip.hidden = !iosTipDue();
+  if (!tip.hidden) tip.innerHTML = `${esc(IOS_TIP_TEXT)} <button class="linkish" type="button" data-iostip>Got it</button>`;
   renderLookup();
   renderSections(STATS);
   syncHash();
@@ -67,33 +73,39 @@ function openSearch() {
 // The page with nothing imported: what to do, and why the diary isn't showing if the browser lost hold of it.
 function renderWelcome() {
   $("#example-notice").hidden = false;
-  $("#hero-eyebrow").textContent = "Nothing imported yet";
+  $("#hero-eyebrow").textContent = "Free · nothing to sign up for";
   $("#hero-title").innerHTML = "Your diary, <span class=\"accent\">in numbers</span>";
-  $("#hero-sub").innerHTML = "Stats, insights and comparisons from your Letterboxd diary.";
-  $("#notice-text").innerHTML = (LOAD_ERROR ? `<strong>Your saved diary couldn't be read</strong> (${esc(LOAD_ERROR)}). Import your export again. ` : store.failed
-    ? `<strong>This browser's saved data couldn't be opened just now</strong>, so your diary isn't showing. Close the page and open it again; if it still isn't there, import your export or a backup file again. ` : "") +
-    `To see your stats, go to <a href="https://letterboxd.com/settings/data/" target="_blank" rel="noopener">Letterboxd → Settings → Data</a>,
-    choose <em>Export your data</em>, then import the ZIP here or drop it anywhere on this page. A backup file from another device works too. Your files stay in this browser.`;
+  $("#hero-sub").innerHTML = "Stats, insights and comparisons with friends, from your Letterboxd diary.";
+  $("#notice-text").innerHTML = (LOAD_ERROR ? `<p><strong>Your saved diary couldn't be read</strong> (${esc(LOAD_ERROR)}). Import your export again.</p>` : store.failed
+    ? `<p><strong>This browser's saved data couldn't be opened just now</strong>, so your diary isn't showing. Close the page and open it again; if it still isn't there, import your export or a backup file again.</p>` : "") +
+    `<p><strong>See your own stats in a minute</strong></p><ol class="steps"><li>On <a href="https://letterboxd.com/settings/data/" target="_blank" rel="noopener">letterboxd.com → Settings → Data</a>, choose <em>Export your data</em> and download the ZIP.</li>
+    <li>Import the ZIP here, or drop it anywhere on this page. A backup file from another device works too.</li></ol>
+    <p class="trust">Your diary stays in this browser: only film titles and years go to TMDB, to find cast and crew.</p>`;
+  $("#btn-import-2").classList.add("primary");
+  $("#btn-import-2").textContent = "Import your export";
   $("#backup").hidden = true;
   for (const sel of ["#insights", "#compare", "#drillpage"]) $(sel).hidden = true;
 }
 function renderHero(s, years) {
   const lib = state.lib, ex = state.mode === "example";
   $("#example-notice").hidden = !ex;
-  if (ex) $("#notice-text").innerHTML = `<strong>This is a made-up example diary.</strong> To see your own stats, import your Letterboxd export (Letterboxd → Settings → Data → Export your data).`;
+  if (ex) $("#notice-text").innerHTML = `<p><strong>This is a made-up example diary.</strong> To see your own stats, import your Letterboxd export (Letterboxd → Settings → Data → Export your data).</p>`;
+  $("#btn-import-2").classList.remove("primary");
+  $("#btn-import-2").textContent = "Import export";
   const who = ex ? "Example diary" : lib.profile.username ? `@${lib.profile.username}` : "Your diary";
   const since = !ex && lib.profile.joined ? ` · member since ${MONTHS[+lib.profile.joined.slice(5, 7) - 1]} ${lib.profile.joined.slice(0, 4)}` : "";
   $("#hero-eyebrow").textContent = who + since;
   $("#hero-title").innerHTML = state.scope === "all" ? "All <span class=\"accent\">time</span>" : `<span class="accent">${esc(state.scope)}</span> in film`;
   const hours = Math.round(s.minutes / 60);
-  let line = dlink(DR.films(s), plural(s.films.length, "film"));
+  let line = (filterOn() && state.page === "stats" ? `<span class="fnote">${esc(filterText())}:</span> ` : "") + dlink(DR.films(s), plural(s.films.length, "film"));
   if (s.timed) line += ` and ${dlink(DR.runtime(s), plural(hours, "hour"))} in front of the screen`;
   line += ".";
   const star = s.cast.most[0], dir = s.directors.most[0];
   if (star && star.count > 1) line += ` ${dlink(DR.person(star), esc(star.name))} turns up most, in ${star.count} of them.`;
   if (dir && dir.count > 1) line += ` ${dlink(DR.person(dir), esc(dir.name))} directed the most, with ${dir.count}.`;
   if (!s.withMeta && s.films.length) line += " Look up cast and crew below to see who you watch most.";
-  if (state.scope !== "all" && s.entries.length) line += ` ${dlink(D.share(state.scope), `Share ${state.scope} as an image`)}.`;
+  // the year (or all time) as a story and a picture, always of the whole diary
+  if (state.page === "stats" && state.lib.entries.length) line += ` <span class="hero-acts">${dlink(D.story(state.scope), `▶ Play ${state.scope === "all" ? "all time" : state.scope} as a story`)} · ${dlink(D.share(state.scope), "share it as a picture")}</span>`;
   $("#hero-sub").innerHTML = line;
   $("#scopes").innerHTML = ["all", ...years].map((y) =>
     `<button class="chip" type="button" data-scope="${y}" aria-pressed="${y === state.scope}">${y === "all" ? "All time" : y}</button>`).join("");
@@ -112,7 +124,7 @@ function renderTiles(s) {
   const [filmFoot, filmFootTo] = s.newReleases != null ? [`${fmtN(s.newReleases)} released in ${s.scope}`, DR.released(s, s.scope)] :
     lib.watchlist ? [`${fmtN(lib.watchlist)} on watchlist`, DR.watchlist(lib)] : [`${fmtN(s.films.filter((f) => f.entries.length).length)} in your diary`, DR.inDiary(s)];
   const hoursVal = s.timed ? `${fmtN(Math.round(hours))}<small>h</small>` : "—";
-  const hoursFoot = !s.timed ? "after cast &amp; crew lookup" : s.timed < films ? `runtime known for ${fmtN(s.timed)}` : `${fmtN(s.minutes)} min`;
+  const hoursFoot = !s.timed ? "after cast &amp; crew lookup" : s.timed < films ? `length known for ${plural(s.timed, "film")}` : `${fmtN(s.minutes)} min`;
   const pct = s.entries.length ? Math.round(s.rewatches / s.entries.length * 100) : 0;
   const reviews = lib.reviews.filter((r) => s.scope === "all" || (r.date || "").startsWith(s.scope));
   $("#tiles").innerHTML = [
@@ -144,7 +156,9 @@ function renderLookupMini() {
   if (!el) return;
   let html = "";
   if (state.page === "stats" && state.mode === "mine" && state.lib) {
-    const without = state.lib.films.filter((f) => !metaOf(f)).length;
+    // films still to look up (not ones TMDB has no match for: nothing more can be done about those here)
+    const todo = IN_VIEWER ? null : new Set(needsLookup(state.lib, "tmdb"));
+    const without = state.lib.films.filter((f) => !metaOf(f) && (!todo || todo.has(f))).length;
     if (job.running) html = `<span id="lookup-mini-progress">${progressText()}</span> <button class="linkish" type="button" data-goto="settings">See it in Settings</button>`;
     else if (without && (IN_VIEWER || !tmdbKey())) html = `${plural(without, "film")} ${without === 1 ? "has" : "have"} no cast and crew yet. <button class="linkish" type="button" data-goto="settings">Fill them in from Settings</button>`;
   }

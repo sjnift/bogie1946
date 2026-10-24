@@ -61,7 +61,7 @@ function reviewInsightsBlock(lib, Y) {
     <div><h3 class="sub-h">When you love a film</h3><div class="chiplets">${RI.love.map((w) => `<button class="chiplet" type="button" ${dl(RI.loveTo(w))}>${esc(w)}</button>`).join("") || `<span class="status">Not enough reviews yet.</span>`}</div></div>
     <div><h3 class="sub-h">When you don't</h3><div class="chiplets">${RI.cold.map((w) => `<button class="chiplet" type="button" ${dl(RI.coldTo(w))}>${esc(w)}</button>`).join("") || `<span class="status">Not enough reviews yet.</span>`}</div></div></div>
     <p class="status">Words that turn up more in your reviews of films you rated 4½★ or more than in those you rated 3★ or less, and the other way round.</p>` : "";
-  const perYear = RI.perYear.length >= 2 ? `<h3 class="sub-h">Reviews each year</h3>` + colChart(RI.perYear.map((p) => ({ a: p.count, b: 0, label: `’${p.year.slice(2)}`, tip: `${p.year}: ${plural(p.count, "review")}`, to: p.to })), "Reviews written each year", "", 90) : "";
+  const perYear = RI.perYear.length >= 2 ? `<h3 class="sub-h">Reviews each year</h3>` + colChart(RI.perYear.map((p) => ({ a: p.count, b: 0, label: `’${p.year.slice(2)}`, tip: `${p.year}: ${plural(p.count, "review")}`, to: p.to })), "Reviews written each year", "", 90, { unit: "reviews" }) : "";
   const longest = `<h3 class="sub-h">Your longest review${Y ? ` of ${Y}` : ""}</h3>` + reviewCard(RI.longest);
   return lines + words + leaning + perYear + longest;
 }

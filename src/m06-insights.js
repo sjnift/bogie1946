@@ -58,7 +58,7 @@ function mChapters(chs, n, title = "Chapters") {
 function mDrift(d) {
   if (!d.enough) return sh("How your taste has moved") + `<div class="empty">Changes in taste need a few years of diary, or a year or two with plenty of films.</div>`;
   const rows = d.list.map((x) => { const c = driftCols(x);
-    return `<div class="card drift"><p class="ctitle">${dlink(x.to, esc(x.big))}</p><p class="ctext">${dline(x.to, esc(x.text))}</p>${colChart(c.cols, x.big, "", 48, c.grid)}</div>`; }).join("");
+    return `<div class="card drift"><p class="ctitle">${dlink(x.to, esc(x.big))}</p><p class="ctext">${dline(x.to, esc(x.text))}</p>${colChart(c.cols, x.big, "", 48, { grid: c.grid, unit: c.unit })}</div>`; }).join("");
   return sh("How your taste has moved") + `<p class="note" style="margin:-4px 0 12px">Your first years of diary against your latest. Each column is a stretch of it; tap one for its films.</p>` +
     (rows || `<p class="lead">No clear, lasting change in what you watch: your taste has held its course.</p>`) +
     (d.steady.length ? sh("What hasn't changed") + mLines(d.steady, () => "=") : "");
@@ -67,7 +67,8 @@ function mDrift(d) {
 function mRatings(R) {
   if (R.n < 20) return sh("What your ratings follow") + `<div class="empty">This needs at least 20 rated films with cast &amp; crew details.</div>`;
   let h = "";
-  const shown = R.follow.filter((f) => f.pct >= 1), max = Math.max(1, ...shown.map((f) => f.pct));
+  // bars against at least 25%, so a small share never fills the bar
+  const shown = R.follow.filter((f) => f.pct >= FOLLOW_MIN), max = Math.max(25, ...shown.map((f) => f.pct));
   if (shown.length) h += sh("What your ratings follow") + `<p class="lead" style="margin:-4px 0 12px">${esc(R.followText || "")}</p><div class="group">${shown.map((f) =>
     `<button class="prow cat" type="button" ${dl(f.to)}><span class="nm">${esc(f.label)}</span><span class="mini" aria-hidden="true"><span style="width:${(f.pct / max * 100).toFixed(1)}%"></span></span>
     <span class="val" style="text-align:right">${f.pct}%</span>${CHEV}</button>`).join("")}</div>
@@ -106,7 +107,8 @@ function mYearInsights(Y, tab) {
   if (tab === "habits") return sh(`Habits in ${esc(Y)}`) + mFindings(R.habits, `${esc(Y)} was much like your other years.`);
   const es = lib.entries.filter((e) => e.date.startsWith(Y));
   return `<p class="lead" style="margin-top:16px">How ${dlink(D.entries(`Diary of ${Y}`, entriesSub(es), es), `${esc(Y)}'s ${plural(es.length, "diary entry", "diary entries")}`)} compared with the rest of your diary.</p>` +
-    (es.length ? `<button class="btn green block" type="button" ${dl(D.share(Y))} style="margin-top:14px">${ICON.share}Share ${esc(Y)} as an image</button>` : "") +
+    (es.length ? `<div class="storyrow" style="margin-top:14px"><button class="btn green" type="button" ${dl(D.story(Y))}>${ICON.next}Play ${esc(Y)} as a story</button>
+      <button class="btn" type="button" ${dl(D.share(Y))}>${ICON.share}Share ${esc(Y)} as an image</button></div>` : "") +
     (R.overview.length ? mGlance(R.overview, `${esc(Y)} in short`) : `<div class="empty">Nothing about ${esc(Y)} stands out clearly from your other years yet.</div>`);
 }
 </script>

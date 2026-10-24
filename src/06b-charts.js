@@ -12,25 +12,36 @@ function niceTick(max) {
   const raw = max * 0.8, p = Math.pow(10, Math.floor(Math.log10(raw))), n = raw / p;
   return Math.max(1, (n >= 5 ? 5 : n >= 2 ? 2 : 1) * p);
 }
+// Poster title cards: a title with a long word gets a smaller size, so the word isn't broken in two.
+const titleFit = (name) => { const w = Math.max(0, ...String(name || "").split(/[\s\-–—/]+/).map((x) => x.length)); return w > 11 ? " xlong" : w > 8 ? " long" : ""; };
 const personSub = (p) => `${plural(p.count, "film")}${p.avg ? ` · ${p.avg.toFixed(2)} average from ${plural(p.ratings.length, "rating")}` : ""}`;
 
 /* ---------- column chart: weeks, months, years, ratings, decades ---------- */
-// `grid` false leaves out the gridline, for small trend charts whose columns don't start from zero.
-function colChart(cols, aria, legend, H = 162, grid = true) {
-  const max = Math.max(1, ...cols.map((c) => c.a + (c.b || 0)));
+// `opts`: `grid` false leaves out the gridline (for small trend charts whose columns don't start from zero), `unit`
+// names what the gridline counts ("films", "%"), and `values` writes each column's value over it (for averages, whose
+// columns all look alike from zero: `base` then starts them a little below the lowest). A plain true/false is `grid`.
+function colChart(cols, aria, legend, H = 162, opts = true) {
+  const o = typeof opts === "object" ? { grid: true, ...opts } : { grid: opts };
+  const base = o.values ? o.base || 0 : 0;
+  const max = Math.max(base + 1e-9, ...cols.map((c) => c.a + (c.b || 0))), span = Math.max(1e-9, max - base);
+  const grid = o.grid && !o.values;
   const tick = niceTick(max);
+  const h = (v) => (Math.max(0, v - base) / span * (o.values ? 82 : 100)).toFixed(2);
   const bars = cols.map((c) => {
     const segs = [];
-    if (c.a) segs.push(`<div class="seg a" style="height:${(c.a / max * 100).toFixed(2)}%"></div>`);
+    if (c.a) segs.push(`<div class="seg a" style="height:${o.values ? h(c.a) : (c.a / max * 100).toFixed(2)}%"></div>`);
     if (c.b) segs.push(`<div class="seg b" style="height:${(c.b / max * 100).toFixed(2)}%"></div>`);
+    const val = o.values && c.a ? `<span class="cv">${o.values(c)}</span>` : "";
     // a column with something behind it opens it
-    return c.to ? `<button class="col" type="button" ${dl(c.to)} data-tip="${esc(c.tip)}" aria-label="${esc(c.tip)}">${segs.join("")}</button>`
-      : `<div class="col" data-tip="${esc(c.tip)}">${segs.join("")}</div>`;
+    return c.to ? `<button class="col" type="button" ${dl(c.to)} data-tip="${esc(c.tip)}" aria-label="${esc(c.tip)}">${segs.join("")}${val}</button>`
+      : `<div class="col" data-tip="${esc(c.tip)}">${segs.join("")}${val}</div>`;
   }).join("");
   const axis = cols.map((c) => `<span${c.minor ? ' class="minor"' : ""}>${c.label || ""}</span>`).join("");
-  return `${legend || ""}<div class="chart${grid ? "" : " bare"}">${grid ? `<div class="gridline" style="bottom:${(tick / max * H).toFixed(1)}px"><span>${fmtN(tick)}</span></div>` : ""}
+  return `${legend || ""}<div class="chart${grid ? "" : " bare"}${o.values ? " valued" : ""}${grid && o.unit ? " unit" : ""}">${grid ? `<div class="gridline" style="bottom:${(tick / max * H).toFixed(1)}px"><span>${fmtN(tick)}${o.unit ? (o.unit === "%" ? "%" : ` ${o.unit}`) : ""}</span></div>` : ""}
     <div class="cols" style="height:${H + 8}px" role="img" aria-label="${esc(aria)}">${bars}</div></div><div class="axis" aria-hidden="true">${axis}</div>`;
 }
+// Where columns of averages start, so their differences show: half a step below the lowest.
+const valuesBase = (vals, step) => { const v = vals.filter((x) => x != null && x > 0); return v.length ? Math.max(0, Math.floor(Math.min(...v) / step) * step - step) : 0; };
 function timeline(s) {
   const E = s.entries, cols = [];
   const add = (key, label, tipLabel, minor) => cols.push({ key, a: 0, b: 0, label, tipLabel, minor, es: [] });

@@ -5,7 +5,10 @@ anything. **This repository is public: never write API keys, tokens or the owner
 exception, at the owner's request (Oct 2026), is their TMDB, OMDb, Apify and GitHub keys inside the *encrypted* diary
 on the site (`docs/diary/keys.bin`). Never in the clear, with one more exception the owner asked for (Oct 2026): their
 **TMDB key only**, in `docs/share.json`, put there by the app when they turn on "Share my TMDB key with visitors" in
-Settings (see "Sharing the TMDB key with visitors"). Never write it there yourself, and never any other key.
+Settings (see "Sharing the TMDB key with visitors"). Never write it there yourself, and never any other key. And one
+in-the-clear file of diary data the owner asked for (Oct 2026): `docs/taste.json`, their films with ratings and likes
+and their username only, put there by the app when they turn on "Let visitors compare with me" (see "Comparing with
+the owner"). Never write it yourself.
 
 ## What it is
 
@@ -77,6 +80,16 @@ Where it lives:
     the site and its GitHub key, backups, deleting data, the disclaimers) live in Settings: the desktop's Settings
     page (`#/settings`) and the phone's Settings screen (gear). The desktop main page shows at most one line
     (`#lookup-mini`) while films are looked up or still lack cast and crew, linking to Settings.
+  - **Friends use the site too** (Oct 2026: "personal record keeping and sharing with my friends so that they can
+    analyse their own Letterboxd data"). A first visit leads with importing your own export and a privacy line; the
+    owner's password box is folded into "Are you @user? Open your diary" below it (`owner-open`), and owner-only things
+    (the daily feed's GitHub step, "Put your diary on this site" without the GitHub key) stay hidden or folded for
+    others. Shared links show a preview (title, line, `og.png`).
+  - **Sharing with friends** (asked Oct 2026): pictures as a feed post (1080×1350) or a story (1080×1920) of a year,
+    of all time and of a taste match with a friend; the year (or all time) as a tap-through story; and, if the owner
+    turns it on, visitors compare with the owner in one tap.
+  - **Filters** (asked Oct 2026): genre, decade, country, language narrow every stat and list on the desktop main page
+    and the phone's Profile, Diary and Stats (and what they open), never Insights or Compare (`06l-filter.js`).
   - **No example diary** (they got stuck in it and asked for it to go): with a diary saved, the app always shows
     it; with nothing saved it shows an import screen. The made-up example only appears with `?example` in the
     address and nothing imported (`SHOW_EXAMPLE`), which the checks use. There is no switch to it.
@@ -125,7 +138,8 @@ The owner asked for this to be checked every time. A film, diary entry, person o
 - Desktop: `01-head.html` (fonts, colour tokens, base CSS), `02-style.html` (all other desktop CSS),
   `03-body.html` (page skeleton), shared files, `07-render-a.js` (state, render(), hero, tiles, the Settings page `renderSettings`, the lookup box and its one-line
   version on the stats page `renderLookupMini`),
-  `07-render-b.js` (Stats sections), `07-render-c.js` (more Stats sections, the numbers from the old Insights page:
+  `07-render-b.js` (Stats sections, placed in chapters by `renderSections` with the menu that stays at the top,
+  `#jump`; `foldTies` turns four or more with the same count into one row), `07-render-c.js` (more Stats sections, the numbers from the old Insights page:
   `moreSections` places year by year, genres year by year, genres as you rate them, people over the years, against
   the crowd, habits, review numbers, and for a year against the year before and new in the year; `homeInsights`
   keeps `computeInsights`/`computeYearInsights` in `HOME_INS` until the data changes), `07c-insights.js` (the study),
@@ -145,11 +159,15 @@ The owner asked for this to be checked every time. A film, diary entry, person o
   and `computeInsights`/`computeYearInsights`, the numbers behind the Stats page's moved sections and the year picture), `06e-compare.js` (friends, `tasteProfile`, `comparePair`,
   `compareGroup`, `habitRows`), `06f-reviews.js` (review insights), `06g-drill.js` (the drill system and the
   film card), `06h-more.js` (daily feed merge, backups, search, On this day, Watch next, filmographies),
-  `06i-share.js` (the year picture), `06j-site.js` (the diary kept on the site, locked with a password),
+  `06i-share.js` (the pictures to share: `D.share(year or "all")`, `D.shareMatch(friend)`, `drawYear`, `drawMatch`,
+  `SHARE_SIZE` feed or story, always the whole diary via `shareLib`), `06j-site.js` (the diary kept on the site, locked with a password),
   `06k-study.js` (Insights: `computeStudy`, `computeYearStudy`, and the pieces both layouts draw, `driftCols`,
-  `chapterStrip`; see "Insights, the study"; also `crowdOf`, the Stats page's against-the-crowd numbers).
+  `chapterStrip`; see "Insights, the study"; also `crowdOf`, the Stats page's against-the-crowd numbers),
+  `06l-filter.js` (filters: `FILTER`, `filteredLib`, `filterBar`, `filterText`; see "Filters"), `06m-story.js` (the
+  story: `D.story`, `storyBodyHtml`, `fillStory`, `storyFindings`).
 - `src/site/`: `manifest.webmanifest`, `sw.js` (network-first service worker; skips TMDB, OMDb, Apify),
-  icons (drawn by `tools/make_icons.py`).
+  icons (drawn by `tools/make_icons.py`), `og.png` (the link preview, 1200×630, drawn from `tools/og.html` by
+  `node tools/make_og.mjs`; `build.sh` puts its tags, `PREVIEW`, on all three pages).
 - `scripts/feed.mjs` and `.github/workflows/`: the daily feed and the checks (below).
 
 ### Data
@@ -185,12 +203,13 @@ The owner asked for this to be checked every time. A film, diary entry, person o
   `people`, `genres` labelled **Breakdown** because it also holds countries, languages, decades and genres as you
   rate them (it opens with the best-rated decade and its posters, and ranks decades with three posters each),
   `years` (year by year, genres year by year, people over the years; for a year, against the year before and what
-  was new) and `crowd`; the tab remembers the last view), **Insights** (the year chips pick
+  was new) and `crowd` (labelled **vs. Others**); the tab remembers the last view), **Insights** (the year chips pick
   all years or one; underlined section tabs: `state.insTab` (`INS_TABS`) / `state.yearTab` (`YEAR_TABS`)), **Compare** (friend chips,
   section tabs `state.cmpTab`). Pushed screens (`state.stack`): `data` (Settings: import, lookups, backups,
   footer stamp), `reviews`, `watchnext`, `cat`, `drill` ("See all").
 - The year chips (`scopeBar()`, `#scopes`) are the one year picker everywhere, Insights included
-  (`state.scope`; there is no separate insights year any more).
+  (`state.scope`; there is no separate insights year any more). On Profile, Diary and Stats the filters follow them
+  (`FILTER_VIEWS`); `render()` keeps the whole diary in `BASE_LIB` and narrows `state.lib`.
 - Speed (the old app redrew everything on every tap): `memo(key, fn)` keeps stats, insights, comparisons and
   timelines until the data changes (`DATA_REV`, bumped by `scheduleRender`, imports, the feed, friends and
   fixes; also lib/META/LBX/FRIENDS identity). `render()` patches the screen with `morph()` when the same screen
@@ -233,6 +252,12 @@ friend replaces the address instead.
   `REVIEWS_SHOWN`) and, from the old Insights page, year by year, genres year by year and as you rate them, people over
   the years, against the crowd, habits, review numbers, and for a year against the year before and new in the year.
   "Against the crowd" uses Letterboxd (Apify), IMDb/Metacritic (OMDb) or TMDB scores.
+- **Filters**: genre, decade, country and language menus (each choice says how many films it leaves, given the other
+  filters; genres, countries and languages need cast & crew) under the year chips. `filteredLib` gives a library of the
+  films that pass, with their entries, reviews and watchlist, kept as the same object while nothing changes so the
+  pages' caches hold; everything is worked out from it as from the whole diary. They last until the page is closed.
+  The `counts` check picks the commonest genre and decade on both layouts and proves every list holds only films that
+  pass, each once.
 - **Insights**: a study of the diary (below), findings only: all years (in short, chapters, how taste has moved, what
   ratings follow, one film to the next, habits) and each year against the rest of the diary (in short, what set it
   apart, its months, ratings, threads, habits, the year picture).
@@ -263,6 +288,18 @@ standard errors or more from what the rest of the diary gives; every sentence op
   keeps it (`memo`: `study|crowd`, `ystudy|year|crowd`); the desktop keeps it until the data changes (`STUDY_CACHE`).
 - **Compare**: add friends' export ZIPs (stored in the browser); taste match, overlap, agree/disagree, rating
   style, genres, people, watch next for each other, watch together, habits; Everyone view for 2+ friends.
+- **Charts** (`colChart`): `{ unit }` names what the gridline counts ("20 films", "50 h", "20%"); averages (rating by
+  year) are drawn with `{ values, base }`, their numbers over columns that start just under the lowest (`valuesBase`).
+  Poster title cards shrink long words instead of breaking them (`titleFit`).
+- **Pictures to share** (`06i-share.js`): a year, all time (desktop hero and phone Profile, "share it as a picture";
+  the desktop's Insights year, the phone's Insights year) or a taste match (Compare, both layouts), as a feed post or a
+  story, chosen with two chips over the picture. Drawn on a canvas; posters that can't be copied leave title cards.
+- **The story** (`06m-story.js`, "▶ Play … as a story" beside the picture links): cards for the numbers, the highest
+  rated, the director and the face of the year, genres, when you watched, what stood out (the study's headline
+  findings, worked out after the first card shows) and a last card that makes the picture. It opens in the pop-up
+  or the sheet like any list (so Back and Close work); a tap on the right or → goes on, on the left or ← goes back.
+- **iPhone and iPad tip** (`iosTipDue`): in Safari (not the Home Screen app) a dismissible line says to add the site to
+  the Home Screen, since Safari clears a site's data when it isn't opened for about a week.
 - **Search** (desktop button or `/`; phone magnifier), **filmography progress** for people (TMDB person
   credits, cached 30 days), **Watch next** (watchlist ranked by a predicted rating with reasons, length filter),
   **year picture** (1080×1350 PNG, Share/Download), **the diary on the site** (below), **backups** (download a file, import it on another device,
@@ -337,7 +374,8 @@ app**. `06j-site.js`:
   "Use a new GitHub key", "Take my diary off the site" (deletes `docs/diary/`; nothing goes up again until it's put
   back), and, where the password is asked for, "Forgot the password?" (see "Known limits"). The boxes keep what's
   typed and which sections are open across redraws, unless something just worked (`siteRedraw`). At start a device sends whatever the site lacks or has differently (`siteDiffers`).
-- Opening it: any device with nothing imported shows "@user's diary is on this site" with a password box; the key
+- Opening it: any device with nothing imported shows, under the import box, "Are you @user? Open your diary", folded
+  (most people there are friends with their own export), which unfolds to the password box; the key
   made from it is kept (`cr-site-v1`), the parts are read from the site (`diary/<part>.bin?v=<when>`) and saved
   like an import, and later starts (and coming back to the app after 10 minutes) fetch only changed parts. A device
   with its own older import of the same user shows the box on Profile (phone) / at the top (desktop). The site's
@@ -367,6 +405,19 @@ The owner wanted other people's imports to get cast & crew with their TMDB key, 
 - `site.yml` ignores `docs/share.json`; checks answer `share.json` with "not found" unless they stand in for it
   (`lib.mjs`); the `site` check shares, looks up as a visitor, makes sure nothing was saved, and stops sharing.
 
+## Comparing with the owner
+
+The owner wanted friends to compare with them without swapping export files.
+- Owner side (`06j-site.js`, `tasteBox`, in Settings under the shared key; a device with the GitHub key and its own
+  diary): "Let visitors compare with me" commits `docs/taste.json`: `{ v, user, from, at, films: [[name, year, rating,
+  liked]] }`, nothing else (no dates, reviews, watchlist, email or keys); "Stop it" deletes it. It follows a newer
+  import on the owner's device (`tasteFollow`, only forward: the card's `from` is the import's date).
+- Visitor side (`06e-compare.js`): `loadTasteCard()` at start reads it into `TASTE` (`safeTaste`); a visitor with their
+  own export (not the owner) sees "Compare with @user" in Compare on both layouts (`tasteOfferHtml`); one tap adds the
+  owner as a friend with id `site` (`addSiteOwner`, saved like any friend), kept up to date with a newer card.
+- `site.yml` ignores `docs/taste.json`; checks answer it with "not found" unless they stand in for it; the `site`
+  check turns it on, checks what went up, compares as a visitor, and turns it off.
+
 ## Security (reviewed Oct 2026; keep it this way)
 
 - **Nothing from outside can run code.** Every value from outside (the export, TMDB, OMDb, Apify, friends, the feed,
@@ -390,7 +441,8 @@ The owner wanted other people's imports to get cast & crew with their TMDB key, 
 - **Commits the app makes** are signed `Credits Roll <owner@users.noreply.github.com>`, never the account's email.
   (Eleven older commits carry the owner's email; see "Known limits".)
 - What is in the clear on the site: `index.json` (`user`, `at`, `from`, `n`, salt, iterations, `check`, part times),
-  and `share.json` (the TMDB key) while the owner shares it.
+  `share.json` (the TMDB key) while the owner shares it, and `taste.json` (films, ratings, likes, username) while the
+  owner lets visitors compare with them.
   Anyone can download the encrypted parts and try passwords offline; PBKDF2 at 600,000 iterations and a 10+
   character password are what stand in the way, and the password guards the GitHub key (which can change the site).
 - Everything secret on a device (keys, GitHub key, the diary key) is in that browser's storage for the origin
@@ -418,10 +470,10 @@ shows the latest ~50, so it accumulates), commits, and asks Pages to rebuild. Th
 service cut off unless a check stands in for it, service worker off unless asked, reduced motion, pages opened
 with `?example` (pass `example: false` for an empty browser; a check's own `goto` must add `?example` too),
 `phoneTour()` which opens every phone tab, every Stats view for all time and for a year, and every Insights/Compare section), `run.mjs`, and checks:
-`apify`, `check` (film data check), `counts` (double counting), `reviews` (missing review text spotted; six-film actors), `welcome` (no example diary; import saved at once), `extras` (year picture, On this day, Watch next, PWA), `feed`, `import`,
+`apify`, `check` (film data check), `counts` (double counting, also with filters on), `reviews` (missing review text spotted; six-film actors), `welcome` (no example diary; import saved at once), `extras` (year picture, On this day, Watch next, PWA), `feed`, `import`,
 `links` (every link opens something), `pages` (nothing broken shows, no sideways scroll on the phone),
 `routes`, `storage` (IndexedDB move, backup and restore), `site` (the diary on the site: a stand-in GitHub and site),
-`tmdb` (fixing a match, filmography, search), `xss` (nothing from outside can run code, about a minute), `study` (a
+`tmdb` (fixing a match, filmography, search), `extras` also covers the story and every kind and shape of picture, `xss` (nothing from outside can run code, about a minute), `study` (a
 five-year diary with patterns planted in it: the study finds them on both layouts and for a year, repeats nothing from
 the Stats page, and every list it opens holds each film once). `lib.mjs`
 also cuts off api.github.com and jsdelivr, answers `diary/` with "not found", and counts anything the security policy

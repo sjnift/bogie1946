@@ -17,23 +17,26 @@
       <h1 id="hero-title">All time</h1>
       <p class="sub" id="hero-sub"></p>
     </div>
-    <div class="site-open" id="site-open" data-sitebox="open"></div>
     <div class="notice" id="example-notice">
-      <p id="notice-text"></p>
+      <div class="notice-text" id="notice-text"></div>
       <button class="btn small" id="btn-import-2" type="button">Import export</button>
     </div>
+    <div class="site-open" id="site-open" data-sitebox="open"></div>
     <div class="status err" id="import-error" role="alert" hidden></div>
     <div class="status" id="import-done" role="status" hidden></div>
     <div class="scopes-row">
       <span class="eyebrow">Showing</span>
       <div class="scopes" id="scopes" role="group" aria-label="Time period"></div>
     </div>
+    <div class="filters-row" id="filters-row"></div>
   </div>
 </header>
 
 <div class="wrap">
   <section class="tiles" id="tiles" aria-label="Overview"></section>
   <p class="lookup-mini" id="lookup-mini" role="status" hidden></p>
+  <p class="lookup-mini" id="ios-tip" hidden></p>
+  <nav class="jump" id="jump" aria-label="Chapters of this page"></nav>
   <main id="sections"></main>
   <main id="insights" hidden></main>
   <main id="compare" hidden></main>
@@ -68,8 +71,9 @@
       <div class="role"><h2>About</h2></div>
       <div class="credit-body">
         <p>Credits Roll reads the CSV files in a Letterboxd data export. It is not made by or affiliated with Letterboxd.</p>
-        <p>With your own TMDB key, film details come from The Movie Database. This product uses the TMDB API but is not endorsed or certified by TMDB.
-          Inside the Claude app, details come from Claude's knowledge of each film instead, so check anything surprising.</p>
+        <p>Film details come from The Movie Database (TMDB). This product uses the TMDB API but is not endorsed or certified by TMDB.<span class="viewer-only">
+          Inside the Claude app, details come from Claude's knowledge of each film instead, so check anything surprising.</span></p>
+        <p>Your diary stays in your browser: only film titles and years go to TMDB, to find cast and crew.</p>
         <p>On a phone? <a href="https://claude.ai/artifact/2RUkgC4dsysdz66WjJ6gzb" target="_blank" rel="noopener">Open the phone version</a>. It keeps its own copy of your import, so import there too.</p>
         <p>Updated <!--BUILD--></p>
       </div>

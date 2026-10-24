@@ -17,7 +17,7 @@ function compareScreen() {
   const head = ltitle("Compare") + chips + `<p class="note">${note}${remove}</p>
     ${!ex && !friends.length ? `<button class="btn green block" type="button" data-act="add-friend" style="margin-top:14px"${MY_LIB ? "" : " disabled"}>${ICON.plus}Add a friend's export</button>` : ""}
     ${state.cmpError ? `<p class="status err" role="alert" style="margin-top:10px">${esc(state.cmpError)}</p>` : ""}
-    ${friendsSaveFailed ? `<p class="status err">This browser wouldn't save your friends' exports.</p>` : ""}`;
+    ${friendsSaveFailed ? `<p class="status err">This browser wouldn't save your friends' exports.</p>` : ""}${tasteOfferHtml(true)}`;
   if (state.cmp === "all") return head + mGroup(profiles);
   if (sel) {
     if (!CMP_TABS.some(([k]) => k === state.cmpTab)) state.cmpTab = "overview";
@@ -75,6 +75,7 @@ function mPair(C, tab) {
   let h = match.score != null ? `<button class="icard wide" type="button" ${dl(to.rated)} style="margin-top:16px"><span class="vs">${ring(match.score)}<span style="display:grid;gap:4px"><span class="k">Taste match with ${esc(B.name)}</span>
       <span class="big">${matchWords(match.score)}</span><span class="p">${match.score}/100, from how close your ratings are on the ${plural(match.n, "film")} you've both rated.${go}</span></span></span></button>`
     : `<div class="empty">A taste match needs five or more films you've both rated. You have ${dlink(match.n && to.rated, match.n)}.</div>`;
+  if (match.score != null) h += `<button class="btn block" type="button" ${dl(D.shareMatch(B.id, B.name))} style="margin-top:10px">${ICON.share}Share your taste match as a picture</button>`;
   h += sh("Overlap") + `<div class="card"><div class="venn" aria-label="${o.onlyA} only you, ${o.both} both, ${o.onlyB} only ${esc(B.name)}">
       ${seg("va", o.onlyA, to.onlyA)}${seg("vboth", o.both, to.shared)}${seg("vb", o.onlyB, to.onlyB)}</div>
     <div class="legend"><span><i style="background:var(--green-mark)"></i>Only you ${dlink(o.onlyA && to.onlyA, fmtN(o.onlyA))}</span><span><i style="background:var(--slate-mark)"></i>Both ${dlink(o.both && to.shared, fmtN(o.both))}</span><span><i style="background:var(--blue-mark)"></i>Only ${esc(B.name)} ${dlink(o.onlyB && to.onlyB, fmtN(o.onlyB))}</span></div></div>`;

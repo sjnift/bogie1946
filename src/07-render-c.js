@@ -35,19 +35,21 @@ function moreSections(s) {
 function yearsBlock(I) {
   if (I.years.length < 2) return needYears("Year-by-year trends");
   const yr = (p) => `’${p.year.slice(2)}`;
-  const mult = (title, what, value, tip, extra) => {
+  const mult = (title, what, value, tip, extra, opts = {}) => {
     const cols = I.years.map((p) => ({ a: Math.max(0, value(p) || 0), b: extra ? extra(p) : 0, label: yr(p), tip: tip(p), to: p.entries ? yearDrill(p, what) : null }));
-    return `<div class="mult"><h3>${title}</h3>${colChart(cols, title + " by year", "", 90)}</div>`;
+    return `<div class="mult"><h3>${title}</h3>${colChart(cols, title + " by year", "", 90, opts)}</div>`;
   };
+  // averages read as numbers over their columns, which start a little below the lowest
+  const ratingOpts = { values: (c) => c.a.toFixed(2), base: valuesBase(I.years.map((p) => p.avgRating), 0.25) };
   const anyPace = I.years.some((p) => p.pace && p.pace > p.films);
   const legend = anyPace ? `<div class="legend"><span><i style="background:var(--gold)"></i>Watched</span><span><i style="background:var(--lilac)"></i>Rest of this year at your current pace</span></div>` : "";
   const charts = `<div class="mults">
-    ${mult("Films", "films", (p) => p.films, (p) => `${p.year}: ${plural(p.films, "film")}${p.pace ? `, on pace for about ${fmtN(p.pace)}` : ""}`, (p) => p.pace && p.pace > p.films ? p.pace - p.films : 0)}
-    ${mult("Hours", "hours", (p) => Math.round(p.hours), (p) => `${p.year}: ${fmtN(Math.round(p.hours))} hours`)}
-    ${mult("Average rating", "rating", (p) => p.avgRating, (p) => `${p.year}: ${p.avgRating ? starsNum(p.avgRating) : "no ratings"}`)}
-    ${mult("Film age when watched (years)", "age", (p) => p.age, (p) => `${p.year}: films were ${p.age != null ? Math.round(p.age) : "—"} years old on average`)}
-    ${mult("Not in English (%)", "nonEnglish", (p) => p.nonEnglish, (p) => `${p.year}: ${p.nonEnglish != null ? p.nonEnglish + "%" : "not enough details"}`)}
-    ${mult("Rewatches (%)", "rewatches", (p) => pctOf(p.rewatches, p.entries), (p) => `${p.year}: ${pctOf(p.rewatches, p.entries)}% of entries`)}
+    ${mult("Films", "films", (p) => p.films, (p) => `${p.year}: ${plural(p.films, "film")}${p.pace ? `, on pace for about ${fmtN(p.pace)}` : ""}`, (p) => p.pace && p.pace > p.films ? p.pace - p.films : 0, { unit: "films" })}
+    ${mult("Hours", "hours", (p) => Math.round(p.hours), (p) => `${p.year}: ${fmtN(Math.round(p.hours))} hours`, null, { unit: "h" })}
+    ${mult("Average rating", "rating", (p) => p.avgRating, (p) => `${p.year}: ${p.avgRating ? starsNum(p.avgRating) : "no ratings"}`, null, ratingOpts)}
+    ${mult("Film age when watched (years)", "age", (p) => p.age, (p) => `${p.year}: films were ${p.age != null ? Math.round(p.age) : "—"} years old on average`, null, { unit: "yrs" })}
+    ${mult("Not in English (%)", "nonEnglish", (p) => p.nonEnglish, (p) => `${p.year}: ${p.nonEnglish != null ? p.nonEnglish + "%" : "not enough details"}`, null, { unit: "%" })}
+    ${mult("Rewatches (%)", "rewatches", (p) => pctOf(p.rewatches, p.entries), (p) => `${p.year}: ${pctOf(p.rewatches, p.entries)}% of entries`, null, { unit: "%" })}
   </div>`;
   const top = (p, pair, role) => pair && pair[1] > 1 ? `${dlink(personDrill(state.lib, pair[0], role, p.F), esc(pair[0]))} <span class="muted">${pair[1]}</span>` : "—";
   const rows = [...I.years].reverse().map((p) => { const cell = (what, v) => v == null || v === "—" ? "—" : dlink(yearDrill(p, what), v);
@@ -97,7 +99,7 @@ function peopleYearsBlock(I) {
   const comp = widthBy([...P.compDirectors.map((p) => ({ ...p, role: "director" })), ...P.compActors.map((p) => ({ ...p, role: "actor" }))]
     .sort((a, b) => b.years.size - a.years.size || b.count - a.count).slice(0, 8), (p) => p.years.size);
   const disc = P.discoveries.length >= 2 ? `<div><h3>Directors discovered each year</h3>${colChart(P.discoveries.map((d) => ({ a: d.count, b: 0, label: `’${d.year.slice(2)}`, tip: `${d.year}: ${plural(d.count, "new director")}`,
-      to: d.count && D.names(`Directors new in ${d.year}`, plural(d.count, "director"), d.people, { faces: true }) })), "New directors by year", "", 90)}
+      to: d.count && D.names(`Directors new in ${d.year}`, plural(d.count, "director"), d.people, { faces: true }) })), "New directors by year", "", 90, { unit: "new" })}
     <p class="status">Directors whose first film in your diary came that year. Your first diary year is left out.</p></div>` : "";
   return `<div class="ins-grid">
     <div><h3>New in ${esc(I.latest)}</h3>${list(obs, (p) => plural(p.inLatest, "film"), (p) => `${p.role === "director" ? "Director" : "Actor"} · ${plural(p.inLatest, "film")} in ${I.latest}, none before`)}</div>
@@ -106,9 +108,10 @@ function peopleYearsBlock(I) {
 }
 
 function crowdBlock(C, Y) {
-  const tabs = `<div class="tabs" role="tablist">${Object.entries(CROWDS).map(([k, c]) => {
-    const n = C.available[k] || 0;
-    return `<button class="tab" role="tab" type="button" data-crowd="${k}" aria-selected="${k === C.key}" ${n < (Y ? 3 : 5) ? "disabled" : ""} title="${n} rated films have this score">${c.label}</button>`; }).join("")}</div>`;
+  // only the crowds this diary has scores from (no greyed-out ones), and no tabs at all when there's just one
+  const crowds = Object.entries(CROWDS).filter(([k]) => (C.available[k] || 0) >= (Y ? 3 : 5) || k === C.key);
+  const tabs = crowds.length > 1 ? `<div class="tabs" role="tablist">${crowds.map(([k, c]) =>
+    `<button class="tab" role="tab" type="button" data-crowd="${k}" aria-selected="${k === C.key}" title="${C.available[k] || 0} rated films have this score">${c.label}</button>`).join("")}</div>` : "";
   if (C.n < (Y ? 3 : 5)) {
     const why = Y ? `Not enough crowd scores for ${Y}'s films yet.`
       : IN_VIEWER ? `Crowd scores come from TMDB and OMDb, which pages inside Claude can't reach. Open <a href="https://sjnift.github.io/bogie1946/" target="_blank" rel="noopener">the web version</a> with your keys.`

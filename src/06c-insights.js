@@ -66,8 +66,9 @@ function yearDrill(p, what) {
   }
   return D.films(`Films of ${y}`, filmsSub(p.F), p.F, { scope: y, sort: "watched" });
 }
-// "…, and your taste follows theirs closely (correlation 0.71)", or nothing when it can't be measured.
-const followText = (r) => r == null ? "" : `, and your taste follows theirs ${r >= 0.6 ? "closely" : r >= 0.35 ? "loosely" : "hardly at all"} (correlation ${r.toFixed(2)})`;
+// "…, and the films they like most tend to be the ones you like most too", or nothing when it can't be measured.
+const followText = (r) => r == null ? "" : r >= 0.6 ? ", and the films they like most tend to be the ones you like most too" : r >= 0.35 ? ", and your favourites and theirs overlap a little"
+  : ", and your favourites and theirs barely line up";
 
 function computeInsights(lib, metaOf, crowdKey) {
   const E = lib.entries, rated = lib.films.filter((f) => f.rating);

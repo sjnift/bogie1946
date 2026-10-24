@@ -18,7 +18,7 @@ function paintSheet(how) {
   if (body) body.scrollTop = 0;
   const q = $("#search-q");
   if (q && d.kind === "search") { q.focus(); q.setSelectionRange(q.value.length, q.value.length); }
-  fillFilmo(sheet); fillShare(sheet);
+  fillFilmo(sheet); fillShare(sheet); fillStory(sheet);
 }
 // From a screen a drill opens the sheet; from inside the sheet it stacks, with Back.
 function openSheet(d, inside) {

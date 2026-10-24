@@ -123,6 +123,7 @@ export default async function ({ browser, base }) {
   const a = await device(browser, base, gh, "desktop.html", {});
   await seed(a, rows, { "cr-meta-v1": meta, "cr-tmdb-key": "k123", "cr-omdb-key": "om456" });
   await a.click("#btn-settings");
+  await a.click("#site-box details.owner-open > summary"); // folded away until the GitHub key shows it's the owner
   await a.waitForSelector("#site-box #site-newpass-publish");
   await a.fill("#site-newpass-publish", "short");
   await a.click('#site-box [data-site="create"]');
@@ -172,7 +173,11 @@ export default async function ({ browser, base }) {
   const b = await device(browser, base, gh, "mobile.html", { phone: true, example: false });
   let tmdbCalls = 0;
   await b.context().route(/api\.themoviedb\.org/, (r) => { tmdbCalls++; r.abort(); });
-  await b.waitForSelector('[data-sitebox="open"] input[name="pass"]');
+  await b.waitForSelector('[data-sitebox="open"] input[name="pass"]', { state: "attached" });
+  // most people with nothing imported are friends bringing their own export: the owner's way in is a small fold
+  assert(await b.evaluate(() => { const d = document.querySelector('[data-sitebox="open"] details.owner-open'); return d && !d.open && /Are you @tester\? Open your diary/.test(d.querySelector("summary").textContent)
+    && document.querySelector('[data-act="import"]').compareDocumentPosition(d) & Node.DOCUMENT_POSITION_FOLLOWING; }), "the phone didn't put importing first, with the owner's way in folded below it");
+  await b.click('[data-sitebox="open"] details.owner-open > summary');
   assert(/@tester's diary is on this site/.test(await b.innerText('[data-sitebox="open"]')), "the phone didn't offer the diary");
   // (forgot the password? with nothing here to put there instead, it says to import first)
   assert(await b.evaluate(() => /Forgot the password/.test(document.querySelector('[data-sitebox="open"]').textContent) && /Import your Letterboxd export/.test(document.querySelector('[data-sitebox="open"] details').textContent)
@@ -298,8 +303,12 @@ export default async function ({ browser, base }) {
   await b.waitForSelector('[data-sitebox="publish"] [data-site="password"]', { state: "attached" });
   await b.evaluate(() => { for (const d of document.querySelectorAll('[data-sitebox="publish"] details')) d.open = true; });
   await b.fill('[data-sitebox="publish"] input[name="newpass"]', PASS2);
+  await b.evaluate(() => { window.__salt0 = JSON.parse(localStorage.getItem("cr-site-v1") || "{}").salt; });
   await b.click('[data-sitebox="publish"] [data-site="password"]');
-  await until(b, () => !site.job && /Password changed/.test(site.note), "the password change");
+  // locking it afresh takes a while; then it either says so or says why not
+  await until(b, () => !site.job && !site.busy && (/Password changed/.test(site.note) || site.err || JSON.parse(localStorage.getItem("cr-site-v1") || "{}").salt !== window.__salt0), "the password change", undefined, 20000);
+  const pw = await b.evaluate(() => ({ note: site.note, err: site.err }));
+  assert(!pw.err, `the password change failed: ${pw.note}`);
   const idx2 = JSON.parse(gh.file("docs/diary/index.json"));
   assert(idx2.salt !== idx.salt, "the password change didn't lock it afresh");
   key = await keyFor(PASS2, idx2.salt);
@@ -394,6 +403,35 @@ export default async function ({ browser, base }) {
     await v.context().close();
   }
 
+  // Letting visitors compare with you: taste.json beside the pages holds the films with ratings and likes, and the
+  // username, nothing else (no dates, reviews, email or keys); a visitor with their own export compares in one tap; the
+  // owner's newer import updates it; when it stops, the file goes.
+  {
+    await a.evaluate(() => siteRedraw());
+    await a.waitForSelector('#site-box [data-site="taste-on"]');
+    assert(/for anyone to read/.test(await a.innerText("#site-box")), "the computer didn't say the ratings become public");
+    await a.click('#site-box [data-site="taste-on"]');
+    await until(a, () => taste.on === true && !taste.busy, "the ratings to go up");
+    const card = JSON.parse(gh.file("docs/taste.json"));
+    const text = gh.file("docs/taste.json").toString();
+    assert(card.user === "tester" && Object.keys(card).sort().join() === "at,films,from,user,v" && card.films.every((x) => x.length === 4)
+      && !/@|Date|Review|k123|om456|k999/.test(text) && !text.includes(TOKEN), `what went up for visitors: ${text.slice(0, 300)}`);
+    const v = await device(browser, base, gh, null, { example: false, phone: true });
+    await v.context().route(/\/taste\.json/, (r) => { const b = gh.file("docs/taste.json"); return b ? r.fulfill({ contentType: "application/json", body: b }) : r.fulfill({ status: 404, body: "not found" }); });
+    await v.goto(base + "mobile.html"); await v.waitForFunction(() => typeof state === "object");
+    await seed(v, { profile: [{ Username: "a_visitor" }], watched: [{ Name: "Heat", Year: "1995", Date: "2024-01-01" }], ratings: [{ Name: "Heat", Year: "1995", Rating: "4" }] });
+    await v.waitForFunction(() => TASTE);
+    await v.evaluate(() => goTo("compare", { force: true, top: true }));
+    await v.click("[data-compare-owner]");
+    const got = await v.evaluate(() => ({ friends: FRIENDS.map((f) => f.id + ":" + f.name + ":" + f.lib.films.length), shown: document.querySelector("#screen").textContent.includes("tester"), offer: !!document.querySelector("[data-compare-owner]") }));
+    assert(got.friends.length === 1 && /^site:tester:\d+$/.test(got.friends[0]) && got.shown && !got.offer, `comparing with the owner: ${JSON.stringify(got)}`);
+    noErrors(v, "visitor comparing");
+    await v.context().close();
+    await a.click('#site-box [data-site="taste-off"]');
+    await until(a, () => taste.on === false && !taste.busy, "the ratings to come off");
+    assert(!gh.file("docs/taste.json"), "taste.json is still on the site");
+  }
+
   // Taking it off the site: the files go, each device keeps its copy, and no device puts it back by itself.
   await a.click('#site-box [data-site="remove"]');
   await a.click('#site-box [data-site="remove"]');
@@ -411,7 +449,9 @@ export default async function ({ browser, base }) {
   const c = await device(browser, base, g2, "mobile.html", { phone: true });
   await seed(c, rows);
   await c.evaluate(() => push({ type: "data", title: "Settings", ret: 0 }));
-  await c.waitForSelector('[data-sitebox="publish"] input[name="newpass"]');
+  // (a device without the site's GitHub key may not be the owner's, so this is folded away)
+  await c.waitForSelector('[data-sitebox="publish"] details.owner-open > summary');
+  await c.click('[data-sitebox="publish"] details.owner-open > summary');
   await c.fill('[data-sitebox="publish"] input[name="newpass"]', PASS);
   await c.fill('[data-sitebox="publish"] input[name="repo"]', REPO);
   await c.fill('[data-sitebox="publish"] input[name="token"]', "wrong");

@@ -1,5 +1,6 @@
 // Nothing is counted twice. For every period of every page, on both layouts, the totals add up and every
-// list a click can open (films, diary entries, people, genres, groups) holds each film or entry once.
+// list a click can open (films, diary entries, people, genres, groups) holds each film or entry once; with filters on,
+// everything behind every list passes them.
 // Then the same over an export written to trip it: one film spelled four ways, titles in other scripts,
 // a cast list naming someone twice, a watched film still on the watchlist, and a feed overlapping the export.
 import { open, seed, assert, noErrors, phoneTour } from "./lib.mjs";
@@ -55,8 +56,53 @@ async function tour(d, m, label) {
   noErrors(d, `${label} desktop`); noErrors(m, `${label} phone`);
 }
 
+// Runs in the page, with filters on: every film behind every list passes them, and the filtered diary is exactly the
+// films that pass (so nothing is lost or counted outside the filter).
+function auditFilter() {
+  const bad = [], ok = (f) => filmPasses(f, metaOf);
+  const walk = (d) => {
+    if (!d) return;
+    if (d.kind === "films") for (const f of d.films) if (!ok(f)) bad.push(`${d.title}: ${f.name} doesn't pass the filters`);
+    if (d.kind === "entries") for (const e of d.entries) if (!ok(e.film)) bad.push(`${d.title}: ${e.film.name} doesn't pass the filters`);
+    if (d.kind === "names") for (const p of d.items) for (const f of p.films || []) if (!ok(f)) bad.push(`${d.title} › ${p.name}: ${f.name} doesn't pass the filters`);
+    if (d.kind === "groups") d.groups.forEach(walk);
+  };
+  for (const d of LISTS.values()) walk(d);
+  const whole = state.mode === "mine" ? MY_LIB : EXAMPLE_LIB, want = whole.films.filter(ok);
+  if (!state.lib.filtered || state.lib.films.length !== want.length) bad.push(`the filtered diary has ${state.lib.films.length} films, not ${want.length}`);
+  if (state.lib.entries.length !== whole.entries.filter((e) => ok(e.film)).length) bad.push("the filtered diary's entries don't match its films");
+  return bad;
+}
+// The commonest genre and decade, picked from the menus, on both layouts: every page they narrow, every period.
+async function filteredTour(d, m) {
+  const pickFilters = async (p) => {
+    for (const k of ["g", "d"]) { const v = await p.$eval(`select[data-filter="${k}"]`, (s) => s.options[1].value); await p.selectOption(`select[data-filter="${k}"]`, v); }
+    return p.evaluate(() => ({ g: FILTER.g, d: FILTER.d }));
+  };
+  const both = async (p, where) => { await check(p, where); const bad = await p.evaluate(`(${auditFilter})()`); assert(!bad.length, `${where}: ${bad.slice(0, 3).join("; ")}`); };
+  const f = await pickFilters(d);
+  assert(f.g && f.d, `the computer's filter menus offered nothing: ${JSON.stringify(f)}`);
+  for (const y of await d.$$eval("#scopes [data-scope]", (x) => x.map((b) => b.dataset.scope))) { await d.click(`[data-scope="${y}"]`); await both(d, `filtered desktop stats ${y}`); }
+  await d.click('[data-scope="all"]');
+  await d.click("#btn-insights");
+  assert(await d.evaluate(() => !state.lib.filtered), "Insights used the filtered diary");
+  await d.click("#btn-insights");
+  await d.click("[data-filter-clear]");
+  assert(await d.evaluate(() => !filterOn() && !state.lib.filtered && !document.querySelector(".fsel.on")), "clearing the filters didn't bring the whole diary back");
+  await m.evaluate(() => goTo("films", { force: true, top: true }));
+  await pickFilters(m);
+  for (const v of ["profile", "diary", "films", "people", "genres", "years", "crowd"]) { await m.evaluate((v) => goTo(v, { force: true, top: true }), v); await both(m, `filtered phone ${v}`); }
+  await m.evaluate(() => goTo("insights", { force: true, top: true }));
+  assert(await m.evaluate(() => !state.lib.filtered), "the phone's Insights used the filtered diary");
+  await m.evaluate(() => goTo("films", { force: true, top: true }));
+  await m.click("[data-filter-clear]");
+  assert(await m.evaluate(() => !filterOn() && !state.lib.filtered), "the phone's clear didn't bring the whole diary back");
+  noErrors(d, "filtered desktop"); noErrors(m, "filtered phone");
+}
+
 export default async function ({ browser, base }) {
   await tour(await open(browser, base, "desktop.html"), await open(browser, base, "mobile.html", { phone: true }), "example");
+  await filteredTour(await open(browser, base, "desktop.html"), await open(browser, base, "mobile.html", { phone: true }));
 
   const rows = {
     profile: [{ Username: "tester" }],

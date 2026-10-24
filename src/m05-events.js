@@ -218,7 +218,9 @@ async function init() {
   routeReady = true;
   syncHash(true);
   openRouteFilm();
-  loadSharedKey();
+  // the site owner's ratings, when they let visitors compare with them (and on their own device, kept up to date)
+  loadTasteCard().then(() => { if (!TASTE) return; if (tasteRefresh()) DATA_REV++; siteSettled().then(tasteFollow); render(); });
+  loadSharedKey().then(() => { if (SHARED_TMDB) render(); }); // the key boxes and reminders know about it
   siteStart();
   // New diary entries from the daily feed, then a saved key picks up films not yet looked up.
   // (lookups wait until this device has what the site has, so nothing found elsewhere is looked up again)

@@ -13,11 +13,28 @@ function faceHtml(p, rank) {
 }
 const emptyMeta = () => `<div class="empty">Cast and crew aren't part of the Letterboxd export. Fill them in from <button class="linkish" type="button" data-goto="settings">Settings</button>.</div>`;
 function rankRows(list, valueOf, widthOf, startRank, titleOf) {
-  return `<ol class="rank-list">${list.map((p, i) => `<li><button class="rank-row" type="button" data-list="${p.to ? drill(p.to) : reg(p.name, titleOf(p), p.films, p)}">
-    <span class="r">${startRank + i}</span><span class="n">${esc(p.name)}</span>
+  return `<ol class="rank-list">${list.map((p, i) => `<li><button class="rank-row${p.group ? " tied" : ""}" type="button" data-list="${p.to ? drill(p.to) : reg(p.name, titleOf(p), p.films, p)}">
+    <span class="r">${p.rank ?? startRank + i}</span><span class="n">${esc(p.name)}${p.also ? ` <span class="also">${esc(p.also)}</span>` : ""}</span>
     <span class="track" aria-hidden="true"><span style="width:${Math.max(1, widthOf(p) * 100).toFixed(1)}%"></span></span>
     <span class="v">${valueOf(p)}</span></button></li>`).join("")}</ol>`;
 }
+// A run of four or more with the same count becomes one row ("12 actors with 3 films each", opening them all)
+// instead of a column of identical bars. Ranks run from `start`.
+function foldTies(list, countOf, start, group) {
+  const out = [];
+  for (let i = 0; i < list.length;) {
+    let j = i;
+    while (j < list.length && countOf(list[j]) === countOf(list[i])) j++;
+    if (j - i >= 4) {
+      const xs = list.slice(i, j), n = countOf(list[i]);
+      out.push({ ...group(xs, n), group: xs, count: n, rank: `${start + i}–${start + j - 1}`, also: `${xs.slice(0, 3).map((x) => x.name).join(", ")}…` });
+    } else for (let k = i; k < j; k++) out.push({ ...list[k], rank: start + k });
+    i = j;
+  }
+  return out;
+}
+const peopleTies = (label) => (xs, n) => ({ name: `${fmtN(xs.length)} ${label} with ${plural(n, "film")} each`, to: D.names(`${fmtN(xs.length)} ${label} with ${plural(n, "film")} each`, "Most watched first", xs, { faces: true }) });
+
 /* ---------- section bodies ---------- */
 function peopleBlock(kind, data, s) {
   const t = state.tab[kind];
@@ -27,13 +44,14 @@ function peopleBlock(kind, data, s) {
   const cards = top.map((p, i) => `<button class="person" type="button" data-list="${reg(p.name, personSub(p), p.films, p)}">
     ${faceHtml(p, i + 1)}<span class="nm">${esc(p.name)}</span>
     <span class="ct">${t === "most" ? plural(p.count, "film") : `<span class="stars">★</span> ${p.avg.toFixed(2)} · ${plural(p.ratings.length, "film")}`}</span></button>`).join("");
-  const limit = state.more[kind] ? 100 : 24;
-  const rest = list.slice(12, limit);
+  const limit = state.more[kind] ? 60 : 12; // rows below the cards
+  const all = t === "most" ? foldTies(list.slice(12), (p) => p.count, 13, peopleTies(kind === "cast" ? "actors" : "directors")) : list.slice(12).map((p, i) => ({ ...p, rank: 13 + i }));
+  const rest = all.slice(0, limit);
   const max = list[0].count;
   const rows = rest.length ? rankRows(rest,
-    (p) => t === "most" ? plural(p.count, "film") : p.avg.toFixed(2),
+    (p) => t === "most" ? (p.group ? `${plural(p.count, "film")} each` : plural(p.count, "film")) : p.avg.toFixed(2),
     (p) => t === "most" ? p.count / max : p.avg / 5, 13, personSub) : "";
-  const moreBtn = list.length > limit ? `<div><button class="btn small" type="button" data-more="${kind}">Show more</button></div>` : "";
+  const moreBtn = all.length > limit ? `<div><button class="btn small" type="button" data-more="${kind}">Show more</button></div>` : "";
   return `<div class="people">${cards}</div>${rows}${moreBtn}`;
 }
 function diaryBlock(s) {
@@ -58,7 +76,7 @@ function diaryBlock(s) {
     cols.filter((c) => c.a + c.b).map((c) => { const first = c.es.filter((e) => !e.rewatch), again = c.es.filter((e) => e.rewatch);
       return `<tr><td>${dlink(c.to, esc(c.tipLabel))}</td><td class="n">${dlink(c.a && D.entries(`${c.tipLabel}: first watches`, entriesSub(first), first, { order: "asc" }), c.a)}</td>
       <td class="n">${dlink(c.b && D.entries(`${c.tipLabel}: rewatches`, entriesSub(again), again, { order: "asc" }), c.b)}</td></tr>`; }).join("")}</tbody></table></div></details>`;
-  return `<div class="facts">${facts}</div>${colChart(cols, `Diary entries by ${unit}`, legend)}${table}
+  return `<div class="facts">${facts}</div>${colChart(cols, `Diary entries by ${unit}`, legend, 162, { unit: "films" })}${table}
     <div class="facts" style="align-items:end; gap:28px 48px"><div class="fact"><span class="k" style="margin-bottom:8px">By day of the week</span>${weekdays}</div>
     <div class="fact" style="min-width:0; max-width:100%"><span class="k" style="margin-bottom:8px">${s.scope === "all" ? "Last 12 months of diary" : "Every day of " + s.scope}</span>${heatmap(s)}</div></div>`;
 }
@@ -70,7 +88,7 @@ function ratingBlock(s) {
     ["Average", dlink(DR.rated(s), `${s.avgRating.toFixed(2)} of 5`)], ["Given most", dlink(DR.rating(s.films, most.r), `${stars(most.r)} · ${plural(most.count, "time")}`)],
     ["Rated films", dlink(DR.rated(s), fmtN(s.rated))], ["Five stars", dlink(s.spread[9].count && DR.rating(s.films, 5), plural(s.spread[9].count, "film"))],
   ].map(([k, v]) => `<div class="fact"><span class="k">${k}</span><span class="v">${v}</span></div>`).join("");
-  return `<div class="facts">${facts}</div>${colChart(cols, "How many films you gave each rating")}`;
+  return `<div class="facts">${facts}</div>${colChart(cols, "How many films you gave each rating", "", 162, { unit: "films" })}`;
 }
 function catBlock(s) {
   const t = state.tab.cats;
@@ -103,13 +121,14 @@ function decadeBlock(s) {
   const list = best.length > 1 ? `<div class="decades"><div class="k muted" style="font-size:12.5px">The next best-rated decades</div>${best.slice(1).map((x) => `<div class="decade">
       <div class="lbl">${dlink(DR.decade(x), `${x.decade}s`)}<small>${x.avg.toFixed(2)} avg</small></div>
       <div class="row">${x.top.slice(0, 4).map((f) => `<button class="chiplet" type="button" ${dl(D.film(f))}>${esc(f.name)} <span class="stars">${stars(f.rating)}</span></button>`).join("")}</div></div>`).join("")}</div>` : "";
-  return hero + colChart(cols, "Films by decade of release") + list;
+  return hero + colChart(cols, "Films by decade of release", "", 162, { unit: "films" }) + list;
 }
 function crewBlock(s) {
   const t = state.tab.crew;
   const data = { w: s.writers, p: s.dop, m: s.music }[t];
-  const list = data.most.slice(0, 15);
-  const body = list.length ? rankRows(list, (p) => plural(p.count, "film"), (p) => p.count / list[0].count, 1, personSub) : `<div class="empty">Nobody to show yet.</div>`;
+  const label = { w: "writers", p: "cinematographers", m: "composers" }[t];
+  const list = foldTies(data.most, (p) => p.count, 1, peopleTies(label)).slice(0, 15);
+  const body = list.length ? rankRows(list, (p) => p.group ? `${plural(p.count, "film")} each` : plural(p.count, "film"), (p) => p.count / data.most[0].count, 1, personSub) : `<div class="empty">Nobody to show yet.</div>`;
   return tabs("crew", [["w", "Written by"], ["p", "Shot by"], ["m", "Music by"]], t) + body;
 }
 function milestonesBlock(s) {
@@ -127,7 +146,7 @@ function milestonesBlock(s) {
 function artHtml(f) {
   const m = metaOf(f);
   const img = showImages && m && m.poster ? `<img src="${IMG}${esc(m.poster)}" alt="" loading="lazy">` : "";
-  return `<div class="art" title="${esc(f.name)}${f.year ? ` (${f.year})` : ""}">${img}<div class="t">${esc(f.name)}</div><div class="y">${f.year || ""}</div></div>`;
+  return `<div class="art" title="${esc(f.name)}${f.year ? ` (${f.year})` : ""}">${img}<div class="t${titleFit(f.name)}">${esc(f.name)}</div><div class="y">${f.year || ""}</div></div>`;
 }
 function posterHtml(f) {
   return `<button class="poster" type="button" ${dl(D.film(f))}>${artHtml(f)}
@@ -136,7 +155,7 @@ function posterHtml(f) {
 function highlightsBlock(s) {
   const views = (f) => s.scope === "all" ? f.entries.length : f.entries.filter((e) => e.date.startsWith(s.scope)).length;
   const top = s.films.filter((f) => f.rating).sort((a, b) => b.rating - a.rating || views(b) - views(a) || (b.year || 0) - (a.year || 0)).slice(0, 12);
-  const re = s.films.filter((f) => views(f) > 1).sort((a, b) => views(b) - views(a) || (b.rating || 0) - (a.rating || 0)).slice(0, 8);
+  const re = s.films.filter((f) => views(f) > 1).sort((a, b) => views(b) - views(a) || (b.rating || 0) - (a.rating || 0));
   const timed = s.films.filter((f) => metaOf(f) && metaOf(f).r);
   const longest = timed.reduce((a, f) => !a || metaOf(f).r > metaOf(a).r ? f : a, null);
   const shortest = timed.reduce((a, f) => !a || metaOf(f).r < metaOf(a).r ? f : a, null);
@@ -148,9 +167,10 @@ function highlightsBlock(s) {
     ["Oldest", oldest && `${oldest.name} · ${oldest.year}`, oldest], ["Newest", newest && newest !== oldest && `${newest.name} · ${newest.year}`, newest],
     ["Liked", plural(s.likes, "film"), null, s.likes && DR.liked(s)],
   ].filter(([, v]) => v).map(([k, v, f, to]) => `<div class="fact"><span class="k">${k}</span><span class="v">${dlink(f ? D.film(f) : to, esc(v))}${tmdbLink(f)}</span></div>`).join("");
-  const reList = re.length ? `<div><div class="muted" style="font-size:12.5px; margin-bottom:6px">Most rewatched</div>${rankRows(
-    re.map((f) => ({ name: `${f.name}${f.year ? ` (${f.year})` : ""}`, films: [f], count: views(f), to: D.film(f) })),
-    (p) => `${p.count} viewings`, (p) => p.count / views(re[0]), 1, (p) => plural(p.count, "viewing"))}</div>` : "";
+  const reRows = foldTies(re.map((f) => ({ name: `${f.name}${f.year ? ` (${f.year})` : ""}`, f, films: [f], count: views(f), to: D.film(f) })), (p) => p.count, 1,
+    (xs, n) => ({ name: `${fmtN(xs.length)} films seen ${n} times`, to: D.films(`Seen ${n} times`, filmsSub(xs.map((x) => x.f)), xs.map((x) => x.f), { scope: s.scope, sort: "given" }) })).slice(0, 8);
+  const reList = re.length ? `<div><div class="muted" style="font-size:12.5px; margin-bottom:6px">Most rewatched</div>${rankRows(reRows,
+    (p) => p.group ? `${p.count} viewings each` : `${p.count} viewings`, (p) => p.count / views(re[0]), 1, (p) => plural(p.count, "viewing"))}</div>` : "";
   // the lowest rated, 2½★ and under, lowest first
   const low = s.films.filter((f) => f.rating && f.rating <= 2.5).sort((a, b) => a.rating - b.rating || views(b) - views(a) || a.name.localeCompare(b.name));
   const lowRow = low.length ? `<h3 class="sub-h">${dlink(low.length > 8 && D.films("Lowest rated", filmsSub(low, "2½★ and under"), low, { scope: s.scope, sort: "given" }), "Lowest rated")}</h3>
@@ -188,27 +208,60 @@ function renderSections(s) {
   const people = (kind, data) => noMeta ? emptyMeta() : tabs(kind, [["most", "Most watched"], ["best", "Highest rated"]], state.tab[kind]) + peopleBlock(kind, data, s);
   const T = s.scope === "all" ? onThisDay(state.lib) : null, W = state.lib.watchlistFilms.length ? watchNext(state.lib) : undefined;
   const M = moreSections(s);
-  $("#sections").innerHTML = [
-    s.entries.length ? section("recent", s.scope === "all" ? "Recently watched" : `Last watched in ${s.scope}`,
-      s.entries.length > RECENT_N ? dlink(DR.diary(s), `All ${fmtN(s.entries.length)} diary entries`) : "Your latest diary entries.", recentBlock(s)) : "",
-    T && T.entries.length ? section("onthisday", T.title, T.sub, onThisDayBlock(T)) : "",
-    section("starring", "Starring", `${everyone(s.cast, "Actors")} in the top ${CAST_DEPTH} billed of each film. Highest rated needs ${s.castMinRated}+ rated films.`, people("cast", s.cast)),
-    section("directed", "Directed by", `${everyone(s.directors, "Directors")}.`, people("directors", s.directors)),
-    M.peopleYears, M.newIn,
-    section("logged", "Logged", s.scope === "all" ? "Diary entries over time, by day and by date." : `Diary entries in ${s.scope}, week by week.`, diaryBlock(s)),
-    M.years, M.vsprev, M.habits,
-    section("rated", "Rated", "How your ratings spread across half-stars.", ratingBlock(s)),
-    M.crowd,
-    section("origin", "Genre &amp; origin", "Genres, production countries and original languages.", noMeta ? emptyMeta() : catBlock(s)),
-    M.genreYears, M.genreRates,
-    section("released", "Released", "Films by decade of release.", decadeBlock(s)),
-    section("crew", "Crew", "Writers, cinematographers and composers.", noMeta ? emptyMeta() : crewBlock(s)),
-    section("milestones", "Milestones", "Counted through your diary in date order.", milestonesBlock(s)),
-    section("reviews", "Reviewed", s.scope === "all" ? "Your latest reviews. Search finds any of them." : `What you wrote about films you watched in ${s.scope}, latest first.`, reviewsBlock(s)),
-    M.reviewStats,
-    section("top", "Top billing", "Your highest-rated films, and your lowest.", highlightsBlock(s)),
-    W !== undefined ? section("next", "Watch next", "Your watchlist, likeliest favourites first.", watchNextBlock(W)) : "",
-  ].join("");
+  // the page in chapters, each named in the menu that stays at the top of the screen
+  const chapters = [
+    ["glance", "At a glance", [
+      s.entries.length ? section("recent", s.scope === "all" ? "Recently watched" : `Last watched in ${s.scope}`,
+        s.entries.length > RECENT_N ? dlink(DR.diary(s), `All ${fmtN(s.entries.length)} diary entries`) : "Your latest diary entries.", recentBlock(s)) : "",
+      T && T.entries.length ? section("onthisday", T.title, T.sub, onThisDayBlock(T)) : ""]],
+    ["films", "Films", [
+      section("top", "Best and worst", "Your highest-rated films, your lowest, the records and what you watch again.", highlightsBlock(s)),
+      section("milestones", "Milestones", "Counted through your diary in date order.", milestonesBlock(s)),
+      section("released", "Released", "Films by decade of release.", decadeBlock(s))]],
+    ["people", "People", [
+      section("starring", "Starring", `${everyone(s.cast, "Actors")} in the top ${CAST_DEPTH} billed of each film. Highest rated needs ${s.castMinRated}+ rated films.`, people("cast", s.cast)),
+      section("directed", "Directed by", `${everyone(s.directors, "Directors")}.`, people("directors", s.directors)),
+      section("crew", "Crew", "Writers, cinematographers and composers.", noMeta ? emptyMeta() : crewBlock(s)),
+      M.peopleYears, M.newIn]],
+    ["origin", "Genres &amp; countries", [
+      section("origin", "Genre &amp; origin", "Genres, production countries and original languages.", noMeta ? emptyMeta() : catBlock(s)),
+      M.genreYears, M.genreRates]],
+    ["when", "When you watch", [
+      section("logged", "Logged", s.scope === "all" ? "Diary entries over time, by day and by date." : `Diary entries in ${s.scope}, week by week.`, diaryBlock(s)),
+      M.years, M.vsprev, M.habits]],
+    ["ratings", "Ratings", [
+      section("rated", "Rated", "How your ratings spread across half-stars.", ratingBlock(s)),
+      M.crowd]],
+    ["reviews", "Reviews", [
+      section("reviews", "Reviewed", s.scope === "all" ? "Your latest reviews. Search finds any of them." : `What you wrote about films you watched in ${s.scope}, latest first.`, reviewsBlock(s)),
+      M.reviewStats]],
+    ["next", "Watch next", [W !== undefined ? section("next", "Watch next", "Your watchlist, likeliest favourites first.", watchNextBlock(W)) : ""]],
+  ].map(([id, name, parts]) => [id, name, parts.filter(Boolean).join("")]).filter(([, , html]) => html);
+  $("#sections").innerHTML = chapters.map(([id, name, html]) => `<div class="ch-mark" id="ch-${id}"><span>${name}</span></div>${html}`).join("");
+  $("#jump").innerHTML = `<div class="jump-in">${chapters.map(([id, name]) => `<button class="jump-link" type="button" data-jump="ch-${id}">${name}</button>`).join("")}</div>`;
+  watchChapters();
 }
+// The menu at the top marks the chapter on screen, and takes you to any other.
+let chapterObs = null;
+function watchChapters() {
+  if (!("IntersectionObserver" in window)) return;
+  if (!chapterObs) chapterObs = new IntersectionObserver(() => {
+    const marks = [...document.querySelectorAll("#sections .ch-mark")];
+    let cur = marks[0];
+    for (const m of marks) if (m.getBoundingClientRect().top < 120) cur = m;
+    for (const b of document.querySelectorAll("#jump .jump-link")) {
+      const on = !!cur && b.dataset.jump === cur.id;
+      if (on) b.setAttribute("aria-current", "true"); else b.removeAttribute("aria-current");
+    }
+  }, { rootMargin: "-100px 0px -60% 0px", threshold: [0, 1] });
+  chapterObs.disconnect();
+  for (const m of document.querySelectorAll("#sections .ch-mark, #sections .credit")) chapterObs.observe(m);
+}
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-jump]");
+  if (!b) return;
+  const el = document.getElementById(b.dataset.jump);
+  if (el) el.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+});
 
 </script>

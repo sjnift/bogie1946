@@ -17,7 +17,7 @@ function diaryScreen(s) {
     fact("Favourite day", WEEKDAYS_LONG[fav], null, memo(`wd|${s.scope}`, () => s.weekday.map((n, i) => DR.weekday(s.entries, i)))[fav]),
   ].join("")}</div>`;
   const legend = s.rewatches ? `<div class="legend"><span><i style="background:var(--green-mark)"></i>First watch</span><span><i style="background:var(--blue-mark)"></i>Rewatch</span></div>` : "";
-  let chart = colChart(cols, `Diary entries by ${unit}`, legend, 120);
+  let chart = colChart(cols, `Diary entries by ${unit}`, legend, 120, { unit: "films" });
   if (cols.length > 24) chart = chart.replace('class="axis"', 'class="axis dense"');
   const wmax = Math.max(1, ...s.weekday), byWeekday = memo(`wd|${s.scope}`, () => s.weekday.map((n, i) => DR.weekday(s.entries, i)));
   const weekdays = `<div class="weekdays" role="group" aria-label="Diary entries by day of the week">${s.weekday.map((n, i) =>
@@ -117,7 +117,7 @@ function genresScreen(s) {
       cols.push({ a: x ? x.count : 0, b: 0, label: `’${String(d).slice(2)}`, tip: `${d}s: ${plural(x ? x.count : 0, "film")}${x && x.avg ? ` · ${x.avg.toFixed(2)} average` : ""}`, to: x && DR.decade(x) });
     }
     html += (ranked.length ? sh("Decades, best rated first") + `<div class="group">${ranked.map(decadeRow).join("")}</div>` : "") +
-      sh("Films by decade of release") + `<div class="card">${colChart(cols, "Films by decade of release", "", 100)}</div>`;
+      sh("Films by decade of release") + `<div class="card">${colChart(cols, "Films by decade of release", "", 100, { unit: "films" })}</div>`;
   }
   if (s.scope === "all" && s.withMeta) html += mGenres(allInsights());
   return html;
@@ -200,8 +200,9 @@ function dataScreen() {
     ${state.forgetArmed ? `<p class="note">Removes your imported export and looked-up details, plus any keys you typed in. A copy of your diary on the site stays there.</p>` : ""}
     ${lib && !IN_VIEWER ? `<p class="note">A backup file also carries your diary to another device: import it there the same way as an export.</p>` : ""}
     <div class="foot"><p>Credits Roll reads the CSV files in a Letterboxd data export. It is not made by or affiliated with Letterboxd.</p>
-      <p>With your own TMDB key, film details come from The Movie Database. This product uses the TMDB API but is not endorsed or certified by TMDB.
-      Inside the Claude app, details come from Claude's knowledge of each film instead, so check anything surprising.</p>
+      <p>Film details come from The Movie Database (TMDB). This product uses the TMDB API but is not endorsed or certified by TMDB.${IN_VIEWER ? `
+      Inside the Claude app, details come from Claude's knowledge of each film instead, so check anything surprising.` : ""}</p>
+      <p>Your diary stays in this browser: only film titles and years go to TMDB, to find cast and crew.</p>
       <p>On a computer? <a href="https://claude.ai/artifact/52oE5x53dcjUZgBYQMfPjR" target="_blank" rel="noopener">Open the desktop version</a>. It keeps its own copy of your import.</p>
       <p class="stamp">Updated <!--BUILD--></p></div>`;
 }

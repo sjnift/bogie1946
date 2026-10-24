@@ -410,7 +410,7 @@ const siteBusy = (busy, where = "publish") => { Object.assign(site, { busy, note
 const siteDone = (note, where = "publish", err) => { Object.assign(site, { busy: "", note, err: !!err, noteIn: where }); siteRedraw(); };
 function siteBox(kind) {
   const html = siteBoxInner(kind);
-  return kind === "publish" ? html + shareBox() : html;
+  return kind === "publish" ? html + shareBox() + tasteBox() : html;
 }
 function siteBoxInner(kind) {
   if (!SITE_ON) return "";
@@ -441,8 +441,13 @@ function siteBoxInner(kind) {
     // just replaced after a forgotten password: say so here, where it was done
     if (unlocked && site.noteIn === "open" && site.note && !site.err) return box("Your diary is on the site again", say, true);
     if (!idx || unlocked || !sameUser) return "";
-    const [title, text] = !MY_LIB ? [`@${esc(user)}'s diary is on this site`, "Type its password to open it here. This device remembers it, so you only do this once."]
-      : SITE ? ["The diary on this site has a new password", "Type it to keep this device up to date."]
+    // nothing imported: most people here are friends bringing their own export, so the owner's way in stays small
+    if (!MY_LIB) {
+      const inner = `<p class="status">@${esc(user)}'s diary is on this site. Type its password to open it here; this device remembers it, so you only do this once.</p>${passForm()}${forgot()}`;
+      return phone ? `<details class="card site-card owner-open"><summary>Are you @${esc(user)}? Open your diary</summary>${inner}</details>`
+        : `<details class="site-in owner-open"><summary>Are you @${esc(user)}? Open your diary</summary>${inner}</details>`;
+    }
+    const [title, text] = SITE ? ["The diary on this site has a new password", "Type it to keep this device up to date."]
       : ["Your diary is on this site", "Type its password and this device keeps up with it from now on, with no importing."];
     return box(title, `<p class="status">${text}</p>${passForm()}${forgot()}`, true);
   }
@@ -452,9 +457,13 @@ function siteBoxInner(kind) {
   const title = "Your diary on this site";
   if (idx === undefined) return box(title, `<p class="status">${site.offline ? "Couldn't reach the site just now." : "Checking the site…"}</p>`);
   if (!idx) {
-    return box("Put your diary on this site", `<p class="status">Lock it with a password and every device can open it: just open the site and type the password once, with no importing. Your TMDB, OMDb, Apify and GitHub keys go along, locked the same way, so every device you open it on can use them and keeps the site up to date; your email address stays out of it. Choose a long password: it guards all of this.</p>
+    const body = `<p class="status">Lock it with a password and every device can open it: just open the site and type the password once, with no importing. Your TMDB, OMDb, Apify and GitHub keys go along, locked the same way, so every device you open it on can use them and keeps the site up to date; your email address stays out of it. Choose a long password: it guards all of this.</p>
       ${field("newpass", `Choose a password (at least ${SITE_MIN_PASS} characters; you'll type it once on each device)`, "text", "new-password")}
-      ${SITEPUB ? "" : keyFields()}${btn("create", "Put my diary on the site", true)}${say}${SITEPUB ? "" : help}`);
+      ${SITEPUB ? "" : keyFields()}${btn("create", "Put my diary on the site", true)}${say}${SITEPUB ? "" : help}`;
+    // only the site's owner can do this (it takes a GitHub key for the site), so for anyone else it stays folded away
+    if (SITEPUB) return box("Put your diary on this site", body);
+    return phone ? `<details class="card site-card owner-open"><summary>Is this your site? Put your diary on it</summary>${body}</details>`
+      : `<details class="site-in owner-open"><summary>Is this your site? Put your diary on it</summary>${body}</details>`;
   }
   if (!unlocked) {
     return box(title, `<p class="status">${SITE ? "The diary on this site has a new password." : "Your diary is on this site."} ${phone ? "Type its password to keep this device up to date." : "Type its password at the top of the page to keep this device up to date."}</p>${phone ? passForm() + forgot() : ""}`);
@@ -490,6 +499,9 @@ function siteRedraw() {
       for (const i of el.querySelectorAll("input[name]")) if (typed[i.name] && !i.value) i.value = typed[i.name];
     }
   }
+  // the computer's Settings section for it shows only when there's something in it
+  const sec = document.getElementById("set-site"), sb = document.getElementById("site-box");
+  if (sec) sec.hidden = !SITE_ON || !sb || !sb.innerHTML.trim();
 }
 document.addEventListener("click", (e) => {
   const t = e.target.closest("[data-site]");
@@ -516,6 +528,8 @@ document.addEventListener("click", (e) => {
   else if (a === "now") sitePublish();
   else if (a === "share-on") shareSet(val("sharekey").trim() || ownTmdbKey());
   else if (a === "share-off") shareSet(null);
+  else if (a === "taste-on") tasteSet(true);
+  else if (a === "taste-off") tasteSet(false);
   else if (a === "remove") {
     if (!site.armed) { site.armed = setTimeout(() => { site.armed = null; siteRedraw(); }, 6000); return siteRedraw(); }
     clearTimeout(site.armed); site.armed = null; siteRemove();
@@ -590,6 +604,59 @@ function shareBox() {
         <input class="key" id="site-sharekey" name="sharekey" type="password" autocomplete="off" spellcheck="false"></details>
       ${btn("share-on", "Share my TMDB key with visitors", true)}${share.on === "?" ? btn("share-off", "Stop sharing") : ""}${unsure}${say}`;
   const title = share.on === true ? "Visitors use your TMDB key" : "Share your TMDB key with visitors";
+  return phone ? `<div class="card site-card"><p class="title">${title}</p>${body}</div>` : `<div class="site-in"><h3 class="sub-h">${title}</h3>${body}</div>`;
+}
+
+/* ----- letting visitors compare with you ----- */
+// The owner can put a card of their ratings beside the pages (docs/taste.json, in the clear: each film's name, year,
+// rating and like, and the Letterboxd username; no diary dates, reviews, watchlist or keys), so anyone who opens the
+// site with their own export can compare with them in one tap, with no files to swap. Put there or taken away from
+// Settings on a device with the GitHub key; it follows newer imports from then on (only ever forward: `from`).
+const TASTE_FILE = "taste.json";
+const taste = { on: null, checking: false, busy: "", note: "", err: false };
+const fileThere = async (commit, name) => { try { return (await gh(`/contents/docs?ref=${commit}`)).some((f) => f.name === name); } catch (e) { if (e.status === 404) return false; throw e; } };
+const tasteCard = () => ({ v: 1, user: MY_LIB.profile.username, from: rowsWhen(store.get(KEYS.rows, {}) || {}), at: new Date().toISOString(),
+  films: MY_LIB.films.map((f) => [f.name, f.year || 0, f.rating || 0, f.liked ? 1 : 0]) });
+async function tasteCheck() {
+  if (!SITEPUB || taste.checking) return;
+  taste.checking = true;
+  try { taste.on = await fileThere((await repoHead()).commit, TASTE_FILE); } catch { taste.on = "?"; }
+  taste.checking = false;
+  siteRedraw();
+}
+async function tasteSet(on, quiet) {
+  if (!SITEPUB || taste.busy || !MY_LIB || !MY_LIB.profile.username) return;
+  if (!quiet) { Object.assign(taste, { busy: on ? "Putting your ratings on the site…" : "Taking them off…", note: "", err: false }); siteRedraw(); }
+  try {
+    for (let attempt = 0; ; attempt++) {
+      if (attempt === 4) throw ghFail("Another device kept changing the site at the same moment. Try again in a minute.");
+      const head = await repoHead();
+      if (!on && !(await fileThere(head.commit, TASTE_FILE))) break;
+      const body = on ? new TextEncoder().encode(JSON.stringify(tasteCard()) + "\n") : null;
+      if (await commitFiles(head, { [TASTE_FILE]: body }, on ? "Let visitors compare with your ratings" : "Stop letting visitors compare with your ratings", "docs/")) break;
+    }
+    Object.assign(taste, { on, busy: "", note: quiet ? taste.note : on ? "Done. Visitors can compare with you within a minute or two." : "Taken off. Visitors can't compare with you any more.", err: false });
+  } catch (e) { Object.assign(taste, { busy: "", note: e.message || "Couldn't change it.", err: true }); }
+  siteRedraw();
+}
+// On the owner's device: once a newer import is here than the card on the site was made from, the card follows it.
+function tasteFollow() {
+  if (!SITE_ON || !SITEPUB || !MY_LIB || !TASTE || !siteSameUser() || TASTE.user.toLowerCase() !== String(MY_LIB.profile.username).toLowerCase()) return;
+  if (rowsWhen(store.get(KEYS.rows, {}) || {}) > (TASTE.from || "")) tasteSet(true, true);
+}
+// In Settings, under the diary on the site: on a device with the GitHub key and its own diary.
+function tasteBox() {
+  if (!SITE_ON || !SITEPUB || !MY_LIB || !MY_LIB.profile.username || !siteSameUser()) return "";
+  if (taste.on === null) { if (!taste.checking) setTimeout(tasteCheck); return ""; }
+  const phone = SITE_DEVICE === "phone";
+  const btn = (act, label, main) => `<button class="${phone ? `btn${main ? " green" : ""} block` : `btn${main ? " primary" : ""} small`}" type="button" data-site="${act}"${taste.busy ? " disabled" : ""}>${label}</button>`;
+  const say = taste.busy ? `<p class="status" role="status">${esc(taste.busy)}</p>` : taste.note ? `<p class="status${taste.err ? " err" : ""}" role="status">${esc(taste.note)}</p>` : "";
+  const unsure = taste.on === "?" ? `<p class="status">Couldn't ask GitHub whether your ratings are there just now.</p>` : "";
+  const body = taste.on === true
+    ? `<p class="status">Anyone who opens this site and imports their own export can compare their taste with yours in one tap. They see your films, ratings and likes, nothing else, and it keeps up with your newer imports.</p>${btn("taste-off", "Stop it")}${say}`
+    : `<p class="status">Let anyone who opens this site with their own export compare their taste with yours in one tap, with no files to send. This puts your films, with your ratings and likes, on the site for anyone to read (much as your Letterboxd profile shows them): no diary dates, reviews, watchlist, email or keys. Your diary stays locked.</p>
+      ${btn("taste-on", "Let visitors compare with me", true)}${taste.on === "?" ? btn("taste-off", "Stop it") : ""}${unsure}${say}`;
+  const title = taste.on === true ? "Visitors can compare with you" : "Let visitors compare with you";
   return phone ? `<div class="card site-card"><p class="title">${title}</p>${body}</div>` : `<div class="site-in"><h3 class="sub-h">${title}</h3>${body}</div>`;
 }
 </script>

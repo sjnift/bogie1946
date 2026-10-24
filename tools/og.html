@@ -1,0 +1,44 @@
+<!doctype html>
+<!-- The picture shown when the site's link is shared (WhatsApp, iMessage…): 1200×630, drawn by tools/make_og.mjs -->
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800&family=IBM+Plex+Mono:wght@500&family=Schibsted+Grotesk:wght@500;700&display=block">
+<style>
+  html, body { margin: 0; width: 1200px; height: 630px; overflow: hidden; background: #141017; color: #F3EEF4; font-family: "Schibsted Grotesk", sans-serif; }
+  .sprockets { position: absolute; left: 0; right: 0; height: 26px; background: repeating-linear-gradient(90deg, transparent 0 16px, #2A2231 16px 38px, transparent 38px 52px); }
+  .sprockets.top { top: 14px; } .sprockets.bottom { bottom: 14px; }
+  .in { position: absolute; inset: 70px 80px; display: grid; grid-template-columns: 1fr 360px; gap: 40px; align-items: center; }
+  .mark { display: flex; align-items: center; gap: 14px; font-family: "Big Shoulders Display"; font-weight: 800; font-size: 34px; letter-spacing: .14em; color: #E6B65A; }
+  .reel { width: 34px; height: 34px; border-radius: 50%; background: radial-gradient(circle, #141017 0 3px, transparent 3.5px), conic-gradient(#BE8722 0 40deg, transparent 40deg 60deg, #BE8722 60deg 100deg, transparent 100deg 120deg, #BE8722 120deg 160deg, transparent 160deg 180deg, #BE8722 180deg 220deg, transparent 220deg 240deg, #BE8722 240deg 280deg, transparent 280deg 300deg, #BE8722 300deg 340deg, transparent 340deg 360deg); }
+  h1 { font-family: "Big Shoulders Display"; font-weight: 800; text-transform: uppercase; font-size: 84px; line-height: .88; margin: 22px 0 20px; letter-spacing: .01em; }
+  h1 span { color: #E6B65A; }
+  p { margin: 0; font-size: 25px; line-height: 1.35; color: #C2B8C6; }
+  .free { margin-top: 18px; font-family: "IBM Plex Mono"; font-size: 19px; color: #9A8FA0; letter-spacing: .04em; }
+  .card { background: #1D1722; border: 1px solid #352C3D; border-radius: 18px; padding: 26px 28px; display: grid; gap: 18px; }
+  .k { font-family: "IBM Plex Mono"; font-size: 15px; letter-spacing: .12em; text-transform: uppercase; color: #9A8FA0; }
+  .bars { display: flex; align-items: flex-end; gap: 9px; height: 120px; border-bottom: 1px solid #352C3D; }
+  .bars i { flex: 1; background: #BE8722; border-radius: 4px 4px 0 0; }
+  .bars i.hi { background: #E6B65A; }
+  .row { display: flex; justify-content: space-between; align-items: baseline; }
+  .row b { font-size: 46px; font-weight: 700; }
+  .row b small { font-size: 22px; color: #9A8FA0; font-weight: 500; }
+  .match { display: flex; align-items: center; gap: 14px; font-size: 20px; color: #C2B8C6; }
+  .ring { width: 58px; height: 58px; border-radius: 50%; background: conic-gradient(#E6B65A 0 78%, #352C3D 78% 100%); display: grid; place-items: center; }
+  .ring span { width: 44px; height: 44px; border-radius: 50%; background: #1D1722; display: grid; place-items: center; font-weight: 700; font-size: 19px; color: #F3EEF4; }
+</style></head>
+<body>
+  <div class="sprockets top"></div><div class="sprockets bottom"></div>
+  <div class="in">
+    <div>
+      <div class="mark"><span class="reel"></span>CREDITS ROLL</div>
+      <h1>Your Letterboxd diary, <span>in numbers</span></h1>
+      <p>Stats, insights into your taste, and comparisons with friends, from your Letterboxd export.</p>
+      <div class="free">FREE · YOUR DIARY STAYS IN YOUR BROWSER</div>
+    </div>
+    <div class="card">
+      <div class="k">Films by month</div>
+      <div class="bars"><i style="height:38%"></i><i style="height:55%"></i><i style="height:44%"></i><i style="height:70%"></i><i style="height:52%"></i><i style="height:62%"></i><i class="hi" style="height:96%"></i><i style="height:58%"></i><i style="height:74%"></i><i style="height:49%"></i></div>
+      <div class="row"><div><div class="k">Films</div><b>412</b></div><div><div class="k">Average</div><b>3.7<small>★</small></b></div></div>
+      <div class="match"><span class="ring"><span>78</span></span>Taste match with a friend</div>
+    </div>
+  </div>
+</body></html>

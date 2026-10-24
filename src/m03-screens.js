@@ -5,7 +5,8 @@ const state = {
   role: "c", sort: "most", catSort: "most", peopleLimit: 50, diaryLimit: 40, crowd: null, insTab: "overview", yearTab: "overview", trend: "films",
   reviewQuery: "", reviewLimit: 30, cmp: null, cmpTab: "overview", cmpError: "", unfriend: null, drillLimit: 200,
 };
-let MY_LIB = null, EXAMPLE_LIB = null, STATS = null, YEARS = [];
+let MY_LIB = null, EXAMPLE_LIB = null, STATS = null, YEARS = [], BASE_LIB = null, YEARS_OF = null;
+const FILTER_VIEWS = new Set(["profile", "diary", "films", "people", "genres", "years", "crowd"]);
 const IMG = "https://image.tmdb.org/t/p/w185";
 const showImages = !IN_VIEWER; // pages inside Claude can't load outside images
 const VIEW_KEY = "cr-mview-v1";
@@ -104,8 +105,11 @@ function render(motion) {
     syncHash();
     return;
   }
-  YEARS = memo("years", () => [...new Set(state.lib.entries.map((e) => e.date.slice(0, 4)))].sort().reverse());
+  BASE_LIB = state.lib;
+  if (YEARS_OF !== BASE_LIB) { YEARS_OF = BASE_LIB; YEARS = [...new Set(BASE_LIB.entries.map((e) => e.date.slice(0, 4)))].sort().reverse(); }
   if (state.scope !== "all" && !YEARS.includes(state.scope)) state.scope = "all";
+  // the filters narrow Profile, Diary and Stats (and what they open), not Insights or Compare
+  if (FILTER_VIEWS.has(state.view)) state.lib = filteredLib(BASE_LIB, metaOf);
   STATS = statsOf(state.scope);
   LISTS = new Map();
   const d = state.stack[state.stack.length - 1];
@@ -126,6 +130,7 @@ function render(motion) {
     }
   }
   if (motion && !REDUCED) { el.classList.remove("enter-push", "enter-pop", "enter-tab"); void el.offsetWidth; el.classList.add(`enter-${motion}`); }
+  syncFilterMenus(el);
   fillFilmo(el);
   watchMore(el);
   syncHash();
@@ -141,7 +146,7 @@ function warmUp() {
   idle(() => {
     warmQueued = false;
     const lib = state.lib;
-    if (!lib.entries.length) return;
+    if (!lib.entries.length || lib.filtered) return; // Insights use the whole diary
     allStudy(); allInsights();
     const Y = state.scope !== "all" ? state.scope : YEARS[0];
     if (Y) { yearStudy(Y); yearInsights(Y); }
@@ -162,13 +167,13 @@ function welcomeScreen() {
   const why = LOAD_ERROR ? `<div class="card notice"><p class="title">Your saved diary couldn't be read</p><p class="status err">${esc(LOAD_ERROR)}</p><p class="status">Import your export again.</p></div>`
     : store.failed ? `<div class="card notice"><p class="title">Your diary isn't showing</p><p class="status">This browser's saved data couldn't be opened just now. Close the app completely and open it again. If it still isn't there, import your export or a backup file again.</p></div>` : "";
   return `<section class="hero"><div class="hero-bg" aria-hidden="true"></div><div class="hero-in">
-      <span class="avatar xl" aria-hidden="true">${ICON.sparkle}</span><h2 class="hname">Credits Roll</h2><p class="hhandle">Your Letterboxd diary, in numbers</p></div></section>
-    ${why}<div data-sitebox="open">${siteBox("open")}</div><div class="card glow notice"><p class="title">Import your Letterboxd export</p>
+      <span class="avatar xl" aria-hidden="true">${ICON.sparkle}</span><h2 class="hname">Credits Roll</h2><p class="hhandle">Your Letterboxd diary, in numbers. Free, with nothing to sign up for.</p></div></section>
+    ${why}<div class="card glow notice"><p class="title">See your own stats in a minute</p>
       <ol class="steps"><li>On <a href="https://letterboxd.com/settings/data/" target="_blank" rel="noopener">letterboxd.com</a>, open Settings → Data.</li>
-        <li>Choose Export your data and download the ZIP.</li><li>Import the ZIP here. It stays in this browser.</li></ol>
-      <button class="btn green block" type="button" data-act="import">${ICON.upload}Import export</button>
-      <p class="status">A backup file from another device works the same way.</p>
-      ${state.importError ? `<p class="status err" role="alert">${esc(state.importError)}</p>` : ""}</div>
+        <li>Choose Export your data and download the ZIP.</li><li>Import the ZIP here.</li></ol>
+      <button class="btn green block" type="button" data-act="import">${ICON.upload}Import your export</button>
+      <p class="status">A backup file from another device works the same way. Your diary stays in this browser: only film titles and years go to TMDB, to find cast and crew.</p>
+      ${state.importError ? `<p class="status err" role="alert">${esc(state.importError)}</p>` : ""}</div><div data-sitebox="open">${siteBox("open")}</div>
     ${IN_VIEWER ? `<p class="note">This Claude version keeps its own copy of an import. Your saved diary is on the website, <a href="https://sjnift.github.io/bogie1946/" target="_blank" rel="noopener">sjnift.github.io/bogie1946</a>.</p>` : ""}
     <div class="foot"><p class="stamp">Updated <!--BUILD--></p></div>`;
 }
@@ -213,7 +218,8 @@ const sh = (label, right = "") => `<div class="sh"><h3>${label}</h3>${right}</di
 const seeAll = (attrs, label = "See all") => `<button class="more" type="button" ${attrs}>${label}${CHEV}</button>`;
 const ltitle = (t, sub = "") => `<div class="lt"><div><h2 class="ltitle">${t}</h2>${sub ? `<p class="lt-sub">${sub}</p>` : ""}</div></div>`;
 const scopeBar = (label = "All time") => `<div class="scopes" id="scopes" role="group" aria-label="Time period">${["all", ...YEARS].map((y) =>
-  `<button class="scope" type="button" data-scope="${y}" aria-pressed="${y === state.scope}">${y === "all" ? label : y}</button>`).join("")}</div>`;
+  `<button class="scope" type="button" data-scope="${y}" aria-pressed="${y === state.scope}">${y === "all" ? label : y}</button>`).join("")}</div>` +
+  (FILTER_VIEWS.has(state.view) && !state.stack.length ? filterBar(BASE_LIB, metaOf) + (filterOn() ? `<p class="fnote">Showing ${esc(filterText().replace(/^Films/, "films"))} only.</p>` : "") : "");
 const imgTag = (src) => `<img class="fade" src="${IMG}${esc(src)}" alt="" loading="lazy" decoding="async">`;
 function avatar(p, size) {
   const ph = showImages && p.key && PHOTOS[p.key];
@@ -221,7 +227,7 @@ function avatar(p, size) {
 }
 function poster(f) {
   const m = metaOf(f);
-  return `<span class="poster"><span class="ph">${esc(f.name)}<small>${f.year || ""}</small></span>${showImages && m && m.poster ? imgTag(m.poster) : ""}</span>`;
+  return `<span class="poster"><span class="ph${titleFit(f.name)}">${esc(f.name)}<small>${f.year || ""}</small></span>${showImages && m && m.poster ? imgTag(m.poster) : ""}</span>`;
 }
 const likeMark = (f) => f.liked ? '<span class="heart" aria-label="liked">♥</span>' : "";
 function posterItem(f, to, caption) {
@@ -267,7 +273,9 @@ function profileScreen(s) {
       <button class="btn green block" type="button" data-act="import">${ICON.upload}Import your export</button></div>` : "";
   const note = state.importNote ? `<div class="card notice"><p class="status" style="color:var(--ink-1)">${esc(state.importNote)}</p>${MY_LIB && MY_LIB.reviews.length ? `<button class="btn block" type="button" data-act="reviews">See your reviews</button>` : ""}</div>` : "";
   const total = lib.films.length, have = lib.films.filter((f) => metaOf(f)).length;
-  const fill = !ex && have < total ? `<button class="banner" type="button" data-act="settings"><span class="ico g">${ICON.sparkle}</span>
+  // only while there's something to do: films never looked up (not ones TMDB has no match for)
+  const todo = IN_VIEWER ? new Set(lib.films) : new Set(needsLookup(lib, "tmdb"));
+  const fill = !ex && (job.running || lib.films.some((f) => !metaOf(f) && todo.has(f))) ? `<button class="banner" type="button" data-act="settings"><span class="ico g">${ICON.sparkle}</span>
       <span><b>${job.running ? "Looking up cast &amp; crew" : "Fill in cast &amp; crew"}</b><small>${job.running ? `${fmtN(job.done)} of ${fmtN(job.total)} films` : `${fmtN(have)} of ${plural(total, "film")} have details`}</small>
       <span class="meter" aria-hidden="true"><span style="width:${Math.round((job.running ? job.done / Math.max(1, job.total) : have / Math.max(1, total)) * 100)}%"></span></span></span>${CHEV}</button>` : "";
   const nReviews = lib.reviewTextMissing ? s.reviews : reviewsIn(lib, s.scope === "all" ? null : s.scope).length;
@@ -283,7 +291,7 @@ function profileScreen(s) {
   const otd = T && T.entries.length ? sh(esc(T.title), T.entries.length > 4 ? seeAll(dl(T.to)) : "") +
     `<div class="scroller">${T.entries.slice(0, 12).map((e) => posterItem(e.film, D.film(e.film, { entry: e }), `<span class="pmeta"><span class="stars">${stars(e.rating)}</span></span><span class="mdate">${T.week ? fmtDate(e.date) : e.date.slice(0, 4)}</span>`)).join("")}</div>` : "";
   const ratings = s.rated ? sh("Ratings", `<span class="count">${plural(s.rated, "film")} · ★ ${s.avgRating.toFixed(2)}</span>`) + `<div class="card">` +
-    colChart(s.spread.map((x) => ({ a: x.count, b: 0, tip: `${stars(x.r)} · ${plural(x.count, "film")}`, to: x.count && DR.rating(s.films, x.r) })), "How many films you gave each rating", "", 84)
+    colChart(s.spread.map((x) => ({ a: x.count, b: 0, tip: `${stars(x.r)} · ${plural(x.count, "film")}`, to: x.count && DR.rating(s.films, x.r) })), "How many films you gave each rating", "", 84, { unit: "films" })
       .replace('class="chart"', 'class="chart slate"').replace(/<div class="axis"[^]*?<\/div>/, "") +
     `<div class="hist-ends" style="margin-right:28px"><span class="stars">½</span><span class="stars">★★★★★</span></div></div>` : "";
   const strip = (label, data, role) => {
@@ -296,11 +304,16 @@ function profileScreen(s) {
   const people = s.withMeta ? strip("Most watched actors", s.cast, "c") + strip("Most watched directors", s.directors, "d") : "";
   const reimport = !ex && lib.reviewTextMissing ? mReimport() : "";
   const onSite = ex ? "" : `<div data-sitebox="open">${siteBox("open")}</div>`; // a newer copy of the diary is on the site
-  return hero + scopeBar() + onSite + notice + note + reimport + fill + tiles + recentRow + otd + ratings + people;
+  const iosTip = iosTipDue() ? `<div class="card notice"><p class="title">Add Credits Roll to your Home Screen</p><p class="status">${esc(IOS_TIP_TEXT)}</p>
+    <button class="btn block" type="button" data-iostip>Got it</button></div>` : "";
+  const when = s.scope === "all" ? "all time" : s.scope;
+  const storyRow = BASE_LIB && BASE_LIB.entries.length ? `<div class="storyrow"><button class="btn green" type="button" ${dl(D.story(s.scope))}>${ICON.next}Play ${esc(when)} as a story</button>
+    <button class="btn" type="button" ${dl(D.share(s.scope))}>${ICON.share}<span class="sr-only">Share ${esc(when)} as a picture</span></button></div>` : "";
+  return hero + scopeBar() + onSite + notice + note + iosTip + reimport + fill + tiles + storyRow + recentRow + otd + ratings + people;
 }
 
 /* ---------- Stats: films, people, genres ---------- */
-const statsHead = () => ltitle("Stats") + scopeBar() + segBar("view", [["films", "Films"], ["people", "People"], ["genres", "Breakdown"], ["years", "Years"], ["crowd", "Crowd"]], state.view, "five");
+const statsHead = () => ltitle("Stats") + scopeBar() + segBar("view", [["films", "Films"], ["people", "People"], ["genres", "Breakdown"], ["years", "Years"], ["crowd", "vs. Others"]], state.view, "five");
 function peopleScreen(s) {
   const role = state.role;
   const data = { c: s.cast, d: s.directors, w: s.writers, p: s.dop, m: s.music }[role] || s.cast;

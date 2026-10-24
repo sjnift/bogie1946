@@ -3,6 +3,7 @@
    Opened as a file in a normal browser, the page calls TMDB with the viewer's own key.
    Inside the Claude app the page can't reach other sites, so Claude fills in the details. */
 const IN_VIEWER = typeof window.claude === "object" && window.claude !== null;
+document.body.classList.toggle("viewer", IN_VIEWER); // things said only inside Claude
 let META = store.get(KEYS.meta, {});
 let PHOTOS = store.get(KEYS.photos, {});
 let EXAMPLE_META = {};

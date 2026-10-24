@@ -8,6 +8,8 @@
    the films or diary entries it rests on. Taste is read from first watches (each film once, on the day it was first
    seen), habits from every diary entry. */
 const STUDY_Z = 3;
+// what ratings follow: anything accounting for less than this share (%) of their ups and downs isn't worth saying
+const FOLLOW_MIN = 3;
 const sq = (x) => x * x;
 const medianOf = (a) => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y), i = s.length >> 1; return s.length % 2 ? s[i] : (s[i - 1] + s[i]) / 2; };
 const sdOf = (a) => { if (a.length < 2) return 0; const m = avg(a); return Math.sqrt(a.reduce((t, x) => t + sq(x - m), 0) / (a.length - 1)); };
@@ -223,7 +225,7 @@ function driftDefs(B) {
       text: (a, b, y0, y1) => `You've moved toward ${b > a ? "older" : "newer"} films: the typical film you saw in ${y0} was about ${ageWord(a)} at the time; in ${y1}, about ${ageWord(b)}.` },
     { id: "rt", kind: "mean", big: "Longer films", big2: "Shorter films", name: "length", val: (x) => x.rt, min: 8, fmt: (v) => `${Math.round(v)} min`, sort: "runtime", note: (x) => `${x.rt} min`,
       text: (a, b, y0, y1) => `Your films have got ${b > a ? "longer" : "shorter"}: ${Math.round(a)} minutes on average in ${y0}, ${Math.round(b)} in ${y1}.` },
-    { id: "votes", kind: "logmedian", big: "Off the beaten path", big2: "Better-known films", name: `${B.popSrc} ratings`, val: (x) => x.votes, min: Math.log(1.8), fmt: (v) => fmtN(Math.round(v)), note: (x) => `${fmtN(x.votes)} ${B.popSrc} ratings`,
+    { id: "votes", kind: "logmedian", big: "Better-known films", big2: "Off the beaten path", name: `${B.popSrc} ratings`, val: (x) => x.votes, min: Math.log(1.8), fmt: (v) => fmtN(Math.round(v)), note: (x) => `${fmtN(x.votes)} ${B.popSrc} ratings`,
       text: (a, b, y0, y1) => `You've moved ${b < a ? "off the beaten path" : "toward better-known films"}: the typical film you watched in ${y1} had about ${fmtN(roundish(b))} ${B.popSrc} ratings, against ${fmtN(roundish(a))} in ${y0}.` },
     { id: "crowd", kind: "mean", big: "Better-regarded films", big2: "Less acclaimed films", name: `${C.label}'s score`, val: (x) => x.crowd, min: 0.15, fmt: fmtC, note: (x) => `${C.short} ${fmtC(x.crowd)}`,
       text: (a, b, y0, y1) => `You're picking ${b > a ? "better-regarded" : "less acclaimed"} films: ${C.label} give what you watched in ${y1} ${fmtC(b)} on average, against ${fmtC(a)} in ${y0}.` },
@@ -361,7 +363,7 @@ function ratingStudy(B, periods) {
   }
   out.follow = factors.map((f) => ({ ...f, pct: Math.max(0, Math.round(f.r2 * 100)) })).sort((a, b) => b.r2 - a.r2);
   const dir = out.follow.find((f) => f.id === "d");
-  const fl = out.follow.filter((f) => f.pct >= 1 && !(f.id === "w" && dir && Math.abs(f.pct - dir.pct) <= 5));
+  const fl = out.follow.filter((f) => f.pct >= FOLLOW_MIN && !(f.id === "w" && dir && Math.abs(f.pct - dir.pct) <= 5));
   if (fl.length) {
     const low = out.follow.find((f) => f.id === "g");
     out.followText = `What tells most about how you'll rate a film is ${fl[0].short}: it accounts for ${fl[0].pct}% of the ups and downs in your ratings` +
@@ -690,7 +692,7 @@ function crowdOf(crowdKey, films, ratingOf = (f) => f.rating) {
 function driftCols(d) {
   const vs = d.series.filter((c) => c.v != null).map((c) => c.v), lo = Math.min(...vs), hi = Math.max(...vs);
   const floor = d.kind === "share" || !vs.length ? 0 : Math.max(0, lo - (hi - lo) * 0.35 - 1e-6);
-  return { grid: !floor, cols: d.series.map((c) => ({ a: c.v == null ? 0 : Math.max(0.0001, c.v - floor), b: 0, label: c.label, minor: c.minor, tip: c.tip, to: c.to })) };
+  return { grid: !floor, unit: d.kind === "share" ? "%" : "", cols: d.series.map((c) => ({ a: c.v == null ? 0 : Math.max(0.0001, c.v - floor), b: 0, label: c.label, minor: c.minor, tip: c.tip, to: c.to })) };
 }
 // Where each chapter falls between the diary's first and last day, as shares of the whole.
 function chapterStrip(chs, from, to) {
@@ -718,7 +720,7 @@ function computeStudy(lib, metaOf, crowdKey) {
   const o = [], R = S.ratings, T = S.threads;
   if (S.chapters.length) { const c = S.chapters[S.chapters.length - 1]; o.push({ k: S.chapters.length > 1 ? `Latest of ${S.chapters.length} chapters` : "A chapter", big: c.title, text: c.text, to: c.to }); }
   if (S.drift.list.length) { const d = S.drift.list[0]; o.push({ k: "Biggest shift", big: d.big, text: d.text, to: d.to }); }
-  if (R.follow.length && R.follow[0].pct >= 3) o.push({ k: "Your ratings follow", big: capFirst(R.follow[0].short.replace(/ \(.*\)$/, "")), text: R.followText, to: R.follow[0].to });
+  if (R.follow.length && R.follow[0].pct >= FOLLOW_MIN) o.push({ k: "Your ratings follow", big: capFirst(R.follow[0].short.replace(/ \(.*\)$/, "")), text: R.followText, to: R.follow[0].to });
   if (R.beyond.up.length) { const b = R.beyond.up[0]; o.push({ k: R.beyond.vsCrowd ? "You like more than the crowd" : "You like most", big: b.big, text: b.text, to: b.to }); }
   if (R.judge.length && R.judge[0].big !== "Steady") o.push({ k: "Tougher or choosier?", big: R.judge[0].big, text: R.judge[0].text, to: R.judge[0].to });
   if (T.gateways.length) { const g = T.gateways[0]; o.push({ k: "A door that opened", big: g.name, text: g.text, to: g.to }); }

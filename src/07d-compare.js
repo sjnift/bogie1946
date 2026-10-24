@@ -26,7 +26,7 @@ function whoBlock(friends) {
     : friends.length ? "" : `Ask a friend for their Letterboxd export (Settings → Data → Export your data), then add the ZIP here. Add as many friends as you like.`;
   const err = state.cmpError ? `<p class="status err" role="alert">${esc(state.cmpError)}</p>` : "";
   const saved = friendsSaveFailed ? `<p class="status err">This browser wouldn't save your friends' exports, so you'll need to add them again next time.</p>` : "";
-  return `<div class="who-row">${chips}${all}${ex ? "" : add}</div>${note ? `<p class="status">${note}</p>` : ""}${err}${saved}`;
+  return `<div class="who-row">${chips}${all}${ex ? "" : add}</div>${note ? `<p class="status">${note}</p>` : ""}${err}${saved}${tasteOfferHtml(false)}`;
 }
 
 /* ----- you and one friend ----- */
@@ -38,7 +38,8 @@ const filmRow = (items, empty, cap, card) => items.length ? `<div class="posters
 function pairSections(C) {
   const { A, B, match, to } = C;
   const score = match.score != null ? `<div class="match"><span class="score">${dlink(to.rated, match.score)}</span><span class="out">/100</span>
-      <div><b>${matchWords(match.score)}</b><p>From how close your ratings are on the ${dlink(to.rated, plural(match.n, "film"))} you've both rated (correlation ${match.r != null ? match.r.toFixed(2) : "—"}).</p></div></div>`
+      <div><b>${matchWords(match.score)}</b><p>From how close your ratings are on the ${dlink(to.rated, plural(match.n, "film"))} you've both rated, and on whether you like the same ones best.</p>
+      <p class="status">${dlink(D.shareMatch(B.id, B.name), "Share your taste match as a picture")}</p></div></div>`
     : `<div class="empty">A taste match needs five or more films you've both rated. You have ${dlink(match.n && to.rated, match.n)}.</div>`;
   const lines = C.lines.length ? lineItems(C.lines, () => "●") : "";
   const o = C.overlap, tot = o.onlyA + o.both + o.onlyB || 1;

@@ -60,14 +60,15 @@ function chaptersBlock(chs, n, strip = true) {
 function driftBlock(d) {
   if (!d.enough) return `<div class="empty">Changes in taste need a few years of diary, or a year or two with plenty of films in each stretch.</div>`;
   const rows = d.list.map((x) => { const c = driftCols(x);
-    return `<div class="drift"><div class="dt"><h3>${dlink(x.to, esc(x.big))}</h3><p>${dline(x.to, esc(x.text))}</p></div><div class="dc">${colChart(c.cols, x.big, "", 56, c.grid)}</div></div>`; }).join("");
+    return `<div class="drift"><div class="dt"><h3>${dlink(x.to, esc(x.big))}</h3><p>${dline(x.to, esc(x.text))}</p></div><div class="dc">${colChart(c.cols, x.big, "", 56, { grid: c.grid, unit: c.unit })}</div></div>`; }).join("");
   const steady = d.steady.length ? `<h3 class="sub-h">What hasn't changed</h3>` + lineItems(d.steady, () => "=") : "";
   return (rows ? `<div class="drifts">${rows}</div><p class="status">Each column is a stretch of your diary; click one to see its films.</p>` : `<p class="lead">No clear, lasting change in what you watch: your taste has held its course.</p>`) + steady;
 }
 
 function ratingsBlock(R) {
   if (R.n < 20) return `<div class="empty">This needs at least 20 rated films with cast &amp; crew details.</div>`;
-  const shown = R.follow.filter((f) => f.pct >= 1), max = Math.max(1, ...shown.map((f) => f.pct));
+  // bars against at least 25%, so a small share never fills the bar
+  const shown = R.follow.filter((f) => f.pct >= FOLLOW_MIN), max = Math.max(25, ...shown.map((f) => f.pct));
   const follow = shown.length ? `<p class="lead">${esc(R.followText || "")}</p>
     ${rankRows(shown.map((f) => ({ ...f, name: f.label })), (f) => `${f.pct}%`, (f) => f.pct / max, 1, () => "")}
     <p class="status">How much of the ups and downs in your ratings each thing accounts for. Each film's rating is guessed from the other films that share it, never from itself. Click one to see your averages.</p>` : "";
@@ -100,7 +101,7 @@ function renderYearInsights(Y) {
     return dlink(D.films(`${v} in ${Y}`, filmsSub(fs), fs, { scope: Y }), esc(v)); }).join(", ")}.` : "";
   const places = R.newCountries.length || R.newLangs.length ? `<p class="lead" style="margin-top:14px">${newOnes(`First seen in ${esc(Y)}: countries`, R.newCountries, "k")} ${newOnes("Languages", R.newLangs, "l")}</p>` : "";
   $("#insights").innerHTML = [
-    section("y-glance", `${esc(Y)} in short`, `The year's clearest differences. ${dlink(R.n.entries && D.share(Y), "Share the year as an image")}`, glanceBlock(R.overview, `Nothing about ${esc(Y)} stands out clearly from your other years yet.`)),
+    section("y-glance", `${esc(Y)} in short`, `The year's clearest differences. ${dlink(R.n.entries && D.story(Y), "▶ Play it as a story")} · ${dlink(R.n.entries && D.share(Y), "share it as a picture")}`, glanceBlock(R.overview, `Nothing about ${esc(Y)} stands out clearly from your other years yet.`)),
     section("y-differ", "What set it apart", `What ${esc(Y)}'s films were made of, against your other years.`, differ + places),
     section("y-chapters", `${esc(Y)}, month by month`, "Stretches of the year that stood apart.", chaptersBlock(R.chapters, null, false).replace("No stretch of your diary", `No stretch of ${esc(Y)}`)),
     section("y-ratings", `Ratings in ${esc(Y)}`, "The year against your usual, with the crowd's view of the same films.", findings(R.ratings, `Not enough rated films in ${esc(Y)}.`)),

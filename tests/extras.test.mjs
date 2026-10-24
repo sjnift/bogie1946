@@ -1,14 +1,42 @@
-// The year picture, On this day, Watch next, and the site still installing as an app.
+// The pictures to share (a year, all time, a taste match; feed post or story), the year as a story, On this day,
+// Watch next, and the site still installing as an app.
 import { open, assert, noErrors } from "./lib.mjs";
 
 export default async function ({ browser, base }) {
   for (const [file, phone] of [["desktop.html", false], ["mobile.html", true]]) {
     const p = await open(browser, base, file, { phone });
+    const panel = phone ? "#sheet" : "#dlg";
+    const imgSize = async (want, what) => {
+      await p.waitForFunction((want) => { const i = document.querySelector(".share-img"); return i && i.complete && `${i.naturalWidth}x${i.naturalHeight}` === want; }, want, { timeout: 15000 }).catch(() => {});
+      const size = await p.$eval(".share-img", (img) => [img.naturalWidth, img.naturalHeight].join("x"));
+      assert(size === want, `${file} ${what}: image ${size}`);
+    };
+    const close = async () => { await p.keyboard.press("Escape"); await p.waitForTimeout(150); };
     await p.goto(`${base}${file}?example#/insights/2025`); await p.waitForFunction(() => typeof state === "object" && state.lib);
-    await p.click(phone ? 'button:has-text("Share 2025 as an image")' : "#y-glance .dlink");
+    await p.click(phone ? 'button:has-text("Share 2025 as an image")' : '#y-glance .dlink:has-text("share it as a picture")');
     await p.waitForSelector(".share-img", { timeout: 15000 });
-    const size = await p.$eval(".share-img", (img) => [img.naturalWidth, img.naturalHeight].join("x"));
-    assert(size === "1080x1350", `${file}: image ${size}`);
+    await imgSize("1080x1350", "2025 feed post");
+    await p.click('[data-sharesize="story"]');
+    await imgSize("1080x1920", "2025 story");
+    await p.click('[data-sharesize="feed"]');
+    await close();
+    // the year as a story: every card, in turn, and the findings filled in
+    await p.click(phone ? 'button:has-text("Play 2025 as a story")' : '#y-glance .dlink:has-text("Play it as a story")');
+    await p.waitForSelector(`${panel} .story`);
+    const cards = await p.$$eval(`${panel} .st-card`, (x) => x.length);
+    for (let i = 1; i < cards; i++) await p.click(`${panel} [data-story-step="1"]`);
+    const end = await p.evaluate((panel) => ({ on: [...document.querySelectorAll(`${panel} .st-card`)].findIndex((c) => c.classList.contains("on")), find: document.querySelector(`${panel} [data-storyfind]`).textContent }), panel);
+    assert(cards >= 5 && end.on === cards - 1 && !/Working it out/.test(end.find), `${file} story: ${cards} cards, ended on ${end.on}, findings "${end.find.slice(0, 80)}"`);
+    await close();
+    // all time, from the main page
+    await p.goto(`${base}${file}?example#/${phone ? "profile" : ""}`); await p.waitForFunction(() => typeof state === "object" && state.lib);
+    await p.evaluate((phone) => phone ? openSheet(D.share("all")) : openDrill(D.share("all")), phone);
+    await imgSize("1080x1350", "all time");
+    await close();
+    // a taste match with an example friend
+    await p.evaluate((phone) => { const f = EXAMPLE_FRIENDS[0]; return phone ? openSheet(D.shareMatch(f.id, f.name)) : openDrill(D.shareMatch(f.id, f.name)); }, phone);
+    await imgSize("1080x1350", "taste match");
+    await close();
     noErrors(p, file);
   }
   const d = await open(browser, base, "desktop.html", { worker: true });

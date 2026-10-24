@@ -23,6 +23,55 @@ async function addFriend(files) {
   return existing ? existing.id : FRIENDS[FRIENDS.length - 1].id;
 }
 function removeFriend(id) { FRIENDS = FRIENDS.filter((f) => f.id !== id); saveFriends(); }
+// The site owner's card of ratings (docs/taste.json), when they let visitors compare with them: read once a page,
+// checked like everything else from outside, and never saved except as a friend the visitor chose to add.
+let TASTE = null, tasteReady = Promise.resolve();
+function loadTasteCard() {
+  if (IN_VIEWER || !/^https?:$/.test(location.protocol)) return tasteReady;
+  tasteReady = fetch(`taste.json?t=${Date.now()}`, { cache: "no-store" }).then((r) => r.ok ? r.json() : null).then((j) => { TASTE = safeTaste(j); }).catch(() => {});
+  return tasteReady;
+}
+function safeTaste(j) {
+  if (!j || typeof j.user !== "string" || !Array.isArray(j.films)) return null;
+  const user = j.user.replace(/[^\w.-]/g, "").slice(0, 40);
+  if (!user) return null;
+  const films = j.films.filter((x) => Array.isArray(x) && typeof x[0] === "string" && x[0].trim()).slice(0, 30000)
+    .map(([n, y, r, l]) => [String(n).slice(0, 300), parseInt(y, 10) || 0, Math.min(5, Math.max(0, Math.round((Number(r) || 0) * 2) / 2)), l ? 1 : 0]);
+  return { user, from: String(j.from || "").slice(0, 30), at: String(j.at || "").slice(0, 30), films };
+}
+// The card as an export's rows, so it compares like any friend's export (no diary: habits stay empty).
+const tasteRows = (T) => ({ profile: [{ Username: T.user }], diary: [], reviews: [], watchlist: [],
+  watched: T.films.map(([n, y]) => ({ Name: n, Year: y ? String(y) : "" })),
+  ratings: T.films.filter((x) => x[2]).map(([n, y, r]) => ({ Name: n, Year: y ? String(y) : "", Rating: String(r) })),
+  likes: T.films.filter((x) => x[3]).map(([n, y]) => ({ Name: n, Year: y ? String(y) : "" })) });
+// A visitor (not the owner) who hasn't added them yet is offered the owner.
+const tasteOffer = () => TASTE && MY_LIB && state.mode === "mine" && String(MY_LIB.profile.username || "").toLowerCase() !== TASTE.user.toLowerCase()
+  && !FRIENDS.some((f) => f.id === "site" || f.name.toLowerCase() === TASTE.user.toLowerCase());
+function addSiteOwner() {
+  const rows = tasteRows(TASTE), lib = buildLibrary(rows);
+  const existing = FRIENDS.find((f) => f.id === "site" || f.name.toLowerCase() === TASTE.user.toLowerCase());
+  if (existing) Object.assign(existing, { rows, lib }); else FRIENDS.push({ id: "site", name: TASTE.user, rows, lib });
+  saveFriends();
+  return existing ? existing.id : "site";
+}
+// A visitor who added the owner keeps up with a newer card.
+function tasteRefresh() {
+  const f = TASTE && FRIENDS.find((x) => x.id === "site");
+  if (f && JSON.stringify(f.rows.ratings) !== JSON.stringify(tasteRows(TASTE).ratings)) { addSiteOwner(); return true; }
+  return false;
+}
+document.addEventListener("click", (e) => {
+  if (!e.target.closest("[data-compare-owner]") || !TASTE) return;
+  state.cmp = addSiteOwner();
+  Object.assign(state, { cmpError: "", cmpTab: "overview" });
+  DATA_REV++;
+  autoLookup(allFilmsLib());
+  render();
+});
+// The offer, for Compare on either layout.
+const tasteOfferHtml = (phone) => tasteOffer() ? `<div class="${phone ? "card glow" : "site-in taste-offer"}" style="margin-top:12px"><p class="${phone ? "title" : "sub-h"}">Compare with @${esc(TASTE.user)}</p>
+  <p class="status">@${esc(TASTE.user)}, who runs this site, shares their ratings: see how your taste matches theirs, with nothing to send.</p>
+  <button class="btn ${phone ? "green block" : "primary small"}" type="button" data-compare-owner>Compare with @${esc(TASTE.user)}</button></div>` : "";
 // Everyone in the comparison: you first, then friends (example ones with the example diary).
 function comparePeople() {
   const ex = state.mode === "example";

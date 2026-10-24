@@ -22,7 +22,7 @@ function paintPanel() {
   if (body) body.scrollTop = 0;
   const q = $("#search-q");
   if (q && d.kind === "search") { q.focus(); q.setSelectionRange(q.value.length, q.value.length); }
-  fillFilmo(dlg); fillShare(dlg);
+  fillFilmo(dlg); fillShare(dlg); fillStory(dlg);
 }
 const repaintDrill = () => { if ($("#dlg").open) paintPanel(); else if (state.page === "drill") renderDrillPage(); };
 // From the page a drill starts a new pop-up; from inside the pop-up it stacks, with Back. Each step is a

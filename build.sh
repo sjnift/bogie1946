@@ -5,7 +5,7 @@
 # With TMDB_KEY set, the key is written into the two standalone files only, so their owner never has to paste it.
 set -e
 cd "$(dirname "$0")"
-SHARED="src/04-example.js src/05-core.js src/06-lookup.js src/06b-charts.js src/06d-letterboxd.js src/06c-insights.js src/06e-compare.js src/06f-reviews.js src/06g-drill.js src/06h-more.js src/06i-share.js src/06j-site.js src/06k-study.js"
+SHARED="src/04-example.js src/05-core.js src/06-lookup.js src/06b-charts.js src/06d-letterboxd.js src/06c-insights.js src/06e-compare.js src/06f-reviews.js src/06g-drill.js src/06h-more.js src/06i-share.js src/06j-site.js src/06k-study.js src/06l-filter.js src/06m-story.js"
 DESK_HEAD="src/01-head.html src/02-style.html"
 DESK_BODY="src/03-body.html $SHARED src/07-render-a.js src/07-render-b.js src/07-render-c.js src/07c-insights.js src/07d-compare.js src/07e-reviews.js src/07f-drill.js src/08-events.js"
 MOB_HEAD="src/m01-head.html"
@@ -36,11 +36,24 @@ fi
 # The GitHub Pages site in docs/: both layouts on one origin, so they share one import and one saved key.
 # Never takes TMDB_KEY: this site is public. It installs as an app: a manifest, icons and a service worker.
 mkdir -p docs/icons docs/vendor
-cp src/site/manifest.webmanifest src/site/sw.js docs/
+cp src/site/manifest.webmanifest src/site/sw.js src/site/og.png docs/
 cp src/site/icons/*.png docs/icons/
 # Papa Parse and JSZip come from the site itself, not a CDN, so nobody else can change what runs here
 cp src/site/vendor/*.js docs/vendor/
 VENDOR='s|https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js|vendor/papaparse.min.js|; s|https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js|vendor/jszip.min.js|' 
+# What a shared link shows (WhatsApp, iMessage…): a title, a line and a picture (src/site/og.png, from tools/make_og.mjs)
+SITE_URL="https://sjnift.github.io/bogie1946/"
+PREVIEW='<meta name="description" content="Free stats, insights and taste comparisons from your Letterboxd export. Your diary stays in your browser.">\
+<meta property="og:type" content="website">\
+<meta property="og:site_name" content="Credits Roll">\
+<meta property="og:title" content="Credits Roll: your Letterboxd diary, in numbers">\
+<meta property="og:description" content="Free stats, insights and taste comparisons from your Letterboxd export. Your diary stays in your browser.">\
+<meta property="og:url" content="'"$SITE_URL"'">\
+<meta property="og:image" content="'"$SITE_URL"'og.png">\
+<meta property="og:image:width" content="1200">\
+<meta property="og:image:height" content="630">\
+<meta property="og:image:alt" content="Credits Roll: your Letterboxd diary, in numbers">\
+<meta name="twitter:card" content="summary_large_image">'
 APP_HEAD='<link rel="manifest" href="manifest.webmanifest">\
 <meta name="theme-color" content="#1B2128">\
 <meta name="mobile-web-app-capable" content="yes">\
@@ -48,7 +61,8 @@ APP_HEAD='<link rel="manifest" href="manifest.webmanifest">\
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">\
 <meta name="apple-mobile-web-app-title" content="Credits Roll">\
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">\
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">'
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">\
+'"$PREVIEW"
 SW_REGISTER='<script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js", { updateViaCache: \"none\" }).catch(() => {});</script>'
 app() { sed -e "s|<meta charset=\"utf-8\">|<meta charset=\"utf-8\">\\
 $APP_HEAD|" -e "s|</body>|$SW_REGISTER\\
@@ -58,7 +72,7 @@ standalone "$DESK_HEAD" "$DESK_BODY" | stamp | app | sed -e "$VENDOR" \
   -e 's|It keeps its own copy of your import, so import there too.|It uses the same import.|' > docs/desktop.html
 standalone "$MOB_HEAD" "$MOB_BODY" | stamp | app | sed -e "$VENDOR" \
   -e 's|https://claude.ai/artifact/52oE5x53dcjUZgBYQMfPjR" target="_blank" rel="noopener"|desktop.html"|' \
-  -e 's|It keeps its own copy of your import.|It uses the same import.|' > docs/mobile.html
+  -e 's|It keeps its own copy of your import.|It uses the same import.|' -e 's|<title>Credits Roll Mobile</title>|<title>Credits Roll</title>|' > docs/mobile.html
 cat > docs/index.html <<'HTML'
 <!doctype html>
 <html lang="en">
@@ -66,6 +80,7 @@ cat > docs/index.html <<'HTML'
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Credits Roll</title>
+<!--PREVIEW-->
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#1B2128">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -78,6 +93,8 @@ cat > docs/index.html <<'HTML'
 <body><p>Opening Credits Roll… <a href="desktop.html">Desktop</a> · <a href="mobile.html">Phone</a></p></body>
 </html>
 HTML
+# the landing page carries the link preview too (it's the address people share)
+printf '%s\n' "$PREVIEW" | sed 's/\\$//' > docs/.preview && sed -i -e '/<!--PREVIEW-->/{r docs/.preview' -e 'd}' docs/index.html && rm docs/.preview
 touch docs/.nojekyll
 # the site's pages run only their own code (see tools/csp.mjs)
 node tools/csp.mjs docs/desktop.html docs/mobile.html docs/index.html

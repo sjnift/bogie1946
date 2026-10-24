@@ -44,7 +44,7 @@ function mReviewInsights(lib, Y) {
   }
   const chips = (ws, to) => ws.length ? `<div class="wchips">${ws.map((w) => `<button type="button" ${dl(to(w))}>${esc(w)}</button>`).join("")}</div>` : `<p class="status">Not enough reviews yet.</p>`;
   if (RI.love.length || RI.cold.length) h += sh("Your words for…") + `<div class="card"><p class="k status">When you love a film</p>${chips(RI.love, RI.loveTo)}<p class="k status" style="margin-top:6px">When you don't</p>${chips(RI.cold, RI.coldTo)}</div>`;
-  if (RI.perYear.length >= 2) h += sh("Reviews each year") + `<div class="card">${colChart(RI.perYear.map((p) => ({ a: p.count, b: 0, label: `’${p.year.slice(2)}`, tip: `${p.year}: ${plural(p.count, "review")}`, to: p.to })), "Reviews written each year", "", 80)}</div>`;
+  if (RI.perYear.length >= 2) h += sh("Reviews each year") + `<div class="card">${colChart(RI.perYear.map((p) => ({ a: p.count, b: 0, label: `’${p.year.slice(2)}`, tip: `${p.year}: ${plural(p.count, "review")}`, to: p.to })), "Reviews written each year", "", 80, { unit: "reviews" })}</div>`;
   h += sh(`Your longest review${Y ? ` of ${esc(Y)}` : ""}`) + mReviewItem(RI.longest);
   return h;
 }

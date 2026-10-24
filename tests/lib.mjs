@@ -41,6 +41,7 @@ export async function open(browser, base, file, { phone = false, downloads = fal
   await ctx.route(/\/diary\//, (r) => r.fulfill({ status: 404, body: "not found" }));
   // and no TMDB key shared with visitors, unless a check stands in for it
   await ctx.route(/\/share\.json/, (r) => r.fulfill({ status: 404, body: "not found" }));
+  await ctx.route(/\/taste\.json/, (r) => r.fulfill({ status: 404, body: "not found" }));
   // anything the page's security policy blocks counts as an error: a feature it would quietly break
   await ctx.addInitScript(() => addEventListener("securitypolicyviolation", (e) => console.error(`CSP blocked ${e.violatedDirective}: ${e.blockedURI || "inline code"}`)));
   const page = await ctx.newPage();
@@ -63,8 +64,8 @@ export function assert(ok, message) { if (!ok) throw new Error(message); }
 export function noErrors(page, where) { assert(!page.errors.length, `${where}: page errors: ${page.errors.join(" | ")}`); }
 export const text = (page, sel) => page.$eval(sel, (e) => e.innerText.replace(/\s+/g, " ").trim());
 // Waits for a condition in the page, with a clear message when it never comes.
-export async function until(page, fn, what, arg) {
-  try { await page.waitForFunction(fn, arg, { timeout: 8000 }); } catch { throw new Error(`timed out waiting for ${what}`); }
+export async function until(page, fn, what, arg, timeout = 8000) {
+  try { await page.waitForFunction(fn, arg, { timeout }); } catch { throw new Error(`timed out waiting for ${what}`); }
 }
 // Every screen and section of the phone layout, opened in turn; `each` runs on each with a name for it.
 export async function phoneTour(m, each) {
