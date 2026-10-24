@@ -321,6 +321,11 @@ app**. `06j-site.js`:
   character password are what stand in the way, and the password guards the GitHub key (which can change the site).
 - Everything secret on a device (keys, GitHub key, the diary key) is in that browser's storage for the origin
   `sjnift.github.io`, which every GitHub Pages site of the owner's account shares.
+- The owner's decision (24 Oct 2026), after being offered each fix with its cost: **keep** the lock as it is
+  (600,000 iterations, 10+ characters), the diary in this repository with a key for this repository, and the
+  `github.io` address; **no** stronger lock, separate diary repository or own domain. Don't offer these again unless
+  they ask. They turned on GitHub's email privacy setting themselves. The diary on the site was upgraded to the
+  signed layout with all keys on 24 Oct 2026 (12:20 IST, from their first computer).
 
 ## Daily diary updates
 
@@ -402,8 +407,8 @@ day, shared with the owner's own app. The in-app version is the "Check film data
   squashed.
 - The password now guards the GitHub key too (it can change the site), so it should be long and used nowhere else.
 - The owner's email is in the author line of eleven commits from 22–23 Oct 2026 (ten early ones, and the first diary
-  upload); new commits never carry it. Removing it from those means rewriting the repository's history (the owner's
-  choice).
+  upload); new commits never carry it. Removing it from those means rewriting the repository's history (offered;
+  the owner's choice, not done).
 - A forgotten password can't be recovered: the device that puts the diary there changes it (it keeps the key).
 - Inside the Claude artifacts, downloads (backup, year picture) don't work; backups are hidden there and the
   picture can be saved by right-click or long-press. Declaring the artifact `downloads` capability would fix it.
