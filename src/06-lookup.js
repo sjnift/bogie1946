@@ -199,6 +199,17 @@ function spokenIn(d) {
   const chinese = ["cn", "zh"];
   return spoken.length === 1 && d.original_language && spoken[0] !== d.original_language && !(chinese.includes(spoken[0]) && chinese.includes(d.original_language)) ? spoken[0] : d.original_language;
 }
+// Background lookups save as they go but redraw the page at most every LOOKUP_REDRAW ms (each redraw works every stat
+// out again, which on a big diary keeps a phone busy for a second or more), and once when they finish; the progress
+// line updates by itself in between. Owner's report, Oct 2026: the site was slow after opening the diary on a device,
+// because IMDb scores being fetched redrew everything every 25 films.
+const LOOKUP_REDRAW = 15000;
+let lookupRedrawAt = 0, lookupRedrawTimer = null;
+function lookupRender() {
+  const wait = lookupRedrawAt + LOOKUP_REDRAW - Date.now();
+  if (wait <= 0) { lookupRedrawAt = Date.now(); scheduleRender(); return; }
+  if (!lookupRedrawTimer) lookupRedrawTimer = setTimeout(() => { lookupRedrawTimer = null; lookupRedrawAt = Date.now(); scheduleRender(); }, wait);
+}
 async function runTmdb(lib, key) {
   const queue = needsLookup(lib, "tmdb");
   Object.assign(job, { running: true, kind: "tmdb", ctl: new AbortController(), done: 0, total: queue.length, failed: 0, note: "", err: false, badKey: false });
@@ -224,7 +235,7 @@ async function runTmdb(lib, key) {
         job.failed++;
       }
       job.done++;
-      if (++sinceSave >= 25) { sinceSave = 0; saveMeta(); scheduleRender(); }
+      if (++sinceSave >= 50) { sinceSave = 0; saveMeta(); lookupRender(); }
       renderLookupProgress();
     }
   };
@@ -298,7 +309,7 @@ async function runOmdb(lib, key) {
         stop = "network"; return;
       }
       imdbJob.done++;
-      if (++sinceSave >= 25) { sinceSave = 0; saveMeta(); scheduleRender(); }
+      if (++sinceSave >= 100) { sinceSave = 0; saveMeta(); } // scores only: the page redraws once, at the end
       renderLookupProgress();
     }
   };

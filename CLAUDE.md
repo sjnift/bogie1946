@@ -214,7 +214,10 @@ The owner asked for this to be checked every time. A film, diary entry, person o
   timelines until the data changes (`DATA_REV`, bumped by `scheduleRender`, imports, the feed, friends and
   fixes; also lib/META/LBX/FRIENDS identity). `render()` patches the screen with `morph()` when the same screen
   redraws (posters stay loaded, side scrolls keep their place; `data-k` keys rows that move) and replaces it
-  when the screen changes. Insights are worked out ahead in idle time (`warmUp`). Long lists load more as you
+  when the screen changes. Insights are worked out ahead in idle time (`warmUp`, one piece per idle moment).
+  Background lookups redraw at most every 15 s and once at the end (`lookupRender`; OMDb, scores only, just at the
+  end): the owner found the site slow after opening the diary on a device (Oct 2026) because IMDb scores being
+  fetched redrew everything every 25 films (on a slowed phone with a 1,560-film diary, busy 15 s of every 25; now 4). Long lists load more as you
   scroll (`data-auto`). Each tab remembers its scroll (`SCROLL`); tapping the current tab scrolls to the top.
 - Motion respects reduced motion; the checks run with reduced motion, so sheets close at once there.
 - Don't give an element both a phone class and a name used by the layout (a weekday bar called `.top` once

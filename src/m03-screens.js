@@ -137,20 +137,22 @@ function render(motion) {
   requestAnimationFrame(updateTop);
   warmUp();
 }
-// While nothing is happening, work out Insights for all years and the chosen year, so its tab opens at once.
+// While nothing is happening, work out Insights for all years and the chosen year, so its tab opens at once: one piece
+// per idle moment, so a tap in between isn't kept waiting behind all of it.
 let warmQueued = false;
 function warmUp() {
   if (warmQueued) return;
   warmQueued = true;
   const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 1200));
-  idle(() => {
-    warmQueued = false;
-    const lib = state.lib;
-    if (!lib.entries.length || lib.filtered) return; // Insights use the whole diary
-    allStudy(); allInsights();
-    const Y = state.scope !== "all" ? state.scope : YEARS[0];
-    if (Y) { yearStudy(Y); yearInsights(Y); }
+  const lib = state.lib, Y = state.scope !== "all" ? state.scope : YEARS[0];
+  const steps = [allInsights, allStudy, ...(Y ? [() => yearInsights(Y), () => yearStudy(Y)] : [])];
+  const next = () => idle(() => {
+    // stop if the diary changed meanwhile (the next redraw starts again) or isn't the whole diary (filters on)
+    if (state.lib !== lib || !lib.entries.length || lib.filtered || !steps.length) { warmQueued = false; return; }
+    steps.shift()();
+    if (steps.length) next(); else warmQueued = false;
   }, { timeout: 5000 });
+  next();
 }
 $("#screen").addEventListener("animationend", (e) => { if (e.target.id === "screen") e.target.classList.remove("enter-push", "enter-pop", "enter-tab"); });
 
