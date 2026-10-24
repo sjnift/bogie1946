@@ -54,6 +54,11 @@ Where it lives:
   - Highest-rated actors over **all time** need **6 rated films** each (`CAST_MIN_RATED`, `s.castMinRated`); a single
     year, and every other kind of person, keeps `minRated` (2, or 3 for 150+ films).
   - The best-rated decade is featured with its films' posters (phone Breakdown and desktop "Released").
+  - **Insights is a study of the diary, not a repeat of the Stats page** (they found the old one inadequate and
+    repetitive, Oct 2026): what stood apart and when, how taste moved, what ratings follow and why, how one film led to
+    another, and habits with what they explain. No counts or top lists the Stats page already shows (the `study` check
+    looks for them). It's worked out in the browser with no AI: they were offered Claude writing it through an
+    Anthropic API key (about 20–50 cents a study) and chose to keep it free.
   - **Their diary lives on the site, locked with a password** (see "The diary on the site"), so no device needs an
     import. Never put it there unencrypted, and never with their email address (the keys go in their own encrypted part).
   - **No "main computer"**: every device where the password was typed is equal. It updates the site, and what any
@@ -121,11 +126,13 @@ The owner asked for this to be checked every time. A film, diary entry, person o
 - Shared, in order: `04-example.js` (the example diary and example friends), `05-core.js` (helpers, storage,
   reading the export, `buildLibrary`, `reviewParts`, `cleanMeta`, `computeStats`), `06-lookup.js` (TMDB,
   OMDb, Claude lookups, `fixMatch`), `06b-charts.js` (column chart, timeline, calendar heatmap),
-  `06d-letterboxd.js` (Letterboxd averages through Apify), `06c-insights.js` (`computeInsights`,
-  `computeYearInsights`, `yearDrill`, `crowdDrill`), `06e-compare.js` (friends, `tasteProfile`, `comparePair`,
+  `06d-letterboxd.js` (Letterboxd averages through Apify), `06c-insights.js` (`CROWDS`, `crowdDrill`, `defaultCrowd`;
+  `computeInsights`/`computeYearInsights` now only feed the year picture), `06e-compare.js` (friends, `tasteProfile`, `comparePair`,
   `compareGroup`, `habitRows`), `06f-reviews.js` (review insights), `06g-drill.js` (the drill system and the
   film card), `06h-more.js` (daily feed merge, backups, search, On this day, Watch next, filmographies),
-  `06i-share.js` (the year picture), `06j-site.js` (the diary kept on the site, locked with a password).
+  `06i-share.js` (the year picture), `06j-site.js` (the diary kept on the site, locked with a password),
+  `06k-study.js` (Insights: `computeStudy`, `computeYearStudy`, and the pieces both layouts draw, `driftCols`,
+  `chapterStrip`; see "Insights, the study").
 - `src/site/`: `manifest.webmanifest`, `sw.js` (network-first service worker; skips TMDB, OMDb, Apify),
   icons (drawn by `tools/make_icons.py`).
 - `scripts/feed.mjs` and `.github/workflows/`: the daily feed and the checks (below).
@@ -162,7 +169,7 @@ The owner asked for this to be checked every time. A film, diary entry, person o
   `films`, `people`, `genres` are three views, the last labelled **Breakdown** because it also holds countries,
   languages and decades; it opens with the best-rated decade and its posters, and ranks decades with three
   posters each; the tab remembers the last view), **Insights** (the year chips pick
-  all years or one; underlined section tabs: `state.insTab` / `state.yearTab`), **Compare** (friend chips,
+  all years or one; underlined section tabs: `state.insTab` (`INS_TABS`) / `state.yearTab` (`YEAR_TABS`)), **Compare** (friend chips,
   section tabs `state.cmpTab`). Pushed screens (`state.stack`): `data` (Settings: import, lookups, backups,
   footer stamp), `reviews`, `watchnext`, `cat`, `drill` ("See all").
 - The year chips (`scopeBar()`, `#scopes`) are the one year picker everywhere, Insights included
@@ -206,9 +213,33 @@ friend replaces the address instead.
   a year shows its last ones), films, hours, diary, ratings, rewatches, reviews, most watched actors/directors/crew, genres,
   countries, languages, decades, milestones with posters, records, On this day, Watch next, Reviewed (search; the desktop
   main page shows the latest 3, cut short, and "All N reviews" opens the rest: `REVIEWS_SHOWN`).
-- **Insights**: all years (at a glance, year by year, changing tastes, genres, people, against the crowd,
-  reviews, habits) and each year (against the year before, months, best of, people, crowd, reviews, habits).
+- **Insights**: a study of the diary (below): all years (in short, chapters, how taste has moved, what ratings
+  follow, one film to the next, habits, against the crowd, reviews) and each year against the rest of the diary (in
+  short, what set it apart, its months, ratings, threads, habits, crowd, reviews, the year picture).
   "Against the crowd" uses Letterboxd (Apify), IMDb/Metacritic (OMDb) or TMDB scores.
+
+### Insights, the study (`06k-study.js`)
+
+Taste is read from first watches (`studyBase`: each film once, as first seen; `newDir` when none of its directors
+had been seen), habits from every entry. A finding is said only when it's big enough to matter and `STUDY_Z` (3)
+standard errors or more from what the rest of the diary gives; every sentence opens its films through `drill()`.
+- Periods (`pickUnit`, `studyPeriods`): quarters, halves or years, whichever holds a few dozen films each.
+- Chapters: periods whose films stand out against the rest of the diary (`standouts`: a genre, decade, language,
+  country, director or actor far over its usual share) are joined while they stand out for the same thing; up to six
+  months is a "season", longer a "phase". A seasonal habit (horror every October) isn't also a chapter (`notSeasonal`).
+- Drifts: shares and typical values per period (genres, not in English, languages, new releases, new directors, age
+  when watched, length, popularity, the crowd's score, range of countries), fitted with a weighted line for whether
+  it's real (`fitLine`, t ≥ 3), but said with what was actually watched in the first and last third.
+- Ratings: what they follow (each film's rating guessed from the others sharing a director, decade…, never itself;
+  the share of the ups and downs that removes), what's liked beyond reputation (rating against the one the crowd's
+  score predicts, by genre, decade, language, country, a director, length, popularity…), tougher or choosier (your
+  ratings and the crowd's view of the same films, early against late; a lower bar, t ≥ 2.5), directors who never let
+  you down or divide you.
+- Threads: doors that opened (four or more by one person within 120 days), chains (each film sharing someone with one
+  seen in the ten days before), people you keep coming back to. Habits: weekends, a genre's month, a month for
+  rewatching, comfort after a break, busy against quiet months, marathon days, logging and rating over time, second looks.
+- Speed: about 0.5 s for 2,000 films on a phone slowed four times; the phone works it out in idle time (`warmUp`) and
+  keeps it (`memo`: `study|crowd`, `ystudy|year|crowd`); the desktop keeps it until the data changes (`STUDY_CACHE`).
 - **Compare**: add friends' export ZIPs (stored in the browser); taste match, overlap, agree/disagree, rating
   style, genres, people, watch next for each other, watch together, habits; Everyone view for 2+ friends.
 - **Search** (desktop button or `/`; phone magnifier), **filmography progress** for people (TMDB person
@@ -347,7 +378,9 @@ with `?example` (pass `example: false` for an empty browser; a check's own `goto
 `apify`, `check` (film data check), `counts` (double counting), `reviews` (missing review text spotted; six-film actors), `welcome` (no example diary; import saved at once), `extras` (year picture, On this day, Watch next, PWA), `feed`, `import`,
 `links` (every link opens something), `pages` (nothing broken shows, no sideways scroll on the phone),
 `routes`, `storage` (IndexedDB move, backup and restore), `site` (the diary on the site: a stand-in GitHub and site),
-`tmdb` (fixing a match, filmography, search), `xss` (nothing from outside can run code, about a minute). `lib.mjs`
+`tmdb` (fixing a match, filmography, search), `xss` (nothing from outside can run code, about a minute), `study` (a
+five-year diary with patterns planted in it: the study finds them on both layouts and for a year, repeats nothing from
+the Stats page, and every list it opens holds each film once). `lib.mjs`
 also cuts off api.github.com and jsdelivr, answers `diary/` with "not found", and counts anything the security policy
 blocks as a page error.
 
@@ -398,6 +431,10 @@ day, shared with the owner's own app. The in-app version is the "Check film data
 - The owner asked for admin things off the main page (Oct 2026) → the desktop Settings page.
 - The phone app was rebuilt in Oct 2026 (new tabs, sections, speed). With a 1,400-film diary on a slowed CPU,
   opening Insights went from about 1.5 s to about 50 ms, and taps generally take under 0.1 s.
+- The owner found Insights inadequate and a repeat of the Stats page (Oct 2026) and asked for a real study of their
+  watching that accounts for changing tastes and habits → the study in `06k-study.js`. Built against a made-up
+  2,000-film diary with planted patterns (a noir season, a Japanese phase, horror every October, a drift to older and
+  foreign films, growing tougher), all found; the `study` check keeps a smaller version of it.
 
 ## Known limits
 

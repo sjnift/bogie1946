@@ -118,6 +118,38 @@ main { padding-block: 8px 64px; }
 .habit .k { font-size: 12.5px; color: var(--muted); }
 .habit .v { font-weight: 700; font-size: 24px; color: var(--ink); line-height: 1.15; }
 .habit .t { color: var(--ink-2); font-size: 14px; }
+/* the study: findings, chapters on a strip of time, trends with small charts, runs of films */
+.findings { display: grid; gap: 12px; max-width: 86ch; }
+.finding { display: grid; grid-template-columns: minmax(150px, 210px) minmax(0, 1fr); gap: 4px 20px; align-items: baseline; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.finding:last-child { border-bottom: 0; padding-bottom: 0; }
+.finding .fk { font-family: var(--mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--gold-ink); }
+.finding .ft { font-size: 15.5px; color: var(--ink); }
+@media (max-width: 620px) { .finding { grid-template-columns: minmax(0, 1fr); } }
+.ch-strip { position: relative; height: 26px; margin: 4px 0 30px; border-radius: 6px; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); }
+.ch-strip .seg { all: unset; position: absolute; top: 3px; bottom: 3px; border-radius: 4px; cursor: pointer; background: var(--gold); min-width: 4px; }
+.ch-strip .seg:hover { filter: brightness(1.2); }
+.ch-strip .yr { position: absolute; top: 0; bottom: -18px; border-left: 1px solid var(--line); pointer-events: none; }
+.ch-strip .yr i { position: absolute; bottom: 0; left: 4px; font: 500 11px/1 var(--mono); font-style: normal; color: var(--muted); }
+.chapters { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+.chapter { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); padding: 16px 18px; display: grid; gap: 8px; align-content: start; min-width: 0; }
+.chapter .ch-title { font-family: var(--display); font-weight: 800; font-size: 30px; line-height: .95; text-transform: uppercase; letter-spacing: .01em; }
+.chapter .ch-title .dlink { text-decoration: none; }
+.chapter p { margin: 0; color: var(--ink-2); }
+.posters.strip { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; margin-top: 4px; }
+.posters.strip .poster .art { padding: 6px; }
+.posters.strip .poster .art .t { font-size: 12px; }
+.drifts { display: grid; gap: 18px; }
+.drift { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 10px 30px; align-items: center; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+.drift:last-child { border-bottom: 0; }
+.drift h3 { font-family: var(--display); font-weight: 800; font-size: 24px; line-height: 1; text-transform: uppercase; color: var(--gold-ink); margin-bottom: 6px; }
+.drift h3 .dlink { text-decoration: none; }
+.drift p { margin: 0; color: var(--ink); }
+.drift .cols { height: 64px; }
+.chart.bare .cols { border-bottom-color: var(--line); }
+@media (max-width: 760px) { .drift { grid-template-columns: minmax(0, 1fr); } }
+.threads { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 18px 24px; }
+.thread { display: grid; gap: 8px; align-content: start; min-width: 0; }
+.thread p { margin: 0; color: var(--ink); }
 
 /* ---------- reviews ---------- */
 .review-tools input { width: min(100%, 420px); padding: 9px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); }

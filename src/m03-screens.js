@@ -142,9 +142,9 @@ function warmUp() {
     warmQueued = false;
     const lib = state.lib;
     if (!lib.entries.length) return;
-    allInsights();
+    allStudy();
     const Y = state.scope !== "all" ? state.scope : YEARS[0];
-    if (Y) memo(`yins|${Y}|${crowdKey()}`, () => computeYearInsights(lib, metaOf, Y, crowdKey(), allInsights()));
+    if (Y) yearStudy(Y);
   }, { timeout: 5000 });
 }
 $("#screen").addEventListener("animationend", (e) => { if (e.target.id === "screen") e.target.classList.remove("enter-push", "enter-pop", "enter-tab"); });

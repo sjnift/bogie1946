@@ -15,7 +15,8 @@ function niceTick(max) {
 const personSub = (p) => `${plural(p.count, "film")}${p.avg ? ` · ${p.avg.toFixed(2)} average from ${plural(p.ratings.length, "rating")}` : ""}`;
 
 /* ---------- column chart: weeks, months, years, ratings, decades ---------- */
-function colChart(cols, aria, legend, H = 162) {
+// `grid` false leaves out the gridline, for small trend charts whose columns don't start from zero.
+function colChart(cols, aria, legend, H = 162, grid = true) {
   const max = Math.max(1, ...cols.map((c) => c.a + (c.b || 0)));
   const tick = niceTick(max);
   const bars = cols.map((c) => {
@@ -27,7 +28,7 @@ function colChart(cols, aria, legend, H = 162) {
       : `<div class="col" data-tip="${esc(c.tip)}">${segs.join("")}</div>`;
   }).join("");
   const axis = cols.map((c) => `<span${c.minor ? ' class="minor"' : ""}>${c.label || ""}</span>`).join("");
-  return `${legend || ""}<div class="chart"><div class="gridline" style="bottom:${(tick / max * H).toFixed(1)}px"><span>${fmtN(tick)}</span></div>
+  return `${legend || ""}<div class="chart${grid ? "" : " bare"}">${grid ? `<div class="gridline" style="bottom:${(tick / max * H).toFixed(1)}px"><span>${fmtN(tick)}</span></div>` : ""}
     <div class="cols" style="height:${H + 8}px" role="img" aria-label="${esc(aria)}">${bars}</div></div><div class="axis" aria-hidden="true">${axis}</div>`;
 }
 function timeline(s) {
