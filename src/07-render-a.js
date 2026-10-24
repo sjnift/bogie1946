@@ -188,10 +188,10 @@ function renderLookupBox() {
     body = coverage + (!todo ? (have < total ? `TMDB had no match for the other ${fmtN(total - have)}.</p>` : "All of them come from TMDB.</p>") :
       `TMDB can fill in ${missing ? `the missing ${fmtN(missing)}` : ""}${missing && replace ? " and " : ""}${replace ? `replace Claude's details for ${plural(replace, "film")}` : ""}.</p>`) +
       (todo && !askKey ? `<div class="lookup-row"><button class="btn primary" type="button" id="btn-tmdb">Look up ${plural(todo, "film")} on TMDB</button>
-        <span class="status">Using your saved TMDB key. <button class="linkish" type="button" id="btn-change-key">Change key</button></span></div>` :
+        <span class="status">${ownTmdbKey() ? "Using your saved TMDB key." : "Using this site's shared TMDB key."} <button class="linkish" type="button" id="btn-change-key">${ownTmdbKey() ? "Change key" : "Use your own key"}</button></span></div>` :
       todo ? `<div class="lookup-row">
         <label class="sr-only" for="tmdb-key">TMDB API key or read access token</label>
-        <input id="tmdb-key" type="password" autocomplete="off" spellcheck="false" placeholder="Paste your TMDB API key or read access token" value="${esc(key)}">
+        <input id="tmdb-key" type="password" autocomplete="off" spellcheck="false" placeholder="Paste your TMDB API key or read access token" value="${esc(ownTmdbKey())}">
         <button class="btn primary" type="button" id="btn-tmdb">Look up ${plural(todo, "film")}</button>
       </div>
       <p class="status">Get a free key from <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener">themoviedb.org/settings/api</a>. The key is saved in this browser (and in your locked diary on this site, if it's there) and sent only to TMDB.</p>` : "");

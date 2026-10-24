@@ -144,9 +144,9 @@ function lookupInner() {
     const todo = needsLookup(lib, "tmdb").length;
     const askKey = !tmdbKey() || editKey || job.badKey;
     body = todo && !askKey ? `<button class="btn green block" type="button" data-act="tmdb">Look up ${plural(todo, "film")} on TMDB</button>
-      <p class="status">Using your saved TMDB key. <button class="linkish" type="button" data-act="change-key">Change key</button></p>` :
+      <p class="status">${ownTmdbKey() ? "Using your saved TMDB key." : "Using this site's shared TMDB key."} <button class="linkish" type="button" data-act="change-key">${ownTmdbKey() ? "Change key" : "Use your own key"}</button></p>` :
       todo ? `<label class="sr-only" for="tmdb-key">TMDB API key or read access token</label>
-      <input class="key" id="tmdb-key" type="password" autocomplete="off" spellcheck="false" placeholder="TMDB API key or read access token" value="${esc(tmdbKey())}">
+      <input class="key" id="tmdb-key" type="password" autocomplete="off" spellcheck="false" placeholder="TMDB API key or read access token" value="${esc(ownTmdbKey())}">
       <button class="btn green block" type="button" data-act="tmdb">Look up ${plural(todo, "film")} on TMDB</button>
       <p class="status">Get a free key at <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener">themoviedb.org/settings/api</a>. It's saved in this browser (and in your locked diary on this site, if it's there) and sent only to TMDB.</p>` : have < total ? `<p class="status">TMDB had no match for ${plural(total - have, "film")}.</p>` : `<p class="status">Every film has details from TMDB.</p>`;
   } else if (sampleState === "ready") {

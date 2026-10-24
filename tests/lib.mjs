@@ -39,6 +39,8 @@ export async function open(browser, base, file, { phone = false, downloads = fal
   await ctx.route(/jszip/, (r) => r.fulfill({ contentType: "text/javascript", body: JSZIP }));
   // the diary kept on the site: none, unless a check stands in for it
   await ctx.route(/\/diary\//, (r) => r.fulfill({ status: 404, body: "not found" }));
+  // and no TMDB key shared with visitors, unless a check stands in for it
+  await ctx.route(/\/share\.json/, (r) => r.fulfill({ status: 404, body: "not found" }));
   // anything the page's security policy blocks counts as an error: a feature it would quietly break
   await ctx.addInitScript(() => addEventListener("securitypolicyviolation", (e) => console.error(`CSP blocked ${e.violatedDirective}: ${e.blockedURI || "inline code"}`)));
   const page = await ctx.newPage();

@@ -203,6 +203,7 @@ async function init() {
   try { history.replaceState(null, "", film ? filmHash(film) : routeBase()); } catch {}
   routeReady = true;
   openRouteFilm();
+  loadSharedKey();
   siteStart();
   // New diary entries from the daily feed, then a saved key picks up films not yet looked up.
   // (lookups wait until this device has what the site has, so nothing found elsewhere is looked up again)

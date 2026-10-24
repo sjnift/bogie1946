@@ -8,7 +8,18 @@ let PHOTOS = store.get(KEYS.photos, {});
 let EXAMPLE_META = {};
 // A personal downloaded copy gets its owner's TMDB key written in here at build time; published pages leave it empty.
 const BUILT_IN_TMDB_KEY = "" /*TMDB_KEY*/;
-const tmdbKey = () => store.get(KEYS.tmdb, "") || BUILT_IN_TMDB_KEY;
+const ownTmdbKey = () => store.get(KEYS.tmdb, "") || BUILT_IN_TMDB_KEY;
+// The site owner's TMDB key when they share it with visitors (share.json beside the pages, put there from their
+// Settings), for anyone without a key of their own. Kept in memory only, never saved: when the owner stops sharing,
+// visitors stop using it at their next visit.
+let SHARED_TMDB = "", sharedKeyReady = Promise.resolve();
+const tmdbKey = () => ownTmdbKey() || SHARED_TMDB;
+function loadSharedKey() {
+  if (IN_VIEWER || !/^https?:$/.test(location.protocol) || ownTmdbKey()) return sharedKeyReady;
+  sharedKeyReady = fetch(`share.json?t=${Date.now()}`, { cache: "no-store" }).then((r) => r.ok ? r.json() : null)
+    .then((j) => { SHARED_TMDB = j && typeof j.tmdb === "string" && /^[A-Za-z0-9._-]{3,500}$/.test(j.tmdb) ? j.tmdb : ""; }).catch(() => {});
+  return sharedKeyReady;
+}
 let editKey = false;
 let sampleFn = null;
 let sampleState = IN_VIEWER ? "pending" : "absent"; // pending | ready | off | absent
@@ -239,6 +250,7 @@ function startTmdb(lib) {
 // After an import, a copy that already knows a key looks films up without being asked.
 async function autoLookup(lib) {
   if (IN_VIEWER) return;
+  await sharedKeyReady;
   if (tmdbKey() && needsLookup(lib, "tmdb").length) await runTmdb(lib, tmdbKey());
   if (omdbKey() && !imdbJob.badKey && needsImdb(lib).length && siteLeadsLookups()) runOmdb(lib, omdbKey());
 }

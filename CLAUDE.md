@@ -3,7 +3,9 @@
 This file is everything a new session needs to keep working on Credits Roll. Read it fully before changing
 anything. **This repository is public: never write API keys, tokens or the owner's email into any file here** — the one
 exception, at the owner's request (Oct 2026), is their TMDB, OMDb, Apify and GitHub keys inside the *encrypted* diary
-on the site (`docs/diary/keys.bin`). Never in the clear.
+on the site (`docs/diary/keys.bin`). Never in the clear, with one more exception the owner asked for (Oct 2026): their
+**TMDB key only**, in `docs/share.json`, put there by the app when they turn on "Share my TMDB key with visitors" in
+Settings (see "Sharing the TMDB key with visitors"). Never write it there yourself, and never any other key.
 
 ## What it is
 
@@ -45,6 +47,9 @@ Where it lives:
   - Their TMDB key is saved in the browser for good, never asked for again. Their TMDB, OMDb and Apify keys travel to
     every device that opens the diary on the site, so they never type them twice.
   - They **can't pay for Apify**: stay inside Apify's free plan ($5 of credit a month).
+  - **Visitors use the owner's TMDB key** (asked Oct 2026): anyone who opens the site and imports their own export gets
+    cast & crew looked up with it, without typing a key, once the owner has turned sharing on in Settings. Only the
+    TMDB key is shared, never OMDb (its 1,000-a-day allowance is theirs), Apify (it costs money) or GitHub.
   - Every number, chart bar, poster, person and sentence opens the data behind it: a pop-up (desktop) or a
     bottom sheet (phone) first, with "See all on one page" when the list is long. The back button works.
   - Links look classy: gold text in sentences (desktop), white semibold in sentences (phone), a faint thin
@@ -345,6 +350,23 @@ app**. `06j-site.js`:
   so. (Before Oct 2026 it would have gone up and replaced the owner's diary on every device; the `site` check covers it.) Hidden in the Claude artifacts and in
   files opened from disk (`SITE_ON`). Checks see no diary on the site unless they stand in for it (`lib.mjs`).
 
+## Sharing the TMDB key with visitors
+
+The owner wanted other people's imports to get cast & crew with their TMDB key, without a key of their own.
+- Owner side (`06j-site.js`, `shareBox`, in Settings under the diary on the site, both layouts; shown on a device with
+  the GitHub key, its own diary and a TMDB key): "Share my TMDB key with visitors" commits `docs/share.json`
+  (`{ tmdb, at }`, nothing else) through the same git data API (`commitFiles` with base `docs/`), optionally a different
+  key ("Share a different TMDB key instead"); "Stop sharing" deletes it. Whether it's shared is asked of GitHub once a
+  page (`shareCheck`; `share.on` is `"?"` when GitHub can't be asked, never retried in a loop). The box says the key
+  becomes public and that TMDB could switch it off if misused.
+- Visitor side (`06-lookup.js`): `loadSharedKey()` at start (both `init()`s) reads `share.json` when this browser has
+  no key of its own, into `SHARED_TMDB`, in memory only (never saved, never in a backup or the diary on the site);
+  `tmdbKey()` falls back to it, `ownTmdbKey()` doesn't. `autoLookup` waits for it, so an import starts looking up at
+  once. The key boxes say "Using this site's shared TMDB key" and never show it; "Use your own key" lets a visitor type
+  theirs.
+- `site.yml` ignores `docs/share.json`; checks answer `share.json` with "not found" unless they stand in for it
+  (`lib.mjs`); the `site` check shares, looks up as a visitor, makes sure nothing was saved, and stops sharing.
+
 ## Security (reviewed Oct 2026; keep it this way)
 
 - **Nothing from outside can run code.** Every value from outside (the export, TMDB, OMDb, Apify, friends, the feed,
@@ -367,7 +389,8 @@ app**. `06j-site.js`:
   covers an edited index, an older copy put back, a swapped part, and the repair.
 - **Commits the app makes** are signed `Credits Roll <owner@users.noreply.github.com>`, never the account's email.
   (Eleven older commits carry the owner's email; see "Known limits".)
-- What is in the clear on the site: `index.json` (`user`, `at`, `from`, `n`, salt, iterations, `check`, part times).
+- What is in the clear on the site: `index.json` (`user`, `at`, `from`, `n`, salt, iterations, `check`, part times),
+  and `share.json` (the TMDB key) while the owner shares it.
   Anyone can download the encrypted parts and try passwords offline; PBKDF2 at 600,000 iterations and a 10+
   character password are what stand in the way, and the password guards the GitHub key (which can change the site).
 - Everything secret on a device (keys, GitHub key, the diary key) is in that browser's storage for the origin
@@ -376,7 +399,8 @@ app**. `06j-site.js`:
   (600,000 iterations, 10+ characters), the diary in this repository with a key for this repository, and the
   `github.io` address; **no** stronger lock, separate diary repository or own domain. Don't offer these again unless
   they ask. They turned on GitHub's email privacy setting themselves. The diary on the site was upgraded to the
-  signed layout with all keys on 24 Oct 2026 (12:20 IST, from their first computer).
+  signed layout with all keys on 24 Oct 2026 (12:20 IST, from their first computer), and taken off the site with
+  "Take my diary off the site" from a computer on 24 Oct 2026, 14:44 IST (the owner was told; their devices keep it).
 
 ## Daily diary updates
 

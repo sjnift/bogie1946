@@ -113,12 +113,13 @@ async function hostedFiles(commit) {
   catch (e) { if (e.status === 404) return {}; throw e; }
 }
 const blobBytes = async (sha) => b64ToBytes((await gh(`/git/blobs/${sha}`)).content);
-// Writes files (null deletes one) as one commit; false when someone else changed the repository first.
-async function commitFiles(head, files, message) {
+// Writes files (null deletes one) as one commit; false when someone else changed the repository first. `base` is the
+// folder they're in: the diary's, unless said otherwise.
+async function commitFiles(head, files, message, base = SITE_PATH) {
   const tree = [];
   for (const [name, bytes] of Object.entries(files)) {
     const sha = bytes && (await gh("/git/blobs", { method: "POST", body: JSON.stringify({ content: bytesToB64(bytes), encoding: "base64" }) })).sha;
-    tree.push({ path: SITE_PATH + name, mode: "100644", type: "blob", sha: sha || null });
+    tree.push({ path: base + name, mode: "100644", type: "blob", sha: sha || null });
   }
   const t = await gh("/git/trees", { method: "POST", body: JSON.stringify({ base_tree: head.tree, tree }) });
   // signed with GitHub's private no-reply address, not the account's email (which a public repository shows to all)
@@ -408,6 +409,10 @@ const siteSay = (note, err, where = "publish") => { Object.assign(site, { note, 
 const siteBusy = (busy, where = "publish") => { Object.assign(site, { busy, note: "", err: false, noteIn: where }); siteRedraw(); };
 const siteDone = (note, where = "publish", err) => { Object.assign(site, { busy: "", note, err: !!err, noteIn: where }); siteRedraw(); };
 function siteBox(kind) {
+  const html = siteBoxInner(kind);
+  return kind === "publish" ? html + shareBox() : html;
+}
+function siteBoxInner(kind) {
   if (!SITE_ON) return "";
   const phone = SITE_DEVICE === "phone", idx = site.index;
   const mine = MY_LIB && MY_LIB.profile.username, user = idx && idx.user;
@@ -509,6 +514,8 @@ document.addEventListener("click", (e) => {
   }
   else if (a === "key") { if (siteKey(val("repo") || (SITEPUB && SITEPUB.repo), val("token"))) sitePublish().then(() => { if (SITEPUB && !site.err) siteSay("Key saved. It reaches your other devices through your locked diary."); }); }
   else if (a === "now") sitePublish();
+  else if (a === "share-on") shareSet(val("sharekey").trim() || ownTmdbKey());
+  else if (a === "share-off") shareSet(null);
   else if (a === "remove") {
     if (!site.armed) { site.armed = setTimeout(() => { site.armed = null; siteRedraw(); }, 6000); return siteRedraw(); }
     clearTimeout(site.armed); site.armed = null; siteRemove();
@@ -535,4 +542,54 @@ function siteStart() {
   }).catch(() => {});
 }
 const siteSettled = () => site.ready || Promise.resolve();
+
+/* ----- sharing the TMDB key with visitors ----- */
+// The owner can let anyone who opens the site and imports their own export use their TMDB key, so cast & crew fill in
+// with no key of their own: the key goes in docs/share.json beside the pages, in the clear (it has to be readable by
+// everyone), put there or taken away from Settings on any device with the GitHub key. Only the TMDB key is ever shared.
+const SHARE_FILE = "share.json";
+// on: null until asked (once a page), then true, false, or "?" when GitHub couldn't be asked
+const share = { on: null, checking: false, busy: "", note: "", err: false };
+const shareThere = async (commit) => { try { return (await gh(`/contents/docs?ref=${commit}`)).some((f) => f.name === SHARE_FILE); } catch (e) { if (e.status === 404) return false; throw e; } };
+async function shareCheck() {
+  if (!SITEPUB || share.checking) return;
+  share.checking = true;
+  try { share.on = await shareThere((await repoHead()).commit); } catch { share.on = "?"; }
+  share.checking = false;
+  siteRedraw();
+}
+async function shareSet(key) {
+  if (!SITEPUB || share.busy) return;
+  if (key && !/^[A-Za-z0-9._-]{3,500}$/.test(key)) { Object.assign(share, { note: "That doesn't look like a TMDB key.", err: true }); return siteRedraw(); }
+  Object.assign(share, { busy: key ? "Sharing your TMDB key…" : "Stopping…", note: "", err: false });
+  siteRedraw();
+  try {
+    for (let attempt = 0; ; attempt++) {
+      if (attempt === 4) throw ghFail("Another device kept changing the site at the same moment. Try again in a minute.");
+      const head = await repoHead();
+      if (!key && !(await shareThere(head.commit))) break;
+      const body = key ? new TextEncoder().encode(JSON.stringify({ tmdb: key, at: new Date().toISOString() }, null, 1) + "\n") : null;
+      if (await commitFiles(head, { [SHARE_FILE]: body }, key ? "Share the TMDB key with visitors" : "Stop sharing the TMDB key with visitors", "docs/")) break;
+    }
+    Object.assign(share, { on: !!key, busy: "", note: key ? "Shared. Visitors get it within a minute or two." : "Stopped. Visitors stop using it within a minute or two.", err: false });
+  } catch (e) { Object.assign(share, { busy: "", note: e.message || "Couldn't change it.", err: true }); }
+  siteRedraw();
+}
+// In Settings, under the diary on the site: on a device with the GitHub key, its own diary and a TMDB key.
+function shareBox() {
+  if (!SITE_ON || !SITEPUB || !MY_LIB || !ownTmdbKey() || !siteSameUser()) return "";
+  if (share.on === null) { if (!share.checking) setTimeout(shareCheck); return ""; }
+  const phone = SITE_DEVICE === "phone";
+  const btn = (act, label, main) => `<button class="${phone ? `btn${main ? " green" : ""} block` : `btn${main ? " primary" : ""} small`}" type="button" data-site="${act}"${share.busy ? " disabled" : ""}>${label}</button>`;
+  const say = share.busy ? `<p class="status" role="status">${esc(share.busy)}</p>` : share.note ? `<p class="status${share.err ? " err" : ""}" role="status">${esc(share.note)}</p>` : "";
+  const unsure = share.on === "?" ? `<p class="status">Couldn't ask GitHub whether your key is shared just now.</p>` : "";
+  const body = share.on === true
+    ? `<p class="status">Anyone who opens this site and imports their own Letterboxd export gets cast &amp; crew filled in with your TMDB key, with no key of their own. Your diary and your other keys stay locked.</p>${btn("share-off", "Stop sharing")}${say}`
+    : `<p class="status">Let anyone who opens this site and imports their own Letterboxd export get cast &amp; crew filled in with your TMDB key, with no key of their own. Your diary and your other keys stay locked. The TMDB key itself becomes public: anyone could copy it from the site. TMDB keys are free, but if someone misused it TMDB could switch it off, and your own lookups would stop until you made a new one.</p>
+      <details class="site-help"><summary>Share a different TMDB key instead</summary><label class="status" for="site-sharekey">A TMDB key to share, say from a second TMDB account (leave empty to share yours)</label>
+        <input class="key" id="site-sharekey" name="sharekey" type="password" autocomplete="off" spellcheck="false"></details>
+      ${btn("share-on", "Share my TMDB key with visitors", true)}${share.on === "?" ? btn("share-off", "Stop sharing") : ""}${unsure}${say}`;
+  const title = share.on === true ? "Visitors use your TMDB key" : "Share your TMDB key with visitors";
+  return phone ? `<div class="card site-card"><p class="title">${title}</p>${body}</div>` : `<div class="site-in"><h3 class="sub-h">${title}</h3>${body}</div>`;
+}
 </script>

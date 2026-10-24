@@ -363,6 +363,37 @@ export default async function ({ browser, base }) {
     await until(b, () => MY_LIB.profile.username === "tester" && !site.job, "the phone to have its own diary again");
   }
 
+  // Sharing the TMDB key with visitors, from the computer's Settings: share.json beside the pages holds the TMDB key and
+  // nothing else; a visitor who imports their own export gets cast & crew looked up with it, without saving it; when
+  // sharing stops, the file goes and the visitor no longer has a key.
+  {
+    if (await a.evaluate(() => state.page) !== "settings") await a.click("#btn-settings");
+    await a.evaluate(() => siteRedraw());
+    await a.waitForSelector('#site-box [data-site="share-on"]');
+    assert(/becomes public/.test(await a.innerText("#site-box")), "the computer didn't say the shared key becomes public");
+    await a.click('#site-box [data-site="share-on"]');
+    await until(a, () => share.on === true && !share.busy, "sharing to start");
+    const shared = JSON.parse(gh.file("docs/share.json"));
+    assert(shared.tmdb === "k999" && Object.keys(shared).sort().join() === "at,tmdb", `what was shared: ${JSON.stringify(shared)}`);
+    const v = await device(browser, base, gh, null, { example: false });
+    await v.context().route(/\/share\.json/, (r) => { const b = gh.file("docs/share.json"); return b ? r.fulfill({ contentType: "application/json", body: b }) : r.fulfill({ status: 404, body: "not found" }); });
+    const asked = [];
+    await v.context().route(/api\.themoviedb\.org/, (r) => { asked.push(r.request().url()); r.fulfill({ contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: JSON.stringify({ results: [] }) }); });
+    await v.goto(base + "desktop.html"); await v.waitForFunction(() => typeof state === "object");
+    await seed(v, { profile: [{ Username: "a_visitor" }], watched: [{ Name: "Brick", Year: "2005", Date: "2024-01-01" }], diary: [{ Name: "Brick", Year: "2005", Date: "2024-01-02", "Watched Date": "2024-01-02", Rating: "4" }] });
+    { const t0 = Date.now(); while (!asked.length && Date.now() - t0 < 10000) await v.waitForTimeout(200); }
+    assert(asked.some((u) => /[?&]api_key=k999\b/.test(u)), `the visitor didn't look films up with the shared key: ${asked.slice(0, 2)}`);
+    assert(!(await v.evaluate(() => localStorage.getItem("cr-tmdb-key") || store.get(KEYS.tmdb, ""))), "the visitor saved the shared key");
+    assert(gh.file("docs/diary/index.json") && JSON.parse(gh.file("docs/diary/index.json")).user === "tester", "the visitor touched the diary on the site");
+    await a.click('#site-box [data-site="share-off"]');
+    await until(a, () => share.on === false && !share.busy, "sharing to stop");
+    assert(!gh.file("docs/share.json"), "share.json is still on the site");
+    await v.reload(); await v.waitForFunction(() => typeof state === "object" && state.lib); await v.waitForTimeout(300);
+    assert(await v.evaluate(() => tmdbKey()) === "", "the visitor still has a key after sharing stopped");
+    noErrors(v, "visitor");
+    await v.context().close();
+  }
+
   // Taking it off the site: the files go, each device keeps its copy, and no device puts it back by itself.
   await a.click('#site-box [data-site="remove"]');
   await a.click('#site-box [data-site="remove"]');
