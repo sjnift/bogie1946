@@ -13,7 +13,7 @@ function faceHtml(p, rank) {
 }
 const emptyMeta = () => `<div class="empty">Cast and crew aren't part of the Letterboxd export. Fill them in from <button class="linkish" type="button" data-goto="settings">Settings</button>.</div>`;
 function rankRows(list, valueOf, widthOf, startRank, titleOf) {
-  return `<ol class="rank-list">${list.map((p, i) => `<li><button class="rank-row${p.group ? " tied" : ""}" type="button" data-list="${p.to ? drill(p.to) : reg(p.name, titleOf(p), p.films, p)}">
+  return `<ol class="rank-list${list.some((p) => p.group) ? " tied-list" : ""}">${list.map((p, i) => `<li><button class="rank-row${p.group ? " tied" : ""}" type="button" data-list="${p.to ? drill(p.to) : reg(p.name, titleOf(p), p.films, p)}">
     <span class="r">${p.rank ?? startRank + i}</span><span class="n">${esc(p.name)}${p.also ? ` <span class="also">${esc(p.also)}</span>` : ""}</span>
     <span class="track" aria-hidden="true"><span style="width:${Math.max(1, widthOf(p) * 100).toFixed(1)}%"></span></span>
     <span class="v">${valueOf(p)}</span></button></li>`).join("")}</ol>`;
@@ -236,9 +236,15 @@ function renderSections(s) {
       section("reviews", "Reviewed", s.scope === "all" ? "Your latest reviews. Search finds any of them." : `What you wrote about films you watched in ${s.scope}, latest first.`, reviewsBlock(s)),
       M.reviewStats]],
     ["next", "Watch next", [W !== undefined ? section("next", "Watch next", "Your watchlist, likeliest favourites first.", watchNextBlock(W)) : ""]],
-  ].map(([id, name, parts]) => [id, name, parts.filter(Boolean).join("")]).filter(([, , html]) => html);
-  $("#sections").innerHTML = chapters.map(([id, name, html]) => `<div class="ch-mark" id="ch-${id}"><span>${name}</span></div>${html}`).join("");
-  $("#jump").innerHTML = `<div class="jump-in">${chapters.map(([id, name]) => `<button class="jump-link" type="button" data-jump="ch-${id}">${name}</button>`).join("")}</div>`;
+  ].map(([id, name, parts]) => [id, name, parts.filter(Boolean).join("")])
+    // with a filter on, a section it leaves with nothing to show is left out, and so is a chapter left empty
+    .map(([id, name, html]) => [id, name, filterOn() ? dropEmpties(html, (root) => { for (const b of root.querySelectorAll(".credit-body")) if (b.children.length === 1 && b.firstElementChild.classList.contains("empty")) b.closest(".credit").remove(); }) : html])
+    .filter(([, , html]) => html.trim());
+  $("#sections").innerHTML = chapters.map(([id, name, html]) => `<div class="ch-mark" id="ch-${id}"><span>${name}</span></div>${html}`).join("")
+    || `<div class="empty" style="margin-top:24px">No films pass this filter in this period.</div>`;
+  // the menu that stays at the top: the chapters, then the filter (what's on, or a button to set one)
+  $("#jump").innerHTML = `<div class="jump-in">${chapters.map(([id, name]) => `<button class="jump-link" type="button" data-jump="ch-${id}">${name}</button>`).join("")}</div>
+    ${filterOn() ? filterStripHtml(s.films.length) : `<button class="jump-filter" type="button" ${dl(D.filters())}><svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h14l-5.5 6.5V16l-3 1.5v-7z"/></svg>Filter</button>`}`;
   watchChapters();
 }
 // The menu at the top marks the chapter on screen, and takes you to any other.

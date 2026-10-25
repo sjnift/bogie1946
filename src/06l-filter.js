@@ -39,31 +39,55 @@ function filterText() {
   if (!filterOn()) return "";
   return `${FILTER.g ? `${FILTER.g} films` : "Films"}${FILTER.d ? ` from the ${FILTER.d}` : ""}${FILTER.k ? `, made in ${FILTER.k}` : ""}${FILTER.l ? `, in ${FILTER.l}` : ""}`;
 }
-// The row of filters: one menu each, and a way to clear them. `lib` is the whole diary.
-function filterBar(lib, metaOf) {
-  if (!lib || !lib.films.length) return "";
-  const sel = ([k, label]) => {
+// The whole diary (the filters narrow it, never the other way round).
+const wholeLib = () => state.mode === "mine" && MY_LIB ? MY_LIB : EXAMPLE_LIB;
+// The panel of choices, in the pop-up (computer) or the sheet (phone), opened by the Filter button. Plain buttons, not
+// menus: Safari froze or went blank when a menu was replaced in the page while it was being used (owner, Oct 2026).
+D.filters = () => ({ kind: "filters", title: "Filter your stats", sub: "Show only some of your films on this page" });
+const FILTER_SHOWN = 14; // choices shown at first in each group; the rest behind "More"
+const filterMore = new Set();
+function filtersInner() {
+  const lib = wholeLib();
+  if (!lib) return "";
+  const n = filterOn() ? filteredLib(lib, metaOf).films.length : lib.films.length;
+  const groups = FILTERS.map(([k, label]) => {
     const opts = filterOptions(lib, metaOf, k);
-    if (!opts.length && !FILTER[k]) return "";
+    if (!opts.length) return k === "d" ? "" : `<section class="fp-group"><h4>${label}</h4><p class="fp-none">${label === "Decade" ? "" : "Comes with cast &amp; crew details."}</p></section>`;
     const cur = FILTER[k] && !opts.some(([v]) => v === FILTER[k]) ? [[FILTER[k], 0]] : [];
-    return `<label class="fsel${FILTER[k] ? " on" : ""}"><span class="sr-only">${label}</span><select data-filter="${k}">
-      <option value="">${FILTER[k] ? `Any ${label.toLowerCase()}` : label}</option>${[...cur, ...opts].map(([v, n]) => `<option value="${esc(v)}"${v === FILTER[k] ? " selected" : ""}>${esc(v)} (${fmtN(n)})</option>`).join("")}</select></label>`;
-  };
-  const sels = FILTERS.map(sel).join("");
-  if (!sels) return "";
-  return `<div class="filters" role="group" aria-label="Filter the films">${sels}${filterOn() ? `<button class="fclear" type="button" data-filter-clear>Clear filters</button>` : ""}</div>`;
+    const all = [...cur, ...opts], many = all.length > FILTER_SHOWN && !filterMore.has(k);
+    const shown = many ? all.filter(([v], i) => i < FILTER_SHOWN || v === FILTER[k]) : all;
+    return `<section class="fp-group"><h4>${label}${FILTER[k] ? ` <button class="fp-x" type="button" data-fpick="${k}" data-fval="${esc(FILTER[k])}">Any ${label.toLowerCase()}</button>` : ""}</h4>
+      <div class="fp-chips">${shown.map(([v, c]) => `<button class="fp-chip" type="button" data-fpick="${k}" data-fval="${esc(v)}" aria-pressed="${v === FILTER[k]}">${esc(v)}<span>${fmtN(c)}</span></button>`).join("")}
+      ${many ? `<button class="fp-more" type="button" data-fmore="${k}">${fmtN(all.length - shown.length)} more</button>` : ""}</div></section>`;
+  }).join("");
+  const lead = filterOn() ? `Showing <b>${esc(filterText())}</b>: ${plural(n, "film")}. Pick again to change it; a lit choice turns off when picked.`
+    : "Pick a genre, decade, country or language and every number, chart and list on this page shows only those films. Insights and Compare keep your whole diary.";
+  return `<p class="fp-lead">${lead}</p>${groups}<div class="fp-foot">${filterOn() ? `<button class="btn small" type="button" data-filter-clear>Clear</button>` : ""}
+    <button class="btn small primary green" type="button" data-close data-sclose>${filterOn() ? `Show ${plural(n, "film")}` : "Done"}</button></div>`;
 }
-// After a redraw, each menu shows the filter in force (a menu the viewer used doesn't follow its markup any more).
-const syncFilterMenus = (root = document) => { for (const s of root.querySelectorAll("select[data-filter]")) if (s.value !== FILTER[s.dataset.filter]) s.value = FILTER[s.dataset.filter]; };
-document.addEventListener("change", (e) => {
-  const s = e.target.closest && e.target.closest("select[data-filter]");
-  if (!s) return;
-  FILTER[s.dataset.filter] = s.value;
-  render();
-});
+const filtersBodyHtml = () => `<div class="fpanel">${filtersInner()}</div>`;
+// The line that says a filter is on, with a way off. `n` is how many films pass.
+const filterStripHtml = (n) => filterOn() ? `<div class="fstrip" role="status"><span>${esc(filterText())} <b>· ${plural(n, "film")}</b></span>
+  <button class="fstrip-edit" type="button" ${dl(D.filters())}>Change</button><button class="fstrip-x" type="button" data-filter-clear>Clear</button></div>` : "";
+// After a choice: the panel shows it at once, the page underneath follows a moment later.
+let filterRedraw = 0;
+function refreshFilters() {
+  for (const el of document.querySelectorAll(".fpanel")) el.innerHTML = filtersInner();
+  cancelAnimationFrame(filterRedraw);
+  filterRedraw = requestAnimationFrame(() => { try { render(); } catch (e) { for (const [k] of FILTERS) FILTER[k] = ""; render(); } });
+}
 document.addEventListener("click", (e) => {
-  if (!e.target.closest("[data-filter-clear]")) return;
-  for (const [k] of FILTERS) FILTER[k] = "";
-  render();
+  const pick = e.target.closest("[data-fpick]");
+  if (pick) { const k = pick.dataset.fpick, v = pick.dataset.fval; FILTER[k] = FILTER[k] === v ? "" : v; refreshFilters(); return; }
+  const more = e.target.closest("[data-fmore]");
+  if (more) { filterMore.add(more.dataset.fmore); for (const el of document.querySelectorAll(".fpanel")) el.innerHTML = filtersInner(); return; }
+  if (e.target.closest("[data-filter-clear]")) { for (const [k] of FILTERS) FILTER[k] = ""; refreshFilters(); }
 });
+// With a filter on, sections it leaves empty are left out rather than shown as "nothing here".
+function dropEmpties(html, isEmpty) {
+  const t = document.createElement("template");
+  t.innerHTML = html;
+  isEmpty(t.content);
+  return t.innerHTML;
+}
 </script>

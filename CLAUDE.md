@@ -88,8 +88,12 @@ Where it lives:
   - **Sharing with friends** (asked Oct 2026): pictures as a feed post (1080×1350) or a story (1080×1920) of a year,
     of all time and of a taste match with a friend; the year (or all time) as a tap-through story; and, if the owner
     turns it on, visitors compare with the owner in one tap.
-  - **Filters** (asked Oct 2026): genre, decade, country, language narrow every stat and list on the desktop main page
-    and the phone's Profile, Diary and Stats (and what they open), never Insights or Compare (`06l-filter.js`).
+  - **Filters** (asked Oct 2026; rebuilt the next day after the owner called the first version "trash": menus in an odd
+    place that seemed to do nothing, and Safari froze or went blank when one was used): a **Filter** button (the
+    computer's bar that stays at the top; the phone's top bar on Profile, Diary and Stats) opens a panel of tappable
+    choices; while one is on, a strip names it ("Crime films made in France · 5 films") with Change and Clear, and
+    sections it leaves empty are left out. Never Insights or Compare (`06l-filter.js`). **No `<select>` menus that are
+    redrawn while in use** (the likely Safari freeze), no `backdrop-filter` on the sticky bar, no `:has()` in new CSS.
   - **No example diary** (they got stuck in it and asked for it to go): with a diary saved, the app always shows
     it; with nothing saved it shows an import screen. The made-up example only appears with `?example` in the
     address and nothing imported (`SHOW_EXAMPLE`), which the checks use. There is no switch to it.
@@ -163,7 +167,8 @@ The owner asked for this to be checked every time. A film, diary entry, person o
   `SHARE_SIZE` feed or story, always the whole diary via `shareLib`), `06j-site.js` (the diary kept on the site, locked with a password),
   `06k-study.js` (Insights: `computeStudy`, `computeYearStudy`, and the pieces both layouts draw, `driftCols`,
   `chapterStrip`; see "Insights, the study"; also `crowdOf`, the Stats page's against-the-crowd numbers),
-  `06l-filter.js` (filters: `FILTER`, `filteredLib`, `filterBar`, `filterText`; see "Filters"), `06m-story.js` (the
+  `06l-filter.js` (filters: `FILTER`, `filteredLib`, `D.filters` and its panel `filtersInner`, `filterStripHtml`,
+  `dropEmpties`; see "Filters"), `06m-story.js` (the
   story: `D.story`, `storyBodyHtml`, `fillStory`, `storyFindings`).
 - `src/site/`: `manifest.webmanifest`, `sw.js` (network-first service worker; skips TMDB, OMDb, Apify),
   icons (drawn by `tools/make_icons.py`), `og.png` (the link preview, 1200×630, drawn from `tools/og.html` by
@@ -208,8 +213,9 @@ The owner asked for this to be checked every time. A film, diary entry, person o
   section tabs `state.cmpTab`). Pushed screens (`state.stack`): `data` (Settings: import, lookups, backups,
   footer stamp), `reviews`, `watchnext`, `cat`, `drill` ("See all").
 - The year chips (`scopeBar()`, `#scopes`) are the one year picker everywhere, Insights included
-  (`state.scope`; there is no separate insights year any more). On Profile, Diary and Stats the filters follow them
-  (`FILTER_VIEWS`); `render()` keeps the whole diary in `BASE_LIB` and narrows `state.lib`.
+  (`state.scope`; there is no separate insights year any more). On Profile, Diary and Stats the filters apply
+  (`FILTER_VIEWS`; the Filter button is in the top bar there); `render()` keeps the whole diary in `BASE_LIB` and
+  narrows `state.lib`.
 - Speed (the old app redrew everything on every tap): `memo(key, fn)` keeps stats, insights, comparisons and
   timelines until the data changes (`DATA_REV`, bumped by `scheduleRender`, imports, the feed, friends and
   fixes; also lib/META/LBX/FRIENDS identity). `render()` patches the screen with `morph()` when the same screen
@@ -255,8 +261,12 @@ friend replaces the address instead.
   `REVIEWS_SHOWN`) and, from the old Insights page, year by year, genres year by year and as you rate them, people over
   the years, against the crowd, habits, review numbers, and for a year against the year before and new in the year.
   "Against the crowd" uses Letterboxd (Apify), IMDb/Metacritic (OMDb) or TMDB scores.
-- **Filters**: genre, decade, country and language menus (each choice says how many films it leaves, given the other
-  filters; genres, countries and languages need cast & crew) under the year chips. `filteredLib` gives a library of the
+- **Filters**: a Filter button opens a panel (a drill of kind `filters`, so it's the pop-up or the sheet, with Back
+  and Close) of genre, decade, country and language choices, each with how many films it leaves given the other
+  filters (genres, countries and languages need cast & crew; long groups show 14, then "N more"); picking a lit choice
+  turns it off. The page underneath redraws a frame later (`refreshFilters`, which clears the filters if a redraw
+  fails). While one is on: the strip (desktop in `#jump`, phone under the year chips) and the phone's button lit with
+  a dot; sections (desktop) or headings over nothing (phone) it leaves empty are dropped (`dropEmpties`). `filteredLib` gives a library of the
   films that pass, with their entries, reviews and watchlist, kept as the same object while nothing changes so the
   pages' caches hold; everything is worked out from it as from the whole diary. They last until the page is closed.
   The `counts` check picks the commonest genre and decade on both layouts and proves every list holds only films that
@@ -527,6 +537,9 @@ day, shared with the owner's own app. The in-app version is the "Check film data
 - Three films had no TMDB match (Oct 2026): Glass Onion (TMDB adds ": A Knives Out Mystery"), Nathan for You:
   Finding Frances, The Sorrow and the Pity → pinned by IMDb id, plus half-title matching.
 - The owner asked for admin things off the main page (Oct 2026) → the desktop Settings page.
+- Filters first came as four `<select>` menus under the year chips (24 Oct 2026); the owner found them pointless-looking
+  and badly placed, and on their Mac Safari picking one froze or blanked the page (not reproducible in Chromium; the
+  menus were replaced in the page during their own change event) → the Filter button and panel (25 Oct 2026).
 - The phone app was rebuilt in Oct 2026 (new tabs, sections, speed). With a 1,400-film diary on a slowed CPU,
   opening Insights went from about 1.5 s to about 50 ms, and taps generally take under 0.1 s.
 - The owner found Insights inadequate and a repeat of the Stats page (Oct 2026) and asked for a real study of their

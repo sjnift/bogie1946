@@ -546,38 +546,22 @@ body.empty #settings, body.empty .foot-settings { display: none !important; }
 .gridline span { white-space: nowrap; }
 .col .cv { font-size: 11.5px; line-height: 1; margin-bottom: 4px; color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
 /* ---------- the main page in chapters, and the menu that stays at the top ---------- */
-.jump { position: sticky; top: 0; z-index: 20; margin-top: 18px; background: color-mix(in srgb, var(--bg) 94%, transparent);
-  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+.jump { position: sticky; top: 0; z-index: 20; margin-top: 18px; background: var(--bg); border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; gap: 12px; }
 .jump:empty { display: none; }
-.jump-in { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; padding: 8px 0; }
+.jump-in { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; padding: 8px 0; flex: 1 1 auto; min-width: 0; }
 .jump-in::-webkit-scrollbar { display: none; }
 .jump-link { all: unset; cursor: pointer; flex: none; padding: 6px 12px; border-radius: 999px; font-size: 13.5px; font-weight: 600; color: var(--muted); transition: color .15s, background .15s; }
 .jump-link:hover { color: var(--ink); }
 .jump-link[aria-current] { background: var(--surface-2); color: var(--ink); }
 .jump-link:focus-visible { outline: 2px solid var(--gold-ink); outline-offset: 1px; }
-.ch-mark { scroll-margin-top: 58px; margin: 46px 0 2px; padding-top: 14px; border-top: 2px solid var(--ink-2);
+.ch-mark { scroll-margin-top: 64px; margin: 46px 0 2px; padding-top: 14px; border-top: 2px solid var(--ink-2);
   font-family: var(--mono); font-size: 12.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--gold-ink); }
 .ch-mark:first-child { margin-top: 18px; }
 .rank-row .also { color: var(--muted); font-weight: 400; font-size: 13px; }
 .rank-row.tied .n { white-space: normal; }
-.rank-list:has(.tied) .rank-row { grid-template-columns: 62px minmax(0, 1.2fr) minmax(0, 2fr) 92px; }
+.rank-list.tied-list .rank-row { grid-template-columns: 62px minmax(0, 1.2fr) minmax(0, 2fr) 92px; }
 .rank-row.tied .r { white-space: nowrap; }
-/* ---------- filters ---------- */
-.filters-row:empty { display: none; }
-.filters { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.filters::before { content: "Filter"; font-family: var(--mono); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-right: 6px; }
-.fsel { position: relative; display: inline-flex; }
-.fsel select { appearance: none; -webkit-appearance: none; cursor: pointer; border: 1px solid var(--line); background: transparent; color: var(--ink-2);
-  padding: 5px 28px 5px 12px; border-radius: 999px; font-family: var(--mono); font-size: 13px; max-width: 220px; text-overflow: ellipsis; }
-.fsel::after { content: ""; position: absolute; right: 12px; top: 50%; width: 6px; height: 6px; margin-top: -5px; border: solid currentColor; border-width: 0 1.5px 1.5px 0; transform: rotate(45deg); color: var(--muted); pointer-events: none; }
-.fsel select:hover { color: var(--ink); border-color: var(--muted); }
-.fsel.on select { background: var(--gold-btn); border-color: var(--gold-btn); color: var(--on-gold); }
-.fsel.on::after { color: var(--on-gold); }
-.fsel select:focus-visible { outline: 2px solid var(--gold-ink); outline-offset: 2px; }
-.fsel select option { color: var(--ink); background: var(--surface); }
-.fclear { all: unset; cursor: pointer; font-size: 13.5px; color: var(--gold-ink); padding: 4px 6px; text-decoration: underline 1px; text-underline-offset: 3px; }
-.fnote { color: var(--gold-ink); font-weight: 600; }
-body.empty .filters-row { display: none !important; }
 /* ---------- pictures to share, and the story ---------- */
 .share-size { display: flex; gap: 6px; margin-bottom: 6px; }
 .share-img.story { max-height: 70vh; width: auto; max-width: 100%; margin-inline: auto; }
@@ -626,4 +610,28 @@ body.empty .filters-row { display: none !important; }
 .st-nav { position: absolute; left: 12px; right: 12px; bottom: 12px; display: flex; justify-content: space-between; align-items: center; z-index: 2; }
 .st-nav .btn { background: rgba(255, 255, 255, .1); border-color: transparent; color: #F3EEF4; }
 .st-pos { font-family: var(--mono); font-size: 12px; color: #9A8FA0; }
+/* ---------- filters: the button in the bar at the top, the strip while one is on, and the panel of choices ---------- */
+.fnote { color: var(--gold-ink); font-weight: 600; }
+.jump-filter { flex: none; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; border: 1px solid var(--line); background: var(--surface);
+  color: var(--ink); border-radius: 999px; padding: 6px 14px; font: inherit; font-size: 13.5px; font-weight: 600; }
+.jump-filter:hover { border-color: var(--muted); }
+.fstrip { flex: none; display: inline-flex; align-items: center; gap: 4px; max-width: 52%; background: var(--gold-btn); color: var(--on-gold);
+  border-radius: 999px; padding: 4px 6px 4px 14px; font-size: 13.5px; font-weight: 600; }
+.fstrip > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fstrip b { font-weight: 500; opacity: .85; }
+.fstrip button { all: unset; cursor: pointer; padding: 3px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; white-space: nowrap; }
+.fstrip button:hover, .fstrip button:focus-visible { background: rgba(0, 0, 0, .18); }
+.fpanel { display: grid; gap: 18px; }
+.fp-lead { margin: 0; color: var(--ink-2); }
+.fp-group h4 { margin: 0 0 8px; font-family: var(--mono); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 500; display: flex; gap: 10px; align-items: baseline; }
+.fp-x { all: unset; cursor: pointer; font-family: var(--sans); letter-spacing: 0; text-transform: none; font-size: 13px; color: var(--gold-ink); text-decoration: underline 1px; text-underline-offset: 3px; }
+.fp-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.fp-chip, .fp-more { cursor: pointer; border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 5px 12px; font: inherit; font-size: 13.5px; display: inline-flex; gap: 6px; align-items: baseline; }
+.fp-chip span { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.fp-chip:hover, .fp-more:hover { border-color: var(--muted); }
+.fp-chip[aria-pressed="true"] { background: var(--gold-btn); border-color: var(--gold-btn); color: var(--on-gold); }
+.fp-chip[aria-pressed="true"] span { color: var(--on-gold); opacity: .8; }
+.fp-more { color: var(--gold-ink); border-style: dashed; }
+.fp-none { margin: 0; font-size: 13px; color: var(--muted); }
+.fp-foot { display: flex; justify-content: flex-end; gap: 8px; position: sticky; bottom: -16px; background: var(--surface); padding: 10px 0 2px; }
 </style>

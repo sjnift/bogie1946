@@ -38,9 +38,7 @@ function render() {
   if (page === "stats") state.lib = filteredLib(base, metaOf); // the filters narrow the stats, not Insights or Compare
   STATS = computeStats(state.lib, metaOf, state.scope);
   renderHero(STATS, years);
-  $("#filters-row").innerHTML = page === "stats" ? filterBar(base, metaOf) : "";
-  syncFilterMenus($("#filters-row"));
-  for (const sel of ["#tiles", "#lookup-mini", "#ios-tip", "#sections", "#jump", ".scopes-row", "#filters-row"]) $(sel).hidden = page !== "stats";
+  for (const sel of ["#tiles", "#lookup-mini", "#ios-tip", "#sections", "#jump", ".scopes-row"]) $(sel).hidden = page !== "stats";
   $("#settings").hidden = page !== "settings";
   $("footer").hidden = page === "settings"; // Settings ends with its own About
   $("#btn-settings span").textContent = page === "settings" ? "Back to stats" : "Settings";

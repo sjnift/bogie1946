@@ -673,18 +673,29 @@ body.nodata .hero .avatar svg { width: 40px; height: 40px; color: var(--green); 
 .chart.unit .gridline { right: -62px; }
 .gridline span { white-space: nowrap; }
 .col .cv { font-size: 11.5px; line-height: 1; margin-bottom: 4px; color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
-/* filters */
-.filters { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin: 10px -16px 0; padding: 2px 16px; }
-.filters::-webkit-scrollbar { display: none; }
-.fsel { position: relative; flex: none; display: inline-flex; }
-.fsel select { appearance: none; -webkit-appearance: none; height: 32px; border: 0; border-radius: 999px; padding: 0 30px 0 13px; font: inherit; font-size: 13.5px; font-weight: 600;
-  background: transparent; box-shadow: inset 0 0 0 1px var(--line-2); color: var(--ink-2); max-width: 210px; text-overflow: ellipsis; }
-.fsel::after { content: ""; position: absolute; right: 13px; top: 50%; width: 6px; height: 6px; margin-top: -5px; border: solid currentColor; border-width: 0 1.6px 1.6px 0; transform: rotate(45deg); color: var(--muted); pointer-events: none; }
-.fsel.on select { background: var(--green-tint); box-shadow: inset 0 0 0 1px rgba(0, 224, 84, .45); color: var(--green); }
-.fsel.on::after { color: var(--green); }
-.fsel select:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
-.fclear { all: unset; flex: none; cursor: pointer; height: 32px; padding: 0 6px; font-size: 13.5px; font-weight: 600; color: var(--blue); }
-.fnote { margin: 8px 0 0; font-size: 13px; color: var(--green); font-weight: 600; }
+/* filters: the button in the top bar (lit while one is on), the strip under the year chips, the panel of choices */
+.nav-btn.filt { position: relative; }
+.nav-btn.filt.on { color: var(--green); }
+.nav-btn.filt.on::after { content: ""; position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 2px var(--bg); }
+.fstrip { display: flex; align-items: center; gap: 2px; margin-top: 10px; background: var(--green-tint); box-shadow: inset 0 0 0 1px rgba(0, 224, 84, .4); color: var(--green);
+  border-radius: 14px; padding: 6px 6px 6px 14px; font-size: 14px; font-weight: 650; }
+.fstrip > span { flex: 1; min-width: 0; }
+.fstrip b { font-weight: 500; color: var(--ink-2); }
+.fstrip button { all: unset; cursor: pointer; padding: 8px 10px; border-radius: 10px; font-size: 14px; font-weight: 650; color: var(--ink); white-space: nowrap; }
+.fstrip button:active { background: rgba(255, 255, 255, .08); }
+.fpanel { display: grid; gap: 18px; padding-bottom: 8px; }
+.fp-lead { margin: 0; color: var(--ink-2); font-size: 14.5px; }
+.fp-group h4 { margin: 0 0 10px; font-size: 13px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); display: flex; gap: 10px; align-items: baseline; }
+.fp-x { all: unset; cursor: pointer; text-transform: none; letter-spacing: 0; font-size: 13.5px; font-weight: 600; color: var(--blue); }
+.fp-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.fp-chip, .fp-more { cursor: pointer; border: 0; height: 36px; padding: 0 14px; border-radius: 999px; font: inherit; font-size: 14px; font-weight: 600; background: var(--surface-2); color: var(--ink-1); display: inline-flex; gap: 6px; align-items: center; }
+.fp-chip span { color: var(--muted); font-size: 12.5px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.fp-chip[aria-pressed="true"] { background: var(--green-tint); box-shadow: inset 0 0 0 1px rgba(0, 224, 84, .45); color: var(--green); }
+.fp-chip[aria-pressed="true"] span { color: var(--green); }
+.fp-more { background: transparent; box-shadow: inset 0 0 0 1px var(--line-2); color: var(--blue); }
+.fp-none { margin: 0; font-size: 13.5px; color: var(--muted); }
+.fp-foot { display: flex; gap: 8px; position: sticky; bottom: 0; padding: 10px 0 4px; background: var(--surface); }
+.fp-foot .btn { flex: 1; }
 /* ---------- pictures to share, and the story ---------- */
 .share-size { display: flex; gap: 8px; margin: 4px 0 6px; }
 .share-img.story { max-height: 70vh; width: auto; max-width: 100%; margin-inline: auto; }

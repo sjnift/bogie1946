@@ -98,6 +98,10 @@ export default async function ({ browser, base }) {
   await clickAround(d, "#compare", "#dlg", "desktop compare", 15);
   await d.click("#btn-settings"); await d.waitForTimeout(150); await check(d, "desktop settings");
   await d.click("#home-link"); await d.waitForTimeout(100);
+  // the filter panel, and the page filtered by a booby-trapped country, language and genre
+  await d.evaluate(() => openDrill(D.filters())); await d.waitForTimeout(100); await check(d, "desktop filter panel");
+  for (const k of ["k", "l", "g"]) { const b = await d.$(`.fpanel [data-fpick="${k}"]`); if (b) { await b.evaluate((el) => el.click()); await d.waitForTimeout(150); await check(d, `desktop filtered (${k})`); } }
+  await d.keyboard.press("Escape"); await d.evaluate(() => { for (const [k] of FILTERS) FILTER[k] = ""; render(); });
   // search, a film card from the address, a made-up friend in the address
   await d.keyboard.press("/"); await d.keyboard.type(`${P.quote} Heat`); await d.waitForTimeout(150); await check(d, "desktop search");
   await d.keyboard.press("Escape");
@@ -122,6 +126,10 @@ export default async function ({ browser, base }) {
   }
   await tab("stats");
   for (const v of ["films", "people", "genres", "years", "crowd"]) { await tab(v); await check(m, `phone stats ${v}`); await clickAround(m, "#screen", "#sheet", `phone ${v}`, 8); }
+  await tab("films");
+  await m.evaluate(() => openSheet(D.filters())); await m.waitForTimeout(100); await check(m, "phone filter panel");
+  for (const k of ["k", "l", "g"]) { const b = await m.$(`.fpanel [data-fpick="${k}"]`); if (b) { await b.evaluate((el) => el.click()); await m.waitForTimeout(150); await check(m, `phone filtered (${k})`); } }
+  await m.evaluate(() => { closeSheet(); for (const [k] of FILTERS) FILTER[k] = ""; render(); }); await m.waitForTimeout(100);
   await tab("profile");
   for (const act of ["reviews", "watchnext", "settings"]) {
     if (!(await m.$(`[data-act="${act}"]`))) continue;

@@ -75,27 +75,33 @@ function auditFilter() {
 }
 // The commonest genre and decade, picked from the menus, on both layouts: every page they narrow, every period.
 async function filteredTour(d, m) {
-  const pickFilters = async (p) => {
-    for (const k of ["g", "d"]) { const v = await p.$eval(`select[data-filter="${k}"]`, (s) => s.options[1].value); await p.selectOption(`select[data-filter="${k}"]`, v); }
-    return p.evaluate(() => ({ g: FILTER.g, d: FILTER.d }));
+  // the Filter button (the computer's bar at the top, the phone's top bar), then the first genre and decade in its panel
+  const pickFilters = async (p, phone) => {
+    await p.click(phone ? ".nav-btn.filt" : ".jump-filter");
+    await p.waitForSelector(".fpanel [data-fpick]");
+    for (const k of ["g", "d"]) { await p.click(`.fpanel [data-fpick="${k}"]`); await p.waitForTimeout(80); }
+    await p.click(phone ? ".fp-foot [data-sclose]" : ".fp-foot [data-close]");
+    await p.waitForTimeout(150);
+    return p.evaluate(() => ({ g: FILTER.g, d: FILTER.d, strip: !!document.querySelector(".fstrip") }));
   };
   const both = async (p, where) => { await check(p, where); const bad = await p.evaluate(`(${auditFilter})()`); assert(!bad.length, `${where}: ${bad.slice(0, 3).join("; ")}`); };
-  const f = await pickFilters(d);
-  assert(f.g && f.d, `the computer's filter menus offered nothing: ${JSON.stringify(f)}`);
+  const f = await pickFilters(d, false);
+  assert(f.g && f.d && f.strip, `the computer's filter panel didn't set a filter: ${JSON.stringify(f)}`);
   for (const y of await d.$$eval("#scopes [data-scope]", (x) => x.map((b) => b.dataset.scope))) { await d.click(`[data-scope="${y}"]`); await both(d, `filtered desktop stats ${y}`); }
   await d.click('[data-scope="all"]');
   await d.click("#btn-insights");
   assert(await d.evaluate(() => !state.lib.filtered), "Insights used the filtered diary");
   await d.click("#btn-insights");
-  await d.click("[data-filter-clear]");
-  assert(await d.evaluate(() => !filterOn() && !state.lib.filtered && !document.querySelector(".fsel.on")), "clearing the filters didn't bring the whole diary back");
+  await d.click(".fstrip [data-filter-clear]"); await d.waitForTimeout(150);
+  assert(await d.evaluate(() => !filterOn() && !state.lib.filtered && !document.querySelector(".fstrip") && document.querySelector(".jump-filter")), "clearing the filters didn't bring the whole diary back");
   await m.evaluate(() => goTo("films", { force: true, top: true }));
-  await pickFilters(m);
+  const fm = await pickFilters(m, true);
+  assert(fm.g && fm.d && fm.strip, `the phone's filter panel didn't set a filter: ${JSON.stringify(fm)}`);
   for (const v of ["profile", "diary", "films", "people", "genres", "years", "crowd"]) { await m.evaluate((v) => goTo(v, { force: true, top: true }), v); await both(m, `filtered phone ${v}`); }
   await m.evaluate(() => goTo("insights", { force: true, top: true }));
   assert(await m.evaluate(() => !state.lib.filtered), "the phone's Insights used the filtered diary");
   await m.evaluate(() => goTo("films", { force: true, top: true }));
-  await m.click("[data-filter-clear]");
+  await m.click(".fstrip [data-filter-clear]"); await m.waitForTimeout(150);
   assert(await m.evaluate(() => !filterOn() && !state.lib.filtered), "the phone's clear didn't bring the whole diary back");
   noErrors(d, "filtered desktop"); noErrors(m, "filtered phone");
 }

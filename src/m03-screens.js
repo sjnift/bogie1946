@@ -29,6 +29,7 @@ const ICON = {
   upload: svg(`<path d="M12 15V4M7.5 8.5L12 4l4.5 4.5"/><path d="M4 15.5v3A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5v-3"/>`, 1.9),
   share: svg(`<path d="M12 3v12M7.5 7.5L12 3l4.5 4.5"/><path d="M5 12v6.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V12"/>`, 1.9),
   plus: svg(`<path d="M12 5v14M5 12h14"/>`, 2.2),
+  filter: svg(`<path d="M4 5h16l-6.2 7.4V18l-3.6 1.8v-7.4z"/>`, 1.9),
 };
 
 function metaOf(f) {
@@ -114,7 +115,9 @@ function render(motion) {
   LISTS = new Map();
   const d = state.stack[state.stack.length - 1];
   renderTop(d);
-  const html = d ? detailScreen(d, STATS) : SCREENS[state.view](STATS);
+  let html = d ? detailScreen(d, STATS) : SCREENS[state.view](STATS);
+  // with a filter on, a heading over nothing ("No films…") is left out with its empty note
+  if (state.lib.filtered) html = dropEmpties(html, (root) => { for (const e of root.querySelectorAll(".empty")) { const h = e.previousElementSibling; if (h && h.classList.contains("sh")) h.remove(); e.remove(); } });
   const el = $("#screen"), key = d ? `${state.stack.length}:${d.type}:${d.title}` : state.view;
   const fresh = key !== screenKey;
   if (fresh) { el.innerHTML = html; screenKey = key; } else morph(el, html);
@@ -130,7 +133,6 @@ function render(motion) {
     }
   }
   if (motion && !REDUCED) { el.classList.remove("enter-push", "enter-pop", "enter-tab"); void el.offsetWidth; el.classList.add(`enter-${motion}`); }
-  syncFilterMenus(el);
   fillFilmo(el);
   watchMore(el);
   syncHash();
@@ -162,7 +164,9 @@ function renderTop(d, welcome) {
     : welcome ? "" : `<button class="nav-btn" type="button" data-act="search">${SEARCH_ICON}<span class="sr-only">Search</span></button>`;
   const who = state.mode === "example" ? "Example diary" : state.lib.profile.username || "Your diary";
   $("#nav-title").textContent = welcome ? "Credits Roll" : d ? d.title : state.view === "profile" ? who : TITLES[state.view];
-  $("#nav-right").innerHTML = welcome || (!d && state.view === "profile") ? `<button class="nav-btn" type="button" data-act="settings">${ICON.gear}<span class="sr-only">Import &amp; settings</span></button>` : "";
+  // Profile, Diary and Stats can be filtered: the button lights up while a filter is on
+  const filt = !welcome && !d && FILTER_VIEWS.has(state.view) ? `<button class="nav-btn filt${filterOn() ? " on" : ""}" type="button" ${dl(D.filters())}>${ICON.filter}<span class="sr-only">${filterOn() ? `Filter: ${esc(filterText())}` : "Filter"}</span></button>` : "";
+  $("#nav-right").innerHTML = filt + (welcome || (!d && state.view === "profile") ? `<button class="nav-btn" type="button" data-act="settings">${ICON.gear}<span class="sr-only">Import &amp; settings</span></button>` : "");
 }
 // Nothing imported (or this browser lost hold of it): how to bring your diary in.
 function welcomeScreen() {
@@ -221,7 +225,7 @@ const seeAll = (attrs, label = "See all") => `<button class="more" type="button"
 const ltitle = (t, sub = "") => `<div class="lt"><div><h2 class="ltitle">${t}</h2>${sub ? `<p class="lt-sub">${sub}</p>` : ""}</div></div>`;
 const scopeBar = (label = "All time") => `<div class="scopes" id="scopes" role="group" aria-label="Time period">${["all", ...YEARS].map((y) =>
   `<button class="scope" type="button" data-scope="${y}" aria-pressed="${y === state.scope}">${y === "all" ? label : y}</button>`).join("")}</div>` +
-  (FILTER_VIEWS.has(state.view) && !state.stack.length ? filterBar(BASE_LIB, metaOf) + (filterOn() ? `<p class="fnote">Showing ${esc(filterText().replace(/^Films/, "films"))} only.</p>` : "") : "");
+  (FILTER_VIEWS.has(state.view) && !state.stack.length ? filterStripHtml(STATS ? STATS.films.length : state.lib.films.length) : "");
 const imgTag = (src) => `<img class="fade" src="${IMG}${esc(src)}" alt="" loading="lazy" decoding="async">`;
 function avatar(p, size) {
   const ph = showImages && p.key && PHOTOS[p.key];
