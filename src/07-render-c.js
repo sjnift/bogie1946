@@ -127,7 +127,7 @@ function crowdBlock(C, Y, noTabs) {
   const gems = gemsAll.length ? posterRow("Hidden gems", gemsAll, gemsTo, (g) => posterBtn(g.f, `<span class="cap"><span class="stars">${stars(g.f.rating)}</span><span class="muted">${fmtN(g.pop.n)} ${g.pop.src} votes</span></span>`))
     + `<p class="status">Films you rated 4½★ or more that few people have rated.</p>` : "";
   return lbHint(false) + tabs + lead + `<div class="crowd">
-    ${row(`You liked more than ${esc(C.label)}`, C.higherAll || C.higher, "No film you rated ½★ or more above them.")}
+    ${row(`You liked more than ${esc(C.label)}`, C.higherAll || C.higher, `No film you rated ${starPart(crowdAbove())} or more above them.`)}
     ${row(`You liked less than ${esc(C.label)}`, C.lowerAll || C.lower, "No film you rated ¾★ or more below them.")}
     ${gems}</div>`;
 }

@@ -711,7 +711,7 @@ function crowdOf(crowdKey, films, ratingOf = (f) => f.rating) {
       return { n: ps.length, to: ps.length ? D.films(`${side > 0 ? "Above" : "Below"} ${C.label}`, `${plural(ps.length, "film")} you rated ${side > 0 ? "higher" : "lower"} than their average`,
         ps.map((p) => p.f), { sort: "given", note: (f) => { const p = ps.find((x) => x.f === f); return `${C.short} ${crowdScore(key, p.crowd)} · ${signed(p.diff)}★`; } }) : null }; };
     out.above = apart(1); out.below = apart(-1);
-    out.higherAll = pairs.filter((p) => p.diff >= CROWD_ABOVE).sort((a, b) => b.diff - a.diff || b.you - a.you);
+    out.higherAll = pairs.filter((p) => p.diff >= crowdAbove()).sort((a, b) => b.diff - a.diff || b.you - a.you);
     out.lowerAll = pairs.filter((p) => p.diff <= -CROWD_BELOW).sort((a, b) => a.diff - b.diff || a.you - b.you);
     out.higher = out.higherAll.slice(0, 12); out.lower = out.lowerAll.slice(0, 12);
   }
@@ -726,7 +726,7 @@ function crowdOf(crowdKey, films, ratingOf = (f) => f.rating) {
 function apartLine(C) {
   if (!C.above) return "";
   const n = (x, word) => x.n ? dlink(x.to, `${fmtN(x.n)} ${word}`) : `none ${word}`;
-  return `<p class="status">You rated ${n(C.above, "above")} their average and ${n(C.below, "below")}${C.n - C.above.n - C.below.n ? `, ${fmtN(C.n - C.above.n - C.below.n)} the same` : ""}. The rows show the films you rated ½★ or more above it, and ¾★ or more below.</p>`;
+  return `<p class="status">You rated ${n(C.above, "above")} their average and ${n(C.below, "below")}${C.n - C.above.n - C.below.n ? `, ${fmtN(C.n - C.above.n - C.below.n)} the same` : ""}. The rows show the films ${crowdAbove() === CROWD_BELOW ? `${starPart(CROWD_BELOW)} or more apart` : `you rated ${starPart(crowdAbove())} or more above it, and ${starPart(CROWD_BELOW)} or more below`}.</p>`;
 }
 /* ----- pieces both layouts draw ----- */
 // A drift's periods as columns. Shares start from zero; typical values (age, length…) from a little under the

@@ -34,7 +34,7 @@ export const EX = "?example";
 export async function open(browser, base, file, { phone = false, downloads = false, worker = false, example = true } = {}) {
   const ctx = await browser.newContext({ ...(phone ? { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } : { viewport: { width: 1280, height: 900 } }),
     acceptDownloads: downloads, serviceWorkers: worker ? "allow" : "block", reducedMotion: "reduce" });
-  await ctx.route(/fonts\.(googleapis|gstatic)\.com|image\.tmdb\.org|wsrv\.nl|api\.themoviedb\.org|omdbapi\.com|api\.apify\.com|api\.github\.com|cdn\.jsdelivr\.net|letterboxd\.com/, (r) => r.abort());
+  await ctx.route(/fonts\.(googleapis|gstatic)\.com|image\.tmdb\.org|wsrv\.nl|goatcounter\.com|api\.themoviedb\.org|omdbapi\.com|api\.apify\.com|api\.github\.com|cdn\.jsdelivr\.net|letterboxd\.com/, (r) => r.abort());
   await ctx.route(/papaparse/, (r) => r.fulfill({ contentType: "text/javascript", body: PAPA }));
   await ctx.route(/jszip/, (r) => r.fulfill({ contentType: "text/javascript", body: JSZIP }));
   // the diary kept on the site: none, unless a check stands in for it
@@ -42,6 +42,7 @@ export async function open(browser, base, file, { phone = false, downloads = fal
   // and no TMDB key shared with visitors, unless a check stands in for it
   await ctx.route(/\/share\.json/, (r) => r.fulfill({ status: 404, body: "not found" }));
   await ctx.route(/\/taste\.json/, (r) => r.fulfill({ status: 404, body: "not found" }));
+  await ctx.route(/\/visits\.json/, (r) => r.fulfill({ status: 404, body: "not found" }));
   // anything the page's security policy blocks counts as an error: a feature it would quietly break
   await ctx.addInitScript(() => addEventListener("securitypolicyviolation", (e) => console.error(`CSP blocked ${e.violatedDirective}: ${e.blockedURI || "inline code"}`)));
   const page = await ctx.newPage();

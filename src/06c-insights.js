@@ -11,9 +11,12 @@ const CROWDS = {
   critics: { label: "Critics (Metacritic)", short: "Critics", score: (m) => m && m.mc ? m.mc / 10 : null },
 };
 // A crowd's score the way that crowd shows it: Letterboxd in stars out of 5, the others out of 10.
-// How far apart a film must be to be listed against the crowd: ½★ above (the owner's call, 25 Oct 2026: ¾★ left
-// them two films), ¾★ below.
-const CROWD_ABOVE = 0.5, CROWD_BELOW = 0.75;
+// How far apart a film must be to be listed against the crowd: ¾★ either way; for the site's owner's own diary alone,
+// ½★ above (their call, 25 Oct 2026: ¾★ left them two films; everyone else, guests included, keeps ¾★).
+const SITE_OWNER = "bogie1946";
+const isSiteOwner = () => !!(typeof MY_LIB === "object" && MY_LIB && MY_LIB.profile && String(MY_LIB.profile.username || "").toLowerCase() === SITE_OWNER);
+const crowdAbove = () => (isSiteOwner() ? 0.5 : 0.75), CROWD_BELOW = 0.75;
+const starPart = (x) => (x === 0.5 ? "½★" : x === 0.75 ? "¾★" : `${x}★`);
 const crowdScore = (key, stars5) => key === "letterboxd" ? `${stars5.toFixed(1)}★` : (stars5 * 2).toFixed(1);
 const pctOf = (n, d) => d ? Math.round(n / d * 100) : 0;
 const starsNum = (x) => `${x.toFixed(1)}★`;
@@ -253,7 +256,7 @@ function computeInsights(lib, metaOf, crowdKey) {
   if (pairs.length >= 5) {
     crowdOut.r = pearson(pairs.map((p) => p.you), pairs.map((p) => p.crowd));
     crowdOut.meanDiff = avg(pairs.map((p) => p.diff));
-    crowdOut.higher = pairs.filter((p) => p.diff >= CROWD_ABOVE).sort((a, b) => b.diff - a.diff || b.you - a.you).slice(0, 12);
+    crowdOut.higher = pairs.filter((p) => p.diff >= crowdAbove()).sort((a, b) => b.diff - a.diff || b.you - a.you).slice(0, 12);
     crowdOut.lower = pairs.filter((p) => p.diff <= -CROWD_BELOW).sort((a, b) => a.diff - b.diff || a.you - b.you).slice(0, 12);
   }
   const popularity = (f) => { const x = LBX[f.key], m = metaOf(f); return x && x.n ? { n: x.n, src: "Letterboxd" } : m && m.iv ? { n: m.iv, src: "IMDb" } : m && m.vc ? { n: m.vc, src: "TMDB" } : null; };
@@ -386,7 +389,7 @@ function computeYearInsights(lib, metaOf, Y, crowdKey, I = computeInsights(lib, 
   const crowd = CROWDS[crowdKey] || CROWDS.tmdb;
   const pairs = rated.map((x) => { const c = crowd.score(metaOf(x.f), x.f); return c ? { f: x.f, you: x.r, crowd: c / 2, diff: x.r - c / 2 } : null; }).filter(Boolean);
   const crowdY = { key: crowdKey, label: crowd.label, short: crowd.short, n: pairs.length, meanDiff: pairs.length ? avg(pairs.map((p) => p.diff)) : null,
-    higher: pairs.filter((p) => p.diff >= CROWD_ABOVE).sort((a, b) => b.diff - a.diff).slice(0, 8), lower: pairs.filter((p) => p.diff <= -CROWD_BELOW).sort((a, b) => a.diff - b.diff).slice(0, 8) };
+    higher: pairs.filter((p) => p.diff >= crowdAbove()).sort((a, b) => b.diff - a.diff).slice(0, 8), lower: pairs.filter((p) => p.diff <= -CROWD_BELOW).sort((a, b) => a.diff - b.diff).slice(0, 8) };
 
   const habits = [];
   if (E.length) {

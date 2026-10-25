@@ -8,7 +8,8 @@ on the site (`docs/diary/keys.bin`). Never in the clear, with one more exception
 Settings (see "Sharing the TMDB key with visitors"). Never write it there yourself, and never any other key. And one
 in-the-clear file of diary data the owner asked for (Oct 2026): `docs/taste.json`, their films with ratings and likes
 and their username only, put there by the app when they turn on "Let visitors compare with me" (see "Comparing with
-the owner"). Never write it yourself.
+the owner"). Never write it yourself. Likewise `docs/visits.json`, the owner's GoatCounter code alone, put there by the
+app when they turn on "Count visitors" (see "Counting visits").
 
 ## What it is
 
@@ -318,8 +319,9 @@ friend replaces the address instead.
   `REVIEWS_SHOWN`) and, from the old Insights page, year by year, genres year by year and as you rate them, people over
   the years, against the crowd, habits, review numbers, and for a year against the year before and new in the year.
   "Against the crowd" uses Letterboxd (Apify), IMDb/Metacritic (OMDb) or TMDB scores.
-  Its rows show films ½★ or more above the crowd and ¾★ or more below (`CROWD_ABOVE`, `CROWD_BELOW`; the owner lowered
-  the bar above to ½★, 25 Oct 2026) (`crowdOf`: `higherAll`, `lowerAll`); a line under the lead
+  Its rows show films ¾★ or more above or below the crowd; **for the owner's own diary alone** (`SITE_OWNER` bogie1946,
+  `isSiteOwner`: the diary's username), ½★ above (`crowdAbove()`, `CROWD_BELOW`; asked 25 Oct 2026: everyone else,
+  guests included, keeps ¾★ both ways) (`crowdOf`: `higherAll`, `lowerAll`); a line under the lead
   says how many are above and below at all, each a list (`apartLine`, `above`, `below`; asked 25 Oct 2026, when the
   owner saw only two films "liked more" and asked whether that was right; the line lets them check).
   A Letterboxd average counts when its rating count is unknown (`n` 0, an average read from the film's page without
@@ -595,6 +597,24 @@ The owner wanted friends to compare with them without swapping export files.
 - `site.yml` ignores `docs/taste.json`; checks answer it with "not found" unless they stand in for it; the `site`
   check turns it on, checks what went up, compares as a visitor, and turns it off.
 
+## Counting visits
+
+The owner wanted to know how many people open the site and from where, seen by them alone (25 Oct 2026). GitHub Pages
+keeps no visitor logs, so visits are counted by **GoatCounter** (free for personal sites, no cookies, nothing personal
+kept: country and region from the connection), whose pages are behind the owner's own GoatCounter login.
+- Owner side (`06j-site.js`, `visitsBox`, in Settings under "compare with me"; a device with the GitHub key and its own
+  diary): they make a free account at goatcounter.com, type the code (`<code>.goatcounter.com`), and "Start counting"
+  commits `docs/visits.json` (`{ goatcounter, at }`, nothing else); the box then links to their counts. "Stop counting"
+  deletes it.
+- Every page (`countVisit`, end of both `init()`s) reads `visits.json` and sends one count per page load as a picture
+  request from our own code (`https://<code>.goatcounter.com/count?p=…&t=…&r=…&s=…`; no outside script), except on the
+  owner's own devices (`SITE` unlocked, or `isSiteOwner()`), in the Claude artifacts and from disk. The small print says
+  visits are counted (desktop `[data-visits-note]`, phone Settings foot) while it's on. The security policy allows
+  `https://*.goatcounter.com` for images only.
+- `site.yml` ignores `docs/visits.json`; checks answer it with "not found" and cut off goatcounter.com unless a check
+  stands in; the `site` check turns it on, checks what went up, sees visitors on both layouts counted and the owner's
+  device not, and turns it off.
+
 ## Security (reviewed Oct 2026; keep it this way)
 
 - **Nothing from outside can run code.** Every value from outside (the export, TMDB, OMDb, Apify, friends, the feed,
@@ -618,8 +638,8 @@ The owner wanted friends to compare with them without swapping export files.
 - **Commits the app makes** are signed `Credits Roll <owner@users.noreply.github.com>`, never the account's email.
   (Eleven older commits carry the owner's email; see "Known limits".)
 - What is in the clear on the site: `index.json` (`user`, `at`, `from`, `n`, salt, iterations, `check`, part times),
-  `share.json` (the TMDB key) while the owner shares it, and `taste.json` (films, ratings, likes, username) while the
-  owner lets visitors compare with them.
+  `share.json` (the TMDB key) while the owner shares it, `taste.json` (films, ratings, likes, username) while the
+  owner lets visitors compare with them, and `visits.json` (the GoatCounter code) while visits are counted.
   Anyone can download the encrypted parts and try passwords offline; PBKDF2 at 600,000 iterations and a 10+
   character password are what stand in the way, and the password guards the GitHub key (which can change the site).
 - Everything secret on a device (keys, GitHub key, the diary key) is in that browser's storage for the origin

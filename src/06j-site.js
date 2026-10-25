@@ -412,7 +412,7 @@ const siteBusy = (busy, where = "publish") => { Object.assign(site, { busy, note
 const siteDone = (note, where = "publish", err, clear) => { Object.assign(site, { busy: "", note, err: !!err, noteIn: where, clear: !!clear && !err }); siteRedraw(); };
 function siteBox(kind) {
   const html = siteBoxInner(kind);
-  return kind === "publish" ? html + shareBox() + tasteBox() : html;
+  return kind === "publish" ? html + shareBox() + tasteBox() + visitsBox() : html;
 }
 function siteBoxInner(kind) {
   if (!SITE_ON) return "";
@@ -557,6 +557,8 @@ document.addEventListener("click", (e) => {
   else if (a === "share-off") shareSet(null);
   else if (a === "taste-on") tasteSet(true);
   else if (a === "taste-off") tasteSet(false);
+  else if (a === "visits-on") visitsSet(val("visitcode"));
+  else if (a === "visits-off") visitsSet(null);
   else if (a === "remove") {
     if (!site.armed) { site.armed = setTimeout(() => { site.armed = null; siteRedraw(); }, 6000); return siteRedraw(); }
     clearTimeout(site.armed); site.armed = null; siteRemove();
@@ -684,6 +686,83 @@ function tasteBox() {
     : `<p class="status">Let anyone who opens this site with their own export compare their taste with yours in one tap, with no files to send. This puts your films, with your ratings and likes, on the site for anyone to read (much as your Letterboxd profile shows them): no diary dates, reviews, watchlist, email or keys. Your diary stays locked.</p>
       ${btn("taste-on", "Let visitors compare with me", true)}${taste.on === "?" ? btn("taste-off", "Stop it") : ""}${unsure}${say}`;
   const title = taste.on === true ? "Visitors can compare with you" : "Let visitors compare with you";
+  return phone ? `<div class="card site-card"><p class="title">${title}</p>${body}</div>` : `<div class="site-in"><h3 class="sub-h">${title}</h3>${body}</div>`;
+}
+
+/* ----- counting visits (asked 25 Oct 2026) -----
+   The owner wanted to know how many people open the site and where from, for their eyes only. A site on GitHub Pages
+   has no visitor logs, so visits are counted by GoatCounter (free for personal sites, no cookies, nothing personal
+   kept: it notes the country and region a visit comes from), whose pages are behind the owner's own login. Turned on
+   from Settings like the shared key: docs/visits.json holds the GoatCounter code alone. Each page load sends one count,
+   a picture request made by our own code (no outside script runs). The owner's own devices aren't counted. */
+const VISITS_FILE = "visits.json", VISIT_RE = /^[a-z0-9][a-z0-9-]{1,48}$/;
+const visits = { on: null, code: "", checking: false, busy: "", note: "", err: false };
+let VISIT_CODE = ""; // the code the site counts with, as this page read it
+async function countVisit() {
+  if (IN_VIEWER || !/^https?:$/.test(location.protocol)) return;
+  try {
+    const j = await fetch(`${VISITS_FILE}?t=${Date.now()}`, { cache: "no-store" }).then((r) => (r.ok ? r.json() : null));
+    VISIT_CODE = j && typeof j.goatcounter === "string" && VISIT_RE.test(j.goatcounter) ? j.goatcounter : "";
+    for (const e of document.querySelectorAll("[data-visits-note]")) e.hidden = !VISIT_CODE;
+    if (!VISIT_CODE || SITE || isSiteOwner()) return; // the owner's own devices aren't counted
+    const q = new URLSearchParams({ p: location.pathname, t: document.title, r: document.referrer || "",
+      s: `${screen.width},${screen.height},${window.devicePixelRatio || 1}`, rnd: Math.random().toString(36).slice(2) });
+    new Image().src = `https://${VISIT_CODE}.goatcounter.com/count?${q}`;
+  } catch {}
+}
+async function visitsRead(commit) {
+  let list;
+  try { list = await gh(`/contents/docs?ref=${commit}`); } catch (e) { if (e.status === 404) return null; throw e; }
+  const f = list.find((x) => x.name === VISITS_FILE);
+  if (!f) return null;
+  try { return JSON.parse(new TextDecoder().decode(await blobBytes(f.sha))) || {}; } catch { return {}; }
+}
+async function visitsCheck() {
+  if (!SITEPUB || visits.checking) return;
+  visits.checking = true;
+  try { const j = await visitsRead((await repoHead()).commit); visits.on = !!(j && j.goatcounter); visits.code = (j && VISIT_RE.test(j.goatcounter || "") && j.goatcounter) || ""; }
+  catch { visits.on = "?"; }
+  visits.checking = false;
+  siteRedraw();
+}
+async function visitsSet(code) {
+  if (!SITEPUB || visits.busy) return;
+  if (code !== null) {
+    code = String(code || "").trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\.goatcounter\.com.*$/, "");
+    if (!VISIT_RE.test(code)) { Object.assign(visits, { note: "Type the code you chose on GoatCounter (the part before .goatcounter.com).", err: true }); return siteRedraw(); }
+  }
+  Object.assign(visits, { busy: code ? "Turning counting on…" : "Turning it off…", note: "", err: false });
+  siteRedraw();
+  try {
+    for (let attempt = 0; ; attempt++) {
+      if (attempt === 4) throw ghFail("Another device kept changing the site at the same moment. Try again in a minute.");
+      const head = await repoHead();
+      if (!code && !(await visitsRead(head.commit))) break;
+      const body = code ? new TextEncoder().encode(JSON.stringify({ goatcounter: code, at: new Date().toISOString() }, null, 1) + "\n") : null;
+      if (await commitFiles(head, { [VISITS_FILE]: body }, code ? "Count visits to the site" : "Stop counting visits to the site", "docs/")) break;
+    }
+    Object.assign(visits, { on: !!code, code: code || "", busy: "", err: false,
+      note: code ? "On. Visits are counted from the next time someone opens the site (within a minute or two)." : "Off. Visits aren't counted any more." });
+  } catch (e) { Object.assign(visits, { busy: "", note: e.message || "Couldn't change it.", err: true }); }
+  siteRedraw();
+}
+// In Settings, under the diary on the site: on a device with the GitHub key and its own diary.
+function visitsBox() {
+  if (!SITE_ON || !SITEPUB || !MY_LIB || !siteSameUser()) return "";
+  if (visits.on === null) { if (!visits.checking) setTimeout(visitsCheck); return ""; }
+  const phone = SITE_DEVICE === "phone";
+  const btn = (act, label, main) => `<button class="${phone ? `btn${main ? " green" : ""} block` : `btn${main ? " primary" : ""} small`}" type="button" data-site="${act}"${visits.busy ? " disabled" : ""}>${label}</button>`;
+  const say = visits.busy ? `<p class="status" role="status">${esc(visits.busy)}</p>` : visits.note ? `<p class="status${visits.err ? " err" : ""}" role="status">${esc(visits.note)}</p>` : "";
+  const page = visits.code && `https://${visits.code}.goatcounter.com/`;
+  const body = visits.on === true
+    ? `<p class="status">Visits to this site are counted.${page ? ` See how many people came, and from which countries and regions, at <a href="${esc(page)}" target="_blank" rel="noopener">${esc(visits.code)}.goatcounter.com</a>: you log in with your GoatCounter account, so only you can see them.` : ""}
+      Your own devices aren't counted. Visitors are told in the small print that visits are counted, without cookies or anything personal.</p>${btn("visits-off", "Stop counting")}${say}`
+    : `<p class="status">See how many people open this site and from which countries and regions, on a page only you can open. It uses GoatCounter: free for personal sites, no cookies, and nothing personal is kept about visitors.</p>
+      <ol class="status steps"><li>Create a free account at <a href="https://www.goatcounter.com/signup" target="_blank" rel="noopener">goatcounter.com</a>. Choose a code, for example ${esc(String(MY_LIB.profile.username || "mysite").toLowerCase())}: your counts will be at <i>code</i>.goatcounter.com.</li>
+        <li>Type the code here and press Start counting.</li></ol>
+      <label class="status" for="site-visitcode">Your GoatCounter code</label><input class="key" id="site-visitcode" name="visitcode" type="text" autocomplete="off" spellcheck="false" placeholder="e.g. ${esc(String(MY_LIB.profile.username || "mysite").toLowerCase())}">
+      ${btn("visits-on", "Start counting", true)}${visits.on === "?" ? btn("visits-off", "Stop counting") : ""}${say}`;
+  const title = visits.on === true ? "Visitor counts are on" : "Count visitors";
   return phone ? `<div class="card site-card"><p class="title">${title}</p>${body}</div>` : `<div class="site-in"><h3 class="sub-h">${title}</h3>${body}</div>`;
 }
 </script>

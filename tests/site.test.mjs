@@ -447,6 +447,47 @@ export default async function ({ browser, base }) {
     assert(!gh.file("docs/taste.json"), "taste.json is still on the site");
   }
 
+  // Counting visits: visits.json beside the pages holds the GoatCounter code and nothing else; a visitor's page sends
+  // one count to that GoatCounter as a picture request; the owner's own devices send none; the small print says so;
+  // when it stops, the file goes.
+  {
+    await a.evaluate(() => siteRedraw());
+    await a.waitForSelector('#site-box [data-site="visits-on"]');
+    await typeIn(a, '#site-box [name="visitcode"]', "https://Bogie-Test.goatcounter.com/");
+    await a.click('#site-box [data-site="visits-on"]');
+    await until(a, () => visits.on === true && !visits.busy, "counting to start");
+    const file = JSON.parse(gh.file("docs/visits.json"));
+    assert(file.goatcounter === "bogie-test" && Object.keys(file).sort().join() === "at,goatcounter", `what went up for counting: ${JSON.stringify(file)}`);
+    assert(/bogie-test\.goatcounter\.com/.test(await a.innerText("#site-box")), "the owner's box doesn't link to their counts");
+    const counted = [];
+    for (const [who, phone] of [["visitor", false], ["visitor", true]]) {
+      const v = await device(browser, base, gh, null, { example: false, phone });
+      await v.context().route(/\/visits\.json/, (r) => { const b = gh.file("docs/visits.json"); return b ? r.fulfill({ contentType: "application/json", body: b }) : r.fulfill({ status: 404, body: "not found" }); });
+      await v.context().route(/goatcounter\.com/, (r) => { counted.push(r.request().url()); r.fulfill({ contentType: "image/gif", body: Buffer.from("R0lGODlhAQABAAAAACw=", "base64") }); });
+      await v.goto(base + (phone ? "mobile.html" : "desktop.html")); await v.waitForFunction(() => typeof state === "object");
+      await seed(v, { profile: [{ Username: "a_visitor" }], watched: [{ Name: "Heat", Year: "1995", Date: "2024-01-01" }] });
+      const n0 = counted.length;
+      await v.waitForFunction(() => VISIT_CODE, null, { timeout: 8000 });
+      { const t0 = Date.now(); while (counted.length === n0 && Date.now() - t0 < 8000) await v.waitForTimeout(200); }
+      if (phone) await v.evaluate(() => push({ type: "data", title: "Settings" })); else await v.click("#btn-settings");
+      await v.waitForTimeout(300);
+      const note = await v.evaluate(() => [...document.querySelectorAll("p")].some((x) => /counted with GoatCounter/.test(x.textContent) && !x.closest("[hidden]")));
+      assert(note, `${who} on the ${phone ? "phone" : "computer"}: the small print doesn't say visits are counted`);
+      noErrors(v, `${who} counted`);
+      await v.context().close();
+    }
+    assert(counted.length >= 2 && counted.every((u) => /^https:\/\/bogie-test\.goatcounter\.com\/count\?p=%2F/.test(u)), `the visitors' counts: ${counted.slice(0, 3)}`);
+    // the owner's own device: no count
+    const before = counted.length;
+    await a.context().route(/goatcounter\.com/, (r) => { counted.push(r.request().url()); r.fulfill({ contentType: "image/gif", body: Buffer.from("R0lGODlhAQABAAAAACw=", "base64") }); });
+    await a.context().route(/\/visits\.json/, (r) => { const b = gh.file("docs/visits.json"); return b ? r.fulfill({ contentType: "application/json", body: b }) : r.fulfill({ status: 404, body: "not found" }); });
+    await a.evaluate(() => countVisit()); await a.waitForTimeout(500);
+    assert(counted.length === before && await a.evaluate(() => VISIT_CODE) === "bogie-test", "the owner's own device was counted");
+    await a.click('#site-box [data-site="visits-off"]');
+    await until(a, () => visits.on === false && !visits.busy, "counting to stop");
+    assert(!gh.file("docs/visits.json"), "visits.json is still on the site");
+  }
+
   // Taking it off the site: the files go, each device keeps its copy, and no device puts it back by itself.
   await a.click('#site-box [data-site="remove"]');
   await a.click('#site-box [data-site="remove"]');

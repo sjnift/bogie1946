@@ -213,6 +213,7 @@ function dataScreen() {
       <p>Film details come from The Movie Database (TMDB). This product uses the TMDB API but is not endorsed or certified by TMDB.${IN_VIEWER ? `
       Inside the Claude app, details come from Claude's knowledge of each film instead, so check anything surprising.` : ""}</p>
       <p>Your diary stays in this browser: only film titles and years go to TMDB, to find cast and crew.</p>
+      ${VISIT_CODE ? "<p>Visits to this site are counted with GoatCounter: no cookies and nothing personal, only the country and region a visit comes from.</p>" : ""}
       <p>On a computer? <a href="https://claude.ai/artifact/52oE5x53dcjUZgBYQMfPjR" target="_blank" rel="noopener">Open the desktop version</a>. It keeps its own copy of your import.</p>
       <p class="stamp">Updated ${builtText()}</p></div>`;
 }
