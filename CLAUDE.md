@@ -605,7 +605,10 @@ kept: country and region from the connection), whose pages are behind the owner'
 - Owner side (`06j-site.js`, `visitsBox`, in Settings under "compare with me"; a device with the GitHub key and its own
   diary): they make a free account at goatcounter.com, type the code (`<code>.goatcounter.com`), and "Start counting"
   commits `docs/visits.json` (`{ goatcounter, at }`, nothing else); the box then links to their counts. "Stop counting"
-  deletes it.
+  deletes it. "Send a test visit" (`visitsTest`) sends one count from the owner's device (path `/test-visit`) and
+  says whether it reached GoatCounter or the browser stopped it: the owner's tests in private tabs showed nothing (25 Oct
+  2026), while the live site, opened fresh, did send the count; tracker blockers (uBlock Origin) and private windows'
+  tracker protection (Safari, Firefox) stop these counts, so the numbers are a floor.
 - Every page (`countVisit`, end of both `init()`s) reads `visits.json` and sends one count per page load as a picture
   request from our own code (`https://<code>.goatcounter.com/count?p=…&t=…&r=…&s=…`; no outside script), except on the
   owner's own devices (`SITE` unlocked, or `isSiteOwner()`), in the Claude artifacts and from disk. The small print says

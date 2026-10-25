@@ -483,6 +483,13 @@ export default async function ({ browser, base }) {
     await a.context().route(/\/visits\.json/, (r) => { const b = gh.file("docs/visits.json"); return b ? r.fulfill({ contentType: "application/json", body: b }) : r.fulfill({ status: 404, body: "not found" }); });
     await a.evaluate(() => countVisit()); await a.waitForTimeout(500);
     assert(counted.length === before && await a.evaluate(() => VISIT_CODE) === "bogie-test", "the owner's own device was counted");
+    // "Send a test visit": from the owner's own device, saying whether it got through
+    await a.click('#site-box [data-site="visits-test"]');
+    await until(a, () => !visits.busy && /reached GoatCounter/.test(visits.note), "a test visit to get through");
+    assert(counted.some((u) => /p=%2Ftest-visit/.test(u)), "the test visit wasn't sent");
+    await a.context().unroute(/goatcounter\.com/); await a.context().route(/goatcounter\.com/, (r) => r.abort("blockedbyclient"));
+    await a.click('#site-box [data-site="visits-test"]');
+    await until(a, () => !visits.busy && /stopped it/.test(visits.note), "a blocked test visit to be told");
     await a.click('#site-box [data-site="visits-off"]');
     await until(a, () => visits.on === false && !visits.busy, "counting to stop");
     assert(!gh.file("docs/visits.json"), "visits.json is still on the site");

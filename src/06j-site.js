@@ -559,6 +559,7 @@ document.addEventListener("click", (e) => {
   else if (a === "taste-off") tasteSet(false);
   else if (a === "visits-on") visitsSet(val("visitcode"));
   else if (a === "visits-off") visitsSet(null);
+  else if (a === "visits-test") visitsTest();
   else if (a === "remove") {
     if (!site.armed) { site.armed = setTimeout(() => { site.armed = null; siteRedraw(); }, 6000); return siteRedraw(); }
     clearTimeout(site.armed); site.armed = null; siteRemove();
@@ -746,6 +747,26 @@ async function visitsSet(code) {
   } catch (e) { Object.assign(visits, { busy: "", note: e.message || "Couldn't change it.", err: true }); }
   siteRedraw();
 }
+// "Send a test visit": one count from this device (its own visits aren't counted otherwise), saying whether it reached
+// GoatCounter or the browser stopped it. A tracker blocker (uBlock Origin) or a private window's tracker protection
+// (Safari, Firefox) stops these counts; the owner's tests in private tabs showed nothing (25 Oct 2026).
+function visitsTest() {
+  const code = visits.code || VISIT_CODE;
+  if (!code || visits.busy) return;
+  Object.assign(visits, { busy: "Sending a test visit…", note: "", err: false });
+  siteRedraw();
+  let over = false;
+  const done = (ok) => {
+    if (over) return; over = true; clearTimeout(t);
+    Object.assign(visits, { busy: "", err: !ok, note: ok
+      ? `It reached GoatCounter. Refresh ${code}.goatcounter.com in a minute: a visit to "/test-visit" should be there. (If it isn't, see that GoatCounter's settings don't ignore your connection's address.)`
+      : `This browser stopped it before it reached GoatCounter: usually an ad blocker such as uBlock Origin, or a private window's tracker protection (Safari, Firefox). Visitors with those aren't counted either. Pause the blocker for this site and try again, or check the code (${code}) is the one GoatCounter gave you.` });
+    siteRedraw();
+  };
+  const t = setTimeout(() => done(false), 12000), img = new Image();
+  img.onload = () => done(true); img.onerror = () => done(false);
+  img.src = `https://${code}.goatcounter.com/count?${new URLSearchParams({ p: "/test-visit", t: "Test visit from Settings", rnd: Math.random().toString(36).slice(2) })}`;
+}
 // In Settings, under the diary on the site: on a device with the GitHub key and its own diary.
 function visitsBox() {
   if (!SITE_ON || !SITEPUB || !MY_LIB || !siteSameUser()) return "";
@@ -756,7 +777,7 @@ function visitsBox() {
   const page = visits.code && `https://${visits.code}.goatcounter.com/`;
   const body = visits.on === true
     ? `<p class="status">Visits to this site are counted.${page ? ` See how many people came, and from which countries and regions, at <a href="${esc(page)}" target="_blank" rel="noopener">${esc(visits.code)}.goatcounter.com</a>: you log in with your GoatCounter account, so only you can see them.` : ""}
-      Your own devices aren't counted. Visitors are told in the small print that visits are counted, without cookies or anything personal.</p>${btn("visits-off", "Stop counting")}${say}`
+      Your own devices aren't counted (so a test from here needs the button). Ad blockers and private windows' tracker protection stop counts, so treat the numbers as at least this many. Visitors are told in the small print that visits are counted, without cookies or anything personal.</p>${btn("visits-test", "Send a test visit")}${btn("visits-off", "Stop counting")}${say}`
     : `<p class="status">See how many people open this site and from which countries and regions, on a page only you can open. It uses GoatCounter: free for personal sites, no cookies, and nothing personal is kept about visitors.</p>
       <ol class="status steps"><li>Create a free account at <a href="https://www.goatcounter.com/signup" target="_blank" rel="noopener">goatcounter.com</a>. Choose a code, for example ${esc(String(MY_LIB.profile.username || "mysite").toLowerCase())}: your counts will be at <i>code</i>.goatcounter.com.</li>
         <li>Type the code here and press Start counting.</li></ol>
