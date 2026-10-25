@@ -485,9 +485,13 @@ standard errors or more from what the rest of the diary gives; every sentence op
   wants full access and Apify refused to start it with the owner's token, 25 Oct 2026), with our own reading (`LB_PAGE_FN`,
   plain text matching on the page's `body`, so it works in either reader): the structured data's `ratingValue`
   and `ratingCount`, else `twitter:data2` ("3.95 out of 5"), else the ratings summary Letterboxd loads beside the page
-  (`/csi/film/<slug>/ratings-summary/` and `rating-histogram/`, "Weighted average of … based on …"). It reads the
-  address the scraper came back with, or both of the title's; a page of another year (a plain address of a shared
-  title) is ignored. Pages Letterboxd turns away from Apify's data-centre addresses are read once more through its
+  (`/csi/film/<slug>/rating-histogram/` and `ratings-summary/`, "Weighted average of … based on …"), else the
+  `average-rating` badge (as letterboxdpy reads it). **Each film is reached through its own link from the export**
+  (watched.csv's Letterboxd URI, a boxd.it short link, kept in `f.uri`; `lbLink`): an address made from the title failed
+  for 129 of the owner's 132 (older films keep an address from an earlier title), and the scraper's "films" for them were
+  stubs of those missing pages. A film with a link skips the scraper; one without (only in the daily feed) is asked by
+  both of its title's addresses, and a page of another year (a plain address of a shared title) is ignored. A film read
+  before the links were used (`pv` under `LB_PAGE_V` 2) is read again; "no page" only when every address asked said so. Pages Letterboxd turns away from Apify's data-centre addresses are read once more through its
   residential ones (`home`). `lbPageResults` keeps an average, marks `few: 2` / `tries: 2`, or leaves a film unread
   for next time. The page function was tried on sample pages (as text and through JSDOM); the `apify` check replays
   the whole flow. **Apify's own reason is shown when it won't start a run** (`apify()` reads `error.type`/`message`):

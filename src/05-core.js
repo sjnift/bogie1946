@@ -430,7 +430,7 @@ const safeMetaMap = (o) => Object.fromEntries(Object.entries(o || {}).map(([k, m
 const safePhotos = (o) => Object.fromEntries(Object.entries(o || {}).map(([k, p]) => [k, imagePath(p)]).filter(([, p]) => p));
 const safeLbx = (o) => Object.fromEntries(Object.entries(o || {}).filter(([, x]) => x && typeof x === "object").map(([k, x]) =>
   [k, { ...(x.r != null ? { r: Number(x.r) || null } : {}), ...(x.n != null ? { n: Number(x.n) || 0 } : {}), ...(typeof x.slug === "string" && /^[a-z0-9-]+$/.test(x.slug) ? { slug: x.slug } : {}),
-    ...(x.tries != null ? { tries: Number(x.tries) || 0 } : {}), ...(x.v != null ? { v: Number(x.v) || 0 } : {}), ...(x.few ? { few: true } : {}) }]));
+    ...(x.tries != null ? { tries: Number(x.tries) || 0 } : {}), ...(x.v != null ? { v: Number(x.v) || 0 } : {}), ...(x.few ? { few: x.few === 2 ? 2 : true } : {}), ...(x.pv ? { pv: Number(x.pv) || 0 } : {}) }]));
 const safeFriends = (a) => (Array.isArray(a) ? a : []).filter((f) => f && f.rows && typeof f.name === "string")
   .map((f) => ({ id: String(f.id || "").replace(/[^\w-]/g, "").slice(0, 40) || `f${hash32(f.name)}`, name: f.name.slice(0, 100), rows: f.rows }));
 
