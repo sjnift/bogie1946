@@ -100,15 +100,22 @@ function catBlock(s) {
   return tabs("cats", [["most", "Most watched"], ["best", "Highest rated"]], t) +
     `<div class="cat-grid two">${col("Genres", s.genres)}${col("Languages", s.languages)}</div>`; // countries: on the map below
 }
+// Writers, cinematographers and composers side by side, five each, the rest a click away (the owner's trim, Oct 2026:
+// it was one list of fifteen behind three tabs).
+const CREW_N = 5;
 function crewBlock(s) {
-  const t = state.tab.crew, best = state.tab.crewSort === "best";
-  const data = { w: s.writers, p: s.dop, m: s.music }[t];
-  const label = { w: "writers", p: "cinematographers", m: "composers" }[t];
-  const list = best ? data.best.slice(0, 15) : foldTies(data.most, (p) => p.count, 1, peopleTies(label)).slice(0, 15);
-  const body = !list.length ? `<div class="empty">${best ? `None of these ${label} has ${s.minRated} or more rated films yet.` : "Nobody to show yet."}</div>`
-    : best ? rankRows(list, (p) => p.avg.toFixed(2), (p) => p.avg / 5, 1, personSub)
-    : rankRows(list, (p) => p.group ? `${plural(p.count, "film")} each` : plural(p.count, "film"), (p) => p.count / data.most[0].count, 1, personSub);
-  return `<div class="tab-rows">${tabs("crew", [["w", "Written by"], ["p", "Shot by"], ["m", "Music by"]], t)}${tabs("crewSort", [["most", "Most watched"], ["best", "Highest rated"]], state.tab.crewSort)}</div>` + body;
+  const best = state.tab.crewSort === "best";
+  const col = (title, data, label) => {
+    const list = best ? data.best : data.most;
+    const all = list.length > CREW_N ? dlink(D.names(best ? `${title}, highest rated` : title, best ? `${s.minRated}+ rated films each, best first` : `${fmtN(list.length)} ${label}, most watched first`, list, { faces: true }),
+      `See all ${fmtN(list.length)} ›`) : "";
+    const rows = !list.length ? `<div class="empty">${best ? `Needs ${s.minRated}+ rated films each.` : "Nobody yet."}</div>`
+      : rankRows(list.slice(0, CREW_N), (p) => best ? p.avg.toFixed(2) : fmtN(p.count), (p) => best ? p.avg / 5 : p.count / list[0].count, 1, personSub)
+        .replace(/class="rank-row"/g, 'class="rank-row cat"').replace(/<span class="r">\d+<\/span>/g, "");
+    return `<div><h3 class="row-h"><span>${title}</span>${all}</h3>${rows}</div>`;
+  };
+  return tabs("crewSort", [["most", "Most watched"], ["best", "Highest rated"]], state.tab.crewSort)
+    + `<div class="cat-grid crew-grid">${col("Written by", s.writers, "writers")}${col("Shot by", s.dop, "cinematographers")}${col("Music by", s.music, "composers")}</div>`;
 }
 function diaryBlock(s) {
   if (!s.entries.length) return `<div class="empty">No diary dates in this period. Films logged without a date still count everywhere else.</div>`;

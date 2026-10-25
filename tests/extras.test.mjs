@@ -112,6 +112,7 @@ export default async function ({ browser, base }) {
       crowdRows: rows("#crowd"), topRows: rows("#top"), seeAll: document.querySelectorAll("#top .row-h .dlink").length,
       calendar: /Last 12 months/.test($("#logged").textContent), charts: document.querySelectorAll("#years .mult").length, rewatchCol: /Rewatches/.test($("#years thead").textContent),
       mapTops: [...document.querySelectorAll("#world .wtops .k")].map((k) => k.textContent),
+      crew: [...document.querySelectorAll("#crew .crew-grid > div")].map((c) => [c.querySelector("h3 span").textContent, c.querySelectorAll(".rank-row").length]),
       faces: document.querySelectorAll("#starring .person").length, cats: document.querySelectorAll("#origin .cat-grid h3").length,
       // the best decade, then the second and third with their posters, smaller
       decades: bestDecades(computeStats(state.lib, metaOf, "all")).length, runners: [...document.querySelectorAll("#best-decade .bd-runner")].map((r) => r.querySelectorAll(".poster").length),
@@ -123,7 +124,8 @@ export default async function ({ browser, base }) {
     && lay.when.join() === "logged,months,years,habits" && lay.ratings.join() === "rated,crowd,top" && lay.reviews.join() === "reviews,review-stats" && lay.next.join() === "next",
     `every chapter in full: ${JSON.stringify(lay)}`);
   assert(lay.crowdRows.length >= 2 && lay.crowdRows.every((n) => n >= 1 && n <= 7) && lay.topRows.length >= 1 && lay.topRows.every((n) => n >= 1 && n <= 7) && lay.seeAll >= 1
-    && !lay.calendar && lay.charts === 3 && lay.rewatchCol && lay.mapTops.join() === "Most watched,Highest rated", `the trims: ${JSON.stringify(lay)}`);
+    && !lay.calendar && lay.charts === 3 && lay.rewatchCol && lay.mapTops.join() === "Most watched,Highest rated"
+    && lay.crew.map((c) => c[0]).join() === "Written by,Shot by,Music by" && lay.crew.every((c) => c[1] >= 1 && c[1] <= 5), `the trims: ${JSON.stringify(lay)}`);
   assert(lay.decades >= 3 && lay.runners.length === 2 && lay.runners.every((n) => n >= 3 && n <= 6) && lay.sizes[1] < lay.sizes[0],
     `second and third best decades: ${JSON.stringify({ decades: lay.decades, runners: lay.runners, sizes: lay.sizes })}`);
   // a row's "See all" opens the whole list in the pop-up

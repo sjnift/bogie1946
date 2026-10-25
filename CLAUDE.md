@@ -92,7 +92,9 @@ Where it lives:
     posters each with "See all N ›"** for the rest (`posterRow`, `ROW_N`; `crowdOf` keeps the full `higherAll`,
     `lowerAll`, `gemsAll`); Logged has no "last 12 months" calendar for all time (Month by month sits below it; a single
     year keeps "Every day of …"); Year by year has **one row of three charts** (films, average rating, film age) and the
-    table carries hours, not in English and rewatches; **Genre & origin shows genres and languages only**, the countries
+    table carries hours, not in English and rewatches; **Crew shows writers, cinematographers and composers side by
+    side, five each** with "See all N ›" (`crewBlock`, `CREW_N`; one Most watched / Highest rated switch for all three;
+    it was fifteen rows behind three tabs); **Genre & origin shows genres and languages only**, the countries
     being on the map, which lists the most watched and highest rated under it (`worldMapHtml(…, { tops: true })`); with no
     reviews at all, only one empty review box. Don't bring back cards or "open in place". **Highest and lowest rated**
     are off the top, the last section of Ratings (phone: Stats › Films after Records). The `extras` check covers the
@@ -298,7 +300,7 @@ friend replaces the address instead.
 
 - **Stats**: recently watched (8 latest entries on the desktop main page, `recentBlock`; 12 on the phone's Profile;
   a year shows its last ones), films, hours, diary, ratings, rewatches, reviews, most watched and highest rated
-  actors/directors/crew (the desktop's Crew has both, `state.tab.crewSort`, asked Oct 2026), genres,
+  actors/directors/crew (the desktop's Crew has both, `state.tab.crewSort`, asked Oct 2026: three columns, five each), genres,
   countries, languages, decades, milestones with posters, records, highest and lowest rated, On this day, Watch next,
   Reviewed (search; the desktop main page shows the latest 2, cut short, and "All N reviews" opens the rest:
   `REVIEWS_SHOWN`) and, from the old Insights page, year by year, genres year by year and as you rate them, people over
