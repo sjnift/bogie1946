@@ -246,7 +246,8 @@ The owner asked for this to be checked every time. A film, diary entry, person o
   `w` writers, `p` cinematographers, `m` composers, `g` genres, `k` countries, `l` language, `r` runtime,
   `poster`, `id`, `va/vc` TMDB score, `im` IMDb id, `ir/iv/mc/rt` IMDb, Metacritic, Rotten Tomatoes,
   `pin` (matched by hand). `metaOf(f)` reads it (example films use `EXAMPLE_META`).
-- `LBX[filmKey]`: Letterboxd averages `{ r, n, slug }` or `{ tries, v: 2 }` when not found.
+- `LBX[filmKey]`: Letterboxd averages `{ r, n, slug }`, `{ tries, v: 2 }` when not found, or `{ tries, v: 2, few: true, slug }`
+  when the film is on Letterboxd with too few ratings there for an average (`lbTooFew`).
 - `KNOWN_IDS[filmKey]`: exact TMDB ids from the feed; lookups use them first.
 - Storage (`store` in `05-core.js`): small things in localStorage (API keys `cr-tmdb-key`, `cr-omdb-key`,
   `cr-apify-key`; views `cr-view-v1`, `cr-mview-v1`; `cr-letterboxd-run`; the diary on the site `cr-site-v1`, `cr-site-pub-v1`, `cr-site-dirty`); big things in IndexedDB database
@@ -468,9 +469,14 @@ standard errors or more from what the rest of the diary gives; every sentence op
   those were kept are fetched again, a day's allowance at a time.
 - **Apify** actor `solidcode~letterboxd-scraper` for Letterboxd averages. $0.0036 per film + $0.005 per run;
   the free plan's $5 a month is about 1,300 films, so a run stops at `LB_RUN_CAP = 1300`. The first run reads
-  the member's films page (`/<user>/films/`); follow-up runs ask for each missing film at both addresses
-  (`/film/<slug>/` and `/film/<slug>-<year>/`, slugs built like Letterboxd's: 8½ → `8-half`). Matching is by
-  title and year, then title alone, then the address asked for. Runs survive closing the page.
+  the member's films page (`/<user>/films/`); the missing films are then asked for by address in **two runs**
+  (`lbAddressRun`): first `/film/<slug>-<year>/`, which only a title shared by several films has, then the plain
+  `/film/<slug>/` for the films still missing (slugs built like Letterboxd's: 8½ → `8-half`). Asking for both at once
+  (until 25 Oct 2026) charged two films per shared title, so a run could hit its cap and the films it never reached were
+  marked not found for good, with no way to retry (the owner had 144 films without averages then). A run that stops at its cap now marks
+  nothing; films not found have "Look for them again" (`retry`); films on Letterboxd without an average are listed
+  apart. A stored run the current token can't read (one started with the token used before) is set aside ("gone").
+  Matching is by title and year, then title alone, then the address asked for. Runs survive closing the page.
 - **Letterboxd RSS feed** (daily, see below). Letterboxd itself has no API.
 
 ## The diary on the site (password-protected)
