@@ -23,7 +23,7 @@ function reviewMatches(scopeYear) {
   return { all, list: q ? all.filter((r) => r.text.toLowerCase().includes(q) || r.film.name.toLowerCase().includes(q)) : all };
 }
 // The stats page shows the latest few (or the first few that match a search); the rest open in the pop-up.
-const REVIEWS_SHOWN = 3;
+const REVIEWS_SHOWN = 2;
 function reviewListHtml(scopeYear) {
   const { all, list } = reviewMatches(scopeYear), q = state.reviewQuery;
   const shown = list.slice(0, REVIEWS_SHOWN);

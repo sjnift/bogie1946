@@ -13,28 +13,8 @@ function homeInsights(Y) {
 }
 const needYears = (what) => `<div class="empty">${what} need diary entries from at least two years, with five or more films in each.</div>`;
 // The sections this file adds to the Stats page, by name, for renderSections to place.
-function moreSections(s) {
-  const all = s.scope === "all", I = homeInsights(), R = all ? null : homeInsights(s.scope);
-  const k = HOME_INS.k, noMeta = !s.withMeta;
-  const crowd = all ? crowdOf(k, state.lib.films) : crowdOf(k, R.S.films, R.ratingAt);
-  const prevY = all ? "" : String(+s.scope - 1);
-  return {
-    months: (() => { const G = monthGrid(state.lib, metaOf, all ? null : s.scope); return card("months", "Month by month", monthsLine(G), monthGridBlock(G)); })(),
-    years: all ? card("years", "Year by year", "By the year you watched, from diary dates.", yearsBlock(I)) : "",
-    vsprev: all ? "" : card("vsprev", `Against ${prevY}`, `${esc(s.scope)} next to the year before.`, vsPrevBlock(R, prevY)),
-    habits: card("habits", "Habits", all ? "When and how you watch." : `When and how you watched in ${esc(s.scope)}.`,
-      habitsBlock(all ? I.habits : R.habits.filter((h) => !["Longest streak", "Biggest day", "Oldest film"].includes(h.k)), "Habits come from diary dates.")),
-    crowd: card("crowd", "Against the crowd", all ? "Where your ratings part ways with everyone else's." : `Films you rated in ${esc(s.scope)}.`, crowdBlock(crowd, all ? null : s.scope)),
-    peopleYears: all ? card("people-years", "People over the years", "Who's new, who stays, and how many directors each year brought.", noMeta ? emptyMeta() : peopleYearsBlock(I)) : "",
-    newIn: !all && R.firstYear !== s.scope ? card("new-in", `New in ${esc(s.scope)}`, "Directors, actors, countries and languages that first turned up in your diary this year.", noMeta ? emptyMeta() : newInBlock(R)) : "",
-    genreYears: all ? card("genre-years", "Genres year by year", "The share of each year's films in each genre.", noMeta ? emptyMeta() : genreYearsBlock(I)) : "",
-    genreRates: all ? card("genre-rates", "Genres as you rate them", "Each genre against your own average and against the crowd.", noMeta ? emptyMeta() : genresBlock(I)) : "",
-    reviewStats: card("review-stats", all ? "Your reviews in numbers" : `Your ${esc(s.scope)} reviews in numbers`, "What you write, and when you bother.", reviewInsightsBlock(state.lib, all ? null : s.scope)),
-  };
-}
-
-// Month by month: the grid, then each calendar month across the years (or, for a year, against your usual).
-function monthGridBlock(G) {
+// Each calendar month across the years (or, for a year, against your usual): the table behind the grid.
+function monthTableHtml(G) {
   if (!G) return `<div class="empty">Months come from diary dates, and there are none in this period.</div>`;
   const rows = G.cal.filter((c) => c.years).map((c) => {
     const rated = c.E.filter((e) => e.rating || e.film.rating), title = G.Y ? `${c.name} ${G.Y}` : `${c.name}, every year`;
@@ -43,8 +23,8 @@ function monthGridBlock(G) {
       <td class="n">${c.avg ? dlink(monthEnts(`Rated in ${title}`, rated), c.avg.toFixed(2)) : "—"}</td>
       <td>${leanHtml(c, title)}</td></tr>`;
   }).join("");
-  return monthGridHtml(G) + `<div class="scroll"><table class="data"><thead><tr><th>Month</th><th class="n">Films</th><th class="n">${G.Y ? "Usual" : "A year"}</th><th class="n">Your average</th><th>Leans to</th></tr></thead><tbody>${rows}</tbody></table></div>
-    <p class="status">Each square is the films you watched that month, darker for more${G.Y ? "; “usual” is the same month in your other years" : ""}. “Leans to” is the genre that month has most more of than the rest of ${G.Y ? "the year" : "your diary"}. Click any number to see the films.</p>`;
+  return `<div class="scroll"><table class="data"><thead><tr><th>Month</th><th class="n">Films</th><th class="n">${G.Y ? "Usual" : "A year"}</th><th class="n">Your average</th><th>Leans to</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <p class="status">${G.Y ? "“Usual” is the same month in your other years. " : ""}“Leans to” is the genre that month has most more of than the rest of ${G.Y ? "the year" : "your diary"}. Click any number to see the films.</p>`;
 }
 function yearsBlock(I) {
   if (I.years.length < 2) return needYears("Year-by-year trends");
@@ -121,10 +101,11 @@ function peopleYearsBlock(I) {
     ${disc}</div>`;
 }
 
-function crowdBlock(C, Y) {
+// `noTabs`: in the pop-up, where switching the crowd would change the page behind it instead.
+function crowdBlock(C, Y, noTabs) {
   // only the crowds this diary has scores from (no greyed-out ones), and no tabs at all when there's just one
   const crowds = Object.entries(CROWDS).filter(([k]) => (C.available[k] || 0) >= (Y ? 3 : 5) || k === C.key);
-  const tabs = crowds.length > 1 ? `<div class="tabs" role="tablist">${crowds.map(([k, c]) =>
+  const tabs = !noTabs && crowds.length > 1 ? `<div class="tabs" role="tablist">${crowds.map(([k, c]) =>
     `<button class="tab" role="tab" type="button" data-crowd="${k}" aria-selected="${k === C.key}" title="${C.available[k] || 0} rated films have this score">${c.label}</button>`).join("")}</div>` : "";
   if (C.n < (Y ? 3 : 5)) {
     const why = Y ? `Not enough crowd scores for ${Y}'s films yet.`

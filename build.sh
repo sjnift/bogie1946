@@ -7,7 +7,7 @@ set -e
 cd "$(dirname "$0")"
 SHARED="src/04-example.js src/05-core.js src/06-lookup.js src/06b-charts.js src/06d-letterboxd.js src/06c-insights.js src/06e-compare.js src/06f-reviews.js src/06g-drill.js src/06h-more.js src/06i-share.js src/06j-site.js src/06k-study.js src/06l-filter.js src/06m-story.js"
 DESK_HEAD="src/01-head.html src/02-style.html"
-DESK_BODY="src/03-body.html $SHARED src/07-render-a.js src/07-render-b.js src/07-render-c.js src/07c-insights.js src/07d-compare.js src/07e-reviews.js src/07f-drill.js src/08-events.js"
+DESK_BODY="src/03-body.html $SHARED src/07-render-a.js src/07-render-b.js src/07-render-c.js src/07-render-d.js src/07c-insights.js src/07d-compare.js src/07e-reviews.js src/07f-drill.js src/08-events.js"
 MOB_HEAD="src/m01-head.html"
 MOB_BODY="src/m02-body.html $SHARED src/m03-screens.js src/m04-screens.js src/m04b-stats.js src/m06-insights.js src/m07-compare.js src/m08-reviews.js src/m09-drill.js src/m10-route.js src/m05-events.js"
 

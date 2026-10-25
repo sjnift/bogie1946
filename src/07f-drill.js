@@ -15,7 +15,7 @@ function paintPanel() {
   const foot = hidden ? `<div class="dlg-foot"><span class="status">Showing ${fmtN(n - hidden)} of ${fmtN(n)}</span>
     <button class="btn small primary" type="button" data-drillpage>See all ${fmtN(n)} on one page</button></div>` : "";
   dlg.innerHTML = inPanel(() => panelHeadHtml(d)) + `<div class="dlg-body">${html}</div>` + foot;
-  dlg.classList.toggle("wide", d.kind === "film" || d.kind === "reviews" || d.kind === "search");
+  dlg.classList.toggle("wide", d.kind === "film" || d.kind === "reviews" || d.kind === "search" || d.kind === "block");
   dlg.classList.toggle("tall", d.kind === "share");
   if (!dlg.open) { if (typeof dlg.showModal === "function") dlg.showModal(); else dlg.setAttribute("open", ""); }
   const body = dlg.querySelector(".dlg-body");

@@ -68,13 +68,17 @@ Where it lives:
     for 150+ films). The `reviews` check covers both.
   - The best-rated decade is featured prominently with its films' posters (asked again Oct 2026): the desktop's "Best
     decade" in full right under On this day (`bestDecadeBlock`), the phone's Profile under On this day and Breakdown.
-  - **The desktop main page is short** (asked Oct 2026: "cluttered with too much data in full view"): recently watched,
-    On this day and the best decade show in full; every chapter below is a grid of two cards (`card`, `cardHtml`), each
-    a title, a line that sums it up (`cardLines`: the headline numbers, each a link) and its content cut to 210 px with
-    a fade, until "Show all" (or the fade) opens it to the full width (`state.open`, kept until the page closes; a card
-    that fits has no button: `fitCards`). About 5,800 px for a 1,500-film diary instead of 14,000. **Highest and lowest
-    rated** moved off the top to the end of the Ratings chapter (desktop card `top`, "Highest & lowest rated"; phone
-    Stats › Films after Records). The checks open every card before clicking inside (`links`, `xss`).
+  - **The desktop main page is a dashboard** (asked Oct 2026: "cluttered with too much data in full view"; a first try
+    that cut cards short and opened them in place was rejected, since opening one brought the old clutter back). Recently
+    watched, On this day and the best decade show in full; every chapter below is a grid of cards made for their size
+    (`07-render-d.js`: `dashChapters`, `dcard`): a title (and its switch, if any), a line with the headline numbers (each a
+    link; `cardLines`, `monthsLine`), ONE picture (a chart, a top five as faces or rows, five posters, the month grid)
+    and "See all" opening the rest in the pop-up: a list (`D.names`, `D.films`, `D.groups`) or a whole section
+    (`D.block(title, sub, () => html)`, drill kind `block`, the old section functions like `yearsBlock`, `genresBlock`,
+    `diaryBlock`, `crowdBlock(C, Y, true)` without its tabs). **Nothing is cut off and nothing opens in place.** A lone
+    card in a chapter is full width and uses it (`wide`: genres year by year, highest beside lowest rated, ten Watch
+    next picks). **Highest and lowest rated** are off the top, the last card of Ratings (phone: Stats › Films after
+    Records). The `counts` check also audits every list inside the `block` pop-ups; `xss` opens each of them.
   - **Insights is a study of the diary, not a repeat of the Stats page** (they found the old one inadequate and
     repetitive, Oct 2026): what stood apart and when, how taste moved, what ratings follow and why, how one film led to
     another, and habits with what they explain. No counts or top lists the Stats page already shows (the `study` check
@@ -157,10 +161,12 @@ The owner asked for this to be checked every time. A film, diary entry, person o
   `03-body.html` (page skeleton), shared files, `07-render-a.js` (state, render(), hero, tiles, the Settings page `renderSettings`, the lookup box and its one-line
   version on the stats page `renderLookupMini`),
   `07-render-b.js` (Stats sections, placed in chapters by `renderSections` with the menu that stays at the top,
-  `#jump`, as cards (`card`, `cardHtml`, `cardLines`, `fitCards`) below the full-width recent / On this day / best decade; `foldTies` turns four or more with the same count into one row), `07-render-c.js` (more Stats sections, the numbers from the old Insights page:
-  `moreSections` places year by year, genres year by year, genres as you rate them, people over the years, against
-  the crowd, habits, review numbers, and for a year against the year before and new in the year; `homeInsights`
-  keeps `computeInsights`/`computeYearInsights` in `HOME_INS` until the data changes), `07c-insights.js` (the study),
+  `#jump`, below the full-width recent / On this day / best decade, the chapters of cards from `07-render-d.js`; `foldTies` turns four or more with the same count into one row), `07-render-c.js` (more Stats sections, the numbers from the old Insights page:
+  year by year, genres year by year, genres as you rate them, people over the years, against the crowd, habits, the
+  month table, and for a year against the year before and new in the year; `homeInsights`
+  keeps `computeInsights`/`computeYearInsights` in `HOME_INS` until the data changes; these section functions now fill the
+  pop-ups), `07-render-d.js` (the main page's dashboard of cards, see "The desktop main page is a dashboard"),
+  `07c-insights.js` (the study),
   `07d-compare.js`, `07e-reviews.js`,
   `07f-drill.js` (pop-up, full page, hash routes, back button), `08-events.js` (import, clicks, init).
 - Phone: `m01-head.html` (all phone CSS), `m02-body.html` (header, five-tab bar), shared files,
@@ -274,7 +280,7 @@ friend replaces the address instead.
   a year shows its last ones), films, hours, diary, ratings, rewatches, reviews, most watched and highest rated
   actors/directors/crew (the desktop's Crew has both, `state.tab.crewSort`, asked Oct 2026), genres,
   countries, languages, decades, milestones with posters, records, highest and lowest rated, On this day, Watch next,
-  Reviewed (search; the desktop main page shows the latest 3, cut short, and "All N reviews" opens the rest:
+  Reviewed (search; the desktop main page shows the latest 2, cut short, and "All N reviews" opens the rest:
   `REVIEWS_SHOWN`) and, from the old Insights page, year by year, genres year by year and as you rate them, people over
   the years, against the crowd, habits, review numbers, and for a year against the year before and new in the year.
   "Against the crowd" uses Letterboxd (Apify), IMDb/Metacritic (OMDb) or TMDB scores.
