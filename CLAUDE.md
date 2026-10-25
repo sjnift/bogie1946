@@ -293,7 +293,13 @@ friend replaces the address instead.
   pages' caches hold; everything is worked out from it as from the whole diary. They last until the page is closed.
   The `counts` check picks the commonest genre and decade on both layouts, then a second genre as any and as all, and
   proves every list holds only films that pass, each once.
-- **Insights**: a study of the diary (below), findings only: all years (in short, chapters, how taste has moved, what
+- **Month by month** (asked Oct 2026; `monthGrid`, `monthGridHtml`, `monthsLine` in `06c-insights.js`): a grid of every
+  month of every year (a square each, darker for more, opening its diary entries; months before the diary began or not
+  yet come are hatched, not counted as empty), a row for a typical year, and each calendar month across the years: films,
+  a year, your average rating, and the genre it leans to beyond the rest of the diary ("Leans to", `leanHtml`). For a
+  year: its months against your usual for each in other years. Desktop card `months` in "When you watch"; phone
+  Stats › Years (`mMonths`). The `counts` check adds up every month.
+- **Insights**: a study of the diary (below), findings only: all years (in short, chapters, through the year, how taste has moved, what
   ratings follow, one film to the next, habits) and each year against the rest of the diary (in short, what set it
   apart, its months, ratings, threads, habits, the year picture).
 
@@ -317,6 +323,12 @@ standard errors or more from what the rest of the diary gives; every sentence op
 - Threads: doors that opened (four or more by one person within 120 days), chains (each film sharing someone with one
   seen in the ten days before). Habits: weekends, a genre's month, a month for
   rewatching, comfort after a break, busy against quiet months, marathon days, logging and rating over time, second looks.
+- **Through the year** (`monthStudy`, asked Oct 2026; desktop `#i-months`, phone Insights tab "Months"): each month's
+  pace against your usual (`paceChart`; months count by the days they were in the diary), months reliably busier or
+  quieter (z 3, allowing for uneven pace, and so in two thirds of the years; else "No fixed season"), a quarter or month
+  taking a growing or shrinking share of each full year (t 3, four full years or more), what a month leans to across
+  two or more years (not one binge, not a genre month already in Habits), and a month you rate differently (with
+  whether the crowd agrees). The `study` check plants a busy December every year and expects it.
 - **A single year** (`computeYearStudy`) is never left blank where it has films (the owner found a 186-film 2021 with
   nothing under "What set it apart" or month by month, Oct 2026; a realistic made-up diary with no planted patterns
   left most years empty): what set it apart is clear differences (`standouts`, z 3), then leanings (z 2, said as "a

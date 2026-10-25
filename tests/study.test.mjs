@@ -113,6 +113,20 @@ export default async function ({ browser, base }) {
   assert(/in Japanese, against/.test(await txt("#y-differ")), `2023's Japanese films weren't set apart: ${await txt("#y-differ")}`);
   assert(/Akira Kurosawa/.test(await txt("#y-threads")), "2023's Kurosawa run wasn't found");
   await audit(d, "desktop insights 2023");
+  // through the year: the section is there, and on a diary where every December is busy, December is found
+  assert(/Through the year/.test(all) && await d.evaluate(() => desktopStudy().months.enough), "the Through the year section is missing");
+  const dec = await d.evaluate(() => {
+    let r = 5; const rnd = () => (r = (r * 16807) % 2147483647) / 2147483647, rows = { profile: [{ Username: "dec" }], diary: [], watched: [], ratings: [], likes: [], reviews: [], watchlist: [] };
+    let n = 0;
+    for (let t = Date.UTC(2021, 0, 1); t <= Date.UTC(2024, 11, 31); t += 864e5) {
+      const dec = new Date(t).getUTCMonth() === 11, k = rnd() < (dec ? 0.95 : 0.4) ? 1 + (rnd() < 0.2 ? 1 : 0) : 0;
+      for (let j = 0; j < k; j++) { const name = `Seasonal ${++n}`, date = new Date(t).toISOString().slice(0, 10);
+        rows.diary.push({ Name: name, Year: "2000", Date: date, "Watched Date": date, Rating: "3.5" }); rows.watched.push({ Name: name, Year: "2000", Date: date }); }
+    }
+    const S = computeStudy(buildLibrary(rows), () => null, "tmdb");
+    return { pace: S.months.pace.map((p) => p.big), overview: S.overview.map((o) => o.k) };
+  });
+  assert(dec.pace[0] === "December" && dec.overview.includes("Through the year"), `a busy December every year wasn't found: ${JSON.stringify(dec)}`);
   // every year says something in each section (owner, Oct 2026: a 186-film year showed nothing set apart or month by month)
   for (const yr of await d.$$eval("[data-insyear]", (x) => x.map((b) => b.dataset.insyear).filter((y) => y !== "all"))) {
     await d.click(`[data-insyear="${yr}"]`); await d.waitForSelector("#y-differ");

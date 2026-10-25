@@ -19,6 +19,7 @@ function moreSections(s) {
   const crowd = all ? crowdOf(k, state.lib.films) : crowdOf(k, R.S.films, R.ratingAt);
   const prevY = all ? "" : String(+s.scope - 1);
   return {
+    months: (() => { const G = monthGrid(state.lib, metaOf, all ? null : s.scope); return card("months", "Month by month", monthsLine(G), monthGridBlock(G)); })(),
     years: all ? card("years", "Year by year", "By the year you watched, from diary dates.", yearsBlock(I)) : "",
     vsprev: all ? "" : card("vsprev", `Against ${prevY}`, `${esc(s.scope)} next to the year before.`, vsPrevBlock(R, prevY)),
     habits: card("habits", "Habits", all ? "When and how you watch." : `When and how you watched in ${esc(s.scope)}.`,
@@ -32,6 +33,19 @@ function moreSections(s) {
   };
 }
 
+// Month by month: the grid, then each calendar month across the years (or, for a year, against your usual).
+function monthGridBlock(G) {
+  if (!G) return `<div class="empty">Months come from diary dates, and there are none in this period.</div>`;
+  const rows = G.cal.filter((c) => c.years).map((c) => {
+    const rated = c.E.filter((e) => e.rating || e.film.rating), title = G.Y ? `${c.name} ${G.Y}` : `${c.name}, every year`;
+    return `<tr><td>${esc(c.name)}</td><td class="n">${dlink(monthEnts(title, c.E), fmtN(c.E.length))}</td>
+      <td class="n">${G.Y ? (c.usual != null ? dlink(monthEnts(`${c.name} in your other years`, c.usualE, plural(c.usualYears, "year")), c.usual.toFixed(1)) : "—") : dlink(monthEnts(title, c.E, plural(c.years, "year")), c.perYear.toFixed(1))}</td>
+      <td class="n">${c.avg ? dlink(monthEnts(`Rated in ${title}`, rated), c.avg.toFixed(2)) : "—"}</td>
+      <td>${leanHtml(c, title)}</td></tr>`;
+  }).join("");
+  return monthGridHtml(G) + `<div class="scroll"><table class="data"><thead><tr><th>Month</th><th class="n">Films</th><th class="n">${G.Y ? "Usual" : "A year"}</th><th class="n">Your average</th><th>Leans to</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <p class="status">Each square is the films you watched that month, darker for more${G.Y ? "; “usual” is the same month in your other years" : ""}. “Leans to” is the genre that month has most more of than the rest of ${G.Y ? "the year" : "your diary"}. Click any number to see the films.</p>`;
+}
 function yearsBlock(I) {
   if (I.years.length < 2) return needYears("Year-by-year trends");
   const yr = (p) => `’${p.year.slice(2)}`;

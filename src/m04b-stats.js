@@ -9,9 +9,26 @@ const twoYears = (what) => `<div class="empty">${what} need diary entries from a
 function yearsScreen(s) {
   const head = statsHead();
   if (!s.entries.length) return head + `<div class="empty">No diary entries in this period.</div>`;
-  if (s.scope !== "all") return head + mVsPrev(yearInsights(s.scope)) + mNewIn(yearInsights(s.scope));
+  const G = memo(`months|${s.scope}`, () => monthGrid(state.lib, metaOf, s.scope === "all" ? null : s.scope));
+  if (s.scope !== "all") return head + mVsPrev(yearInsights(s.scope)) + mMonths(G) + mNewIn(yearInsights(s.scope));
   const I = allInsights();
-  return head + mYears(I) + (s.withMeta ? mGenreYears(I) + mPeopleYears(I) : needMeta());
+  return head + mYears(I) + mMonths(G) + (s.withMeta ? mGenreYears(I) + mPeopleYears(I) : needMeta());
+}
+// Month by month: the grid of every month, then each calendar month across the years (or, for a year, against usual).
+function mMonths(G) {
+  if (!G) return "";
+  const rows = G.cal.filter((c) => c.years).map((c) => {
+    const title = G.Y ? `${c.name} ${G.Y}` : `${c.name}, every year`, rated = c.E.filter((e) => e.rating || e.film.rating);
+    const cell = (v, label) => `<span class="c"><b>${v}</b><small>${label}</small></span>`;
+    return `<div class="yrow"><span class="y">${MONTHS[c.i]}</span>${cell(dlink(monthEnts(title, c.E), fmtN(c.E.length)), "films")}
+      ${G.Y ? cell(c.usual != null ? dlink(monthEnts(`${c.name} in your other years`, c.usualE, plural(c.usualYears, "year")), c.usual.toFixed(1)) : "—", "usual")
+        : cell(dlink(monthEnts(title, c.E, plural(c.years, "year")), c.perYear.toFixed(1)), "a year")}
+      ${cell(c.avg ? dlink(monthEnts(`Rated in ${title}`, rated), c.avg.toFixed(2)) : "—", "average")}
+      ${c.lean ? `<span class="x">Leans to ${leanHtml(c, title)}</span>` : ""}</div>`;
+  }).join("");
+  const line = monthsLine(G);
+  return sh("Month by month") + (line ? `<p class="lead" style="margin:-4px 0 12px">${line}</p>` : "") + `<div class="card mgrid-card">${monthGridHtml(G)}</div>` +
+    sh(G.Y ? `Each month of ${esc(G.Y)}` : "Each month, across the years") + `<div class="group">${rows}</div><p class="note">Darker squares are busier months${G.Y ? "; “usual” is the same month in your other years" : ""}. Tap any number to see the films.</p>`;
 }
 function crowdScreen(s) {
   const k = crowdKey();

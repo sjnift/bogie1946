@@ -391,4 +391,73 @@ function computeYearInsights(lib, metaOf, Y, crowdKey, I = computeInsights(lib, 
 }
 // The years with diary entries, oldest first.
 const diaryYears = (lib) => [...new Set(lib.entries.map((e) => e.date.slice(0, 4)))].sort();
+
+/* ----- month by month (asked Oct 2026): every month of every year, and each calendar month across the years ----- */
+// A month is "in the diary" from the month of its first entry to the month of its last; months before or after aren't
+// counted as empty ones. For a single year (`Y`), each of its months also gets your usual for that month in other years.
+function monthGrid(lib, metaOf, Y) {
+  const all = lib.entries, E = Y ? all.filter((e) => e.date.startsWith(Y)) : all;
+  if (!E.length) return null;
+  const first = all[0].date.slice(0, 7), last = all[all.length - 1].date.slice(0, 7), live = (ym) => ym >= first && ym <= last;
+  const byMonth = new Map();
+  for (const e of all) { const k = e.date.slice(0, 7); if (!byMonth.has(k)) byMonth.set(k, []); byMonth.get(k).push(e); }
+  const ymOf = (y, i) => `${y}-${String(i + 1).padStart(2, "0")}`;
+  const years = Y ? [Y] : diaryYears(lib);
+  const rows = years.map((y) => {
+    const months = MONTHS_LONG.map((_, i) => { const key = ymOf(y, i); return { key, i, E: byMonth.get(key) || [], live: live(key) }; });
+    return { year: y, months, E: months.flatMap((m) => m.E) };
+  });
+  const allYears = diaryYears(lib);
+  // each genre's share of the period's films, to see what a month leans to beyond the usual mix
+  const periodFilms = [...new Set(E.map((e) => e.film))].filter((f) => metaOf(f)), gAll = new Map();
+  for (const f of periodFilms) for (const x of new Set(metaOf(f).g)) bump(gAll, x);
+  const minLean = Y ? 3 : 5;
+  const cal = MONTHS_LONG.map((name, i) => {
+    const ms = rows.map((r) => r.months[i]).filter((m) => m.live), es = ms.flatMap((m) => m.E);
+    const ratings = es.map((e) => e.rating || e.film.rating).filter(Boolean);
+    const films = [...new Set(es.map((e) => e.film))], g = new Map();
+    for (const f of films) { const m = metaOf(f); if (m) for (const x of new Set(m.g)) bump(g, x); }
+    // the genre the month leans to most: the biggest share over its share of the rest of the period's films
+    const withMeta = films.filter((f) => metaOf(f)).length;
+    const lean = [...g].filter(([x, n]) => n >= minLean && periodFilms.length - withMeta > 0).map(([x, n]) => {
+      const share = n / withMeta, rest = ((gAll.get(x) || 0) - n) / (periodFilms.length - withMeta);
+      return { x, share, rest, lift: rest > 0 ? share / rest : 9 };
+    }).filter((l) => l.lift >= 1.25 && l.share - l.rest >= 0.05).sort((a, b) => b.lift - a.lift || b.share - a.share)[0];
+    // the same month in your other years (for a single year)
+    const other = Y ? allYears.filter((y) => y !== Y).map((y) => ymOf(y, i)).filter(live) : [];
+    const otherE = other.flatMap((k) => byMonth.get(k) || []);
+    return { i, name, E: es, years: ms.length, perYear: ms.length ? es.length / ms.length : 0, avg: avg(ratings), rated: ratings.length, films,
+      lean: lean || null, leanFilms: lean ? films.filter((f) => { const m = metaOf(f); return m && m.g.includes(lean.x); }) : [],
+      usual: other.length ? otherE.length / other.length : null, usualE: otherE, usualYears: other.length };
+  });
+  return { Y, rows, cal, max: Math.max(1, ...rows.flatMap((r) => r.months.map((m) => m.E.length))), entries: E.length };
+}
+const monthEnts = (title, es, extra) => es.length ? D.entries(title, entriesSub(es, extra), es, { order: "asc" }) : null;
+// The grid: a row a year, a column a month, each square the films watched then, darker for more; under it a typical
+// year (or, for one year, your usual for each month in your other years).
+function monthGridHtml(G) {
+  const alpha = (n) => (0.16 + 0.84 * n / G.max).toFixed(2), fix = (v) => v.toFixed(v < 10 ? 1 : 0);
+  const cell = (m) => !m.live ? `<td class="mg-off"></td>` : m.E.length
+    ? `<td><button class="mg-c" type="button" ${dl(DR.month(m.E, m.key))} style="--a:${alpha(m.E.length)}" title="${monthName(m.key)}: ${plural(m.E.length, "film")}">${m.E.length}</button></td>`
+    : `<td><span class="mg-0" title="${monthName(m.key)}: none">·</span></td>`;
+  const foot = G.Y ? ["Usual", (c) => c.usual != null ? dlink(monthEnts(`${c.name} in your other years`, c.usualE, plural(c.usualYears, "year")), fix(c.usual)) : "—"]
+    : ["A year", (c) => c.years ? dlink(monthEnts(`${c.name}, every year`, c.E, plural(c.years, "year")), fix(c.perYear)) : "—"];
+  return `<div class="scroll"><table class="mgrid"><thead><tr><th></th>${MONTHS.map((m) => `<th>${m[0]}<span>${m.slice(1)}</span></th>`).join("")}<th class="n">All</th></tr></thead>
+    <tbody>${[...G.rows].reverse().map((r) => `<tr><th>${r.year}</th>${r.months.map(cell).join("")}<td class="n">${dlink(monthEnts(`Diary of ${r.year}`, r.E), fmtN(r.E.length))}</td></tr>`).join("")}</tbody>
+    <tfoot><tr><th>${foot[0]}</th>${G.cal.map((c) => `<td>${foot[1](c)}</td>`).join("")}<td></td></tr></tfoot></table></div>`;
+}
+// "Westerns 19% (10% the rest)": a month's lean, as a link to its films.
+const leanHtml = (c, title) => c.lean ? `${dlink(D.films(`${c.lean.x}, ${title}`, filmsSub(c.leanFilms), c.leanFilms), esc(c.lean.x))} <span class="muted">${pc(c.lean.share)}% · ${pc(c.lean.rest)}% otherwise</span>` : "—";
+// The line that sums it up: the fullest and emptiest months across the years, or the month of a year furthest from usual.
+function monthsLine(G) {
+  if (!G) return "";
+  const live = G.cal.filter((c) => c.years && c.E.length), fix = (v) => v.toFixed(1);
+  if (!G.Y) {
+    const by = [...live].sort((a, b) => b.perYear - a.perYear), hi = by[0], lo = by[by.length - 1];
+    return hi && lo && hi !== lo ? `${dlink(monthEnts(`${hi.name}, every year`, hi.E), hi.name)} is your fullest month, ${fix(hi.perYear)} films a year; ${dlink(monthEnts(`${lo.name}, every year`, lo.E), lo.name)} your emptiest, ${fix(lo.perYear)}.` : "";
+  }
+  const vs = live.filter((c) => c.usual != null).sort((a, b) => (b.E.length - b.usual) - (a.E.length - a.usual))[0];
+  return vs && vs.E.length > vs.usual ? `${dlink(monthEnts(`${vs.name} ${G.Y}`, vs.E), `${vs.name} ${esc(G.Y)}`)} ran furthest ahead of your usual: ${plural(vs.E.length, "film")}, against ${fix(vs.usual)} in a typical ${vs.name}.`
+    : `Each month of ${esc(G.Y)}, against your usual for it.`;
+}
 </script>

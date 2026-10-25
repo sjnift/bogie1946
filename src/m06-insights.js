@@ -1,7 +1,7 @@
 <script>
 /* ---------- phone: Insights, a study of the diary (worked out in 06k-study.js). The year chips pick all years or
    one; the tabs under them pick a section. ---------- */
-const INS_TABS = [["overview", "In short"], ["chapters", "Chapters"], ["taste", "Taste"], ["ratings", "Ratings"], ["threads", "Threads"], ["habits", "Habits"]];
+const INS_TABS = [["overview", "In short"], ["chapters", "Chapters"], ["months", "Months"], ["taste", "Taste"], ["ratings", "Ratings"], ["threads", "Threads"], ["habits", "Habits"]];
 const YEAR_TABS = [["overview", "In short"], ["apart", "Stood out"], ["ratings", "Ratings"], ["threads", "Threads"], ["habits", "Habits"]];
 // the crowd picked with the chips, or the one with the most scores
 const crowdKey = () => state.crowd || memo("crowd", () => defaultCrowd(state.lib, metaOf));
@@ -21,6 +21,7 @@ function insightsScreen() {
 function mAllInsights(tab) {
   const lib = state.lib, S = allStudy();
   if (tab === "chapters") return mChapters(S.chapters, S.n);
+  if (tab === "months") return mMonthsIns(S.months);
   if (tab === "taste") return mDrift(S.drift);
   if (tab === "ratings") return mRatings(S.ratings);
   if (tab === "threads") return mThreads(S.threads);
@@ -55,6 +56,16 @@ function mChapters(chs, n, title = "Chapters") {
       <p class="ctext">${dline(c.to, esc(c.text))}</p>${mStrip(c.posters)}</div>`).join("");
 }
 
+// Through the year: each month's pace against your usual, then what stands out about the months over the years.
+function mMonthsIns(M) {
+  const h = sh("Through the year");
+  if (!M.enough) return h + `<div class="empty">This needs a year or more of diary, with every month of the year in it.</div>`;
+  const card = (x) => `<div class="card chap"><p class="ctext">${dline(x.to, esc(x.text))}</p>${mStrip(x.posters)}</div>`;
+  return h + `<p class="note" style="margin:-4px 0 12px">How fast you watch in each month across your years, against your usual pace. Tap a month for its films.</p><div class="card">${paceChart(M, 96, 4)}</div>` +
+    mFindings(M.pace, "") + (M.shifts.length ? sh("How your year has changed") + mFindings(M.shifts, "") : "") +
+    (M.leans.length ? sh("What the months bring") + M.leans.map(card).join("") : "") +
+    (M.ratings.length ? sh("Ratings through the year") + mFindings(M.ratings, "") : "");
+}
 function mDrift(d) {
   if (!d.enough) return sh("How your taste has moved") + `<div class="empty">Changes in taste need a few years of diary, or a year or two with plenty of films.</div>`;
   const rows = d.list.map((x) => { const c = driftCols(x);

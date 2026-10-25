@@ -724,11 +724,112 @@ function driftCols(d) {
   return { grid: !floor, unit: d.kind === "share" ? "%" : "", cols: d.series.map((c) => ({ a: c.v == null ? 0 : Math.max(0.0001, c.v - floor), b: 0, label: c.label, minor: c.minor, tip: c.tip, to: c.to })) };
 }
 // Where each chapter falls between the diary's first and last day, as shares of the whole.
+// The pace of each month against your usual, as columns, for both layouts.
+// `few`: only the months furthest from your usual pace carry their number (a phone has no room for twelve).
+function paceChart(M, H, few) {
+  const far = new Set([...M.profile].sort((a, b) => Math.abs(b.a - 100) - Math.abs(a.a - 100)).slice(0, few || 12));
+  return colChart(M.profile, "Your pace each month, against your usual", "", H,
+    { values: (c) => far.has(c) ? `${c.a >= 100 ? "+" : "−"}${Math.abs(c.a - 100)}%` : "", base: Math.max(0, Math.min(...M.profile.map((c) => c.a)) - 15) });
+}
 function chapterStrip(chs, from, to) {
   const a = dayIndex(from), span = Math.max(1, dayIndex(to) - a + 1);
   const years = [];
   for (let y = +from.slice(0, 4) + 1; y <= +to.slice(0, 4); y++) years.push({ y, at: (dayIndex(`${y}-01-01`) - a) / span });
   return { years, items: chs.map((c) => ({ c, left: Math.max(0, (dayIndex(c.from) - a) / span), width: Math.max(0.006, (dayIndex(c.until) - dayIndex(c.from) + 1) / span) })) };
+}
+
+/* ----- through the year: how your watching runs month by month, and how that has changed over the years ----- */
+// Asked Oct 2026. Every month of the diary counts by the days it was in it (the first and last only in part), so a
+// partial month isn't taken for a quiet one. A month is said to be busier or quieter only when it's three standard
+// errors from your usual pace (allowing for how unevenly films come, binges and all) and was so in most of your years.
+function monthStudy(B, habits) {
+  const E = B.E, out = { profile: null, pace: [], shifts: [], leans: [], ratings: [], enough: false };
+  if (E.length < 60) return out;
+  const first = E[0].date, last = E[E.length - 1].date, d0 = dayIndex(first), d1 = dayIndex(last);
+  const ents = (title, es, extra) => D.entries(title, entriesSub(es, extra), es, { order: "asc" });
+  const fl = (title, xs, o) => D.films(title, filmsSub(xsFilms(xs)), xsFilms(xs), o);
+  // each month of each year: the days it was in the diary and the entries made in it
+  const cells = [], byKey = new Map();
+  for (let y = +first.slice(0, 4), mo = +first.slice(5, 7) - 1; y * 12 + mo <= +last.slice(0, 4) * 12 + +last.slice(5, 7) - 1; mo === 11 ? (y++, mo = 0) : mo++) {
+    const a = dayIndex(`${y}-${String(mo + 1).padStart(2, "0")}-01`), len = new Date(Date.UTC(y, mo + 1, 0)).getUTCDate();
+    const days = Math.min(d1, a + len - 1) - Math.max(d0, a) + 1, c = { y: String(y), i: mo, days, full: days === len, E: [] };
+    cells.push(c); byKey.set(`${y}-${mo}`, c);
+  }
+  for (const e of E) byKey.get(`${+e.date.slice(0, 4)}-${+e.date.slice(5, 7) - 1}`).E.push(e);
+  const N = E.length, Dall = cells.reduce((t, c) => t + c.days, 0), r = N / Dall;
+  const cal = MONTHS_LONG.map((name, i) => { const cs = cells.filter((c) => c.i === i), n = cs.reduce((t, c) => t + c.E.length, 0), days = cs.reduce((t, c) => t + c.days, 0);
+    return { i, name, cs, n, days, rate: days ? n / days : 0, E: cs.flatMap((c) => c.E) }; });
+  // how unevenly films come from month to month, beyond what each calendar month explains
+  let chi = 0, k = 0;
+  for (const c of cells) { const m = cal[c.i]; if (c.days >= 7 && m.rate > 0) { const ex = m.rate * c.days; chi += sq(c.E.length - ex) / ex; k++; } }
+  const phi = Math.max(1, k > 13 ? chi / (k - 12) : 1);
+  const years = [...new Set(cells.map((c) => c.y))], yRate = new Map(years.map((y) => { const cs = cells.filter((c) => c.y === y); return [y, cs.reduce((t, c) => t + c.E.length, 0) / Math.max(1, cs.reduce((t, c) => t + c.days, 0))]; }));
+  for (const m of cal) {
+    const ex = r * m.days;
+    m.index = m.days ? m.rate / r : null;
+    m.z = ex ? (m.n - ex) / Math.sqrt(ex * phi) : 0;
+    const full = m.cs.filter((c) => c.full && yRate.get(c.y) > 0);
+    m.yrs = full.length; m.above = full.filter((c) => c.E.length / c.days > yRate.get(c.y)).length;
+  }
+  out.enough = cal.filter((m) => m.days >= 28).length >= 12;
+  if (!out.enough) return out;
+  const pct = (x) => `${Math.round(Math.abs(x - 1) * 100)}%`;
+  out.profile = cal.map((m) => ({ a: Math.round(m.index * 100), b: 0, label: MONTHS[m.i][0], tip: `${m.name}: ${m.index >= 1 ? "+" : "−"}${pct(m.index)} against your usual pace`, to: m.E.length ? ents(`${m.name}, every year`, m.E, plural(m.cs.length, "year")) : null }));
+  // busier and quieter months, year after year
+  const steadyMonths = (m) => m.yrs >= 3 && (m.z > 0 ? m.above : m.yrs - m.above) >= Math.ceil(m.yrs * 2 / 3);
+  const hi = cal.filter((m) => m.z >= STUDY_Z && m.index >= 1.15 && steadyMonths(m)).sort((a, b) => b.z - a.z);
+  const lo = cal.filter((m) => m.z <= -STUDY_Z && m.index <= 0.85 && steadyMonths(m)).sort((a, b) => a.z - b.z);
+  for (const m of hi.slice(0, 2)) out.pace.push({ big: `${m.name}`, up: true, to: ents(`${m.name}, every year`, m.E, plural(m.cs.length, "year")),
+    text: `${m.name} is ${m === hi[0] ? "your strongest month" : "another strong month"}: you watch ${pct(m.index)} more than your usual pace then, and it ran above your pace in ${m.above} of ${m.yrs} years.` });
+  for (const m of lo.slice(0, 2)) out.pace.push({ big: `${m.name}`, up: false, to: ents(`${m.name}, every year`, m.E, plural(m.cs.length, "year")),
+    text: `${m.name} is ${m === lo[0] ? "your quietest month" : "another quiet month"}: you watch ${pct(m.index)} less than your usual pace then, and it ran below your pace in ${m.yrs - m.above} of ${m.yrs} years.` });
+  if (!out.pace.length) out.pace.push({ big: "No fixed season", to: ents("Your diary", E), text: "No month is reliably busier or quieter than the rest: your busy months move around from one year to the next." });
+  // the year's shape over the years: a quarter, or a month, taking a growing or shrinking share of each full year
+  const fullYears = years.filter((y) => cells.filter((c) => c.y === y && c.full).length === 12);
+  if (fullYears.length >= 4) {
+    const Q = [["January – March", [0, 1, 2]], ["April – June", [3, 4, 5]], ["July – September", [6, 7, 8]], ["October – December", [9, 10, 11]], ...MONTHS_LONG.map((n, i) => [n, [i]])];
+    const tot = new Map(fullYears.map((y) => [y, cells.filter((c) => c.y === y).reduce((t, c) => t + c.E.length, 0)]));
+    for (const [name, ms] of Q) {
+      if (out.shifts.some((x) => x.ms.some((i) => ms.includes(i)))) continue;
+      const pts = fullYears.map((y, x) => { const n = cells.filter((c) => c.y === y && ms.includes(c.i)).reduce((t, c) => t + c.E.length, 0); return { x, y: tot.get(y) ? n / tot.get(y) : null, w: 1, n, yr: y }; });
+      const fit = fitLine(pts);
+      if (!fit || Math.abs(fit.t) < STUDY_Z) continue;
+      const a = pts[0], z = pts[pts.length - 1];
+      if (Math.abs(z.y - a.y) < (ms.length > 1 ? 0.08 : 0.04) || Math.sign(fit.b) !== Math.sign(z.y - a.y)) continue;
+      const up = z.y > a.y, es = (yr) => cells.filter((c) => c.y === yr && ms.includes(c.i)).flatMap((c) => c.E);
+      out.shifts.push({ ms, big: `${up ? "More" : "Less"} in ${name}`, up, to: D.groups(name, `${z.yr} against ${a.yr}`, [ents(`${name} ${z.yr}`, es(z.yr)), ents(`${name} ${a.yr}`, es(a.yr))]),
+        text: `${name} takes a ${up ? "growing" : "shrinking"} share of your year: ${pc(a.y)}% of ${a.yr}'s diary, ${pc(z.y)}% of ${z.yr}'s.` });
+      if (out.shifts.length === 3) break;
+    }
+  }
+  // what a month leans toward, year after year (not one binge, and not a seasonal habit said already)
+  for (const m of cal) {
+    const F = B.xs.filter((x) => +x.date.slice(5, 7) - 1 === m.i);
+    for (const st of standouts(F, B)) {
+      const ys = new Map(); for (const x of st.xs) bump(ys, x.date.slice(0, 4));
+      if (ys.size < 2 || Math.max(...ys.values()) > 0.7 * st.xs.length) continue;
+      if (habits.some((h) => h.season && st.fid === "g" && h.season.g === st.v && h.season.mo === m.i)) continue;
+      const kind = kindOf(st.fid, st.v);
+      out.leans.push({ i: m.i, z: st.z, big: `${m.name}: ${kind}`, posters: xsFilms(bestFirst(st.xs).slice(0, 6)), to: fl(`${capFirst(kind)} in ${m.name}`, st.xs),
+        text: FACETS[st.fid].person ? `In ${m.name} you come back to ${kind}: ${st.k} of the ${st.n} films you've seen for the first time in ${m.name}, over ${plural(ys.size, "year")}, ${st.p0 < 0.005 ? "and hardly any the rest of the year" : `against ${pc(st.p0)}% the rest of the year`}.`
+          : `In ${m.name} you lean to ${kind}: ${pc(st.share)}% of what you see for the first time in ${m.name}, against ${vsShare(st.p0)} the rest of the year, over ${plural(ys.size, "year")}.` });
+      break;
+    }
+  }
+  out.leans = out.leans.sort((a, b) => b.z - a.z).slice(0, 4).sort((a, b) => a.i - b.i);
+  // a month you rate differently, and whether it's you or the films you pick then
+  for (const m of cal) {
+    const a = B.xs.filter((x) => x.rAt && +x.date.slice(5, 7) - 1 === m.i), b = B.xs.filter((x) => x.rAt && +x.date.slice(5, 7) - 1 !== m.i);
+    if (a.length < 15) continue;
+    const va = a.map((x) => x.rAt), vb = b.map((x) => x.rAt), z = zMeans(va, vb), dlt = avg(va) - avg(vb);
+    if (Math.abs(z) < STUDY_Z || Math.abs(dlt) < 0.2) continue;
+    const ca = a.filter((x) => x.crowd != null), cb = b.filter((x) => x.crowd != null);
+    const films = ca.length >= 10 && cb.length >= 20 && Math.abs(avg(ca.map((x) => x.crowd)) - avg(cb.map((x) => x.crowd))) >= Math.abs(dlt) / 2 && Math.sign(avg(ca.map((x) => x.crowd)) - avg(cb.map((x) => x.crowd))) === Math.sign(dlt);
+    out.ratings.push({ z, big: `${dlt > 0 ? "Higher" : "Lower"} in ${m.name}`, to: D.groups(`Ratings in ${m.name}`, "Against the rest of the year", [fl(m.name, a, { sort: "given", ratingOf: (f) => B.byFilm.get(f).rAt }), fl("The rest of the year", b, { sort: "given", ratingOf: (f) => B.byFilm.get(f).rAt })]),
+      text: `You rate what you watch in ${m.name} ${dlt > 0 ? "higher" : "lower"}: ${avg(va).toFixed(2)} on average, against ${avg(vb).toFixed(2)} the rest of the year.${films ? ` The crowd rates those films ${dlt > 0 ? "higher" : "lower"} too: it's what you pick then.` : ""}` });
+  }
+  out.ratings = out.ratings.sort((p, q) => Math.abs(q.z) - Math.abs(p.z)).slice(0, 2);
+  return out;
 }
 
 /* ----- the whole study ----- */
@@ -745,10 +846,12 @@ function computeStudy(lib, metaOf, crowdKey) {
   S.threads = threadStudy(B);
   S.habits = habitStudy(B);
   S.chapters = notSeasonal(S.chapters, S.habits);
+  S.months = monthStudy(B, S.habits);
   // the short version: the strongest finding of each kind
   const o = [], R = S.ratings, T = S.threads;
   if (S.chapters.length) { const c = S.chapters[S.chapters.length - 1]; o.push({ k: S.chapters.length > 1 ? `Latest of ${S.chapters.length} chapters` : "A chapter", big: c.title, text: c.text, to: c.to }); }
   if (S.drift.list.length) { const d = S.drift.list[0]; o.push({ k: "Biggest shift", big: d.big, text: d.text, to: d.to }); }
+  { const p = S.months.pace.find((x) => x.big !== "No fixed season") || S.months.shifts[0] || S.months.leans[0]; if (p) o.push({ k: "Through the year", big: p.big, text: p.text, to: p.to }); }
   if (R.follow.length && R.follow[0].pct >= FOLLOW_MIN) o.push({ k: "Your ratings follow", big: capFirst(R.follow[0].short.replace(/ \(.*\)$/, "")), text: R.followText, to: R.follow[0].to });
   if (R.beyond.up.length) { const b = R.beyond.up[0]; o.push({ k: R.beyond.vsCrowd ? "You like more than the crowd" : "You like most", big: b.big, text: b.text, to: b.to }); }
   if (R.judge.length && !["Steady", "No clear change"].includes(R.judge[0].big)) o.push({ k: "Tougher or choosier?", big: R.judge[0].big, text: R.judge[0].text, to: R.judge[0].to });

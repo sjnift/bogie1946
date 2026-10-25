@@ -26,6 +26,7 @@ function renderInsights() {
   $("#insights").innerHTML = [
     section("i-glance", "In short", "The strongest finding of each kind.", glanceBlock(S.overview, "No clear patterns yet. They'll show as your diary grows.")),
     section("i-chapters", "Chapters", "Stretches of your diary that stood apart from the rest of it.", chaptersBlock(S.chapters, S.n)),
+    section("i-months", "Through the year", "How your watching runs month by month, and how that has changed over the years.", monthsInsBlock(S.months)),
     section("i-tastes", "How your taste has moved", "Your first years of diary against your latest. Only clear, lasting changes are listed.", driftBlock(S.drift)),
     section("i-ratings", "What your ratings follow", "What tells most about how you'll rate a film, and what you like beyond its reputation.", ratingsBlock(S.ratings)),
     section("i-threads", "One film to the next", "How a film led you to more by the same people.", threadsBlock(S.threads)),
@@ -57,6 +58,16 @@ function chaptersBlock(chs, n, strip = true) {
     <h3 class="ch-title">${dlink(c.to, esc(c.title))}</h3><p>${dline(c.to, esc(c.text))}</p>${posterStrip(c.posters)}</article>`).join("")}</div>`;
 }
 
+// Through the year: each month's pace against your usual, the months that are reliably busier or quieter, how the
+// year's shape has moved, what months bring, and months you rate differently.
+function monthsInsBlock(M) {
+  if (!M.enough) return `<div class="empty">This needs a year or more of diary, with every month of the year in it.</div>`;
+  const leans = M.leans.map((d) => `<div class="thread"><p>${dline(d.to, esc(d.text))}</p>${posterStrip(d.posters)}</div>`).join("");
+  return `<div class="mpace">${paceChart(M, 110)}</div><p class="status">How fast you watch in each month across your years, against your usual pace. Click a month to see its films.</p>` +
+    findings(M.pace, "") + (M.shifts.length ? `<h3 class="sub-h">How your year has changed</h3>` + findings(M.shifts, "") : "") +
+    (leans ? `<h3 class="sub-h">What the months bring</h3><div class="threads">${leans}</div>` : "") +
+    (M.ratings.length ? `<h3 class="sub-h">Ratings through the year</h3>` + findings(M.ratings, "") : "");
+}
 function driftBlock(d) {
   if (!d.enough) return `<div class="empty">Changes in taste need a few years of diary, or a year or two with plenty of films in each stretch.</div>`;
   const rows = d.list.map((x) => { const c = driftCols(x);

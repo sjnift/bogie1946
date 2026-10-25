@@ -34,6 +34,13 @@ function audit() {
     if (sum([...s.byDay.values()]) !== s.entries.length) bad.push(`${w}: days add up wrong`);
     if (sum(s.spread.map((x) => x.count)) !== s.rated) bad.push(`${w}: ratings add up wrong`);
     if (sum(s.decades.map((x) => x.count)) !== s.films.filter((f) => f.year).length) bad.push(`${w}: decades add up wrong`);
+    // month by month: every month of the grid adds up to the period's diary, and so do the calendar months
+    const G = monthGrid(lib, metaOf, scope === "all" ? null : scope);
+    if (G) {
+      const cells = sum(G.rows.flatMap((r) => r.months.map((m) => m.E.length))), cal = sum(G.cal.map((c) => c.E.length));
+      if (cells !== s.entries.length || cal !== s.entries.length) bad.push(`${w}: months add up to ${cells} and ${cal}, not ${s.entries.length}`);
+      for (const r of G.rows) once(r.E, (e) => e, `${w} months ${r.year}`);
+    }
     for (const [k, data] of [["cast", s.cast], ["directors", s.directors], ["writers", s.writers], ["genres", s.genres], ["countries", s.countries], ["languages", s.languages]])
       for (const p of data.most) { once(p.films, film, `${w} ${k} ${p.name}`); if (p.count !== p.films.length) bad.push(`${w} ${k} ${p.name}: count ${p.count} for ${p.films.length} films`); }
   }

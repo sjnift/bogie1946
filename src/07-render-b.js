@@ -285,7 +285,7 @@ function renderSections(s) {
       M.genreRates, M.genreYears]],
     ["when", "When you watch", [
       card("logged", "Logged", L.logged || "Diary entries over time.", diaryBlock(s)),
-      M.years, M.vsprev, M.habits]],
+      M.months, M.years, M.vsprev, M.habits]],
     ["ratings", "Ratings", [
       card("rated", "Rated", L.rated || "How your ratings spread across half-stars.", ratingBlock(s)),
       M.crowd,
