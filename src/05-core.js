@@ -14,6 +14,19 @@ const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 const MONTHS_LONG = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const WEEKDAYS_LONG = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+// The footer's "Updated …": when this version was built (filled in by build.sh), in the time zone the site is viewed
+// from, with its name ("25 Oct 2026, 18:17 IST"; asked Oct 2026). Only the footer: diary dates belong to no time zone.
+const BUILT_ISO = "<!--BUILT-ISO-->";
+function builtText() {
+  const d = new Date(BUILT_ISO), p2 = (n) => String(n).padStart(2, "0");
+  if (isNaN(d)) return "<!--BUILD-->";
+  let zone = "";
+  for (const loc of [undefined, "en-IN", "en-US"]) { // a short name like IST or PDT where the browser has one, else GMT+5:30
+    try { const z = new Intl.DateTimeFormat(loc, { timeZoneName: "short" }).formatToParts(d).find((p) => p.type === "timeZoneName");
+      if (z && /^[A-Z]{2,5}$/.test(z.value)) { zone = z.value; break; } zone = zone || (z && z.value) || ""; } catch {}
+  }
+  return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}, ${p2(d.getHours())}:${p2(d.getMinutes())}${zone ? ` ${zone}` : ""}`;
+}
 const fmtDate = (iso) => { if (!iso) return ""; const [y, m, d] = iso.split("-").map(Number); return `${d} ${MONTHS[m - 1]} ${y}`; };
 const stars = (r) => r ? "★".repeat(Math.floor(r)) + (r % 1 ? "½" : "") : "";
 const avg = (a) => a.length ? a.reduce((s, x) => s + x, 0) / a.length : null;

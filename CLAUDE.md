@@ -41,8 +41,10 @@ Where it lives:
 - Not a developer. Explain in plain words, briefly, what changed and what to do. No jargon, no code in replies.
 - They want changes **live without downloading files**: commit to `main` and push; Pages deploys `docs/`.
   This is a standing request — no need to ask before pushing site changes.
-- After a change, tell them the footer stamp to look for ("Updated 23 Oct 2026, 04:40 UTC") and to refresh,
-  or close and reopen the installed app.
+- After a change, tell them the footer stamp to look for and to refresh, or close and reopen the installed app. The
+  stamp shows in the time zone the site is viewed from (asked 25 Oct 2026: `builtText`, from `BUILT_ISO` that
+  `build.sh` fills in; the owner is in India, so give it in IST, e.g. "Updated 25 Oct 2026, 18:29 IST"). Only the footer:
+  they stopped a wider change to other times on the site, and diary dates belong to no time zone.
 - Every feature must work on **both** layouts.
 - Things they have asked for that must stay true:
   - **Never double count** (see the section below). Check it every time.

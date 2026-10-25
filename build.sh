@@ -20,7 +20,8 @@ standalone() { # $1 = head files, $2 = body files
   printf '</body>\n</html>\n'
 }
 BUILT_AT=$(date -u +"%-d %b %Y, %H:%M UTC")
-stamp() { sed "s|<!--BUILD-->|$BUILT_AT|g"; }
+BUILT_ISO=$(date -u +"%Y-%m-%dT%H:%M:%SZ") # the same moment, for the footer to show in the viewer's own time zone
+stamp() { sed -e "s|<!--BUILD-->|$BUILT_AT|g" -e "s|<!--BUILT-ISO-->|$BUILT_ISO|g"; }
 cat $DESK_HEAD $DESK_BODY | stamp > credits-roll.html
 cat $MOB_HEAD $MOB_BODY | stamp > credits-roll-mobile.html
 standalone "$DESK_HEAD" "$DESK_BODY" | stamp > credits-roll-standalone.html
