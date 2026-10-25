@@ -147,7 +147,7 @@ function mCrowd(C, Y) {
     return toggles + `<div class="empty">${why}</div>` + lbHint(true);
   }
   const cap = (p) => `<span class="pmeta"><span class="stars">${stars(p.you)}</span></span><span class="mdate">${C.short} ${crowdScore(C.key, p.crowd)} · <b class="dv">${signed(p.diff)}★</b></span>`;
-  let html = toggles + `<div class="card glow" style="margin-top:12px"><p class="lead" style="margin:0">${Y ? `In ${esc(Y)} you gave` : "You give"} <b class="dv">${Math.abs(C.meanDiff).toFixed(2)}★ ${C.meanDiff >= 0 ? "more" : "less"}</b> than ${esc(C.label)} on average${Y ? "" : followText(C.r)}, across ${dlink(C.to, plural(C.n, "film"))}.</p></div>`;
+  let html = toggles + `<div class="card glow" style="margin-top:12px"><p class="lead" style="margin:0">${Y ? `In ${esc(Y)} you gave` : "You give"} <b class="dv">${Math.abs(C.meanDiff).toFixed(2)}★ ${C.meanDiff >= 0 ? "more" : "less"}</b> than ${esc(C.label)} on average${Y ? "" : followText(C.r)}, across ${dlink(C.to, plural(C.n, "film"))}.</p>${apartLine(C).replace('<p class="status">', '<p class="note" style="margin:8px 0 0">')}</div>`;
   html += sh(`Liked more than ${esc(C.short)}`) + (C.higher.length ? mPosters(C.higher, cap) : `<div class="empty">No film you rated ¾★ or more above them.</div>`);
   html += sh(`Liked less than ${esc(C.short)}`) + (C.lower.length ? mPosters(C.lower, cap) : `<div class="empty">No film you rated ¾★ or more below them.</div>`);
   if (C.gems.length) html += sh("Hidden gems") + `<p class="note" style="margin:-4px 0 12px">Rated 4½★ or more by you, and by few others.</p>` +

@@ -318,6 +318,11 @@ friend replaces the address instead.
   `REVIEWS_SHOWN`) and, from the old Insights page, year by year, genres year by year and as you rate them, people over
   the years, against the crowd, habits, review numbers, and for a year against the year before and new in the year.
   "Against the crowd" uses Letterboxd (Apify), IMDb/Metacritic (OMDb) or TMDB scores.
+  Its rows show films ¾★ or more above or below the crowd (`crowdOf`: `higherAll`, `lowerAll`); a line under the lead
+  says how many are above and below at all, each a list (`apartLine`, `above`, `below`; asked 25 Oct 2026, when the
+  owner saw only two films "liked more" and asked whether that was right; the line lets them check).
+  A Letterboxd average counts when its rating count is unknown (`n` 0, an average read from the film's page without
+  one); until 25 Oct 2026 such films were left out of every Letterboxd comparison.
 - **Filters**: a Filter button opens a panel (a drill of kind `filters`, so it's the pop-up or the sheet, with Back
   and Close; titled "Filter your stats" with no explanation under it, which the owner found unneeded, Oct 2026) of
   genre, decade, country and language choices, each with how many films it has given the other

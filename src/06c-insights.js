@@ -3,7 +3,9 @@
    Year trends come from diary dates. Crowd comparisons need a crowd score per film, out of 10:
    Letterboxd members (through Apify), TMDB users (from the TMDB lookup), IMDb users and critics (from OMDb). */
 const CROWDS = {
-  letterboxd: { label: "Letterboxd members", short: "Letterboxd", score: (m, f) => { const x = f && LBX[f.key]; return x && x.r && x.n >= 10 ? x.r * 2 : null; } },
+  // (an average read from a film's own page may come without its count, n 0: Letterboxd shows one only once a film has
+  // enough ratings, so it counts; until Oct 2026 such films were left out of every comparison)
+  letterboxd: { label: "Letterboxd members", short: "Letterboxd", score: (m, f) => { const x = f && LBX[f.key]; return x && x.r && (!x.n || x.n >= 10) ? x.r * 2 : null; } },
   imdb: { label: "IMDb users", short: "IMDb", score: (m) => m && m.ir && (m.iv || 0) >= 100 ? m.ir : null },
   tmdb: { label: "TMDB users", short: "TMDB", score: (m) => m && m.va && (m.vc || 0) >= 25 ? m.va : null },
   critics: { label: "Critics (Metacritic)", short: "Critics", score: (m) => m && m.mc ? m.mc / 10 : null },

@@ -110,7 +110,7 @@ const LB_PAGE_FN = `async function pageFunction(context) {
   for (const t of tags("link")) { const a = attrs(t); if (a.rel === "canonical" && a.href) canon = a.href; }
   const slug = u.slug || (String(canon).match(/\\/film\\/([^/]+)\\//) || [])[1] || null, year = u.year || (y ? Number(y) : null);
   const gone = status === 404;
-  if (!r && !gone && !u.csi && slug) for (const part of ["rating-histogram", "ratings-summary"])
+  if (!gone && !u.csi && slug && (!r || !n)) for (const part of r ? ["rating-histogram"] : ["rating-histogram", "ratings-summary"])
     await context.enqueueRequest({ url: "https://letterboxd.com/csi/film/" + slug + "/" + part + "/", userData: { key: u.key, sure: u.sure, csi: true, slug, year } });
   return { key: u.key, sure: !!u.sure, csi: !!u.csi, slug, year, r, n, status, gone };
 }`;
@@ -243,6 +243,7 @@ function lbPageResults(lib, r, status, items) {
     if (it.gone) { g.gone++; continue; }
     g.reached = true; g.slug = g.slug || it.slug || null;
     if (Number(it.r) > 0 && !(g.r > 0)) Object.assign(g, { r: Number(it.r), n: Number(it.n) || 0, slug: it.slug || g.slug });
+    else if (!g.n && Number(it.n) > 0) g.n = Number(it.n); // the count from the ratings summary beside the page
   }
   let matched = 0;
   const unread = [];

@@ -116,7 +116,7 @@ function crowdBlock(C, Y, noTabs) {
       : "Crowd scores come with TMDB details. Look your films up from Settings → Film details.";
     return tabs + `<div class="empty">${why}</div>` + lbHint(false);
   }
-  const lead = `<p class="lead">${Y ? `On the ${dlink(C.to, plural(C.n, "film"))} you rated in ${esc(Y)}, you gave` : `Across ${dlink(C.to, plural(C.n, "film"))} you rated, you give`} ${Math.abs(C.meanDiff).toFixed(2)}★ ${C.meanDiff >= 0 ? "more" : "less"} than ${esc(C.label)} on average${Y ? "" : followText(C.r)}.</p>`;
+  const lead = `<p class="lead">${Y ? `On the ${dlink(C.to, plural(C.n, "film"))} you rated in ${esc(Y)}, you gave` : `Across ${dlink(C.to, plural(C.n, "film"))} you rated, you give`} ${Math.abs(C.meanDiff).toFixed(2)}★ ${C.meanDiff >= 0 ? "more" : "less"} than ${esc(C.label)} on average${Y ? "" : followText(C.r)}.</p>` + apartLine(C);
   const cap = (p) => `<span class="cap"><span class="stars">${stars(p.you)}</span>
     <span class="muted">${esc(C.short)} ${crowdScore(C.key, p.crowd)} · <b class="diff">${signed(p.diff)}★</b></span></span>`;
   // a row of posters each, the whole list a click away (the owner's trim, Oct 2026)
