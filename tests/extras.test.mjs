@@ -51,10 +51,20 @@ export default async function ({ browser, base }) {
   r = await recent();
   assert(r.title === "Last watched in 2024" && r.dates.join() === r.want.join() && r.dates.every((x) => x.endsWith("2024")), `last watched in 2024: ${JSON.stringify(r)}`);
   await d.click('[data-scope="all"]'); await d.waitForTimeout(150);
+  // the main page (owner, Oct 2026): the best decade in full near the top, highest and lowest rated down in Ratings,
+  // and every chapter's sections as cards cut short until opened
+  const lay = await d.evaluate(() => { const ids = [...document.querySelectorAll("#sections .ch-mark, #sections section")].map((e) => e.id);
+    return { ids, cards: document.querySelectorAll("#sections .cs").length, open: document.querySelectorAll("#sections .cs.open").length, glance: document.querySelectorAll("#sections .credit").length }; });
+  const at = (id) => lay.ids.indexOf(id);
+  assert(at("best-decade") > at("recent") && at("best-decade") < at("ch-films") && at("top") > at("ch-ratings") && at("top") > at("rated"), `main page order: ${lay.ids.join(" ")}`);
+  assert(lay.cards >= 15 && lay.open === 0 && lay.glance <= 3, `main page cards: ${JSON.stringify({ cards: lay.cards, open: lay.open, glance: lay.glance })}`);
   // Reviewed on the main page: the latest three, the rest one click away
   const rv = await d.evaluate(() => ({ cards: document.querySelectorAll("#reviews article.review").length, total: reviewsIn(state.lib, null).length,
     first: $("#reviews .rv-title").textContent.trim(), latest: reviewsIn(state.lib, null)[0].film.name, link: $("#reviews .rv-all").textContent }));
   assert(rv.cards === 3 && rv.first.startsWith(rv.latest) && rv.link === `All ${rv.total} reviews`, `reviewed: ${JSON.stringify(rv)}`);
+  // the card opens to the full width, then its link opens the rest
+  await d.click('#reviews [data-open="reviews"].cs-more'); await d.waitForTimeout(100);
+  assert(await d.evaluate(() => $("#reviews").classList.contains("open") && state.open.has("reviews")), "the Reviewed card didn't open");
   await d.click("#reviews .rv-all .dlink"); await d.waitForTimeout(150);
   const all = await d.evaluate(() => [$("#dlg").open, $("#dlg").querySelectorAll(".drill-rev").length]);
   assert(all[0] && all[1] === rv.total, `all reviews: ${all}`);

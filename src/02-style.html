@@ -524,8 +524,29 @@ footer p { margin: 0 0 6px; max-width: 80ch; }
 .bd-title .dlink { text-decoration: none; }
 .bd-title .accent { color: var(--gold-ink); }
 .bd-head p { margin: 0; }
-.best-decade .posters { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-@media (max-width: 760px) { .best-decade { grid-template-columns: minmax(0, 1fr); } .best-decade .posters { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.best-decade .posters { grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 10px; }
+.bd-next { font-size: 13.5px; color: var(--ink-2); }
+@media (max-width: 1100px) { .best-decade .posters { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 760px) { .best-decade { grid-template-columns: minmax(0, 1fr); } .best-decade .posters { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+/* ---------- the main page's cards: a line that sums each up, its content cut short until "Show all" ---------- */
+.cs-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 18px; }
+@media (max-width: 900px) { .cs-grid { grid-template-columns: minmax(0, 1fr); } }
+.cs { position: relative; display: grid; gap: 10px; align-content: start; min-width: 0; padding: 18px 20px 16px; border: 1px solid var(--line);
+  border-radius: var(--radius); background: var(--surface); scroll-margin-top: 64px; }
+.cs.open { grid-column: 1 / -1; }
+.cs-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.cs-head h2 { margin: 0; font-family: var(--display); font-weight: 800; text-transform: uppercase; font-size: 24px; line-height: 1; letter-spacing: .03em; }
+.cs-more { all: unset; cursor: pointer; flex: none; padding: 4px 12px; border: 1px solid var(--line); border-radius: 999px; font-size: 13px; font-weight: 600; color: var(--gold-ink); }
+.cs-more:hover { border-color: var(--muted); }
+.cs-more:focus-visible { outline: 2px solid var(--gold-ink); outline-offset: 1px; }
+.cs-line { margin: 0; color: var(--ink-2); font-size: 14.5px; line-height: 1.45; }
+.cs-body { max-height: 210px; overflow: hidden; grid-auto-rows: max-content; }
+.cs.open .cs-body { max-height: none; overflow: visible; }
+.cs-fade { all: unset; position: absolute; left: 1px; right: 1px; bottom: 1px; height: 72px; cursor: pointer; display: flex; align-items: flex-end; justify-content: center;
+  padding-bottom: 10px; border-radius: 0 0 var(--radius) var(--radius); background: linear-gradient(to bottom, transparent, var(--surface) 70%); }
+.cs-fade span { font-size: 12.5px; font-weight: 600; color: var(--muted); }
+.cs-fade:hover span { color: var(--ink); }
+.cs.open .cs-fade, .cs.short .cs-fade, .cs.short .cs-more { display: none; }
 /* nothing imported yet: just the title band and how to import */
 body.empty #tiles, body.empty #lookup-mini, body.empty #ios-tip, body.empty #jump, body.empty #sections, body.empty #insights, body.empty #compare, body.empty #drillpage,
 body.empty .scopes-row, body.empty #btn-search, body.empty #btn-insights, body.empty #btn-compare, body.empty #btn-settings, body.empty #btn-import,

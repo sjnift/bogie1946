@@ -27,6 +27,8 @@ async function clickThrough(page, scope, panel, where, min = 6) {
 
 export default async function ({ browser, base }) {
   const d = await open(browser, base, "desktop.html");
+  // the main page's cards are cut short until opened: open them all, so every link in them can be clicked
+  await d.evaluate(() => { for (const c of document.querySelectorAll("#sections .cs")) state.open.add(c.id); renderSections(STATS); });
   await clickThrough(d, ".wrap", "#dlg", "desktop stats");
   await d.click("#btn-insights"); await d.waitForTimeout(150);
   await clickThrough(d, "#insights", "#dlg", "desktop insights");

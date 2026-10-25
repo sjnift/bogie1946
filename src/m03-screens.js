@@ -316,7 +316,9 @@ function profileScreen(s) {
   const when = s.scope === "all" ? "all time" : s.scope;
   const storyRow = BASE_LIB && BASE_LIB.entries.length ? `<div class="storyrow"><button class="btn green" type="button" ${dl(D.story(s.scope))}>${ICON.next}Play ${esc(when)} as a story</button>
     <button class="btn" type="button" ${dl(D.share(s.scope))}>${ICON.share}<span class="sr-only">Share ${esc(when)} as a picture</span></button></div>` : "";
-  return hero + scopeBar() + onSite + notice + note + iosTip + reimport + fill + tiles + storyRow + recentRow + otd + ratings + people;
+  // the best-rated decade, featured (the owner's call, Oct 2026)
+  const bestDec = rankedDecades(s)[0], decade = bestDec ? `<div style="margin-top:22px">${bestDecadeCard(bestDec, s.scope)}</div>` : "";
+  return hero + scopeBar() + onSite + notice + note + iosTip + reimport + fill + tiles + storyRow + recentRow + otd + decade + ratings + people;
 }
 
 /* ---------- Stats: films, people, genres ---------- */

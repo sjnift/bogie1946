@@ -19,16 +19,16 @@ function moreSections(s) {
   const crowd = all ? crowdOf(k, state.lib.films) : crowdOf(k, R.S.films, R.ratingAt);
   const prevY = all ? "" : String(+s.scope - 1);
   return {
-    years: all ? section("years", "Year by year", "By the year you watched, from diary dates.", yearsBlock(I)) : "",
-    vsprev: all ? "" : section("vsprev", `Against ${prevY}`, `${esc(s.scope)} next to the year before.`, vsPrevBlock(R, prevY)),
-    habits: section("habits", "Habits", all ? "When and how you watch." : `When and how you watched in ${esc(s.scope)}.`,
+    years: all ? card("years", "Year by year", "By the year you watched, from diary dates.", yearsBlock(I)) : "",
+    vsprev: all ? "" : card("vsprev", `Against ${prevY}`, `${esc(s.scope)} next to the year before.`, vsPrevBlock(R, prevY)),
+    habits: card("habits", "Habits", all ? "When and how you watch." : `When and how you watched in ${esc(s.scope)}.`,
       habitsBlock(all ? I.habits : R.habits.filter((h) => !["Longest streak", "Biggest day", "Oldest film"].includes(h.k)), "Habits come from diary dates.")),
-    crowd: section("crowd", "Against the crowd", all ? "Where your ratings part ways with everyone else's." : `Films you rated in ${esc(s.scope)}.`, crowdBlock(crowd, all ? null : s.scope)),
-    peopleYears: all ? section("people-years", "People over the years", "Who's new, who stays, and how many directors each year brought.", noMeta ? emptyMeta() : peopleYearsBlock(I)) : "",
-    newIn: !all && R.firstYear !== s.scope ? section("new-in", `New in ${esc(s.scope)}`, "Directors, actors, countries and languages that first turned up in your diary this year.", noMeta ? emptyMeta() : newInBlock(R)) : "",
-    genreYears: all ? section("genre-years", "Genres year by year", "The share of each year's films in each genre.", noMeta ? emptyMeta() : genreYearsBlock(I)) : "",
-    genreRates: all ? section("genre-rates", "Genres as you rate them", "Each genre against your own average and against the crowd.", noMeta ? emptyMeta() : genresBlock(I)) : "",
-    reviewStats: section("review-stats", all ? "Your reviews in numbers" : `Your ${esc(s.scope)} reviews in numbers`, "What you write, and when you bother.", reviewInsightsBlock(state.lib, all ? null : s.scope)),
+    crowd: card("crowd", "Against the crowd", all ? "Where your ratings part ways with everyone else's." : `Films you rated in ${esc(s.scope)}.`, crowdBlock(crowd, all ? null : s.scope)),
+    peopleYears: all ? card("people-years", "People over the years", "Who's new, who stays, and how many directors each year brought.", noMeta ? emptyMeta() : peopleYearsBlock(I)) : "",
+    newIn: !all && R.firstYear !== s.scope ? card("new-in", `New in ${esc(s.scope)}`, "Directors, actors, countries and languages that first turned up in your diary this year.", noMeta ? emptyMeta() : newInBlock(R)) : "",
+    genreYears: all ? card("genre-years", "Genres year by year", "The share of each year's films in each genre.", noMeta ? emptyMeta() : genreYearsBlock(I)) : "",
+    genreRates: all ? card("genre-rates", "Genres as you rate them", "Each genre against your own average and against the crowd.", noMeta ? emptyMeta() : genresBlock(I)) : "",
+    reviewStats: card("review-stats", all ? "Your reviews in numbers" : `Your ${esc(s.scope)} reviews in numbers`, "What you write, and when you bother.", reviewInsightsBlock(state.lib, all ? null : s.scope)),
   };
 }
 

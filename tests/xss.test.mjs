@@ -89,6 +89,7 @@ export default async function ({ browser, base }) {
   const d = await open(browser, base, "desktop.html");
   await prepare(d);
   await check(d, "desktop stats");
+  await d.evaluate(() => { for (const c of document.querySelectorAll("#sections .cs")) state.open.add(c.id); renderSections(STATS); });
   await clickAround(d, "#sections, #tiles, .band", "#dlg", "desktop stats");
   await d.click('[data-scope="2024"]'); await d.waitForTimeout(100); await check(d, "desktop 2024");
   await d.click('[data-scope="all"]');

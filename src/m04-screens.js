@@ -46,9 +46,6 @@ function filmsScreen(s) {
   const rated = s.films.filter((f) => f.rating).sort((a, b) => b.rating - a.rating || views(b) - views(a) || (b.year || 0) - (a.year || 0));
   let html = statsHead();
   if (!s.films.length) return html + `<div class="empty">No films in this period.</div>`;
-  if (rated.length) html += sh("Highest rated", seeAll(`data-act="all-rated"`)) + posterGrid(rated.slice(0, 8));
-  const low = rated.filter((f) => f.rating <= 2.5).reverse();
-  if (low.length) html += sh("Lowest rated", low.length > 8 ? seeAll(dl(D.films("Lowest rated", filmsSub(low, "2½★ and under"), low, { scope: s.scope, sort: "given" }))) : "") + posterGrid(low.slice(0, 8));
 
   const E = s.entries;
   if (E.length) {
@@ -77,6 +74,10 @@ function filmsScreen(s) {
     oldest && fact("Oldest", `${oldest.name} · ${oldest.year}`, oldest), newest && fact("Newest", `${newest.name} · ${newest.year}`, newest),
   ].filter(Boolean).join("");
   if (rec) html += sh("Records") + `<div class="facts" style="margin-top:0">${rec}</div>`;
+  // highest and lowest rated, further down than they were (the owner's call, Oct 2026)
+  if (rated.length) html += sh("Highest rated", seeAll(`data-act="all-rated"`)) + posterGrid(rated.slice(0, 8));
+  const low = rated.filter((f) => f.rating <= 2.5).reverse();
+  if (low.length) html += sh("Lowest rated", low.length > 8 ? seeAll(dl(D.films("Lowest rated", filmsSub(low, "2½★ and under"), low, { scope: s.scope, sort: "given" }))) : "") + posterGrid(low.slice(0, 8));
   const habits = s.scope === "all" ? allInsights().habits : yearInsights(s.scope).habits.filter((h) => !["Longest streak", "Biggest day", "Oldest film"].includes(h.k));
   if (habits.length) html += mHabits(habits, "Habits");
   if (!s.withMeta) html += needMeta();

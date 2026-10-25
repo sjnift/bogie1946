@@ -4,6 +4,7 @@ const state = {
   mode: "example", lib: null, scope: "all", page: "stats", crowd: null, wn: "any", insYear: "all", reviewQuery: "", cmp: null, cmpError: "", unfriend: null,
   tab: { cast: "most", directors: "most", crew: "w", crewSort: "most", cats: "most" },
   more: { cast: false, directors: false },
+  open: new Set(), // the main page's cards opened to the full width
 };
 let MY_LIB = null, EXAMPLE_LIB = null, STATS = null;
 const IMG = "https://image.tmdb.org/t/p/w185";

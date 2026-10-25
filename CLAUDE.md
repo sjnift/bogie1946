@@ -66,7 +66,15 @@ Where it lives:
     lists 10 actors (`castBar`, `CAST_TOP`), from 6 down to 2, never 1 (one film each only ranks films); the line under
     Starring / the phone's People says the bar (`castBarText`). Every other kind of person keeps `minRated` (2, or 3
     for 150+ films). The `reviews` check covers both.
-  - The best-rated decade is featured with its films' posters (phone Breakdown and desktop "Released").
+  - The best-rated decade is featured prominently with its films' posters (asked again Oct 2026): the desktop's "Best
+    decade" in full right under On this day (`bestDecadeBlock`), the phone's Profile under On this day and Breakdown.
+  - **The desktop main page is short** (asked Oct 2026: "cluttered with too much data in full view"): recently watched,
+    On this day and the best decade show in full; every chapter below is a grid of two cards (`card`, `cardHtml`), each
+    a title, a line that sums it up (`cardLines`: the headline numbers, each a link) and its content cut to 210 px with
+    a fade, until "Show all" (or the fade) opens it to the full width (`state.open`, kept until the page closes; a card
+    that fits has no button: `fitCards`). About 5,800 px for a 1,500-film diary instead of 14,000. **Highest and lowest
+    rated** moved off the top to the end of the Ratings chapter (desktop card `top`, "Highest & lowest rated"; phone
+    Stats › Films after Records). The checks open every card before clicking inside (`links`, `xss`).
   - **Insights is a study of the diary, not a repeat of the Stats page** (they found the old one inadequate and
     repetitive, Oct 2026): what stood apart and when, how taste moved, what ratings follow and why, how one film led to
     another, and habits with what they explain. No counts or top lists the Stats page already shows (the `study` check
@@ -149,7 +157,7 @@ The owner asked for this to be checked every time. A film, diary entry, person o
   `03-body.html` (page skeleton), shared files, `07-render-a.js` (state, render(), hero, tiles, the Settings page `renderSettings`, the lookup box and its one-line
   version on the stats page `renderLookupMini`),
   `07-render-b.js` (Stats sections, placed in chapters by `renderSections` with the menu that stays at the top,
-  `#jump`; `foldTies` turns four or more with the same count into one row), `07-render-c.js` (more Stats sections, the numbers from the old Insights page:
+  `#jump`, as cards (`card`, `cardHtml`, `cardLines`, `fitCards`) below the full-width recent / On this day / best decade; `foldTies` turns four or more with the same count into one row), `07-render-c.js` (more Stats sections, the numbers from the old Insights page:
   `moreSections` places year by year, genres year by year, genres as you rate them, people over the years, against
   the crowd, habits, review numbers, and for a year against the year before and new in the year; `homeInsights`
   keeps `computeInsights`/`computeYearInsights` in `HOME_INS` until the data changes), `07c-insights.js` (the study),
@@ -211,8 +219,8 @@ The owner asked for this to be checked every time. A film, diary entry, person o
 ### The phone app's structure and speed
 
 - Tabs: **Profile** (hero, year chips, tiles for Reviews/Watch next/Liked/Rewatches, recently watched, On this
-  day, ratings, most watched people; no "Top rated" row, removed at the owner's request; gear → Settings), **Diary**, **Stats** (a segmented control
-  of five views: `films` (highest and lowest rated, milestones, rewatched, records, habits, review numbers),
+  day, the best decade, ratings, most watched people; no "Top rated" row, removed at the owner's request; gear → Settings), **Diary**, **Stats** (a segmented control
+  of five views: `films` (milestones, rewatched, records, then highest and lowest rated, habits, review numbers),
   `people`, `genres` labelled **Breakdown** because it also holds countries, languages, decades and genres as you
   rate them (it opens with the best-rated decade and its posters, and ranks decades with three posters each),
   `years` (year by year, genres year by year, people over the years; for a year, against the year before and what
