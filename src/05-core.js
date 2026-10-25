@@ -345,8 +345,13 @@ function inScope(lib, scope) {
 }
 
 // Highest-rated actors over all time need this many rated films each, so one great film doesn't top the list (the
-// owner's call); a single year keeps the usual minimum.
-const CAST_MIN_RATED = 6;
+// owner's call). In a single year the bar follows that year (asked Oct 2026): the most rated films that still lists
+// CAST_TOP actors, never above CAST_MIN_RATED; a quieter year comes down to 2 (one film each would only rank films).
+const CAST_MIN_RATED = 6, CAST_TOP = 10;
+function castBar(rated) {
+  for (let t = CAST_MIN_RATED; t > 2; t--) if (rated.filter((p) => p.ratings.length >= t).length >= CAST_TOP) return t;
+  return 2;
+}
 function rankPeople(films, metaOf, role, minRated) {
   const map = new Map();
   for (const f of films) {
@@ -432,8 +437,11 @@ function computeStats(lib, metaOf, scope) {
     .sort((a, b) => a.decade - b.decade);
 
   const minRated = films.length >= 150 ? 3 : 2;
+  const cast = rankPeople(films, metaOf, "c", scope === "all" ? CAST_MIN_RATED : 1);
+  const castMinRated = scope === "all" ? CAST_MIN_RATED : castBar(cast.best);
+  if (scope !== "all") cast.best = cast.best.filter((p) => p.ratings.length >= castMinRated);
   return {
-    scope, films, entries, withMeta: withMeta.length, minRated, castMinRated: scope === "all" ? CAST_MIN_RATED : minRated,
+    scope, films, entries, withMeta: withMeta.length, minRated, castMinRated, castTop: scope !== "all" && castMinRated < CAST_MIN_RATED && cast.best.length >= CAST_TOP,
     minutes, timed,
     avgRating: avg(rated.map((f) => f.rating)), rated: rated.length, spread,
     rewatches: entries.filter((e) => e.rewatch).length,
@@ -441,7 +449,7 @@ function computeStats(lib, metaOf, scope) {
     likes: films.filter((f) => f.liked).length,
     byDay, byMonth, weekday, busiestMonth, busiestDay, streak: longestStreak(entries),
     decades,
-    cast: rankPeople(films, metaOf, "c", scope === "all" ? CAST_MIN_RATED : minRated), directors: rankPeople(films, metaOf, "d", minRated),
+    cast, directors: rankPeople(films, metaOf, "d", minRated),
     writers: rankPeople(films, metaOf, "w", minRated), dop: rankPeople(films, metaOf, "p", minRated), music: rankPeople(films, metaOf, "m", minRated),
     genres: rankCategory(films, metaOf, "g"), countries: rankCategory(films, metaOf, "k"), languages: rankCategory(films, metaOf, "l"),
     newReleases: scope === "all" ? null : films.filter((f) => String(f.year) === scope).length,

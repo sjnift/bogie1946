@@ -14,6 +14,8 @@ function niceTick(max) {
 }
 // Poster title cards: a title with a long word gets a smaller size, so the word isn't broken in two.
 const titleFit = (name) => { const w = Math.max(0, ...String(name || "").split(/[\s\-–—/]+/).map((x) => x.length)); return w > 11 ? " xlong" : w > 8 ? " long" : ""; };
+// "Highest rated needs 4+ rated films, the most that still gives 2024 a top 10."
+const castBarText = (s) => `Highest rated needs ${s.castMinRated}+ rated films${s.castTop ? `, the most that still gives ${s.scope} a top ${CAST_TOP}` : ""}.`;
 const personSub = (p) => `${plural(p.count, "film")}${p.avg ? ` · ${p.avg.toFixed(2)} average from ${plural(p.ratings.length, "rating")}` : ""}`;
 
 /* ---------- column chart: weeks, months, years, ratings, decades ---------- */

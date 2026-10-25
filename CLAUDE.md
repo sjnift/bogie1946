@@ -61,8 +61,11 @@ Where it lives:
     rounded tags for genres, countries, languages and cast. No white dotted underlines.
   - They like charts and data views that are accurate and clear. Both layouts are dark only (asked Oct 2026): don't
     bring back a light look or follow the system's setting.
-  - Highest-rated actors over **all time** need **6 rated films** each (`CAST_MIN_RATED`, `s.castMinRated`); a single
-    year, and every other kind of person, keeps `minRated` (2, or 3 for 150+ films).
+  - Highest-rated actors over **all time** need **6 rated films** each (`CAST_MIN_RATED`, `s.castMinRated`). In a
+    **single year the bar follows the year** (asked Oct 2026, "dynamic, not static"): the most rated films that still
+    lists 10 actors (`castBar`, `CAST_TOP`), from 6 down to 2, never 1 (one film each only ranks films); the line under
+    Starring / the phone's People says the bar (`castBarText`). Every other kind of person keeps `minRated` (2, or 3
+    for 150+ films). The `reviews` check covers both.
   - The best-rated decade is featured with its films' posters (phone Breakdown and desktop "Released").
   - **Insights is a study of the diary, not a repeat of the Stats page** (they found the old one inadequate and
     repetitive, Oct 2026): what stood apart and when, how taste moved, what ratings follow and why, how one film led to

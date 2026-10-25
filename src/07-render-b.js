@@ -221,7 +221,7 @@ function renderSections(s) {
       section("milestones", "Milestones", "Counted through your diary in date order.", milestonesBlock(s)),
       section("released", "Released", "Films by decade of release.", decadeBlock(s))]],
     ["people", "People", [
-      section("starring", "Starring", `${everyone(s.cast, "Actors")} in the top ${CAST_DEPTH} billed of each film. Highest rated needs ${s.castMinRated}+ rated films.`, people("cast", s.cast)),
+      section("starring", "Starring", `${everyone(s.cast, "Actors")} in the top ${CAST_DEPTH} billed of each film. ${castBarText(s)}`, people("cast", s.cast)),
       section("directed", "Directed by", `${everyone(s.directors, "Directors")}.`, people("directors", s.directors)),
       section("crew", "Crew", `Writers, cinematographers and composers. Highest rated needs ${s.minRated}+ rated films.`, noMeta ? emptyMeta() : crewBlock(s)),
       M.peopleYears, M.newIn]],

@@ -30,8 +30,17 @@ export default async function ({ browser, base }) {
     noErrors(p, file);
   }
   const d = await open(browser, base, "desktop.html");
-  const cast = await d.evaluate(() => { const s = computeStats(state.lib, metaOf, "all"), y = computeStats(state.lib, metaOf, "2025");
-    return [s.castMinRated, s.cast.best.every((p) => p.ratings.length >= 6), y.castMinRated === y.minRated, y.cast.best.length > 0, y.cast.best.some((p) => p.ratings.length < 6)]; });
-  assert(cast.join() === "6,true,true,true,true", `highest-rated actors: six rated films over all time, the usual minimum in a year: ${cast}`);
+  // six rated films over all time; in a year, the most rated films that still lists ten actors (2 at least, 6 at most)
+  const cast = await d.evaluate(() => {
+    const s = computeStats(state.lib, metaOf, "all");
+    const fair = (y) => { const all = rankPeople(y.films, metaOf, "c", 1).best, n = (t) => all.filter((p) => p.ratings.length >= t).length, t = y.castMinRated;
+      return y.cast.best.length === n(t) && y.cast.best.every((p) => p.ratings.length >= t) && t <= 6 && (t === 6 || n(t + 1) < 10) && (n(t) >= 10 || t <= 2); };
+    const years = [...new Set(state.lib.entries.map((e) => e.date.slice(0, 4)))].map((yr) => computeStats(state.lib, metaOf, yr));
+    return [s.castMinRated, s.cast.best.every((p) => p.ratings.length >= 6), years.length > 0, years.every(fair), years.some((y) => y.cast.best.length > 0)]; });
+  assert(cast.join() === "6,true,true,true,true", `highest-rated actors: six rated films over all time, a bar that follows each year: ${cast}`);
+  // the bar for a year: the most rated films that still lists ten actors, from 6 down to 2
+  const bars = await d.evaluate(() => { const ppl = (counts) => counts.map((n) => ({ ratings: Array(n).fill(4) }));
+    return [castBar(ppl(Array(11).fill(9))), castBar(ppl([...Array(10).fill(5), 2])), castBar(ppl([...Array(5).fill(4), ...Array(7).fill(3)])), castBar(ppl([2, 2, 1])), castBar([])]; });
+  assert(bars.join() === "6,5,3,2,2", `the year's bar for highest-rated actors: ${bars}`);
   noErrors(d, "desktop");
 }
