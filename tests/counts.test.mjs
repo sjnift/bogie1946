@@ -82,13 +82,25 @@ async function filteredTour(d, m) {
     for (const k of ["g", "d"]) { await p.click(`.fpanel [data-fpick="${k}"]`); await p.waitForTimeout(80); }
     await p.click(phone ? ".fp-foot [data-sclose]" : ".fp-foot [data-close]");
     await p.waitForTimeout(150);
-    return p.evaluate(() => ({ g: FILTER.g, d: FILTER.d, strip: !!document.querySelector(".fstrip") }));
+    return p.evaluate(() => ({ g: FILTER.g.length, d: FILTER.d.length, strip: !!document.querySelector(".fstrip") }));
   };
   const both = async (p, where) => { await check(p, where); const bad = await p.evaluate(`(${auditFilter})()`); assert(!bad.length, `${where}: ${bad.slice(0, 3).join("; ")}`); };
   const f = await pickFilters(d, false);
   assert(f.g && f.d && f.strip, `the computer's filter panel didn't set a filter: ${JSON.stringify(f)}`);
   for (const y of await d.$$eval("#scopes [data-scope]", (x) => x.map((b) => b.dataset.scope))) { await d.click(`[data-scope="${y}"]`); await both(d, `filtered desktop stats ${y}`); }
   await d.click('[data-scope="all"]');
+  // a second genre: films with either, then films with both
+  for (const mode of ["any", "all"]) {
+    await d.click(".fstrip .fstrip-edit"); await d.waitForSelector(".fpanel [data-fpick]");
+    if (mode === "any") await d.click('.fpanel [data-fpick="g"][aria-pressed="false"]');
+    else await d.click('.fpanel [data-fmode="g"][data-fval="all"]');
+    await d.waitForTimeout(80);
+    await d.click(".fp-foot [data-close]"); await d.waitForTimeout(150);
+    const t = await d.evaluate(() => ({ n: FILTER.g.length, all: groupAll("g"), text: filterText() }));
+    assert(t.n === 2 && t.all === (mode === "all") && t.text.includes(mode === "all" ? " and " : " or "), `two genres (${mode}): ${JSON.stringify(t)}`);
+    for (const y of ["all", (await d.$$eval("#scopes [data-scope]", (x) => x.map((b) => b.dataset.scope)))[1]]) { await d.click(`[data-scope="${y}"]`); await both(d, `two genres (${mode}) desktop ${y}`); }
+    await d.click('[data-scope="all"]');
+  }
   await d.click("#btn-insights");
   assert(await d.evaluate(() => !state.lib.filtered), "Insights used the filtered diary");
   await d.click("#btn-insights");

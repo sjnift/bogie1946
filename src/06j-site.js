@@ -28,7 +28,7 @@ let SITE = ls.get(SITE_REC, null), SITEPUB = ls.get(SITE_PUB, null);
 // the key works for the site's repository whatever it's called, so a renamed one is followed
 if (SITEPUB && SITE_GH_REPO && SITEPUB.repo !== SITE_GH_REPO) { SITEPUB.repo = SITE_GH_REPO; ls.set(SITE_PUB, SITEPUB); }
 // index: undefined until the site has been asked, null when it has no diary
-const site = { index: undefined, offline: false, checked: 0, busy: "", note: "", err: false, noteIn: "publish", applying: false, armed: null, timer: null, due: 0, job: null, acted: 0 };
+const site = { index: undefined, offline: false, checked: 0, busy: "", note: "", err: false, noteIn: "publish", applying: false, armed: null, timer: null, due: 0, job: null, clear: false };
 const saveSite = () => { SITE ? ls.set(SITE_REC, SITE) : ls.del(SITE_REC); SITEPUB ? ls.set(SITE_PUB, SITEPUB) : ls.del(SITE_PUB); };
 
 /* ----- bytes, hashes and the lock ----- */
@@ -275,7 +275,7 @@ async function siteUnlock(pass, where) {
     SITE = { salt: idx.salt, key: await exportKey(key), user: idx.user, at: null, have: {}, sums: {}, n: 0, signed: false };
     saveSite();
     await siteBring(idx, (p) => siteGet(`${p}.bin`, idx.parts[p]), true);
-    siteDone("", where);
+    siteDone("", where, false, true);
   } catch (e) { siteDone(e.message || "Couldn't open it.", where, true); }
 }
 
@@ -337,7 +337,7 @@ function sitePublish({ password, restart, where = "publish" } = {}) {
       }
       if (JSON.stringify(ls.get(SITE_DIRTY, null)) === dirty) ls.del(SITE_DIRTY); // a change made meanwhile goes next time
       if (SITEPUB && SITEPUB.prev) { delete SITEPUB.prev; saveSite(); }
-      siteDone(said, where.split(":")[0]);
+      siteDone(said, where.split(":")[0], false, !!password); // a new password went up: its box starts empty again
     } catch (e) {
       if (e.key && !SITEPUB.at) SITEPUB = SITEPUB.prev || null; // a key that never worked isn't kept (the one before it is)
       saveSite();
@@ -407,7 +407,9 @@ addEventListener("visibilitychange", () => {
 const agoText = (iso) => { if (!iso) return ""; const m = Math.round((Date.now() - Date.parse(iso)) / 60000); return m < 1 ? "just now" : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `on ${fmtDate(iso.slice(0, 10))}`; };
 const siteSay = (note, err, where = "publish") => { Object.assign(site, { note, err: !!err, noteIn: where }); siteRedraw(); };
 const siteBusy = (busy, where = "publish") => { Object.assign(site, { busy, note: "", err: false, noteIn: where }); siteRedraw(); };
-const siteDone = (note, where = "publish", err) => { Object.assign(site, { busy: "", note, err: !!err, noteIn: where }); siteRedraw(); };
+// `clear`: what someone typed into the boxes was used and worked, so they start empty again (only then: a background
+// update finishing never wipes what's being typed)
+const siteDone = (note, where = "publish", err, clear) => { Object.assign(site, { busy: "", note, err: !!err, noteIn: where, clear: !!clear && !err }); siteRedraw(); };
 function siteBox(kind) {
   const html = siteBoxInner(kind);
   return kind === "publish" ? html + shareBox() + tasteBox() : html;
@@ -486,24 +488,22 @@ function siteBoxInner(kind) {
 // typed and which sections are open stay as they were (while it works, and when it didn't), unless it just worked.
 const siteDrawn = new WeakMap();
 function siteRedraw() {
-  // What's typed and which sections are open stay across redraws, except right after a button pressed here worked
-  // (then the boxes start empty). A background update finishing never wipes what someone is typing.
-  if (site.err) site.acted = 0;
-  const keep = !(site.acted && Date.now() - site.acted < 120000 && site.note && !site.busy);
-  let redrawn = false;
+  // What's typed and which sections are open stay across redraws, except right after what was typed worked
+  // (`site.clear`, once).
+  const keep = !site.clear;
+  site.clear = false;
   for (const el of document.querySelectorAll("[data-sitebox]")) {
     const html = siteBox(el.dataset.sitebox);
     if (siteDrawn.get(el) !== html || el.innerHTML.trim() === "" !== !html.trim()) {
       const summary = (d) => (d.querySelector("summary") || {}).textContent;
       const open = new Set([...el.querySelectorAll("details[open]")].map(summary));
       const typed = Object.fromEntries([...el.querySelectorAll("input[name]")].map((i) => [i.name, i.value]));
-      el.innerHTML = html; siteDrawn.set(el, html); redrawn = true;
+      el.innerHTML = html; siteDrawn.set(el, html);
       if (!keep) continue;
       for (const d of el.querySelectorAll("details")) if (open.has(summary(d))) d.open = true;
       for (const i of el.querySelectorAll("input[name]")) if (typed[i.name] && !i.value) i.value = typed[i.name];
     }
   }
-  if (!keep && redrawn) site.acted = 0;
   // the computer's Settings section for it shows only when there's something in it
   const sec = document.getElementById("set-site"), sb = document.getElementById("site-box");
   if (sec) sec.hidden = !SITE_ON || !sb || !sb.innerHTML.trim();
@@ -514,7 +514,6 @@ document.addEventListener("click", (e) => {
   const box = t.closest("[data-sitebox]"), where = box ? box.dataset.sitebox : "publish";
   const val = (n) => ((box && box.querySelector(`[name="${n}"]`)) || {}).value || "";
   const a = t.dataset.site;
-  site.acted = Date.now();
   if (a !== "remove") { clearTimeout(site.armed); site.armed = null; }
   if (a === "unlock") siteUnlock(val("pass"), where);
   else if (a === "create" || a === "password") {
@@ -530,7 +529,7 @@ document.addEventListener("click", (e) => {
     if (!siteKey(val("repo") || (SITEPUB && SITEPUB.repo), val("token"), w)) return;
     sitePublish({ password: pass, restart: true, where: w });
   }
-  else if (a === "key") { if (siteKey(val("repo") || (SITEPUB && SITEPUB.repo), val("token"))) sitePublish().then(() => { if (SITEPUB && !site.err) siteSay("Key saved. It reaches your other devices through your locked diary."); }); }
+  else if (a === "key") { if (siteKey(val("repo") || (SITEPUB && SITEPUB.repo), val("token"))) sitePublish().then(() => { if (SITEPUB && !site.err) siteDone("Key saved. It reaches your other devices through your locked diary.", "publish", false, true); }); }
   else if (a === "now") sitePublish();
   else if (a === "share-on") shareSet(val("sharekey").trim() || ownTmdbKey());
   else if (a === "share-off") shareSet(null);

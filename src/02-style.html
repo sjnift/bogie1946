@@ -627,6 +627,10 @@ body.empty #settings, body.empty .foot-settings { display: none !important; }
 .fp-group h4 { margin: 0 0 8px; font-family: var(--mono); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 500; display: flex; gap: 10px; align-items: baseline; }
 .fp-x { all: unset; cursor: pointer; font-family: var(--sans); letter-spacing: 0; text-transform: none; font-size: 13px; color: var(--gold-ink); text-decoration: underline 1px; text-underline-offset: 3px; }
 .fp-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.fp-mode { display: inline-flex; gap: 2px; margin: 0 0 10px; padding: 2px; border: 1px solid var(--line); border-radius: 999px; }
+.fp-mode button { all: unset; cursor: pointer; padding: 4px 12px; border-radius: 999px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.fp-mode button:hover { color: var(--ink); }
+.fp-mode button[aria-pressed="true"] { background: var(--surface-2); color: var(--ink); }
 .fp-chip, .fp-more { cursor: pointer; border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 5px 12px; font: inherit; font-size: 13.5px; display: inline-flex; gap: 6px; align-items: baseline; }
 .fp-chip span { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 .fp-chip:hover, .fp-more:hover { border-color: var(--muted); }

@@ -271,15 +271,19 @@ friend replaces the address instead.
   the years, against the crowd, habits, review numbers, and for a year against the year before and new in the year.
   "Against the crowd" uses Letterboxd (Apify), IMDb/Metacritic (OMDb) or TMDB scores.
 - **Filters**: a Filter button opens a panel (a drill of kind `filters`, so it's the pop-up or the sheet, with Back
-  and Close) of genre, decade, country and language choices, each with how many films it leaves given the other
-  filters (genres, countries and languages need cast & crew; long groups show 14, then "N more"); picking a lit choice
-  turns it off. The page underneath redraws a frame later (`refreshFilters`, which clears the filters if a redraw
+  and Close) of genre, decade, country and language choices, each with how many films it has given the other
+  filters (genres, countries and languages need cast & crew; long groups show 14, then "N more"). **Several picks per
+  group** (asked Oct 2026, "a hybrid": `FILTER[k]` is a list): a film matches any of them; for genres and countries,
+  with two or more picked, a switch "Any of these / All of these" (`FILTER_ALL`, `groupAll`; decades and languages are
+  one per film, so always any), and the counts then follow the picks. A lit choice turns off when picked; "Clear" by a
+  group empties it (`data-fclear`); `clearFilters()` empties all. The strip reads "Drama or Romance films from the
+  1990s or 2000s" (`filterText`, `joinWords`). The page underneath redraws a frame later (`refreshFilters`, which clears the filters if a redraw
   fails). While one is on: the strip (desktop in `#jump`, phone under the year chips) and the phone's button lit with
   a dot; sections (desktop) or headings over nothing (phone) it leaves empty are dropped (`dropEmpties`). `filteredLib` gives a library of the
   films that pass, with their entries, reviews and watchlist, kept as the same object while nothing changes so the
   pages' caches hold; everything is worked out from it as from the whole diary. They last until the page is closed.
-  The `counts` check picks the commonest genre and decade on both layouts and proves every list holds only films that
-  pass, each once.
+  The `counts` check picks the commonest genre and decade on both layouts, then a second genre as any and as all, and
+  proves every list holds only films that pass, each once.
 - **Insights**: a study of the diary (below), findings only: all years (in short, chapters, how taste has moved, what
   ratings follow, one film to the next, habits) and each year against the rest of the diary (in short, what set it
   apart, its months, ratings, threads, habits, the year picture).
@@ -395,8 +399,10 @@ app**. `06j-site.js`:
   averages a minute after lookups finish (only the parts that changed). "Update the site now", "Change the password",
   "Use a new GitHub key", "Take my diary off the site" (deletes `docs/diary/`; nothing goes up again until it's put
   back), and, where the password is asked for, "Forgot the password?" (see "Known limits"). The boxes keep what's
-  typed and which sections are open across redraws, unless a button pressed there just worked (`siteRedraw`,
-  `site.acted`; a background update finishing never wipes what's being typed, which once made the `site` check flaky). At start a device sends whatever the site lacks or has differently (`siteDiffers`).
+  typed and which sections are open across redraws, unless what was typed was just used and worked (`siteDone(…,
+  clear)`: a new password, a new key, opening the diary). A background update finishing never wipes what's being typed,
+  and the phone's redraw (`patchNode`) leaves a text box's typing alone unless the app changes the box's own value;
+  both once wiped a half-typed password and made the `site` check flaky. At start a device sends whatever the site lacks or has differently (`siteDiffers`).
 - Opening it: any device with nothing imported shows, under the import box, "Are you @user? Open your diary", folded
   (most people there are friends with their own export), which unfolds to the password box; the key
   made from it is kept (`cr-site-v1`), the parts are read from the site (`diary/<part>.bin?v=<when>`) and saved
