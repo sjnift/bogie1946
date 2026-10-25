@@ -70,15 +70,17 @@ Where it lives:
     decade" in full right under On this day (`bestDecadeBlock`), the phone's Profile under On this day and Breakdown.
   - **The desktop main page is a dashboard** (asked Oct 2026: "cluttered with too much data in full view"; a first try
     that cut cards short and opened them in place was rejected, since opening one brought the old clutter back). Recently
-    watched, On this day and the best decade show in full; every chapter below is a grid of cards made for their size
-    (`07-render-d.js`: `dashChapters`, `dcard`): a title (and its switch, if any), a line with the headline numbers (each a
-    link; `cardLines`, `monthsLine`), ONE picture (a chart, a top five as faces or rows, five posters, the month grid)
+    watched, On this day and the best decade show in full; so do **People** (Starring, Directed by, Crew, People over the
+    years / New in a year) and **Genres & countries** (Genre & origin, Genres year by year, Genres as you rate them), as
+    full sections like before (the owner asked for those two back expanded, 25 Oct 2026: `peopleBlock`, `crewBlock`,
+    `catBlock` in `07-render-b.js`; `dashChapters` marks them `full`). Every other chapter is a grid of cards made for
+    their size (`07-render-d.js`: `dashChapters`, `dcard`): a title (and its switch, if any), a line with the headline
+    numbers (each a link; `cardLines`, `monthsLine`), ONE picture (a chart, a short ranked list, five posters, the month grid)
     and "See all" opening the rest in the pop-up: a list (`D.names`, `D.films`, `D.groups`) or a whole section
-    (`D.block(title, sub, () => html)`, drill kind `block`, the old section functions like `yearsBlock`, `genresBlock`,
-    `diaryBlock`, `crowdBlock(C, Y, true)` without its tabs). **Nothing is cut off and nothing opens in place.** A lone
-    card in a chapter is full width and uses it (`wide`: genres year by year, highest beside lowest rated, ten Watch
-    next picks). **Highest and lowest rated** are off the top, the last card of Ratings (phone: Stats › Films after
-    Records). The `counts` check also audits every list inside the `block` pop-ups; `xss` opens each of them.
+    (`D.block(title, sub, () => html)`, drill kind `block`, the old section functions like `yearsBlock`, `diaryBlock`,
+    `crowdBlock(C, Y, true)` without its tabs). **Nothing is cut off and nothing opens in place.** A lone card in a
+    chapter is full width and uses it (`wide`: highest beside lowest rated, ten Watch next picks). **Highest and lowest
+    rated** are off the top, the last card of Ratings (phone: Stats › Films after Records). The `counts` check also audits every list inside the `block` pop-ups; `xss` opens each of them.
   - **Insights is a study of the diary, not a repeat of the Stats page** (they found the old one inadequate and
     repetitive, Oct 2026): what stood apart and when, how taste moved, what ratings follow and why, how one film led to
     another, and habits with what they explain. No counts or top lists the Stats page already shows (the `study` check
@@ -161,11 +163,11 @@ The owner asked for this to be checked every time. A film, diary entry, person o
   `03-body.html` (page skeleton), shared files, `07-render-a.js` (state, render(), hero, tiles, the Settings page `renderSettings`, the lookup box and its one-line
   version on the stats page `renderLookupMini`),
   `07-render-b.js` (Stats sections, placed in chapters by `renderSections` with the menu that stays at the top,
-  `#jump`, below the full-width recent / On this day / best decade, the chapters of cards from `07-render-d.js`; `foldTies` turns four or more with the same count into one row), `07-render-c.js` (more Stats sections, the numbers from the old Insights page:
+  `#jump`, below the full-width recent / On this day / best decade, the chapters from `07-render-d.js`, in cards but for People and Genres & countries; `foldTies` turns four or more with the same count into one row), `07-render-c.js` (more Stats sections, the numbers from the old Insights page:
   year by year, genres year by year, genres as you rate them, people over the years, against the crowd, habits, the
   month table, and for a year against the year before and new in the year; `homeInsights`
   keeps `computeInsights`/`computeYearInsights` in `HOME_INS` until the data changes; these section functions now fill the
-  pop-ups), `07-render-d.js` (the main page's dashboard of cards, see "The desktop main page is a dashboard"),
+  pop-ups), `07-render-d.js` (the main page's chapters, mostly cards, see "The desktop main page is a dashboard"),
   `07c-insights.js` (the study),
   `07d-compare.js`, `07e-reviews.js`,
   `07f-drill.js` (pop-up, full page, hash routes, back button), `08-events.js` (import, clicks, init).

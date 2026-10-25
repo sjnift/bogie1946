@@ -52,16 +52,27 @@ export default async function ({ browser, base }) {
   assert(r.title === "Last watched in 2024" && r.dates.join() === r.want.join() && r.dates.every((x) => x.endsWith("2024")), `last watched in 2024: ${JSON.stringify(r)}`);
   await d.click('[data-scope="all"]'); await d.waitForTimeout(150);
   // the main page (owner, Oct 2026): the best decade in full near the top, highest and lowest rated down in Ratings,
-  // and every chapter's sections as cards cut short until opened
+  // People and Genres & countries in full as before, every other chapter's sections as cards with the rest in pop-ups
   const lay = await d.evaluate(() => { const ids = [...document.querySelectorAll("#sections .ch-mark, #sections section")].map((e) => e.id);
-    return { ids, cards: document.querySelectorAll("#sections .dc").length, more: document.querySelectorAll("#sections .dc-more").length, glance: document.querySelectorAll("#sections .credit").length }; });
+    const full = (ch) => { const out = []; let m = document.getElementById(ch).nextElementSibling;
+      while (m && !m.classList.contains("ch-mark")) { out.push(m.classList.contains("credit") ? m.id : `!${m.className}`); m = m.nextElementSibling; } return out; };
+    return { ids, cards: document.querySelectorAll("#sections .dc").length, more: document.querySelectorAll("#sections .dc-more").length,
+      people: full("ch-people"), origin: full("ch-origin"), faces: document.querySelectorAll("#starring .person").length, cats: document.querySelectorAll("#origin .cat-grid h3").length }; });
   const at = (id) => lay.ids.indexOf(id);
   assert(at("best-decade") > at("recent") && at("best-decade") < at("ch-films") && at("top") > at("ch-ratings") && at("top") > at("rated"), `main page order: ${lay.ids.join(" ")}`);
-  assert(lay.cards >= 15 && lay.more >= 10 && lay.glance <= 3, `main page cards: ${JSON.stringify({ cards: lay.cards, more: lay.more, glance: lay.glance })}`);
+  assert(lay.cards >= 10 && lay.more >= 8, `main page cards: ${JSON.stringify({ cards: lay.cards, more: lay.more })}`);
+  assert(lay.people.join() === "starring,directed,crew,people-years" && lay.origin.join() === "origin,genre-years,genre-rates" && lay.faces >= 5 && lay.cats === 3,
+    `People and Genres & countries in full: ${JSON.stringify(lay)}`);
   // a card's "See all" opens the whole section in the pop-up, not in place
-  await d.click("#genre-years .dc-more"); await d.waitForTimeout(150);
-  assert(await d.evaluate(() => $("#dlg").open && !!$("#dlg .dblock table.heat")), "Genres year by year didn't open in the pop-up");
+  await d.click("#years .dc-more"); await d.waitForTimeout(150);
+  assert(await d.evaluate(() => $("#dlg").open && !!$("#dlg .dblock table")), "Year by year didn't open in the pop-up");
   await d.keyboard.press("Escape"); await d.waitForTimeout(100);
+  // the full sections keep their switches: Highest rated for actors, and for genres
+  await d.click('#starring [data-tab="cast"][data-val="best"]'); await d.waitForTimeout(150);
+  await d.click('#origin [data-tab="cats"][data-val="best"]'); await d.waitForTimeout(150);
+  const sw = await d.evaluate(() => [$('#starring [data-val="best"]').getAttribute("aria-selected"), $('#origin [data-val="best"]').getAttribute("aria-selected")]);
+  assert(sw[0] === "true" && sw[1] === "true", `switches in the full sections: ${sw}`);
+  await d.click('#starring [data-tab="cast"][data-val="most"]'); await d.click('#origin [data-tab="cats"][data-val="most"]'); await d.waitForTimeout(150);
   // Reviewed on the main page: the latest two, the rest one click away
   const rv = await d.evaluate(() => ({ cards: document.querySelectorAll("#reviews article.review").length, total: reviewsIn(state.lib, null).length,
     first: $("#reviews .rv-title").textContent.trim(), latest: reviewsIn(state.lib, null)[0].film.name, link: $("#reviews .rv-all").textContent }));

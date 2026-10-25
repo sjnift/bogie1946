@@ -36,6 +36,48 @@ function foldTies(list, countOf, start, group) {
 const peopleTies = (label) => (xs, n) => ({ name: `${fmtN(xs.length)} ${label} with ${plural(n, "film")} each`, to: D.names(`${fmtN(xs.length)} ${label} with ${plural(n, "film")} each`, "Most watched first", xs, { faces: true }) });
 
 /* ---------- section bodies ---------- */
+/* ---------- the People and Genres & countries chapters, in full (asked Oct 2026) ---------- */
+function peopleBlock(kind, data, s) {
+  const t = state.tab[kind];
+  const list = t === "most" ? data.most : data.best;
+  if (!list.length) return `<div class="empty">${t === "best" ? `Nobody here has ${kind === "cast" ? s.castMinRated : s.minRated} or more rated films yet.` : "Nobody to show for this period."}</div>`;
+  const top = list.slice(0, 12);
+  const cards = top.map((p, i) => `<button class="person" type="button" data-list="${reg(p.name, personSub(p), p.films, p)}">
+    ${faceHtml(p, i + 1)}<span class="nm">${esc(p.name)}</span>
+    <span class="ct">${t === "most" ? plural(p.count, "film") : `<span class="stars">★</span> ${p.avg.toFixed(2)} · ${plural(p.ratings.length, "film")}`}</span></button>`).join("");
+  const limit = state.more[kind] ? 60 : 12; // rows below the cards
+  const all = t === "most" ? foldTies(list.slice(12), (p) => p.count, 13, peopleTies(kind === "cast" ? "actors" : "directors")) : list.slice(12).map((p, i) => ({ ...p, rank: 13 + i }));
+  const rest = all.slice(0, limit);
+  const max = list[0].count;
+  const rows = rest.length ? rankRows(rest,
+    (p) => t === "most" ? (p.group ? `${plural(p.count, "film")} each` : plural(p.count, "film")) : p.avg.toFixed(2),
+    (p) => t === "most" ? p.count / max : p.avg / 5, 13, personSub) : "";
+  const moreBtn = all.length > limit ? `<div><button class="btn small" type="button" data-more="${kind}">Show more</button></div>` : "";
+  return `<div class="people">${cards}</div>${rows}${moreBtn}`;
+}
+function catBlock(s) {
+  const t = state.tab.cats;
+  const col = (title, data, unit) => {
+    const list = (t === "most" ? data.most : data.best).slice(0, 10);
+    if (!list.length) return `<div><h3>${title}</h3><div class="empty">${t === "best" ? "Needs 3+ rated films each." : "Nothing yet."}</div></div>`;
+    const max = list[0].count;
+    return `<div><h3>${title}</h3>${rankRows(list, (c) => t === "most" ? fmtN(c.count) : c.avg.toFixed(2),
+      (c) => t === "most" ? c.count / max : c.avg / 5, 1, (c) => `${plural(c.count, "film")}${c.avg ? ` · ${c.avg.toFixed(2)} average` : ""}`)
+      .replace(/class="rank-row"/g, 'class="rank-row cat"').replace(/<span class="r">\d+<\/span>/g, "")}</div>`;
+  };
+  return tabs("cats", [["most", "Most watched"], ["best", "Highest rated"]], t) +
+    `<div class="cat-grid">${col("Genres", s.genres)}${col("Countries", s.countries)}${col("Languages", s.languages)}</div>`;
+}
+function crewBlock(s) {
+  const t = state.tab.crew, best = state.tab.crewSort === "best";
+  const data = { w: s.writers, p: s.dop, m: s.music }[t];
+  const label = { w: "writers", p: "cinematographers", m: "composers" }[t];
+  const list = best ? data.best.slice(0, 15) : foldTies(data.most, (p) => p.count, 1, peopleTies(label)).slice(0, 15);
+  const body = !list.length ? `<div class="empty">${best ? `None of these ${label} has ${s.minRated} or more rated films yet.` : "Nobody to show yet."}</div>`
+    : best ? rankRows(list, (p) => p.avg.toFixed(2), (p) => p.avg / 5, 1, personSub)
+    : rankRows(list, (p) => p.group ? `${plural(p.count, "film")} each` : plural(p.count, "film"), (p) => p.count / data.most[0].count, 1, personSub);
+  return `<div class="tab-rows">${tabs("crew", [["w", "Written by"], ["p", "Shot by"], ["m", "Music by"]], t)}${tabs("crewSort", [["most", "Most watched"], ["best", "Highest rated"]], state.tab.crewSort)}</div>` + body;
+}
 function diaryBlock(s) {
   if (!s.entries.length) return `<div class="empty">No diary dates in this period. Films logged without a date still count everywhere else.</div>`;
   const cols = timeline(s);
@@ -140,7 +182,6 @@ function watchNextBlock(W) {
   return chips + cards + all + missing + `<p class="status">A guess at your rating: your average, moved by how you rate each film's director, leads and genres, and by its crowd score as far as your ratings follow the crowd.</p>`;
 }
 // A person as a link to their films.
-const plink = (p) => `<button class="dlink" type="button" data-list="${reg(p.name, personSub(p), p.films, p)}">${esc(p.name)}</button>`;
 // The lines that sum up each card.
 function cardLines(s) {
   const L = {}, views = viewsOf(s), E = s.entries;
@@ -150,14 +191,6 @@ function cardLines(s) {
   if (me) L.milestones = `${hit ? `Your ${ordinal(hit)} film` : "Your first film"}${s.scope === "all" ? "" : ` of ${esc(s.scope)}`}: ${dlink(D.film(me.film, { entry: me }), esc(me.film.name))}, ${fmtDate(me.date)}.`;
   const re = s.films.filter((f) => views(f) > 1).sort((a, b) => views(b) - views(a) || (b.rating || 0) - (a.rating || 0))[0];
   if (re) L.rewatched = `${dlink(D.film(re), esc(re.name))} leads, with ${views(re)} viewings.`;
-  const lead = (data, what) => data.most[0] ? `${what}: ${plink(data.most[0])}, ${plural(data.most[0].count, "film")}.` : "";
-  L.starring = `${lead(s.cast, "Most watched")} ${castBarText(s)}`;
-  L.directed = lead(s.directors, "Most watched");
-  const crew = [["written by", s.writers], ["shot by", s.dop], ["scored by", s.music]].filter(([, d]) => d.most[0]).map(([k, d]) => `${k} ${plink(d.most[0])}`);
-  if (crew.length) L.crew = `Most often ${joinAnd(crew)}.`;
-  const cat = (data) => { const c = data.most[0]; return c && dlink(D.films(c.name, filmsSub(c.films), c.films, { scope: s.scope }), esc(c.name)); };
-  const [g, k, l] = [cat(s.genres), cat(s.countries), cat(s.languages)];
-  if (g || k || l) L.origin = `Mostly ${[g, k && `from ${k}`, l && `in ${l}`].filter(Boolean).join(", ")}.`;
   const bm = s.busiestMonth;
   if (bm) L.logged = `Busiest month: ${dlink(DR.month(s.entries, bm.key), `${monthName(bm.key)}, ${plural(bm.count, "film")}`)}. Longest streak: ${dlink(DR.streak(s), plural(s.streak.days, "day"))} in a row.`;
   if (s.rated) { const most = s.spread.reduce((a, b) => b.count > a.count ? b : a);
@@ -169,19 +202,18 @@ function cardLines(s) {
 function renderSections(s) {
   const T = s.scope === "all" ? onThisDay(state.lib) : null;
   const best = bestDecadeBlock(s);
-  // first, in full: what you've watched lately, on this day, and your best decade; then the chapters, in cards
+  // first, in full: what you've watched lately, on this day, and your best decade; then the chapters, in cards (People and
+  // Genres & countries in full)
   const glance = [
     s.entries.length ? section("recent", s.scope === "all" ? "Recently watched" : `Last watched in ${s.scope}`,
       s.entries.length > RECENT_N ? dlink(DR.diary(s), `All ${fmtN(s.entries.length)} diary entries`) : "Your latest diary entries.", recentBlock(s)) : "",
     T && T.entries.length ? section("onthisday", T.title, T.sub, onThisDayBlock(T)) : "",
     best ? section("best-decade", "Best decade", "The decade of release you rate highest.", best) : ""].join("");
-  const chapters = dashChapters(s)
-    .map(([id, name, cards]) => [id, name, cards.filter(Boolean).join("")])
-    // with a filter on, a card it leaves with nothing to show is left out, and so is a chapter left empty
-    .map(([id, name, html]) => [id, name, filterOn() ? dropEmpties(html, (root) => { for (const b of root.querySelectorAll(".credit-body")) if (b.children.length === 1 && b.firstElementChild.classList.contains("empty")) b.closest(".credit, .dc").remove(); }) : html])
-    .filter(([, , html]) => html.trim());
-  const glanceHtml = filterOn() ? dropEmpties(glance, (root) => { for (const b of root.querySelectorAll(".credit-body")) if (b.children.length === 1 && b.firstElementChild.classList.contains("empty")) b.closest(".credit").remove(); }) : glance;
-  const all = [glanceHtml.trim() && ["glance", "At a glance", glanceHtml, false], ...chapters.map(([id, name, html]) => [id, name, html, true])].filter(Boolean);
+  // with a filter on, a section or card it leaves with nothing to show is left out, and so is a chapter left empty
+  const trim = (html) => filterOn() ? dropEmpties(html, (root) => { for (const b of root.querySelectorAll(".credit-body")) if (b.children.length === 1 && b.firstElementChild.classList.contains("empty")) b.closest(".credit, .dc").remove(); }) : html;
+  const chapters = dashChapters(s).map(([id, name, parts, full]) => [id, name, trim(parts.filter(Boolean).join("")), !full]).filter(([, , html]) => html.trim());
+  const glanceHtml = trim(glance);
+  const all = [glanceHtml.trim() && ["glance", "At a glance", glanceHtml, false], ...chapters].filter(Boolean);
   $("#sections").innerHTML = all.map(([id, name, html, grid]) => `<div class="ch-mark" id="ch-${id}"><span>${name}</span></div>${grid ? `<div class="dash">${html}</div>` : html}`).join("")
     || `<div class="empty" style="margin-top:24px">No films pass this filter in this period.</div>`;
   // the menu that stays at the top: the chapters, then the filter (what's on, or a button to set one)
