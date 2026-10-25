@@ -167,7 +167,7 @@ function artHtml(f) {
 }
 function posterHtml(f) {
   return `<button class="poster" type="button" ${dl(D.film(f))}>${artHtml(f)}
-    <span class="cap"><span class="stars">${stars(f.rating)}</span>${f.liked ? ' <span class="muted" title="Liked">♥</span>' : ""}</span></button>`;
+    <span class="cap"><span class="stars">${stars(f.rating)}</span>${f.liked ? ' <span class="heart" title="Liked">♥</span>' : ""}</span></button>`;
 }
 // How many times a film was watched in the period.
 const viewsOf = (s) => (f) => viewsIn(f, s.scope);
@@ -192,7 +192,7 @@ function recordsBlock(s) {
 const RECENT_N = 8;
 function recentBlock(s) {
   return `<div class="posters">${s.entries.slice(-RECENT_N).reverse().map((e) => `<button class="poster" type="button" ${dl(D.film(e.film, { entry: e }))}>${artHtml(e.film)}
-    <span class="cap"><span class="d">${fmtDate(e.date)}</span><span><span class="stars">${stars(e.rating)}</span>${e.rewatch ? ' <span class="muted" title="Rewatch">↻</span>' : ""}${e.film.liked ? ' <span class="muted" title="Liked">♥</span>' : ""}</span></span></button>`).join("")}</div>`;
+    <span class="cap"><span class="d">${fmtDate(e.date)}</span><span><span class="stars">${stars(e.rating)}</span>${e.rewatch ? ' <span class="muted" title="Rewatch">↻</span>' : ""}${e.film.liked ? ' <span class="heart" title="Liked">♥</span>' : ""}</span></span></button>`).join("")}</div>`;
 }
 function onThisDayBlock(T) {
   return `<div class="posters">${T.entries.slice(0, 12).map((e) => `<button class="poster" type="button" ${dl(D.film(e.film, { entry: e }))}>${artHtml(e.film)}

@@ -12,7 +12,7 @@ function reviewCard(r, short) {
   const card = D.film(r.film);
   return `<article class="review${short ? " short" : ""}"><button class="rv-art poster" type="button" ${dl(card)} aria-label="${esc(r.film.name)}">${artHtml(r.film)}</button><div class="rv-body">
     <h3 class="rv-title">${dlink(card, esc(r.film.name))} <span class="muted">${r.film.year || ""}</span></h3>
-    <div class="rv-meta"><span class="stars">${stars(r.rating)}</span>${r.film.liked ? ' <span class="muted" title="Liked">♥</span>' : ""}
+    <div class="rv-meta"><span class="stars">${stars(r.rating)}</span>${r.film.liked ? ' <span class="heart" title="Liked">♥</span>' : ""}
       <span class="muted">${r.date ? `${r.rewatch ? "Rewatched" : "Watched"} ${fmtDate(r.date)}` : ""}${tmdbLink(r.film)}</span></div>
     <div class="rv-text${long ? ` clamp${short ? " short" : ""}` : ""}">${r.html}</div>
     ${long ? `<button class="linkish rv-more" type="button" data-expand>Read more</button>` : ""}${tags}</div></article>`;

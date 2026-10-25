@@ -289,7 +289,7 @@ function profileScreen(s) {
   const tile = (attrs, ico, cls, label, sub) => `<button class="tile" type="button" ${attrs}><span class="ico ${cls}">${ico}</span><span style="min-width:0"><b>${label}</b><small>${sub}</small></span></button>`;
   const tiles = `<div class="tiles">${tile(`data-act="reviews"`, ICON.review, "b", "Reviews", plural(nReviews, "review"))}
     ${tile(lib.watchlistFilms.length ? `data-act="watchnext"` : `${dl(DR.watchlist(lib))}`, ICON.next, "g", "Watch next", lib.watchlistFilms.length ? `${fmtN(lib.watchlistFilms.length)} on your watchlist` : "Needs a watchlist")}
-    ${tile(s.likes ? dl(DR.liked(s)) : `data-act="liked"`, ICON.heart, "o", "Liked", plural(s.likes, "film"))}
+    ${tile(s.likes ? dl(DR.liked(s)) : `data-act="liked"`, ICON.heart, "r", "Liked", plural(s.likes, "film"))}
     ${tile(s.rewatches ? dl(DR.rewatches(s)) : `data-view="diary"`, ICON.rewatch, "s", "Rewatches", plural(s.rewatches, "rewatch", "rewatches"))}</div>`;
   const recent = s.entries.slice(-12).reverse();
   const recentRow = recent.length ? sh(s.scope === "all" ? "Recently watched" : `Last watched in ${s.scope}`, seeAll(`data-view="diary"`, "Diary")) +

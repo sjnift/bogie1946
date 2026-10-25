@@ -67,6 +67,9 @@ Where it lives:
     under each says so (`HILO_NOTE`). Not on heat tables (already shaded) or tables whose rows are different measures
     (a year against the one before, Compare's habits). The `extras` check covers both layouts. A new comparing table
     should use it.
+  - **A liked film's heart is red** (asked 25 Oct 2026): `--heart` (#FF4757) on both layouts, class `heart` wherever a
+    ♥ is written (poster captions, recently watched, reviews, lists, the film card, the diary), and the phone's Liked
+    tile (`.ico.r`). Never `muted` or Letterboxd's orange for it.
   - They like charts and data views that are accurate and clear. Both layouts are dark only (asked Oct 2026): don't
     bring back a light look or follow the system's setting.
   - Highest-rated actors over **all time** need **6 rated films** each (`CAST_MIN_RATED`, `s.castMinRated`). In a
