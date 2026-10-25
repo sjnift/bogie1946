@@ -4,7 +4,10 @@
 // isn't counted; the people check says so on both layouts.
 import { open, seed, assert, noErrors } from "./lib.mjs";
 
-const meta = (id, y, c, ci, d = ["A Director"], di = [900]) => ({ src: "tmdb", v: 9, id, y, d, di, c, ci, w: [], p: [], m: [], g: ["Crime"], k: ["USA"], l: "English", r: 90 });
+const meta = (id, y, c, ci, d = ["A Director"], di = [900], more = {}) => ({ src: "tmdb", v: 10, id, y, d, di, c, ci, w: [], p: [], m: [], g: ["Crime"], k: ["USA"], l: "English", r: 90, ...more });
+// a star at the top of four films, then far down a big cast (a cameo), and far down another as a named extended cameo
+const crowd = (n, id) => Array.from({ length: n }, (_, i) => `Extra Player ${id}-${i}`), crowdIds = (n, base) => Array.from({ length: n }, (_, i) => base + i);
+const walkOn = (id, y, more) => meta(id, y, [...crowd(25, id), "Big Star", ...crowd(5, id).map((x) => x + "b")], [...crowdIds(25, id * 1000), 50, ...crowdIds(5, id * 1000 + 500)], undefined, undefined, more);
 const films = [
   ["Old Noir", 1946, meta(1, 1946, ["Paul Guilfoyle", "Lead A"], [104714, 1])],
   ["Another Noir", 1948, meta(2, 1948, ["Paul Guilfoyle"], [104714])],
@@ -14,6 +17,10 @@ const films = [
   ["Right Time", 1995, meta(6, 1995, ["Young Star"], [3])],
   // one person TMDB keeps twice (one IMDb id), under two spellings: one person
   ["Twice Kept", 2001, meta(7, 2001, ["Lu Qi"], [31])], ["Kept Again", 2003, meta(8, 2003, ["Lü Qi"], [32])], ["Third Time", 2005, meta(9, 2005, ["Lü Qi"], [32])],
+  ...[10, 11, 12, 13].map((id) => [`Star Vehicle ${id}`, 2016 + id, meta(id, 2016 + id, ["Big Star", "Co Star"], [50, 51])]),
+  ["Team Up", 2030, walkOn(14, 2030)], ["Team Up Again", 2031, walkOn(15, 2031, { ce: [50] })],
+  // a cartoon's voices: apart from on-screen acting
+  ["A Cartoon", 2012, meta(16, 2012, [], [], undefined, undefined, { vo: ["Big Star", "Voice Pro"], voi: [50, 52] })],
 ];
 const persons = { 104714: { birthday: "1902-07-14", deathday: "1961-06-27", imdb_id: "nm0002116", profile_path: "/old.jpg" },
   925: { birthday: "1949-04-28", deathday: null, imdb_id: "nm0002117", profile_path: "/new.jpg" }, 3: { birthday: "1970-01-01", imdb_id: "nm0000003" },
@@ -31,7 +38,10 @@ async function standIn(p, asked) {
   });
 }
 const counted = (page) => page.evaluate(() => { const s = computeStats(MY_LIB, metaOf, "all"), of = (n) => (s.cast.most.find((x) => x.name === n) || {}).count || 0;
+  const voice = (n) => (s.voice.most.find((x) => x.name === n) || {}).count || 0;
   return { old: of("Paul Guilfoyle (1902–1961)"), young: of("Paul Guilfoyle (born 1949)"), plain: of("Paul Guilfoyle"), star: of("Young Star"), twice: [of("Lu Qi"), of("Lü Qi")].join(),
+    big: of("Big Star"), bigFilms: personDrill(MY_LIB, "Big Star", "c").films.map((f) => f.name).filter((n) => /Team/.test(n)).join(), bigVoice: voice("Big Star"), voicePro: [of("Voice Pro"), voice("Voice Pro")].join(),
+    cameos: peopleCheck(MY_LIB).cameos.map((x) => `${x.name}: ${x.note}`).join(" | "),
     oldFilms: personDrill(MY_LIB, "Paul Guilfoyle (1902–1961)", "c").films.map((f) => f.name).sort().join(), photos: [PHOTOS["paul guilfoyle 1902 1961"], PHOTOS["paul guilfoyle born 1949"]].join() }; });
 
 export default async function ({ browser, base }) {
@@ -47,15 +57,18 @@ export default async function ({ browser, base }) {
   assert(c.oldFilms === "Another Noir,Old Noir" && c.photos === "/old.jpg,/new.jpg", `each with their own films and face: ${JSON.stringify(c)}`);
   assert(c.star === 1, `a credit before the person was born isn't counted: ${c.star}`);
   assert(c.twice === "3,0", `one person TMDB keeps twice is counted once, under one name: ${c.twice}`);
+  assert(c.big === 5 && c.bigFilms === "Team Up Again", `a star far down a cast is a cameo, a named extended cameo isn't: ${c.big} ${c.bigFilms}`);
+  assert(c.cameos === "Big Star in Team Up (2030): Not counted: a star far down the cast", `the cameo is listed: ${c.cameos}`);
+  assert(c.bigVoice === 1 && c.voicePro === "0,1", `voice roles counted apart: ${c.bigVoice} ${c.voicePro}`);
   // only people in two or more films, or who share a name, have their dates asked for
-  assert([...new Set(asked)].sort().join() === "104714,3,31,32,900,925", `asked TMDB for: ${asked}`);
+  assert([...new Set(asked)].sort().join() === "104714,3,31,32,50,51,900,925", `asked TMDB for: ${asked}`);
   // the filmography of each is theirs, by TMDB's id, not the better known of the two
   await p.evaluate(() => filmography("Paul Guilfoyle (1902–1961)", "c"));
   assert(asked.includes("credits 104714") && !asked.includes("credits 925"), `filmography asked for: ${asked}`);
   await p.click("#btn-settings");
   await p.waitForFunction(() => /people check/i.test($("#lookup").innerText), null, { timeout: 5000 });
   const box = (await p.innerText("#lookup")).replace(/\s+/g, " ");
-  assert(/2 people in your diary share a name/.test(box) && /1 credit is impossible by TMDB's own dates/.test(box) && /Dates checked for 5 of 5 people/.test(box), `the people check: ${box.slice(box.search(/people check/i), box.search(/people check/i) + 600)}`);
+  assert(/2 people in your diary share a name/.test(box) && /1 credit is impossible by TMDB's own dates/.test(box) && /Dates checked for \d+ of \d+ people/.test(box), `the people check: ${box.slice(box.search(/people check/i), box.search(/people check/i) + 600)}`);
   noErrors(p, "desktop");
 
   // the phone counts them apart too

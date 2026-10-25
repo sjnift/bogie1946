@@ -26,6 +26,8 @@ function dashChapters(s) {
   const people = (kind, data) => noMeta ? emptyMeta() : tabs(kind, [["most", "Most watched"], ["best", "Highest rated"]], state.tab[kind]) + peopleBlock(kind, data, s);
   const peopleFull = [
     section("starring", "Starring", `${everyone(s.cast, "Actors")}. ${castRuleText()} ${castBarText(s)}`, people("cast", s.cast)),
+    // voice roles apart from on-screen acting (asked 26 Oct 2026)
+    s.voice.total ? section("voices", "Voices", `${everyone(s.voice, "Voice actors")} in animation, narration and other voice roles, counted apart from on-screen acting. Additional voices and cameos don't count. Highest rated needs ${s.minRated}+ rated films.`, people("voices", s.voice)) : "",
     section("directed", "Directed by", `${everyone(s.directors, "Directors")}.`, people("directors", s.directors)),
     section("crew", "Crew", `Writers, cinematographers and composers. Highest rated needs ${s.minRated}+ rated films.`, noMeta ? emptyMeta() : crewBlock(s)),
     all ? section("people-years", "People over the years", "Who's new, who stays, and how many directors each year brought.", noMeta ? emptyMeta() : peopleYearsBlock(I)) : "",

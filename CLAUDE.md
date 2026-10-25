@@ -248,7 +248,8 @@ The owner asked for this to be checked every time. A film, diary entry, person o
   `w` writers, `p` cinematographers, `m` composers, `g` genres, `k` countries, `l` language, `r` runtime,
   `poster`, `id`, `va/vc` TMDB score, `im` IMDb id, `ir/iv/mc/rt` IMDb, Metacritic, Rotten Tomatoes,
   `pin` (matched by hand), `cq/ca/cr/cp/cn/can` the cast checked on IMDb (`ir` is IMDb's rating, not the cast),
-  `ci/di/wi/pi/mi` the TMDB person ids beside `c/d/w/p/m` (see "People are TMDB's people, by id").
+  `ci/di/wi/pi/mi` the TMDB person ids beside `c/d/w/p/m` (see "People are TMDB's people, by id"), `vo/voi` voice roles,
+  `x/xi/xw` credited cameos with why, `ce` named extended appearances (see "Cameos and voices").
 - `FACTS[tmdbPersonId]`: `{ b, d, im, p, t }` birth and death years, IMDb id, photo, when (`cr-people-v1`, this device
   only, in backups; asked again after `FACTS_DAYS`). `metaOf(f)` reads it (example films use `EXAMPLE_META`).
 - `LBX[filmKey]`: Letterboxd averages `{ r, n, slug }`; `{ tries: 1, v: 2 }` not found by the scraper; `{ tries: 1, v: 2, few: true,
@@ -500,6 +501,32 @@ standard errors or more from what the rest of the diary gives; every sentence op
   film (`keepPhotos`, `CAST_SEEN`). `personKey` keeps letters of any script (a name only in Hangul or kana used to come
   out empty). On the owner's 50 latest films TMDB lists 2,427 roles: 644 uncredited, 5 archive footage, 2 other, 1,776
   counted. People are matched by name; namesakes changed none of the top 100 of 928 films, so ids aren't kept.
+- **Cameos and voices** (26 Oct 2026, the owner: "I don't want cameos to populate and take over the most watched list,
+  which is the case of Stan Lee and Samuel Jackson … take a tough stand on cameos but keep in mind any extended roles
+  to not unjustly deny them", and "a separate tab for voice acting roles so they do not mix with live action
+  acting"). `sortCast` (05-core) sorts each film's credits at lookup, in billing order: what `roleSkip` refuses and
+  additional voices / loop groups (`BACKGROUND_VOICES`) don't count; voice roles ("(voice)", or every role of an
+  Animation film TMDB tags none in) go to `vo`/`voi` (role "v"; `v` is the details' version, so voices never sit in
+  `v`); credited cameos go to `x`/`xi`/`xw` with why: "source" (also in the crew as the source's author: Characters,
+  Comic Book, Novel, Book, Play… (`SOURCE_JOBS`), billed below the top `SOURCE_FROM` 5: Stan Lee in Marvel films,
+  Stephen King), "self" (Self/Himself/their own name in a film that isn't a Documentary, below the top `SELF_FROM` 3,
+  unless two of the top three play themselves too: This Is the End). Worked out over all films kept (`walkOn`, from
+  `peopleIndex`'s `usual` and `habit`): "star" (a star at the time far down a cast: billed `STAR_FROM` 20th or lower
+  and in the lower half, where over their other films within `STAR_YEARS` 5 either side, `STAR_FILMS` 3 or more, their
+  median place is under `STAR_TOP` 3, or under `STAR_NEAR` 5 and `STAR_DEEP` 8 times lower here: Samuel L. Jackson's
+  Fury in Endgame, 51st of 97 on screen, Ranbir Kapoor in PK, Song Kang-ho in Lady Vengeance; not Jackson's Stacks
+  Edwards in GoodFellas, from before he was a star, nor Drax and Star-Lord mid-cast in Infinity War: a wider rule
+  tried on the real films took those) and "habit" (at least `CAMEO_HABIT` 3 lookup cameos and twice their counted roles,
+  then any role below the top 5: Stan Lee where TMDB doesn't list him among the makers, X-Men, Deadpool). Never a
+  cameo: an extended cameo or special appearance that names its character (`ce`, kept by id). `roleNames(m, "c")` is
+  the on-screen cast, `roleNames(m, "v")` the voices; `cameosOf(m)` lists a film's cameos (the film card: "Cameos, not
+  counted: …"; the people check: every one, with why, `cameoWhy`). Stats `s.voice`; desktop section `voices` (Voices,
+  after Starring, `state.tab.voices`, `peopleBlock` kind "voices"), phone Stats › People chip "Voices"; search and
+  filmographies know role "v". `TMDB_DETAILS_V` 10 read every film again by its id. Over about 1,030 real films:
+  Stan Lee counted in no live-action film; Samuel L. Jackson's walk-ons out; the Om Shanti Om song's stars,
+  Bill Murray in Zombieland, Stephen King out; the Pixar and Ghibli casts under Voices with John Ratzenberger on top;
+  the additional-voices crowd (Laraine Newman, Sherry Lynn…) gone from both. The `tmdb` check (source, self, labels,
+  additional voices, a voice role) and `people` check (star, extended cameo kept, voices apart) cover it.
 - **People are TMDB's people, by id** (26 Oct 2026: the owner found Paul Guilfoyle, born 1949, credited with 1940s
   films; those were Paul Guilfoyle, 1902–1961. TMDB keeps them apart (ids 925 and 104714); the site had matched people
   by name, so it merged them, with one face for both. "How can I trust the cast data at all? I would like a complete
@@ -736,7 +763,7 @@ shows the latest ~50, so it accumulates), commits, and asks Pages to rebuild. Th
 service cut off unless a check stands in for it, service worker off unless asked, reduced motion, pages opened
 with `?example` (pass `example: false` for an empty browser; a check's own `goto` must add `?example` too),
 `phoneTour()` which opens every phone tab, every Stats view for all time and for a year, and every Insights/Compare section), `run.mjs`, and checks:
-`apify`, `imdbcast` (the owner's cast checked on IMDb), `people` (people by TMDB id, the people check), `check` (film data check), `counts` (double counting, also with filters on), `reviews` (missing review text spotted; six-film actors), `welcome` (no example diary; import saved at once), `extras` (year picture, On this day, Watch next, PWA), `feed`, `import`,
+`apify`, `imdbcast` (the owner's cast checked on IMDb), `people` (people by TMDB id, the people check, cameos and voices), `check` (film data check), `counts` (double counting, also with filters on), `reviews` (missing review text spotted; six-film actors), `welcome` (no example diary; import saved at once), `extras` (year picture, On this day, Watch next, PWA), `feed`, `import`,
 `links` (every link opens something), `pages` (nothing broken shows, no sideways scroll on the phone),
 `routes`, `storage` (IndexedDB move, backup and restore), `site` (the diary on the site: a stand-in GitHub and site),
 `tmdb` (fixing a match, filmography, search), `extras` also covers the story and every kind and shape of picture, `xss` (nothing from outside can run code, about a minute), `study` (a

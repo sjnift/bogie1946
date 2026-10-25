@@ -215,7 +215,9 @@ function filmCardHtml(d) {
     tags.push(...[...new Set(m.g)].map((g) => dlink(catDrill(lib, g, "g"), esc(g))), ...[...new Set(m.k)].map((k) => dlink(catDrill(lib, k, "k"), esc(k))), ...(m.l ? [dlink(catDrill(lib, m.l, "l"), esc(m.l))] : []));
   }
   const crowd = crowdBits(f, m);
-  const cast = m && castOf(m).length ? `<section class="fc-sec"><h4>Cast</h4><div class="fc-chips">${castOf(m).slice(0, 12).map((n) => dlink(personDrill(lib, n, "c"), esc(n))).join("")}</div></section>` : "";
+  const chips = (title, role) => roleNames(m, role).length ? `<section class="fc-sec"><h4>${title}</h4><div class="fc-chips">${roleNames(m, role).slice(0, 12).map((n) => dlink(personDrill(lib, n, role), esc(n))).join("")}</div></section>` : "";
+  const cameos = m ? cameosOf(m) : [];
+  const cast = m ? chips("Cast", "c") + chips("Voices", "v") + (cameos.length ? `<p class="dr-s fc-cameos">Cameos, not counted: ${cameos.slice(0, 8).map((c) => `${esc(c.name)} (${esc(cameoWhy(c.why))})`).join(", ")}${cameos.length > 8 ? ` and ${cameos.length - 8} more` : ""}.</p>` : "") : "";
   const tm = META[f.key];
   const links = [`<a href="${esc(lbUrl(f))}" target="_blank" rel="noopener">Letterboxd ↗</a>`,
     tmdbHref(tm) && !IN_VIEWER ? `<a href="${tmdbHref(tm)}" target="_blank" rel="noopener">TMDB ↗</a>` : "",

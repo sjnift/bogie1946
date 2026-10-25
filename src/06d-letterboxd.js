@@ -444,7 +444,7 @@ function castCheckOf(m, cast, spelling) {
     if (known && idOf.get(known)) cn[idOf.get(known)] = nm;
     // taken off only on IMDb's word that the role isn't one (no character on IMDb is IMDb not knowing)
     if (known && !counts && why.every((w) => w && w !== "no character")) off.push(known);
-    else if (!known && counts) { const n = spelling.get(nameOrderKey(name)) || name; add.push(n); can[n] = nm; }
+    else if (!known && counts && !roles.some((r) => VOICE.test(r) || BACKGROUND_VOICES.test(r) || playsSelf(name, r))) { const n = spelling.get(nameOrderKey(name)) || name; add.push(n); can[n] = nm; }
   }
   return { ca: [...new Set(add)], cr: [...new Set(off)], cn, can };
 }

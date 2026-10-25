@@ -399,18 +399,82 @@ function language(l) {
   return t === "Chinese" ? "Mandarin" : t;
 }
 const GENRES = ["Action", "Adventure", "Animation", "Comedy", "Crime", "Documentary", "Drama", "Family", "Fantasy", "History", "Horror", "Music", "Mystery", "Romance", "Science Fiction", "Thriller", "TV Movie", "War", "Western"];
+/* ---------- how a film's cast is counted (rebuilt 26 Oct 2026) ----------
+   The owner: "I don't want cameos to populate and take over the most watched list, which is the case of Stan Lee and
+   Samuel Jackson. Take a tough stand on cameos, but keep in mind any extended roles, to not unjustly deny them", and
+   voice roles in a tab of their own, "so they do not mix with live action acting". Stan Lee's Marvel cameos are
+   credited bit parts on TMDB ("Bus Driver", "Hot Dog Vendor") or himself ("Stan Lee"); Samuel L. Jackson's Nick Fury
+   in Avengers: Endgame is a credited role billed 53rd of 103. So, role by role, in billing order (`sortCast`):
+   1. What `roleSkip` says doesn't count, doesn't: no character, uncredited, labelled a cameo, archive footage, cut.
+   2. Additional voices, loop groups and the like (a studio's crowd of voices) don't count either.
+   3. A voice role ("(voice)", or every role of an animated film where TMDB marks none) goes to Voices (`v`), apart
+      from on-screen roles (`c`).
+   4. A cameo, though credited, and listed with why (`x`, `xi`, `xw`):
+      - "source": someone who also wrote what the film is based on (comic book, characters, novel, play…), billed
+        below the top SOURCE_FROM: Stan Lee in Marvel films, Stephen King in his adaptations;
+      - "self": someone playing themselves (Self, Himself, their own name) in a film that isn't a documentary, billed
+        below the top SELF_FROM: Stan Lee as "Stan Lee", a star in a song; unless its leads play themselves too (This Is
+        the End: two or more of its top three);
+      - and, worked out over every film kept here (`peopleIndex`, `walkOn`): "star", a star at the time far down a
+        cast: billed STAR_FROM or lower and in the lower half, where over their other films within STAR_YEARS either
+        side (STAR_FILMS or more) they were billed near the top (a median place under STAR_TOP, or up to STAR_NEAR and
+        here STAR_DEEP times lower): Samuel L. Jackson's Nick Fury in Endgame, 51st of 97 on screen (but not his Stacks
+        Edwards in GoodFellas, from before he was a star, nor Drax and Star-Lord, mid-cast in Infinity War); and "habit",
+        someone who mostly turns up in cameos (CAMEO_HABIT or more, and at least twice their other roles) in a role below
+        the top SOURCE_FROM: Stan Lee where TMDB doesn't list him among the makers (X-Men, Deadpool).
+   Never a cameo: the top SELF_FROM billed, and an extended cameo or special appearance that names its character
+   ("Tiger (Extended Cameo)": a credited part of some length, kept in `ce`). A documentary's "Self" is its subject. */
+const SOURCE_JOBS = new Set(["Characters", "Comic Book", "Novel", "Book", "Short Story", "Graphic Novel", "Author", "Play", "Theatre Play", "Musical", "Original Concept", "Creator"]);
+const SOURCE_FROM = 5, SELF_FROM = 3, CAMEO_HABIT = 3;
+const STAR_FROM = 20, STAR_YEARS = 5, STAR_FILMS = 3, STAR_TOP = 3, STAR_NEAR = 5, STAR_DEEP = 8;
+const BACKGROUND_VOICES = /^\s*(?:additional|various|other|background|incidental|miscellaneous|extra)\s+voices?\b|\bloop\s*group\b|\bADR\b|\bwalla\b/i;
+const VOICE = /\bvoices?\b/i;
+const SELF_ROLE = /^\s*(?:self|him\s*self|her\s*self|them\s*selves|themself)\b/i;
+const NAMED_APPEARANCE = /\b(?:extended\s+cameo|(?:special|guest|friendly)\s+appearances?)\b/i;
+const playsSelf = (name, character) => SELF_ROLE.test(character) || personKey(String(character).replace(/\((?:voice|uncredited)\)/gi, "")) === personKey(name);
+// `list`: the credits in billing order, each { name, id, character }; `crewJobs`: TMDB person id → the film's crew jobs.
+function sortCast(list, { crewJobs = new Map(), documentary = false, animation = false } = {}) {
+  const live = [], voice = [], cameos = [], extended = [];
+  const tagged = list.some((c) => VOICE.test(c.character || ""));
+  // a film whose leads play themselves (This Is the End): its other selves are its cast, not cameos
+  const selfFilm = list.filter((c) => !roleSkip(c.character)).slice(0, 3).filter((c) => playsSelf(c.name, c.character || "")).length >= 2;
+  for (const c of list) {
+    const ch = String(c.character || "");
+    const why = roleSkip(ch);
+    if (why) { if (why === "cameo") cameos.push({ ...c, why: "cameo" }); continue; }
+    if (BACKGROUND_VOICES.test(ch)) continue;
+    const into = VOICE.test(ch) || (animation && !tagged) ? voice : live, place = into.length;
+    if (NAMED_APPEARANCE.test(ch)) { extended.push(c.id); into.push(c); continue; }
+    const job = [...(crewJobs.get(c.id) || [])].find((j) => SOURCE_JOBS.has(j));
+    if (job && place >= SOURCE_FROM) { cameos.push({ ...c, why: `source:${job}` }); continue; }
+    if (!documentary && !selfFilm && place >= SELF_FROM && playsSelf(c.name, ch)) { cameos.push({ ...c, why: "self" }); continue; }
+    into.push(c);
+  }
+  return { live, voice, cameos, extended };
+}
+// What a cameo's reason reads as.
+const cameoWhy = (w) => w === "self" ? "playing themselves" : w === "star" ? "a star far down the cast" : w === "habit" ? "mostly turns up in cameos" : /^source:/.test(w) ? `wrote the ${w.slice(7).toLowerCase()} it's based on` : "labelled a cameo";
 // A film's people in a role with their TMDB person ids, kept in step (`ci` beside `c`, `di` beside `d`…): each
 // person once, by id where TMDB gave one, since two people can share a name (see `peopleIndex`).
-const ROLE_IDS = { c: "ci", d: "di", w: "wi", p: "pi", m: "mi" };
+// Where each role is kept in a film's details: voices in `vo` (`v` is the details' version), ids beside each.
+const ROLE_FIELD = { c: "c", v: "vo", d: "d", w: "w", p: "p", m: "m" };
+const ROLE_IDS = { c: "ci", v: "voi", d: "di", w: "wi", p: "pi", m: "mi" };
 function metaPeople(m, role, n) {
-  const names = Array.isArray(m[role]) ? m[role] : [], ids = Array.isArray(m[ROLE_IDS[role]]) ? m[ROLE_IDS[role]] : [];
+  const f = ROLE_FIELD[role], names = Array.isArray(m[f]) ? m[f] : [], ids = Array.isArray(m[ROLE_IDS[role]]) ? m[ROLE_IDS[role]] : [];
   const out = [], outIds = [], seen = new Set();
   names.forEach((x, i) => {
     const name = String(x).trim(), id = Number(ids[i]) || 0, k = id ? `#${id}` : `=${name.toLowerCase()}`;
     if (!name || seen.has(k) || out.length >= n) return;
     seen.add(k); out.push(name); outIds.push(id);
   });
-  return { [role]: out, ...(outIds.some(Boolean) ? { [ROLE_IDS[role]]: outIds } : {}) };
+  return { ...(out.length || role !== "v" ? { [f]: out } : {}), ...(outIds.some(Boolean) ? { [ROLE_IDS[role]]: outIds } : {}) };
+}
+// The cameos a film's cast had, with why: names, ids and reasons kept in step.
+function cameoList(m) {
+  const n = Array.isArray(m.x) ? m.x : [], i = Array.isArray(m.xi) ? m.xi : [], w = Array.isArray(m.xw) ? m.xw : [], out = { x: [], xi: [], xw: [] };
+  n.forEach((name, k) => { const s = String(name).trim().slice(0, 120), why = String(w[k] || "cameo").slice(0, 40);
+    if (s && out.x.length < 60 && /^(?:cameo|self|source:[\w ]{1,30})$/.test(why)) { out.x.push(s); out.xi.push(Number(i[k]) || 0); out.xw.push(why); } });
+  return out.x.length ? out : {};
 }
 // IMDb person ids by TMDB person id or by name, as the IMDb cast check found them (06d)
 const imdbOf = (o, keyOk) => Object.fromEntries(Object.entries(o && typeof o === "object" ? o : {}).filter(([k, v]) => keyOk(k) && /^nm\d{1,10}$/.test(v)).slice(0, 400));
@@ -420,7 +484,8 @@ function cleanMeta(m) {
   return {
     src: m.src, v: m.v || null, id: m.id || null, poster: m.poster || null,
     ...(Number(m.tv) ? { tv: Number(m.tv), ...(Number(m.ep) && m.se != null ? { se: Number(m.se) || 0, ep: Number(m.ep) } : {}) } : {}), // on TMDB's TV side (06-lookup)
-    ...metaPeople(m, "d", 40), ...metaPeople(m, "c", 300), ...metaPeople(m, "w", 20), ...metaPeople(m, "p", 10), ...metaPeople(m, "m", 10),
+    ...metaPeople(m, "d", 40), ...metaPeople(m, "c", 300), ...metaPeople(m, "v", 300), ...metaPeople(m, "w", 20), ...metaPeople(m, "p", 10), ...metaPeople(m, "m", 10),
+    ...cameoList(m), ...(Array.isArray(m.ce) && m.ce.length ? { ce: m.ce.map(Number).filter(Boolean).slice(0, 40) } : {}),
     g: list((m.g || []).map(genre).filter((g) => GENRES.includes(g)), 6),
     k: list((m.k || []).map(country), 20), l: language(m.l), why: m.why || undefined, r: Math.round(Number(m.r)) || null,
     va: Number(m.va) || null, vc: Number(m.vc) || null, // TMDB audience score out of 10, and how many votes
@@ -511,7 +576,7 @@ function peopleIndex() {
     for (const [role, ir] of Object.entries(ROLE_IDS)) {
       const ids = m[ir];
       if (!Array.isArray(ids)) continue;
-      (m[role] || []).forEach((n, i) => {
+      (m[ROLE_FIELD[role]] || []).forEach((n, i) => {
         const id = canon.get(Number(ids[i])) || Number(ids[i]);
         if (!id) return;
         if (!nameOf.has(id)) nameOf.set(id, n);
@@ -521,6 +586,17 @@ function peopleIndex() {
       });
     }
   }
+  // where each person is billed, on screen and in voice roles: their place in each film's counted cast, by year
+  const usual = { c: new Map(), v: new Map() };
+  for (const m of Object.values(META)) {
+    if (!m || m.miss) continue;
+    const y = Number(m.y) || 0;
+    for (const role of ["c", "v"]) (m[ROLE_IDS[role]] || []).forEach((id, i) => { id = canon.get(Number(id)) || Number(id); if (id) (usual[role].get(id) || usual[role].set(id, []).get(id)).push({ y, i, m }); });
+  }
+  // who mostly turns up in cameos: cameos found at lookup against roles counted
+  const cameoN = new Map(), habit = new Set();
+  for (const m of Object.values(META)) if (m && !m.miss) for (const id of new Set(m.xi || [])) { const k = canon.get(Number(id)) || Number(id); if (k) cameoN.set(k, (cameoN.get(k) || 0) + 1); }
+  for (const [id, n] of cameoN) { const roles = (usual.c.get(id) || []).length + (usual.v.get(id) || []).length; if (n >= CAMEO_HABIT && n >= 2 * roles) habit.add(id); }
   const label = new Map(), idOf = new Map(), namesakes = [];
   for (const [k, g] of byName) {
     if (g.size < 2) { idOf.set(k, [...g.keys()][0]); continue; }
@@ -539,10 +615,22 @@ function peopleIndex() {
   const twice = new Set(canon.values());
   for (const id of canon.keys()) nameOf.set(id, nameOf.get(canon.get(id)));
   for (const id of [...nameOf.keys()]) if (!canon.has(id) && !twice.has(id)) nameOf.delete(id);
-  return (PEOPLE = { meta: META, rev: META_REV, label, idOf, byImdb, canon, nameOf, namesakes });
+  return (PEOPLE = { meta: META, rev: META_REV, label, idOf, byImdb, canon, nameOf, namesakes, usual, habit });
 }
 // The TMDB person id behind a name as shown (a namesake's label included), when there's one.
 const personIdOf = (name) => peopleIndex().idOf.get(personKey(name)) || 0;
+// A cameo worked out over all the films kept here: "star", a star far down a cast (usually billed near the top over
+// enough films, here at STAR_FROM or lower); "habit", someone who mostly turns up in cameos, below the top SOURCE_FROM.
+function walkOn(m, role, place, id) {
+  if (!id || (role !== "c" && role !== "v") || (m.ce || []).includes(id)) return "";
+  const P = peopleIndex(), cid = P.canon.get(id) || id;
+  if (place >= STAR_FROM && place >= (m[ROLE_FIELD[role]] || []).length / 2) {
+    const y = Number(m.y) || 0, then = (P.usual[role].get(cid) || []).filter((x) => x.m !== m && y && x.y && Math.abs(x.y - y) <= STAR_YEARS).map((x) => x.i).sort((a, b) => a - b);
+    const md = then.length >= STAR_FILMS ? then[Math.floor((then.length - 1) / 2)] : null;
+    if (md != null && (md < STAR_TOP || (md < STAR_NEAR && place >= STAR_DEEP * (md + 1)))) return "star";
+  }
+  return P.habit.has(cid) && place >= SOURCE_FROM ? "habit" : "";
+}
 // A credit TMDB's own dates make impossible: before the person was born, or before they were 8 behind the camera.
 function badCredit(m, id, role) {
   const f = typeof FACTS === "object" && FACTS && FACTS[id], y = Number(m && m.y) || 0;
@@ -554,7 +642,7 @@ function badCredit(m, id, role) {
 // TMDB's people: when TMDB's person has another IMDb id, TMDB gave the role to the wrong person of that name, and it
 // goes to the right one when TMDB's dates for them are here (`byImdb`), else to nobody.
 function rolePeople(m, role) {
-  const ids = m[ROLE_IDS[role]] || [], base = (m[role] || []).map((name, i) => ({ name, id: Number(ids[i]) || 0 }));
+  const ids = m[ROLE_IDS[role]] || [], base = (m[ROLE_FIELD[role]] || []).map((name, i) => ({ name, id: Number(ids[i]) || 0, place: i }));
   if (role !== "c" || !m.cq) return base;
   const P = peopleIndex(), facts = typeof FACTS === "object" && FACTS ? FACTS : {}, off = new Set((m.cr || []).map(personKey)), out = [];
   for (const p of base) {
@@ -576,8 +664,9 @@ function roleNames(m, role) {
   if (!c || c.P !== P) ROLE_NAMES.set(m, (c = { P, lists: {} }));
   if (c.lists[role]) return c.lists[role];
   const out = [], have = new Set();
-  for (const { name, id } of rolePeople(m, role)) {
+  for (const { name, id, place } of rolePeople(m, role)) {
     if (id && badCredit(m, id, role)) continue;
+    if (place != null && walkOn(m, role, place, id)) continue;
     const cid = (id && P.canon.get(id)) || id, shown = (cid && (P.label.get(cid) || P.nameOf.get(cid))) || name, k = personKey(shown);
     if (!k || have.has(k)) continue;
     have.add(k); out.push(shown);
@@ -585,6 +674,14 @@ function roleNames(m, role) {
   return (c.lists[role] = out);
 }
 const castOf = (m) => roleNames(m, "c");
+// Every cameo of a film, as shown (not counted): from its lookup, and stars far down its cast.
+function cameosOf(m) {
+  if (!m) return [];
+  const P = peopleIndex(), out = (m.x || []).map((name, k) => ({ name: P.label.get(P.canon.get((m.xi || [])[k]) || (m.xi || [])[k]) || name, why: (m.xw || [])[k] || "cameo" }));
+  for (const role of ["c", "v"]) (m[ROLE_FIELD[role]] || []).forEach((name, i) => { const id = Number((m[ROLE_IDS[role]] || [])[i]) || 0;
+    const w = walkOn(m, role, i, id); if (w) out.push({ name: P.label.get(P.canon.get(id) || id) || name, why: w }); });
+  return out;
+}
 
 function inScope(lib, scope) {
   if (scope === "all") return { films: lib.films, entries: lib.entries };
@@ -604,7 +701,7 @@ function rankPeople(films, metaOf, role, minRated) {
   const map = new Map();
   for (const f of films) {
     const m = metaOf(f);
-    if (!m || (role !== "c" && !m[role])) continue;
+    if (!m || !Array.isArray(m[ROLE_FIELD[role]])) continue;
     const names = roleNames(m, role);
     const seen = new Set();
     for (const name of names) {
@@ -697,7 +794,7 @@ function computeStats(lib, metaOf, scope) {
     likes: films.filter((f) => f.liked).length,
     byDay, byMonth, weekday, busiestMonth, busiestDay, streak: longestStreak(entries),
     decades,
-    cast, directors: rankPeople(films, metaOf, "d", minRated),
+    cast, voice: rankPeople(films, metaOf, "v", minRated), directors: rankPeople(films, metaOf, "d", minRated),
     writers: rankPeople(films, metaOf, "w", minRated), dop: rankPeople(films, metaOf, "p", minRated), music: rankPeople(films, metaOf, "m", minRated),
     genres: rankCategory(films, metaOf, "g"), countries: rankCategory(films, metaOf, "k"), languages: rankCategory(films, metaOf, "l"),
     newReleases: scope === "all" ? null : films.filter((f) => String(f.year) === scope).length,

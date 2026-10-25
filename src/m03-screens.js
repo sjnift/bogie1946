@@ -328,13 +328,13 @@ function profileScreen(s) {
 const statsHead = () => ltitle("Stats") + scopeBar() + segBar("view", [["films", "Films"], ["people", "People"], ["genres", "Breakdown"], ["years", "Years"], ["crowd", "vs. Others"]], state.view, "five");
 function peopleScreen(s) {
   const role = state.role;
-  const data = { c: s.cast, d: s.directors, w: s.writers, p: s.dop, m: s.music }[role] || s.cast;
+  const data = { c: s.cast, v: s.voice, d: s.directors, w: s.writers, p: s.dop, m: s.music }[role] || s.cast;
   const best = state.sort === "best";
   const list = best ? data.best : data.most;
-  const head = statsHead() + chipBar("role", [["c", "Actors"], ["d", "Directors"], ["w", "Writers"], ["p", "Camera"], ["m", "Music"]], role) +
+  const head = statsHead() + chipBar("role", [["c", "Actors"], ["v", "Voices"], ["d", "Directors"], ["w", "Writers"], ["p", "Camera"], ["m", "Music"]], role) +
     segBar("sort", [["most", "Most watched"], ["best", "Highest rated"]], state.sort, "small");
   if (!s.withMeta) return head + needMeta();
-  const note = role === "c" ? castRuleText() : "";
+  const note = role === "c" ? castRuleText() : role === "v" ? "Voice roles in animation, narration and the like, counted apart from on-screen acting. Additional voices and cameos don't count." : "";
   const bestNote = best ? `${note ? " " : ""}${role === "c" ? castBarText(s) : `Highest rated needs ${s.minRated} or more rated films.`}` : "";
   const val = (p) => best ? `★ ${p.avg.toFixed(2)}` : plural(p.count, "film");
   const podium = list.length >= 3 ? `<div class="podium">${[1, 0, 2].map((i) => { const p = list[i];
@@ -343,7 +343,7 @@ function peopleScreen(s) {
   const rows = list.slice(from, state.peopleLimit).map((p, i) => personRow(p, i + from + 1, best)).join("");
   const more = (list.length > state.peopleLimit ? `<button class="row" type="button" data-act="more-people" data-auto><span>Show more</span><span class="count">${fmtN(list.length - state.peopleLimit)} more</span>${CHEV}</button>` : "")
     + (state.peopleLimit > 50 && list.length > 50 ? `<button class="row" type="button" data-act="less-people"><span>Show less</span><span class="count">back to the first 50</span>${CHEV}</button>` : "");
-  const label = { c: "actors", d: "directors", w: "writers", p: "cinematographers", m: "composers" }[role];
+  const label = { c: "actors", v: "voice actors", d: "directors", w: "writers", p: "cinematographers", m: "composers" }[role];
   return head + (list.length ? podium + sh(`${fmtN(list.length)} ${label}`) + (note + bestNote ? `<p class="status" style="margin:-6px 0 10px">${esc(note + bestNote)}</p>` : "") +
     (rows ? `<div class="group">${rows}${more}</div>` : "") : `<div class="empty">Nobody to show for this period.${bestNote ? ` ${esc(bestNote)}` : ""}</div>`);
 }

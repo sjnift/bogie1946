@@ -121,11 +121,11 @@ let SEARCH_INDEX = null;
 function searchIndex(lib) {
   if (SEARCH_INDEX && SEARCH_INDEX.lib === lib && SEARCH_INDEX.n === Object.keys(META).length) return SEARCH_INDEX;
   const people = new Map(), cats = new Map();
-  const ROLE = { d: "Director", c: "Actor", w: "Writer", p: "Cinematographer", m: "Composer" };
+  const ROLE = { d: "Director", c: "Actor", v: "Voice actor", w: "Writer", p: "Cinematographer", m: "Composer" };
   for (const f of lib.films) {
     const m = metaOf(f);
     if (!m) continue;
-    for (const role of ["d", "c", "w", "p", "m"]) for (const name of roleNames(m, role)) {
+    for (const role of ["d", "c", "v", "w", "p", "m"]) for (const name of roleNames(m, role)) {
       const k = personKey(name);
       let p = people.get(k);
       if (!p) { p = { key: k, name, films: new Set(), roles: new Map(), k }; people.set(k, p); }
@@ -225,7 +225,7 @@ const wnDrill = (list, title) => { const by = new Map(list.map((p) => [p.f, p]))
 /* ---------- filmographies: how much of a director's or actor's work you've seen ---------- */
 // The role a person mostly has in your diary: directing, acting, writing, camera or music.
 function roleIn(lib, name) {
-  const k = personKey(name), n = { d: 0, c: 0, w: 0, p: 0, m: 0 };
+  const k = personKey(name), n = { d: 0, c: 0, v: 0, w: 0, p: 0, m: 0 };
   for (const f of lib.films) { const m = metaOf(f); if (!m) continue; for (const r of Object.keys(n)) if (roleNames(m, r).some((x) => personKey(x) === k)) n[r]++; }
   return Object.keys(n).sort((a, b) => n[b] - n[a] || (a === "d" ? -1 : 0))[0];
 }
@@ -235,7 +235,7 @@ async function filmography(name, role) {
   if (c && Date.now() - c.at < 30 * 864e5) return c;
   const key = tmdbKey(), known = personIdOf(name);
   const s = known ? null : await tmdbGet("/search/person", { query: name, include_adult: "false" }, key);
-  const dept = { d: "Directing", c: "Acting", w: "Writing", p: "Camera", m: "Sound" }[role];
+  const dept = { d: "Directing", c: "Acting", v: "Acting", w: "Writing", p: "Camera", m: "Sound" }[role];
   const person = known ? { id: known } : ((s && s.results) || []).filter((p) => personKey(p.name) === personKey(name))
     .sort((a, b) => (b.known_for_department === dept) - (a.known_for_department === dept) || (b.popularity || 0) - (a.popularity || 0))[0];
   let out = { at: Date.now(), none: true };
@@ -243,7 +243,7 @@ async function filmography(name, role) {
     const cr = await tmdbGet(`/person/${person.id}/movie_credits`, {}, key);
     const jobs = { d: ["Director"], w: ["Screenplay", "Writer", "Story"], p: ["Director of Photography"], m: ["Original Music Composer", "Music"] }[role];
     const today = new Date().toISOString().slice(0, 10);
-    const list = role === "c" ? ((cr && cr.cast) || []).filter((x) => !/\b(self|himself|herself|themselves)\b|uncredited|archive/i.test(x.character || ""))
+    const list = role === "c" || role === "v" ? ((cr && cr.cast) || []).filter((x) => !roleSkip(x.character) && !BACKGROUND_VOICES.test(x.character || "") && VOICE.test(x.character || "") === (role === "v") && !SELF_ROLE.test(x.character || ""))
       : ((cr && cr.crew) || []).filter((x) => jobs.includes(x.job));
     const seen = new Set(), credits = [];
     for (const x of list.sort((a, b) => (b.release_date || "").localeCompare(a.release_date || ""))) {
@@ -272,7 +272,7 @@ function fillFilmo(root) {
       const seen = (x) => ids.get(x.id) || byTitle.get(`${personKey(x.title)}|${x.year}`) || byTitle.get(`${personKey(x.title)}|${x.year - 1}`) || byTitle.get(`${personKey(x.title)}|${x.year + 1}`);
       const have = c.credits.filter(seen), left = c.credits.filter((x) => !seen(x));
       const wl = new Set(lib.watchlistFilms.map((w) => `${personKey(w.name)}|${w.year}`));
-      const roleWord = { d: "directed", c: "acted in", w: "written", p: "shot", m: "scored" }[role];
+      const roleWord = { d: "directed", c: "acted in", v: "voiced", w: "written", p: "shot", m: "scored" }[role];
       const pct = Math.round(have.length / c.credits.length * 100);
       el.innerHTML = `<div class="filmo-head"><span><b>Seen ${fmtN(have.length)} of ${fmtN(c.credits.length)}</b> films ${esc(name)} has ${roleWord}</span><span class="num">${pct}%</span></div>
         <div class="filmo-bar" aria-hidden="true"><i style="width:${pct}%"></i></div>

@@ -74,20 +74,20 @@ const posterRow = (title, items, to, draw) => `<h3 class="sub-h row-h"><span>${t
 // comes before the 21st), the rest of the ties and everyone else behind "Show more".
 const PEOPLE_TO = 21;
 function peopleRowsShown(kind, data) {
-  const rows = foldTies(data.most.slice(12), (p) => p.count, 13, peopleTies(kind === "cast" ? "actors" : "directors"));
+  const rows = foldTies(data.most.slice(12), (p) => p.count, 13, peopleTies(kind === "cast" ? "actors" : kind === "voices" ? "voice actors" : "directors"));
   const upTo = rows.filter((r) => parseInt(r.rank, 10) <= PEOPLE_TO).length, tie = rows.findIndex((r) => r.group);
   return kind === "directors" && tie >= 0 ? Math.min(tie + 1, upTo) : upTo;
 }
 function peopleBlock(kind, data, s) {
   const t = state.tab[kind];
   const list = t === "most" ? data.most : data.best;
-  if (!list.length) return `<div class="empty">${t === "best" ? `Nobody here has ${kind === "cast" ? s.castMinRated : s.minRated} or more rated films yet.` : "Nobody to show for this period."}</div>`;
+  if (!list.length) return `<div class="empty">${t === "best" ? `Nobody here has ${kind === "cast" ? s.castMinRated : s.minRated} or more rated films yet.` : kind === "voices" ? "No voice roles in this period." : "Nobody to show for this period."}</div>`;
   const top = list.slice(0, 12);
   const cards = top.map((p, i) => `<button class="person" type="button" data-list="${reg(p.name, personSub(p), p.films, p)}">
     ${faceHtml(p, i + 1)}<span class="nm">${esc(p.name)}</span>
     <span class="ct">${t === "most" ? plural(p.count, "film") : `<span class="stars">★</span> ${p.avg.toFixed(2)} · ${plural(p.ratings.length, "film")}`}</span></button>`).join("");
   const limit = state.more[kind] ? 60 : peopleRowsShown(kind, data); // rows below the cards
-  const all = t === "most" ? foldTies(list.slice(12), (p) => p.count, 13, peopleTies(kind === "cast" ? "actors" : "directors")) : list.slice(12).map((p, i) => ({ ...p, rank: 13 + i }));
+  const all = t === "most" ? foldTies(list.slice(12), (p) => p.count, 13, peopleTies(kind === "cast" ? "actors" : kind === "voices" ? "voice actors" : "directors")) : list.slice(12).map((p, i) => ({ ...p, rank: 13 + i }));
   const rest = all.slice(0, limit);
   const max = list[0].count;
   const rows = rest.length ? rankRows(rest,

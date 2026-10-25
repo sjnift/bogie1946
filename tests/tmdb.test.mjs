@@ -56,7 +56,7 @@ export default async function ({ browser, base }) {
           original_language: "da", spoken_languages: [{ iso_639_1: "en" }], release_date: "1996-07-05" },
         22985: { production_countries: countries("United Kingdom"), original_language: "en", spoken_languages: [{ iso_639_1: "en" }], release_date: "1951-05-25" },
         // as Letterboxd counts a cast: every credited role however far down, not cameos (uncredited, or no character)
-        5001: { release_date: "2001-01-01", credits: { crew: [{ name: "Big Director", job: "Director" }], cast: [
+        5001: { release_date: "2001-01-01", credits: { crew: [{ name: "Big Director", job: "Director" }, { id: 7624, name: "Creator Man", job: "Comic Book" }], cast: [
           ...Array.from({ length: 16 }, (_, i) => ({ name: `Lead ${i + 1}`, order: i, character: `Role ${i + 1}`, profile_path: `/l${i + 1}.jpg` })),
           { name: "Party Extra", order: 16, character: "Party Guest (uncredited)" }, { name: "Walk On", order: 17, character: "" },
           { name: "Familiar Face", order: 18, character: "Barman", profile_path: "/ff.jpg" }, { name: "김청아", order: 19, character: "Shop Owner" },
@@ -64,7 +64,10 @@ export default async function ({ browser, base }) {
           // a fine line: an extended cameo or special appearance that names its character is a part; a bare one isn't
           { name: "Extended Star", order: 21, character: "Tiger (Extended Cameo)" }, { name: "Song Guest", order: 22, character: 'Special Appearance in "Maahi Ve" Song' },
           { name: "Archive Face", order: 23, character: "Self (archive footage)" }, { name: "Cameo Star", order: 24, character: "Cameo Appearance" },
-          { name: "Named Guest", order: 25, character: "Rohit (Special Appearance)" }, { name: "Cut Player", order: 26, character: "Sentry (deleted scene)" }] } },
+          { name: "Named Guest", order: 25, character: "Rohit (Special Appearance)" }, { name: "Cut Player", order: 26, character: "Sentry (deleted scene)" },
+          // cameos though credited: the comic's creator in a walk-on, someone playing themselves; and a voice role apart
+          { id: 7624, name: "Creator Man", order: 27, character: "Bus Driver" }, { id: 77, name: "Famous Guy", order: 28, character: "Famous Guy" },
+          { id: 78, name: "Robot Voice", order: 29, character: "Robot (voice)" }] } },
         5002: { release_date: "2000-01-01" },
       }[id] || {};
       return json({ ...movie(id, "x", "1990-01-01", "Someone", ["Someone Else"]), ...details });
@@ -112,7 +115,7 @@ export default async function ({ browser, base }) {
     { "cr-meta-v1": { "the ear|1970": { src: "tmdb", v: 3, id: 35002, d: ["Don Chaffey"], c: ["Victoria Vetri"], w: [], p: [], m: [], g: ["Adventure"], k: ["UK"], l: "English", r: 100 },
       "brick|2005": { src: "tmdb", v: 6, id: 9270, d: ["Rian Johnson"], c: ["Joseph Gordon-Levitt"], w: [], p: [], m: [], g: ["Crime"], k: ["USA"], l: "English", r: 110 },
       // details as they're kept now, so not looked up; and a film matched by hand before the whole cast was kept
-      "kept film|2003": { src: "tmdb", v: 9, id: 5003, d: ["Someone"], c: ["Familiar Face"], w: [], p: [], m: [], g: ["Drama"], k: ["USA"], l: "English", r: 90 },
+      "kept film|2003": { src: "tmdb", v: 10, id: 5003, d: ["Someone"], c: ["Familiar Face"], w: [], p: [], m: [], g: ["Drama"], k: ["USA"], l: "English", r: 90 },
       "pinned film|2000": { src: "tmdb", v: 6, id: 5002, pin: true, d: ["Old Name"], c: [], w: [], p: [], m: [], g: ["Drama"], k: ["USA"], l: "English", r: 90 },
       // films missed before matching learned half-titles: looked up again
       "wake up dead man|2025": { src: "tmdb", miss: true, v: 6 }, "the sorrow and the pity|1969": { src: "tmdb", miss: true, v: 6 },
@@ -127,10 +130,11 @@ export default async function ({ browser, base }) {
   // matched before the whole cast was kept: read again by its id, once, without searching for it again
   assert(ear.brick === 9270 && looked.filter((x) => x === "9270").length === 1 && !searched.includes("Brick"), `Brick, matched to the same film as before: details ${looked}, searched ${searched}`);
   const cast = await q.evaluate(() => { const m = META["big cast|2001"], pin = META["pinned film|2000"], s = computeStats(MY_LIB, metaOf, "all");
-    return { c: m.c.join(), photos: ["lead 1", "lead 16", "familiar face"].map((k) => PHOTOS[k] || "-").join(), pin: [pin.pin, pin.v === TMDB_DETAILS_V, pin.d.join()].join(),
+    return { c: m.c.join(), v: (m.vo || []).join(), x: (m.x || []).map((n, i) => `${n}: ${m.xw[i]}`).join(", "), photos: ["lead 1", "lead 16", "familiar face"].map((k) => PHOTOS[k] || "-").join(), pin: [pin.pin, pin.v === TMDB_DETAILS_V, pin.d.join()].join(),
       korean: s.cast.most.filter((p) => p.name === "김청아").length, face: (s.cast.most.find((p) => p.name === "Familiar Face") || {}).count };
   });
-  assert(cast.c === [...Array.from({ length: 16 }, (_, i) => `Lead ${i + 1}`), "Familiar Face", "김청아", "Voice Player", "Extended Star", "Named Guest"].join(), `the credited cast: ${cast.c}`);
+  assert(cast.c === [...Array.from({ length: 16 }, (_, i) => `Lead ${i + 1}`), "Familiar Face", "김청아", "Extended Star", "Named Guest"].join(), `the credited cast: ${cast.c}`);
+  assert(cast.v === "Robot Voice" && cast.x === "Song Guest: cameo, Cameo Star: cameo, Creator Man: source:Comic Book, Famous Guy: self", `voices and cameos: ${cast.v} | ${cast.x}`);
   assert(cast.photos === "/l1.jpg,-,/ff.jpg", `photos kept for the top billed and people met before, not every one-off player: ${cast.photos}`);
   assert(cast.pin === "true,true,Someone" && !searched.includes("Pinned Film") && looked.includes("5002"), `a film matched by hand, read again at its place: ${cast.pin}`);
   assert(cast.korean === 1 && cast.face === 2, `people counted: a name in Korean ${cast.korean}, someone in two films ${cast.face}`);
