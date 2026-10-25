@@ -25,8 +25,10 @@ const policy = (hashes) => [
 for (const file of process.argv.slice(2)) {
   let html = readFileSync(file, "utf8");
   if (!html.includes('<meta charset="utf-8">')) throw new Error(`${file}: no <meta charset="utf-8"> to put the policy after`);
-  html = html.replace('<meta charset="utf-8">', `<meta charset="utf-8">\n${UNFRAMED}`);
+  // after the link-preview tags when the page has them: those are only words, and preview readers look at the top
+  const at = html.match(/<meta name="twitter:card"[^>]*>/)?.[0] || '<meta charset="utf-8">';
+  html = html.replace(at, `${at}\n${UNFRAMED}`);
   const hashes = [...new Set([...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => createHash("sha256").update(m[1], "utf8").digest("base64")))];
-  html = html.replace('<meta charset="utf-8">', `<meta charset="utf-8">\n<meta http-equiv="Content-Security-Policy" content="${policy(hashes)}">\n<meta name="referrer" content="no-referrer">`);
+  html = html.replace(at, `${at}\n<meta http-equiv="Content-Security-Policy" content="${policy(hashes)}">\n<meta name="referrer" content="no-referrer">`);
   writeFileSync(file, html);
 }

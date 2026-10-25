@@ -87,7 +87,7 @@ Where it lives:
     no taglines ("free", "nothing to sign up for": removed at the owner's request, 25 Oct 2026); the
     owner's password box is folded into "Are you @user? Open your diary" below it (`owner-open`), and owner-only things
     (the daily feed's GitHub step, "Put your diary on this site" without the GitHub key) stay hidden or folded for
-    others. Shared links show a preview (title, line, `og.png`).
+    others. Shared links show a preview (title, line, `og.png`), with no "free" or privacy taglines either.
   - **Sharing with friends** (asked Oct 2026): pictures as a feed post (1080×1350) or a story (1080×1920) of a year,
     of all time and of a taste match with a friend; the year (or all time) as a tap-through story; and, if the owner
     turns it on, visitors compare with the owner in one tap.
@@ -175,7 +175,9 @@ The owner asked for this to be checked every time. A film, diary entry, person o
   story: `D.story`, `storyBodyHtml`, `fillStory`, `storyFindings`).
 - `src/site/`: `manifest.webmanifest`, `sw.js` (network-first service worker; skips TMDB, OMDb, Apify),
   icons (drawn by `tools/make_icons.py`), `og.png` (the link preview, 1200×630, drawn from `tools/og.html` by
-  `node tools/make_og.mjs`; `build.sh` puts its tags, `PREVIEW`, on all three pages).
+  `node tools/make_og.mjs`; `build.sh` puts its tags, `PREVIEW`, first in the head of all three pages, before the
+  security policy (`tools/csp.mjs` goes in after `twitter:card`), because link-preview readers like WhatsApp's look
+  only at the top of a page; keep the picture small (about 65 KB; WhatsApp skips ones over about 300 KB)).
 - `scripts/feed.mjs` and `.github/workflows/`: the daily feed and the checks (below).
 
 ### Data

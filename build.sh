@@ -43,26 +43,28 @@ cp src/site/vendor/*.js docs/vendor/
 VENDOR='s|https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js|vendor/papaparse.min.js|; s|https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js|vendor/jszip.min.js|' 
 # What a shared link shows (WhatsApp, iMessage…): a title, a line and a picture (src/site/og.png, from tools/make_og.mjs)
 SITE_URL="https://sjnift.github.io/bogie1946/"
-PREVIEW='<meta name="description" content="Free stats, insights and taste comparisons from your Letterboxd export. Your diary stays in your browser.">\
+PREVIEW='<meta name="description" content="Stats, insights and taste comparisons from your Letterboxd export.">\
 <meta property="og:type" content="website">\
 <meta property="og:site_name" content="Credits Roll">\
 <meta property="og:title" content="Credits Roll: your Letterboxd diary, in numbers">\
-<meta property="og:description" content="Free stats, insights and taste comparisons from your Letterboxd export. Your diary stays in your browser.">\
+<meta property="og:description" content="Stats, insights and taste comparisons from your Letterboxd export.">\
 <meta property="og:url" content="'"$SITE_URL"'">\
 <meta property="og:image" content="'"$SITE_URL"'og.png">\
+<meta property="og:image:type" content="image/png">\
 <meta property="og:image:width" content="1200">\
 <meta property="og:image:height" content="630">\
 <meta property="og:image:alt" content="Credits Roll: your Letterboxd diary, in numbers">\
 <meta name="twitter:card" content="summary_large_image">'
-APP_HEAD='<link rel="manifest" href="manifest.webmanifest">\
+# the preview comes first in the head: link-preview readers (WhatsApp…) look only at the top of a page
+APP_HEAD="$PREVIEW"'\
+<link rel="manifest" href="manifest.webmanifest">\
 <meta name="theme-color" content="#1B2128">\
 <meta name="mobile-web-app-capable" content="yes">\
 <meta name="apple-mobile-web-app-capable" content="yes">\
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">\
 <meta name="apple-mobile-web-app-title" content="Credits Roll">\
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">\
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">\
-'"$PREVIEW"
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">'
 SW_REGISTER='<script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js", { updateViaCache: \"none\" }).catch(() => {});</script>'
 app() { sed -e "s|<meta charset=\"utf-8\">|<meta charset=\"utf-8\">\\
 $APP_HEAD|" -e "s|</body>|$SW_REGISTER\\
@@ -78,9 +80,9 @@ cat > docs/index.html <<'HTML'
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<!--PREVIEW-->
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Credits Roll</title>
-<!--PREVIEW-->
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#1B2128">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
