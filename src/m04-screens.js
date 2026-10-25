@@ -1,7 +1,7 @@
 <script>
 /* ---------- Diary ---------- */
 // a fact that opens what it counts, or the film it names
-const fact = (k, v, f, to) => { const inner = `<span class="k">${k}</span><span class="v">${esc(v)}${to || f ? '<span class="go" aria-hidden="true"> ›</span>' : ""}</span>`;
+const fact = (k, v, f, to) => { const inner = `<span class="k">${k}</span><span class="v">${esc(v)}${to || f ? '<span class="go" aria-hidden="true">&nbsp;›</span>' : ""}</span>`;
   return to || f ? `<button class="fact" type="button" ${dl(to || D.film(f))}>${inner}</button>` : `<div class="fact">${inner}</div>`; };
 const cardH = (title, right = "") => `<div class="card-h"><h4>${title}</h4>${right ? `<span>${right}</span>` : ""}</div>`;
 function diaryScreen(s) {
@@ -70,7 +70,7 @@ function filmsScreen(s) {
   const oldest = dated.reduce((a, f) => !a || f.year < a.year ? f : a, null);
   const newest = dated.reduce((a, f) => !a || f.year > a.year ? f : a, null);
   const rec = [
-    longest && fact("Longest", `${longest.name} · ${metaOf(longest).r} min`, longest), shortest && fact("Shortest", `${shortest.name} · ${metaOf(shortest).r} min`, shortest),
+    longest && fact("Longest", `${longest.name} · ${metaOf(longest).r}\u00a0min`, longest), shortest && fact("Shortest", `${shortest.name} · ${metaOf(shortest).r}\u00a0min`, shortest),
     oldest && fact("Oldest", `${oldest.name} · ${oldest.year}`, oldest), newest && fact("Newest", `${newest.name} · ${newest.year}`, newest),
   ].filter(Boolean).join("");
   if (rec) html += sh("Records") + `<div class="facts" style="margin-top:0">${rec}</div>`;

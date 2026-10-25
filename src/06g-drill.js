@@ -20,7 +20,7 @@ const D = {
 const dl = (d) => `data-list="${drill(d)}"`;
 // a number or name that opens its drill; a whole sentence that does
 const dlink = (d, html) => d ? `<button class="dlink" type="button" ${dl(d)}>${html}</button>` : html;
-const dline = (d, html) => d ? `<button class="dline" type="button" ${dl(d)}>${html}<span class="go" aria-hidden="true"> ›</span></button>` : html;
+const dline = (d, html) => d ? `<button class="dline" type="button" ${dl(d)}>${html}<span class="go" aria-hidden="true">&nbsp;›</span></button>` : html;
 
 const PANEL_CAP = 25;
 const drillSize = (d) => d.kind === "film" ? 1 : d.kind === "search" || d.kind === "share" || d.kind === "story" || d.kind === "filters" ? 0 : d.kind === "groups" ? d.groups.reduce((s, g) => s + drillSize(g), 0)

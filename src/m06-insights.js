@@ -29,7 +29,7 @@ function mAllInsights(tab) {
   const intro = `<p class="lead" style="margin-top:16px">A study of ${dlink(D.entries("Your diary", entriesSub(lib.entries), lib.entries), plural(S.n.entries, "diary entry", "diary entries"))}, ${fmtDate(S.n.from)} to ${fmtDate(S.n.to)}. Only clear patterns are reported; tap any of them to see the films behind it.</p>`;
   return intro + (S.overview.length ? mGlance(S.overview, "In short") : `<div class="empty">No clear patterns yet. They'll show as your diary grows.</div>`);
 }
-const go = '<span class="go" aria-hidden="true"> ›</span>';
+const go = '<span class="go" aria-hidden="true">&nbsp;›</span>';
 // sentences that open the data they describe
 const mLines = (lines, mark) => lines.length ? `<div class="lines">${lines.map((l) => `<div class="tline"><span class="mk ${l.dir || ""}" aria-hidden="true">${mark(l)}</span><span>${dline(l.to, esc(l.text))}</span></div>`).join("")}</div>` : "";
 // findings: a short name over the sentence that opens its films

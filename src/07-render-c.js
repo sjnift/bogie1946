@@ -134,7 +134,7 @@ function crowdBlock(C, Y, noTabs) {
 
 function habitsBlock(habits, empty) {
   if (!habits.length) return `<div class="empty">${empty}</div>`;
-  return `<div class="habits">${habits.map((h) => { const inner = `<span class="k">${esc(h.k)}</span><span class="v">${esc(h.v)}</span><span class="t">${esc(h.text)}${h.to ? '<span class="go" aria-hidden="true"> ›</span>' : ""}</span>`;
+  return `<div class="habits">${habits.map((h) => { const inner = `<span class="k">${esc(h.k)}</span><span class="v">${esc(h.v)}</span><span class="t">${esc(h.text)}${h.to ? '<span class="go" aria-hidden="true">&nbsp;›</span>' : ""}</span>`;
     return h.to ? `<button class="habit" type="button" ${dl(h.to)}>${inner}</button>` : `<div class="habit">${inner}</div>`; }).join("")}</div>`;
 }
 

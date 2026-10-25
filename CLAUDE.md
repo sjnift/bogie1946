@@ -61,6 +61,10 @@ Where it lives:
   - Links look classy: gold text in sentences (desktop), white semibold in sentences (phone), a faint thin
     underline under bare numbers, no underlines in tables (a "click any number" line under each table instead),
     rounded tags for genres, countries, languages and cast. No white dotted underlines.
+    The "›" after a clickable sentence or value is `&nbsp;›` (`.go`), so it never sits alone on a line; minutes in
+    Records are joined to their number the same way. Card grids leave no empty slot (25 Oct 2026): Insights' "In short"
+    (`.glance`) is a wrapping flex row whose last cards widen; a phone `.facts` card alone on the last row takes it.
+    The desktop's Records has no "Liked" (it sat alone on a second line; the Reviews tile's "N liked" opens them).
   - **Tables that compare their rows mark the highest of each column in gold and the lowest in purple** (asked Oct
     2026): `hiLo(values)` in `06c-insights.js` gives each row's class (` hi`, ` lo`), with `monthHiLo`, `yearsHiLo`,
     `genresHiLo` for the month, year-by-year and genres-as-you-rate-them tables on both layouts (phone: the `.yrow` and

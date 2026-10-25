@@ -93,7 +93,8 @@ main { padding-block: 8px 64px; }
 .tab:disabled { opacity: .4; cursor: default; }
 
 /* ---------- insights ---------- */
-.glance { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+.glance { display: flex; flex-wrap: wrap; gap: 12px; } /* not a grid: the last row's cards widen to fill it, leaving no empty slot */
+.glance > .gcard { flex: 1 1 250px; min-width: 0; }
 .gcard { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; display: grid; gap: 6px; align-content: start; min-width: 0; }
 .gcard .k { font-family: var(--mono); font-size: 11.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
 .gcard .big { font-family: var(--display); font-weight: 800; font-size: 30px; line-height: 1; color: var(--gold-ink); text-transform: uppercase; overflow-wrap: anywhere; }

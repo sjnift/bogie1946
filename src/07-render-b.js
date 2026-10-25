@@ -209,9 +209,8 @@ function recordsBlock(s) {
   const oldest = dated.reduce((a, f) => !a || f.year < a.year ? f : a, null);
   const newest = dated.reduce((a, f) => !a || f.year > a.year ? f : a, null);
   const facts = [
-    ["Longest", longest && `${longest.name} · ${metaOf(longest).r} min`, longest], ["Shortest", shortest && `${shortest.name} · ${metaOf(shortest).r} min`, shortest],
+    ["Longest", longest && `${longest.name} · ${metaOf(longest).r}\u00a0min`, longest], ["Shortest", shortest && `${shortest.name} · ${metaOf(shortest).r}\u00a0min`, shortest],
     ["Oldest", oldest && `${oldest.name} · ${oldest.year}`, oldest], ["Newest", newest && newest !== oldest && `${newest.name} · ${newest.year}`, newest],
-    ["Liked", plural(s.likes, "film"), null, s.likes && DR.liked(s)],
   ].filter(([, v]) => v).map(([k, v, f, to]) => `<div class="fact"><span class="k">${k}</span><span class="v">${dlink(f ? D.film(f) : to, esc(v))}${tmdbLink(f)}</span></div>`).join("");
   return facts ? `<div class="facts">${facts}</div>` : "";
 }

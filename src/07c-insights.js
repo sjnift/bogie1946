@@ -45,7 +45,7 @@ const posterStrip = (films) => films.length ? `<div class="posters strip">${film
 
 function glanceBlock(glance, empty) {
   if (!glance.length) return `<div class="empty">${empty}</div>`;
-  return `<div class="glance">${glance.map((g) => { const inner = `<span class="k">${esc(g.k)}</span><span class="big">${esc(g.big)}</span><span class="gp">${esc(g.text)}${g.to ? '<span class="go" aria-hidden="true"> ›</span>' : ""}</span>`;
+  return `<div class="glance">${glance.map((g) => { const inner = `<span class="k">${esc(g.k)}</span><span class="big">${esc(g.big)}</span><span class="gp">${esc(g.text)}${g.to ? '<span class="go" aria-hidden="true">&nbsp;›</span>' : ""}</span>`;
     return g.to ? `<button class="gcard" type="button" ${dl(g.to)}>${inner}</button>` : `<div class="gcard">${inner}</div>`; }).join("")}</div>`;
 }
 

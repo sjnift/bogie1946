@@ -287,7 +287,9 @@ function computeInsights(lib, metaOf, crowdKey) {
     const rwE = E.filter((e) => e.rewatch), rw = pctOf(rwE.length, E.length);
     habits.push({ k: "Rewatches", v: `${rw}%`, text: "of your diary entries are rewatches.", to: rwE.length ? D.entries("Rewatches", entriesSub(rwE, `${rw}% of the diary`), rwE) : null });
     const timedFilms = lib.films.filter((f) => runtimeOf(f)), runtimes = timedFilms.map(runtimeOf);
-    if (runtimes.length >= 10) habits.push({ k: "Typical length", v: `${Math.round(avg(runtimes))} min`, text: `is your average film; ${pctOf(runtimes.filter((r) => r >= 150).length, runtimes.length)}% run 2½ hours or more.`,
+    const long = runtimes.filter((r) => r >= 150).length, longPct = pctOf(long, runtimes.length);
+    if (runtimes.length >= 10) habits.push({ k: "Typical length", v: `${Math.round(avg(runtimes))} min`,
+      text: `is your average film; ${!long ? "none run" : !longPct ? `only ${long} ${long === 1 ? "runs" : "run"}` : `${longPct}% run`} 2½ hours or more.`,
       to: D.films("Your films by length", `${Math.round(avg(runtimes))} min on average · longest first`, timedFilms, { sort: "runtime", note: (f) => `${runtimeOf(f)} min` }) });
   }
 

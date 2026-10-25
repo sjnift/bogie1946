@@ -108,7 +108,7 @@ function mPeopleYears(I) {
 
 function mHabits(habits, title) {
   if (!habits.length) return "";
-  const go = '<span class="go" aria-hidden="true"> ›</span>';
+  const go = '<span class="go" aria-hidden="true">&nbsp;›</span>';
   return sh(title) + `<div class="facts" style="margin-top:0">${habits.map((h) => { const inner = `<span class="k">${esc(h.k)}</span><span class="v">${esc(h.v)}</span><span class="t">${esc(h.text)}${h.to ? go : ""}</span>`;
     return h.to ? `<button class="fact" type="button" ${dl(h.to)}>${inner}</button>` : `<div class="fact">${inner}</div>`; }).join("")}</div>`;
 }
