@@ -62,7 +62,7 @@ function filterText() {
 const wholeLib = () => state.mode === "mine" && MY_LIB ? MY_LIB : EXAMPLE_LIB;
 // The panel of choices, in the pop-up (computer) or the sheet (phone), opened by the Filter button. Plain buttons, not
 // menus: Safari froze or went blank when a menu was replaced in the page while it was being used (owner, Oct 2026).
-D.filters = () => ({ kind: "filters", title: "Filter your stats", sub: "Show only some of your films on this page" });
+D.filters = () => ({ kind: "filters", title: "Filter your stats", sub: "" }); // no explanation: the choices speak for themselves (owner, Oct 2026)
 const FILTER_SHOWN = 14; // choices shown at first in each group; the rest behind "More"
 const filterMore = new Set();
 function filtersInner() {
@@ -82,9 +82,7 @@ function filtersInner() {
       <div class="fp-chips">${shown.map(([v, c]) => `<button class="fp-chip" type="button" data-fpick="${k}" data-fval="${esc(v)}" aria-pressed="${picks.includes(v)}">${esc(v)}<span>${fmtN(c)}</span></button>`).join("")}
       ${many ? `<button class="fp-more" type="button" data-fmore="${k}">${fmtN(all.length - shown.length)} more</button>` : ""}</div></section>`;
   }).join("");
-  const lead = filterOn() ? `Showing <b>${esc(filterText())}</b>: ${plural(n, "film")}. Pick as many as you like; a lit choice turns off when picked again.`
-    : "Pick as many genres, decades, countries or languages as you like, and every number, chart and list on this page shows only those films. With two or more genres or countries, choose whether a film needs any of them or all of them. Insights and Compare keep your whole diary.";
-  return `<p class="fp-lead">${lead}</p>${groups}<div class="fp-foot">${filterOn() ? `<button class="btn small" type="button" data-filter-clear>Clear</button>` : ""}
+  return `${groups}<div class="fp-foot">${filterOn() ? `<button class="btn small" type="button" data-filter-clear>Clear</button>` : ""}
     <button class="btn small primary green" type="button" data-close data-sclose>${filterOn() ? `Show ${plural(n, "film")}` : "Done"}</button></div>`;
 }
 const filtersBodyHtml = () => `<div class="fpanel">${filtersInner()}</div>`;

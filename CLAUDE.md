@@ -271,7 +271,8 @@ friend replaces the address instead.
   the years, against the crowd, habits, review numbers, and for a year against the year before and new in the year.
   "Against the crowd" uses Letterboxd (Apify), IMDb/Metacritic (OMDb) or TMDB scores.
 - **Filters**: a Filter button opens a panel (a drill of kind `filters`, so it's the pop-up or the sheet, with Back
-  and Close) of genre, decade, country and language choices, each with how many films it has given the other
+  and Close; titled "Filter your stats" with no explanation under it, which the owner found unneeded, Oct 2026) of
+  genre, decade, country and language choices, each with how many films it has given the other
   filters (genres, countries and languages need cast & crew; long groups show 14, then "N more"). **Several picks per
   group** (asked Oct 2026, "a hybrid": `FILTER[k]` is a list): a film matches any of them; for genres and countries,
   with two or more picked, a switch "Any of these / All of these" (`FILTER_ALL`, `groupAll`; decades and languages are
