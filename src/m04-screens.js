@@ -171,7 +171,7 @@ function lookupInner() {
   } else {
     body = `<p class="status">Lookups aren't available in this view. Open the downloadable copy of this page in a browser and use a TMDB key.</p>`;
   }
-  const extra = [imdbBlock(MY_LIB, true), letterboxdBlock(MY_LIB, true), castCheckBlock(MY_LIB, true), feedBlock(MY_LIB, true), dataCheckBlock(MY_LIB, true), picturesBlock(true)].filter(Boolean).map((h) => `</div><div class="card">${h}`).join("");
+  const extra = [imdbBlock(MY_LIB, true), letterboxdBlock(MY_LIB, true), castCheckBlock(MY_LIB, true), peopleCheckBlock(MY_LIB, true), feedBlock(MY_LIB, true), dataCheckBlock(MY_LIB, true), picturesBlock(true)].filter(Boolean).map((h) => `</div><div class="card">${h}`).join("");
   return head + body + note + saveNote + extra;
 }
 function progressText() {
@@ -188,6 +188,8 @@ function renderLookupProgress() {
   if (lp) lp.textContent = lbProgressText();
   const cp = $("#ic-progress");
   if (cp) cp.textContent = castProgressText();
+  const fp = $("#facts-progress");
+  if (fp) fp.textContent = factsProgressText();
   const m = $("#lookup-meter");
   if (m && MY_LIB) m.style.width = `${Math.round(MY_LIB.films.filter((f) => metaOf(f)).length / Math.max(1, MY_LIB.films.length) * 100)}%`;
 }

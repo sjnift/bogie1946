@@ -64,7 +64,7 @@ function act(t) {
     clearTimeout(forgetTimer); state.forgetArmed = false;
     if (job.running && job.ctl) job.ctl.abort();
     Object.values(KEYS).forEach((k) => store.del(k)); store.del(VIEW_KEY);
-    META = {}; PHOTOS = {}; LBX = {}; FRIENDS = []; MY_LIB = null; DATA_REV++; siteForget();
+    META = {}; PHOTOS = {}; LBX = {}; FACTS = {}; FRIENDS = []; MY_LIB = null; DATA_REV++; siteForget();
     Object.assign(state, { mode: "example", scope: "all" });
     job.note = "Deleted your saved data from this browser."; job.err = false;
     render();
@@ -205,7 +205,7 @@ function bind() {
 
 async function init() {
   await store.init();
-  META = store.get(KEYS.meta, {}); PHOTOS = store.get(KEYS.photos, {}); LBX = store.get(KEYS.lbx, {});
+  META = store.get(KEYS.meta, {}); PHOTOS = store.get(KEYS.photos, {}); LBX = store.get(KEYS.lbx, {}); FACTS = store.get(KEYS.facts, {});
   if (showImages) imgProbe(); // can this device reach TMDB's pictures, or only the relay? (05-core)
   const ex = buildExample();
   EXAMPLE_FRIENDS = buildExampleFriends().map((f) => ({ ...f, lib: buildLibrary(f.rows) }));

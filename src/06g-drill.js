@@ -210,7 +210,7 @@ function filmCardHtml(d) {
   const who = d.people || [{ lib, film: lib.films.includes(f) ? f : lib.films.find((x) => x.key === f.key) }];
   const facts = [], tags = [];
   if (m) {
-    if (m.d.length) facts.push(`<p class="fc-dir">Directed by ${m.d.map((n) => dlink(personDrill(lib, n, "d"), esc(n))).join(", ")}</p>`);
+    if (roleNames(m, "d").length) facts.push(`<p class="fc-dir">Directed by ${roleNames(m, "d").map((n) => dlink(personDrill(lib, n, "d"), esc(n))).join(", ")}</p>`);
     if (m.r) facts.push(`<p>${esc(m.r)} min</p>`);
     tags.push(...[...new Set(m.g)].map((g) => dlink(catDrill(lib, g, "g"), esc(g))), ...[...new Set(m.k)].map((k) => dlink(catDrill(lib, k, "k"), esc(k))), ...(m.l ? [dlink(catDrill(lib, m.l, "l"), esc(m.l))] : []));
   }

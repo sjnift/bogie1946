@@ -32,6 +32,7 @@ if (IN_VIEWER && typeof window.claude.use === "function") {
 }
 
 function saveMeta() {
+  META_REV++; // who's who may have changed (05-core, `peopleIndex`)
   const ok = store.set(KEYS.meta, META) && store.set(KEYS.photos, PHOTOS);
   job.saveFailed = !ok;
 }
@@ -95,13 +96,14 @@ async function tmdbGet(path, params, key, signal) {
 // 7: the whole credited cast (it stopped at the top 15 billed) and every director; a film matched since 6 is only read
 // again by its id (`rereadRef`), as its match hasn't changed.
 // 8: who counts in a cast follows Letterboxd's rule role by role (`roleSkip`: cameos, archive footage, cut scenes).
-const TMDB_MATCH_VERSION = 8;
+// 9: each person's TMDB id beside their name (`ci`, `di`…), so two people of one name stay two (05-core, `peopleIndex`).
+const TMDB_MATCH_VERSION = 9;
 // The last version that changed what's kept of a film: older details are read again, even when the match is the same.
-const TMDB_DETAILS_V = 8;
+const TMDB_DETAILS_V = 9;
 // Bump when matching finds films it used to miss, so only those are looked up again.
 // 7: a title that is half of the other ("Glass Onion: A Knives Out Mystery" for Glass Onion).
 // 8: a pinned film TMDB keeps on its TV side (The Sorrow and the Pity, Nathan for You: Finding Frances).
-const TMDB_MISS_VERSION = Math.max(TMDB_MATCH_VERSION, 8);
+const TMDB_MISS_VERSION = 8; // (9 changed nothing in matching: films missed before stay so)
 // The words of a title that matter, in any script: "The Ear" → ear, "Love & Mercy" → love, mercy.
 const TITLE_SKIP = new Set(["the", "a", "an", "and", "of", "la", "le", "les", "el", "il", "der", "die", "das"]);
 const titleWords = (s) => new Set(String(s || "").replace(/&/g, " and ").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
@@ -178,7 +180,7 @@ function rereadRef(prev) {
 const creditedCast = (list, roleOf) => list.filter((c) => !roleSkip(roleOf(c)));
 // What the people pages say of it (inside Claude, film details come from Claude, with each film's main cast).
 const castRuleText = () => (IN_VIEWER ? "Counts each film's main cast."
-  : "Every credited role counts, as on Letterboxd; cameos, uncredited roles and archive footage don't." + (castChecked() ? ` Checked against IMDb for ${plural(castChecked(), "film")}.` : ""));
+  : "Every credited role counts, as on Letterboxd; cameos, uncredited roles and archive footage don't. People who share a name are counted apart." + (castChecked() ? ` Checked against IMDb for ${plural(castChecked(), "film")}.` : ""));
 // Photos kept from a film's credits: its directors, its top billed, and anyone already met in another film, so a
 // supporting actor whose films add up has a face, without photos of thousands of one-off players. `CAST_SEEN` is
 // everyone in the films looked up so far (worked out again at the start of each run of lookups).
@@ -217,21 +219,21 @@ async function tmdbFilm(f, key, signal, prev) {
   if (prev && prev.src === "tmdb" && !prev.miss && prev.id === hit.id && prev.c && prev.v >= TMDB_DETAILS_V) return { ...prev, v: TMDB_MATCH_VERSION, y: parseInt((hit.release_date || "").slice(0, 4), 10) || prev.y || null };
   return tmdbDetails(hit.id, key, signal);
 }
+// A role's people as kept: their names, and their TMDB person ids beside them (`c` and `ci`…).
+const credits = (role, list) => ({ [role]: list.map((x) => x.name), [ROLE_IDS[role]]: list.map((x) => Number(x.id) || 0) });
 // One TMDB film's details and credits, by its id.
 async function tmdbDetails(id, key, signal) {
   const d = await tmdbGet(`/movie/${id}`, { append_to_response: "credits" }, key, signal);
   if (!d) return { src: "tmdb", miss: true, v: TMDB_MISS_VERSION };
   const crew = (d.credits && d.credits.crew) || [];
   const cast = creditedCast(((d.credits && d.credits.cast) || []).slice().sort((a, b) => a.order - b.order), (c) => c.character);
-  const names = (list) => [...new Set(list.map((x) => x.name))];
   keepPhotos(cast, crew.filter((c) => c.job === "Director"));
   return cleanMeta({
     src: "tmdb", v: TMDB_MATCH_VERSION, id: d.id, poster: d.poster_path, y: parseInt((d.release_date || "").slice(0, 4), 10),
-    d: names(crew.filter((c) => c.job === "Director")),
-    c: cast.map((c) => c.name),
-    w: names(crew.filter((c) => ["Screenplay", "Writer", "Story"].includes(c.job))),
-    p: names(crew.filter((c) => c.job === "Director of Photography")),
-    m: names(crew.filter((c) => c.job === "Original Music Composer" || c.job === "Music")),
+    ...credits("d", crew.filter((c) => c.job === "Director")), ...credits("c", cast),
+    ...credits("w", crew.filter((c) => ["Screenplay", "Writer", "Story"].includes(c.job))),
+    ...credits("p", crew.filter((c) => c.job === "Director of Photography")),
+    ...credits("m", crew.filter((c) => c.job === "Original Music Composer" || c.job === "Music")),
     g: (d.genres || []).map((g) => g.name),
     k: (d.production_countries || []).map((c) => c.name),
     l: spokenIn(d), r: d.runtime, va: d.vote_average, vc: d.vote_count, im: d.imdb_id, t: new Date().toISOString(),
@@ -267,7 +269,6 @@ async function tmdbTvDetails(ref, key, signal) {
     y = show.first_air_date; va = show.vote_average; vc = show.vote_count; im = show.external_ids && show.external_ids.imdb_id; poster = show.poster_path;
   }
   const did = (c, jobs) => (c.jobs ? c.jobs.map((j) => j.job) : [c.job]).some((j) => jobs.includes(j));
-  const names = (list) => [...new Set(list.map((x) => x.name))];
   const directors = crew.filter((c) => did(c, ["Director"]));
   // a programme's cast has each person's roles across its episodes; credited if any of them is
   const roleOf = (c) => c.roles ? ((c.roles.find((x) => !roleSkip(x.character)) || c.roles[0] || {}).character) : c.character;
@@ -275,10 +276,10 @@ async function tmdbTvDetails(ref, key, signal) {
   keepPhotos(cast, directors);
   return cleanMeta({
     src: "tmdb", v: TMDB_MATCH_VERSION, tv: show.id, ...(episode ? { se: Number(ref.se), ep: Number(ref.ep) } : {}), poster, y: parseInt(String(y || "").slice(0, 4), 10),
-    d: names(directors), c: cast.map((c) => c.name),
-    w: names(crew.filter((c) => did(c, ["Screenplay", "Writer", "Story"]))),
-    p: names(crew.filter((c) => did(c, ["Director of Photography"]))),
-    m: names(crew.filter((c) => did(c, ["Original Music Composer", "Music"]))),
+    ...credits("d", directors), ...credits("c", cast),
+    ...credits("w", crew.filter((c) => did(c, ["Screenplay", "Writer", "Story"]))),
+    ...credits("p", crew.filter((c) => did(c, ["Director of Photography"]))),
+    ...credits("m", crew.filter((c) => did(c, ["Original Music Composer", "Music"]))),
     g: [...new Set((show.genres || []).flatMap((g) => TV_GENRES[g.name] || [g.name]))],
     k: (show.production_countries || []).map((c) => c.name), l: spokenIn(show), r: r || null, va, vc, im, t: new Date().toISOString(),
   });
@@ -351,14 +352,106 @@ function startTmdb(lib) {
   if (typed && typed !== BUILT_IN_TMDB_KEY) store.set(KEYS.tmdb, typed);
   else if (typed) store.del(KEYS.tmdb);
   editKey = false;
-  runTmdb(lib, key).then(() => { if (omdbKey()) runOmdb(lib, omdbKey()); });
+  runTmdb(lib, key).then(() => { runFacts(lib, key); if (omdbKey()) runOmdb(lib, omdbKey()); });
 }
 // After an import, a copy that already knows a key looks films up without being asked.
 async function autoLookup(lib) {
   if (IN_VIEWER) return;
   await sharedKeyReady;
   if (tmdbKey() && needsLookup(lib, "tmdb").length) await runTmdb(lib, tmdbKey());
+  if (tmdbKey()) runFacts(lib, tmdbKey());
   if (omdbKey() && !imdbJob.badKey && needsImdb(lib).length && siteLeadsLookups()) runOmdb(lib, omdbKey());
+}
+
+/* ----- People's dates, from TMDB: the people check (asked 26 Oct 2026, after Paul Guilfoyle, born 1949, was shown in
+   1940s films: "how can I trust the cast data at all? I would like a complete fact check of all the actors and crew")
+   For everyone in two or more of the diary's films, and everyone whose name another person shares, TMDB's person page
+   gives their birth and death years, IMDb id and photo (`FACTS`, by TMDB person id, kept on this device, looked up
+   again after half a year). They label namesakes, leave out credits the dates make impossible, and let the IMDb cast
+   check see a role TMDB gave to the wrong person of that name (05-core, `peopleIndex`, `badCredit`, `rolePeople`). */
+let FACTS = store.get(KEYS.facts, {});
+const factsJob = { running: false, done: 0, total: 0 };
+const FACTS_DAYS = 180;
+function factsWanted(lib) {
+  const P = peopleIndex(), want = new Set(P.namesakes.map((x) => x.id)), count = new Map(), now = Date.now();
+  for (const f of lib.films) {
+    const m = META[f.key];
+    if (!m || m.miss) continue;
+    for (const ir of Object.values(ROLE_IDS)) for (const id of new Set(m[ir] || [])) if (id) count.set(id, (count.get(id) || 0) + 1);
+  }
+  for (const [id, n] of count) if (n >= 2) want.add(id);
+  return [...want].filter((id) => !FACTS[id] || now - Date.parse(FACTS[id].t || 0) > FACTS_DAYS * 864e5);
+}
+async function runFacts(lib, key) {
+  if (factsJob.running || !key || IN_VIEWER || !lib) return;
+  const queue = factsWanted(lib);
+  if (!queue.length) return;
+  Object.assign(factsJob, { running: true, done: 0, total: queue.length });
+  renderLookup();
+  const today = new Date().toISOString().slice(0, 10), year = (s) => parseInt(String(s || "").slice(0, 4), 10) || 0;
+  let stop = false, since = 0;
+  const worker = async () => {
+    while (queue.length && !stop) {
+      const id = queue.shift();
+      try {
+        const d = await tmdbGet(`/person/${Number(id)}`, {}, key);
+        FACTS[id] = d ? { b: year(d.birthday), d: year(d.deathday), im: /^nm\d+$/.test(d.imdb_id || "") ? d.imdb_id : "", p: imagePath(d.profile_path) || "", t: today } : { t: today };
+      } catch (e) { if (e && (e.code === "auth" || e instanceof TypeError)) { stop = true; return; } }
+      factsJob.done++;
+      if (++since >= 250) { since = 0; store.set(KEYS.facts, FACTS); META_REV++; }
+      renderLookupProgress();
+    }
+  };
+  await Promise.all(Array.from({ length: 6 }, worker));
+  store.set(KEYS.facts, FACTS);
+  META_REV++;
+  factsJob.running = false;
+  scheduleRender();
+}
+const safeFacts = (o) => Object.fromEntries(Object.entries(o || {}).filter(([k, f]) => /^\d{1,9}$/.test(k) && f && typeof f === "object")
+  .map(([k, f]) => [k, { b: Number(f.b) || 0, d: Number(f.d) || 0, im: /^nm\d+$/.test(f.im || "") ? f.im : "", p: imagePath(f.p) || "", t: String(f.t || "").slice(0, 10) }]));
+// What the people check found in a diary: people of one name told apart, credits TMDB's dates make impossible (not
+// counted), roles TMDB gave to another person of that name than IMDb does (owner's checked films), and roles long
+// after a death (counted, but worth a look: posthumous releases are real).
+function peopleCheck(lib) {
+  const P = peopleIndex(), shownNs = new Map(), impossible = [], wrong = [], late = [], films = new Map(), roleWord = { c: "acting", d: "directing", w: "writing", p: "camera", m: "music" };
+  for (const f of lib.films) {
+    const m = META[f.key];
+    if (!m || m.miss) continue;
+    const y = Number(m.y) || 0;
+    for (const role of Object.keys(ROLE_IDS)) {
+      for (const p of rolePeople(m, role)) {
+        if (!p.id) continue;
+        films.set(p.id, (films.get(p.id) || new Set()).add(f.key));
+        const fx = FACTS[p.id], label = P.label.get(P.canon.get(p.id) || p.id);
+        if (label) (shownNs.get(label) || shownNs.set(label, { key: personKey(label), name: label, films: [] }).get(label)).films.push(f);
+        if (badCredit(m, p.id, role)) impossible.push({ key: `${f.key}|${p.id}`, name: `${p.name} in ${f.name} (${f.year || "?"})`, films: [f],
+          note: `TMDB: born ${fx.b}, ${roleWord[role]} in a film of ${y}` });
+        else if (role === "c" && fx && fx.d && y > fx.d + 5) late.push({ key: `${f.key}|${p.id}`, name: `${p.name} in ${f.name} (${f.year || "?"})`, films: [f], note: `TMDB: died ${fx.d}, film of ${y}` });
+        if (p.moved) wrong.push({ key: `${f.key}|${p.moved}`, name: `${p.name} in ${f.name} (${f.year || "?"})`, films: [f], note: "IMDb has this role as another person of that name" });
+      }
+    }
+  }
+  // the people whose dates are asked for (`factsWanted`): in two or more films, or sharing a name
+  const wanted = [...films].filter(([id, s]) => s.size >= 2 || P.label.has(id)).map(([id]) => id);
+  return { namesakes: [...shownNs.values()].sort((a, b) => a.name.localeCompare(b.name)), impossible, wrong, late, dated: wanted.filter((id) => FACTS[id]).length, wanted: wanted.length };
+}
+function factsProgressText() { return `Checking people's dates on TMDB: ${fmtN(factsJob.done)} of ${fmtN(factsJob.total)}.`; }
+// In the Cast & crew box on both layouts, for any diary with cast and crew from TMDB.
+function peopleCheckBlock(lib, phone) {
+  if (IN_VIEWER || !lib || !lib.films.some((f) => META[f.key] && META[f.key].ci)) return "";
+  const title = phone ? `<p class="title" style="margin-top:6px">People check</p>` : `<h3 class="sub-h">People check</h3>`;
+  if (factsJob.running) return title + `<p class="status" id="facts-progress" role="status">${factsProgressText()}</p>`;
+  const r = peopleCheck(lib), list = (items, t, s) => dlink(D.names(t, s, items), plural(items.length, "credit"));
+  const lines = [`Everyone in your films is TMDB's person, told apart by TMDB's own id, so two people who share a name are never counted as one, and each credit is checked against that person's dates on TMDB.`];
+  if (r.namesakes.length) lines.push(`${dlink(D.names("People who share a name", "Each counted apart, with their own films", r.namesakes), plural(r.namesakes.length, "person", "people"))} in your diary share a name with someone else there, so each is shown with their years, like ${esc(r.namesakes[0].name)}.`);
+  else lines.push("No two people in your diary share a name.");
+  lines.push(r.impossible.length ? `${list(r.impossible, "Not counted: impossible by TMDB's dates", "Credited in a film made before they were born (or too young to make it)")} ${r.impossible.length === 1 ? "is" : "are"} impossible by TMDB's own dates (a film made before the person was born), so ${r.impossible.length === 1 ? "it isn't" : "they aren't"} counted.`
+    : "No credit is impossible by TMDB's own dates.");
+  if (r.wrong.length) lines.push(`${list(r.wrong, "Given to the right person by IMDb", "TMDB gave these roles to another person of the same name")} TMDB gave to the wrong person of that name, by IMDb's cast lists; they're counted for the right one.`);
+  if (r.late.length) lines.push(`${list(r.late, "Worth a look: after a death", "Released more than five years after the person died; still counted")} come more than five years after the person died; they're still counted, as films can come out long after (worth a look).`);
+  lines.push(`Dates checked for ${fmtN(r.dated)} of ${plural(r.wanted, "person", "people")}: everyone in two or more of your films, and everyone who shares a name.`);
+  return title + lines.map((t) => `<p class="status">${t}</p>`).join("");
 }
 
 /* ----- IMDb, Metacritic and Rotten Tomatoes scores, through OMDb -----

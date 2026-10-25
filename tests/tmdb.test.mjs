@@ -112,13 +112,13 @@ export default async function ({ browser, base }) {
     { "cr-meta-v1": { "the ear|1970": { src: "tmdb", v: 3, id: 35002, d: ["Don Chaffey"], c: ["Victoria Vetri"], w: [], p: [], m: [], g: ["Adventure"], k: ["UK"], l: "English", r: 100 },
       "brick|2005": { src: "tmdb", v: 6, id: 9270, d: ["Rian Johnson"], c: ["Joseph Gordon-Levitt"], w: [], p: [], m: [], g: ["Crime"], k: ["USA"], l: "English", r: 110 },
       // details as they're kept now, so not looked up; and a film matched by hand before the whole cast was kept
-      "kept film|2003": { src: "tmdb", v: 8, id: 5003, d: ["Someone"], c: ["Familiar Face"], w: [], p: [], m: [], g: ["Drama"], k: ["USA"], l: "English", r: 90 },
+      "kept film|2003": { src: "tmdb", v: 9, id: 5003, d: ["Someone"], c: ["Familiar Face"], w: [], p: [], m: [], g: ["Drama"], k: ["USA"], l: "English", r: 90 },
       "pinned film|2000": { src: "tmdb", v: 6, id: 5002, pin: true, d: ["Old Name"], c: [], w: [], p: [], m: [], g: ["Drama"], k: ["USA"], l: "English", r: 90 },
       // films missed before matching learned half-titles: looked up again
       "wake up dead man|2025": { src: "tmdb", miss: true, v: 6 }, "the sorrow and the pity|1969": { src: "tmdb", miss: true, v: 6 },
       // missed while only TMDB's films were looked at, as the owner's devices had it (Oct 2026): looked up again
       "nathan for you: finding frances|2017": { src: "tmdb", miss: true, v: 7, via: "tt7277634" } }, "cr-tmdb-key": "k123" });
-  await q.waitForFunction(() => MY_LIB.films.every((f) => META[f.key] && META[f.key].v >= TMDB_MATCH_VERSION) && !needsLookup(MY_LIB, "tmdb").length && !job.running, null, { timeout: 8000 });
+  await q.waitForFunction(() => MY_LIB.films.every((f) => META[f.key] && META[f.key].v >= (META[f.key].miss ? TMDB_MISS_VERSION : TMDB_MATCH_VERSION)) && !needsLookup(MY_LIB, "tmdb").length && !job.running, null, { timeout: 8000 });
   const ear = await q.evaluate(() => { const s = computeStats(MY_LIB, metaOf, "all"), where = (list) => list.most.filter((x) => x.films.some((f) => f.name === "The Ear")).map((x) => x.name).join();
     return { id: META["the ear|1970"].id, country: where(s.countries), language: where(s.languages), heat: !!META["heat|1934"].miss, brick: META["brick|2005"].id };
   });
@@ -127,12 +127,12 @@ export default async function ({ browser, base }) {
   // matched before the whole cast was kept: read again by its id, once, without searching for it again
   assert(ear.brick === 9270 && looked.filter((x) => x === "9270").length === 1 && !searched.includes("Brick"), `Brick, matched to the same film as before: details ${looked}, searched ${searched}`);
   const cast = await q.evaluate(() => { const m = META["big cast|2001"], pin = META["pinned film|2000"], s = computeStats(MY_LIB, metaOf, "all");
-    return { c: m.c.join(), photos: ["lead 1", "lead 16", "familiar face"].map((k) => PHOTOS[k] || "-").join(), pin: [pin.pin, pin.v, pin.d.join()].join(),
+    return { c: m.c.join(), photos: ["lead 1", "lead 16", "familiar face"].map((k) => PHOTOS[k] || "-").join(), pin: [pin.pin, pin.v === TMDB_DETAILS_V, pin.d.join()].join(),
       korean: s.cast.most.filter((p) => p.name === "김청아").length, face: (s.cast.most.find((p) => p.name === "Familiar Face") || {}).count };
   });
   assert(cast.c === [...Array.from({ length: 16 }, (_, i) => `Lead ${i + 1}`), "Familiar Face", "김청아", "Voice Player", "Extended Star", "Named Guest"].join(), `the credited cast: ${cast.c}`);
   assert(cast.photos === "/l1.jpg,-,/ff.jpg", `photos kept for the top billed and people met before, not every one-off player: ${cast.photos}`);
-  assert(cast.pin === "true,8,Someone" && !searched.includes("Pinned Film") && looked.includes("5002"), `a film matched by hand, read again at its place: ${cast.pin}`);
+  assert(cast.pin === "true,true,Someone" && !searched.includes("Pinned Film") && looked.includes("5002"), `a film matched by hand, read again at its place: ${cast.pin}`);
   assert(cast.korean === 1 && cast.face === 2, `people counted: a name in Korean ${cast.korean}, someone in two films ${cast.face}`);
   const more = await q.evaluate(() => ({ cop: META["a cop|1972"].id, waves: [META["breaking the waves|1996"].l, META["breaking the waves|1996"].k.length], prowler: META["the prowler|1951"].k.join(), why: META["the prowler|1951"].why }));
   assert(more.cop === 42741, `A Cop (1972) should be Melville's Un flic, not a 1947 film: ${more.cop}`);

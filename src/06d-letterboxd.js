@@ -361,7 +361,7 @@ function lbAction(act, lib) {
    `cq` is when it was checked, `cp` that IMDb's page held only part of a very long cast. Only the owner's own diary
    (`isSiteOwner`) offers it. It tries CAST_TRIAL films first and goes on only if IMDb let Apify read them, and only
    when the rest would cost no more than CAST_BUDGET, worked out from what the trial cost. */
-const CAST_CHECK_FIELDS = ["cq", "ca", "cr", "cp"];
+const CAST_CHECK_FIELDS = ["cq", "ca", "cr", "cp", "cn", "can"];
 const CAST_TRIAL = 5, CAST_BUDGET = 1.5, CAST_PER_RUN = 2000;
 const icJob = { running: false, started: 0, note: "", err: false, stats: null };
 const castChecked = () => (MY_LIB && isSiteOwner() ? MY_LIB.films.filter((f) => META[f.key] && META[f.key].cq).length : 0);
@@ -433,18 +433,20 @@ const CAST_PAGE_FN = `async function pageFunction(context) {
 const nameOrderKey = (n) => personKey(n).split(" ").filter(Boolean).sort().join(" ");
 // What IMDb's cast says of one film, put against what TMDB counts: what to add and what to take off.
 function castCheckOf(m, cast, spelling) {
-  const tmdb = new Map();
+  const tmdb = new Map(), idOf = new Map((m.c || []).map((n, i) => [n, Number((m.ci || [])[i]) || 0]));
   for (const n of m.c || []) { tmdb.set(personKey(n), n); tmdb.set(nameOrderKey(n), n); }
-  const add = [], off = [];
-  for (const [, name, role] of cast) {
+  const add = [], off = [], cn = {}, can = {};
+  for (const [nm, name, role] of cast) {
     const roles = String(role || "").split(" / ").map((r) => r.trim());
     const why = roles.map((r) => roleSkip(r)), counts = why.some((w) => !w);
     const known = tmdb.get(personKey(name)) || tmdb.get(nameOrderKey(name));
+    // which IMDb person TMDB's person of that name is in this film, to see whether TMDB has the right one (05-core)
+    if (known && idOf.get(known)) cn[idOf.get(known)] = nm;
     // taken off only on IMDb's word that the role isn't one (no character on IMDb is IMDb not knowing)
     if (known && !counts && why.every((w) => w && w !== "no character")) off.push(known);
-    else if (!known && counts) add.push(spelling.get(nameOrderKey(name)) || name);
+    else if (!known && counts) { const n = spelling.get(nameOrderKey(name)) || name; add.push(n); can[n] = nm; }
   }
-  return { ca: [...new Set(add)], cr: [...new Set(off)] };
+  return { ca: [...new Set(add)], cr: [...new Set(off)], cn, can };
 }
 function startCastCheck(lib) {
   const films = castCheckOn(lib) ? castToCheck(lib) : [];
@@ -493,7 +495,7 @@ async function pollCastCheck(lib) {
       if (!m || !Array.isArray(it.cast) || !it.n || m.im !== it.tt) continue;
       const cast = it.cast.filter((x) => Array.isArray(x) && /^nm\d+$/.test(x[0]) && typeof x[1] === "string").map((x) => [x[0], x[1], String(x[2] || "")]);
       const d = castCheckOf(m, cast, spelling);
-      META[f.key] = { ...m, cq: today, ca: d.ca, cr: d.cr, ...(it.more ? { cp: true } : {}) };
+      META[f.key] = { ...m, cq: today, ca: d.ca, cr: d.cr, cn: d.cn, can: d.can, ...(it.more ? { cp: true } : {}) };
       read++; added += d.ca.length; off += d.cr.length;
     }
     saveMeta();

@@ -128,7 +128,7 @@ function computeInsights(lib, metaOf, crowdKey) {
     let withMeta = 0;
     for (const f of films) {
       const m = metaOf(f); if (!m) continue; withMeta++;
-      new Set(m.g).forEach((g) => bump(genres, g)); new Set(m.d).forEach((d) => bump(directors, d));
+      new Set(m.g).forEach((g) => bump(genres, g)); new Set(roleNames(m, "d")).forEach((d) => bump(directors, d));
       new Set(castOf(m)).forEach((c) => bump(actors, c)); m.k.forEach((k) => countries.add(k));
     }
     const pace = y === thisYear && dayOfYear > 30 && dayOfYear < 360 ? Math.round(films.length / dayOfYear * 365) : null;
@@ -354,7 +354,7 @@ function computeYearInsights(lib, metaOf, Y, crowdKey, I = computeInsights(lib, 
     for (const e of lib.entries) { const meta = metaOf(e.film); if (!meta) continue; for (const k of pick(meta)) if (!m.has(k)) m.set(k, e.date.slice(0, 4)); }
     return m;
   };
-  const firstD = firstYear((m) => m.d.map(personKey)), firstC = firstYear((m) => castOf(m).map(personKey));
+  const firstD = firstYear((m) => roleNames(m, "d").map(personKey)), firstC = firstYear((m) => castOf(m).map(personKey));
   const firstK = firstYear((m) => m.k), firstL = firstYear((m) => m.l ? [m.l] : []);
   const newIn = (map) => [...map].filter(([, y]) => y === Y).map(([k]) => k);
   const discovered = (ranked, first) => ranked.most.filter((p) => first.get(p.key) === Y);

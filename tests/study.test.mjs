@@ -53,7 +53,7 @@ function plantedDiary() {
     rows.diary.push({ ...base, Date: iso(e.t), "Watched Date": iso(e.t), Rating: String(e.r), Rewatch: "", Tags: "" });
     rows.watched.push({ ...base, Date: iso(e.t) });
     rows.ratings.push({ ...base, Rating: String(e.r) });
-    meta[key(e.f)] = { src: "tmdb", v: 8, id: 5000 + i, d: e.f.d, c: e.f.c, w: e.f.d, p: [], m: [], g: e.f.g, k: e.f.k, l: e.f.l, r: e.f.r, va: Math.round(e.f.crowd * 20) / 10, vc: 500 + i * 3, y: e.f.year };
+    meta[key(e.f)] = { src: "tmdb", v: 9, id: 5000 + i, d: e.f.d, c: e.f.c, w: e.f.d, p: [], m: [], g: e.f.g, k: e.f.k, l: e.f.l, r: e.f.r, va: Math.round(e.f.crowd * 20) / 10, vc: 500 + i * 3, y: e.f.year };
     lbx[key(e.f)] = { r: Math.round(e.f.crowd * 100) / 100, n: 1000 + i * 37, slug: "s" };
   });
   return { rows, meta, lbx };

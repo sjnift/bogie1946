@@ -91,7 +91,7 @@ function picturesBlock(phone) {
 
 /* ---------- backups: the same diary on another device ---------- */
 function backupData(withKeys) {
-  const b = { app: "credits-roll", v: 1, at: new Date().toISOString(), rows: store.get(KEYS.rows, null), meta: META, photos: PHOTOS, lbx: LBX, friends: store.get(KEYS.friends, []) };
+  const b = { app: "credits-roll", v: 1, at: new Date().toISOString(), rows: store.get(KEYS.rows, null), meta: META, photos: PHOTOS, lbx: LBX, facts: FACTS, friends: store.get(KEYS.friends, []) };
   if (withKeys) b.keys = { tmdb: store.get(KEYS.tmdb, ""), omdb: store.get(KEYS.omdb, ""), apify: store.get(KEYS.apify, "") };
   return b;
 }
@@ -108,8 +108,8 @@ async function restoreBackup(file) {
   try { b = JSON.parse(await file.text()); } catch { throw new Error("That file isn't a Credits Roll backup."); }
   if (!b || b.app !== "credits-roll" || !b.rows) throw new Error("That file isn't a Credits Roll backup.");
   store.set(KEYS.rows, b.rows);
-  META = { ...META, ...safeMetaMap(b.meta) }; PHOTOS = { ...PHOTOS, ...safePhotos(b.photos) }; LBX = { ...LBX, ...safeLbx(b.lbx) };
-  saveMeta(); store.set(KEYS.lbx, LBX);
+  META = { ...META, ...safeMetaMap(b.meta) }; PHOTOS = { ...PHOTOS, ...safePhotos(b.photos) }; LBX = { ...LBX, ...safeLbx(b.lbx) }; FACTS = { ...FACTS, ...safeFacts(b.facts) };
+  saveMeta(); store.set(KEYS.lbx, LBX); store.set(KEYS.facts, FACTS);
   if (Array.isArray(b.friends) && b.friends.length) { store.set(KEYS.friends, safeFriends(b.friends)); loadFriends(); }
   for (const k of ["tmdb", "omdb", "apify"]) if (typeof (b.keys || {})[k] === "string" && b.keys[k]) store.set(KEYS[k], b.keys[k]); // only the keys, nothing else
   await store.flush();
@@ -190,7 +190,7 @@ function watchNext(lib) {
   const add = (map, k, name, r) => { let x = map.get(k); if (!x) map.set(k, x = { name, n: 0, sum: 0 }); x.n++; x.sum += r; };
   for (const f of rated) {
     const m = metaOf(f); if (!m) continue;
-    new Set(m.d).forEach((n) => add(dirs, personKey(n), n, f.rating)); new Set(castOf(m).slice(0, 6)).forEach((n) => add(cast, personKey(n), n, f.rating)); new Set(m.g).forEach((g) => add(genres, g, g, f.rating));
+    new Set(roleNames(m, "d")).forEach((n) => add(dirs, personKey(n), n, f.rating)); new Set(castOf(m).slice(0, 6)).forEach((n) => add(cast, personKey(n), n, f.rating)); new Set(m.g).forEach((g) => add(genres, g, g, f.rating));
   }
   const lean = (x, k) => x ? (x.sum - x.n * base) / (x.n + k) : 0; // pulled towards your average when there are few films
   const crowdOf = (f, m) => { const lb = LBX[f.key]; return lb && lb.r ? lb.r : m && m.ir && (m.iv || 0) >= 100 ? m.ir / 2 : m && m.va && (m.vc || 0) >= 25 ? m.va / 2 : null; };
@@ -200,7 +200,7 @@ function watchNext(lib) {
   const picks = lib.watchlistFilms.map((w) => {
     const m = metaOf(w), parts = [];
     if (m) {
-      const ds = m.d.map((n) => ({ n, x: dirs.get(personKey(n)) })).filter((d) => d.x);
+      const ds = roleNames(m, "d").map((n) => ({ n, x: dirs.get(personKey(n)) })).filter((d) => d.x);
       if (ds.length) { const v = avg(ds.map((d) => lean(d.x, 2))); parts.push({ v, why: `You rate ${ds[0].n}'s films ${(ds[0].x.sum / ds[0].x.n).toFixed(1)}★ on average (${plural(ds[0].x.n, "film")})` }); }
       const cs = castOf(m).slice(0, 4).map((n) => ({ n, x: cast.get(personKey(n)) })).filter((c) => c.x && c.x.n >= 2);
       if (cs.length) { const best = cs.sort((a, b) => b.x.n - a.x.n)[0]; parts.push({ v: avg(cs.map((c) => lean(c.x, 3))) * 0.6, why: `${best.n} is in ${plural(best.x.n, "film")} you've rated, ${(best.x.sum / best.x.n).toFixed(1)}★ on average` }); }
@@ -233,10 +233,10 @@ const filmoBusy = new Set();
 async function filmography(name, role) {
   const ck = `${personKey(name)}|${role}`, cache = store.get(KEYS.filmo, {}), c = cache[ck];
   if (c && Date.now() - c.at < 30 * 864e5) return c;
-  const key = tmdbKey();
-  const s = await tmdbGet("/search/person", { query: name, include_adult: "false" }, key);
+  const key = tmdbKey(), known = personIdOf(name);
+  const s = known ? null : await tmdbGet("/search/person", { query: name, include_adult: "false" }, key);
   const dept = { d: "Directing", c: "Acting", w: "Writing", p: "Camera", m: "Sound" }[role];
-  const person = ((s && s.results) || []).filter((p) => personKey(p.name) === personKey(name))
+  const person = known ? { id: known } : ((s && s.results) || []).filter((p) => personKey(p.name) === personKey(name))
     .sort((a, b) => (b.known_for_department === dept) - (a.known_for_department === dept) || (b.popularity || 0) - (a.popularity || 0))[0];
   let out = { at: Date.now(), none: true };
   if (person) {

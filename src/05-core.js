@@ -134,12 +134,12 @@ document.addEventListener("load", (e) => {
   if (t.src.startsWith(IMG_TMDB) && !IMG_SEEN.ok) { IMG_SEEN.ok++; for (const i of IMG_SEEN.held) i.remove(); IMG_SEEN.held = []; } // reachable: those were just missing
   if (t.classList.contains("fade")) t.classList.add("in");
 }, true);
-const KEYS = { rows: "cr-rows-v1", meta: "cr-meta-v1", photos: "cr-photos-v1", tmdb: "cr-tmdb-key", omdb: "cr-omdb-key", apify: "cr-apify-key", lbx: "cr-letterboxd-v1", lbRun: "cr-letterboxd-run", icRun: "cr-imdbcast-run", friends: "cr-friends-v1", view: "cr-view-v1", filmo: "cr-filmo-v1" };
+const KEYS = { rows: "cr-rows-v1", meta: "cr-meta-v1", photos: "cr-photos-v1", tmdb: "cr-tmdb-key", omdb: "cr-omdb-key", apify: "cr-apify-key", lbx: "cr-letterboxd-v1", lbRun: "cr-letterboxd-run", icRun: "cr-imdbcast-run", facts: "cr-people-v1", friends: "cr-friends-v1", view: "cr-view-v1", filmo: "cr-filmo-v1" };
 /* Small things (keys, the view) live in localStorage. The big ones (the export, film details, Letterboxd
    averages, friends' exports) live in IndexedDB, which holds far more than localStorage's few megabytes.
    store.init() reads them into memory once at start; after that reads are instant and writes go to the
    database in the background. Without IndexedDB everything stays in localStorage, as before. */
-const BIG_KEYS = new Set([KEYS.rows, KEYS.meta, KEYS.photos, KEYS.lbx, KEYS.friends, KEYS.filmo]);
+const BIG_KEYS = new Set([KEYS.rows, KEYS.meta, KEYS.photos, KEYS.lbx, KEYS.friends, KEYS.filmo, KEYS.facts]);
 const MEM = new Map();
 let IDB = null, idbFailed = false;
 const ls = {
@@ -399,13 +399,28 @@ function language(l) {
   return t === "Chinese" ? "Mandarin" : t;
 }
 const GENRES = ["Action", "Adventure", "Animation", "Comedy", "Crime", "Documentary", "Drama", "Family", "Fantasy", "History", "Horror", "Music", "Mystery", "Romance", "Science Fiction", "Thriller", "TV Movie", "War", "Western"];
+// A film's people in a role with their TMDB person ids, kept in step (`ci` beside `c`, `di` beside `d`…): each
+// person once, by id where TMDB gave one, since two people can share a name (see `peopleIndex`).
+const ROLE_IDS = { c: "ci", d: "di", w: "wi", p: "pi", m: "mi" };
+function metaPeople(m, role, n) {
+  const names = Array.isArray(m[role]) ? m[role] : [], ids = Array.isArray(m[ROLE_IDS[role]]) ? m[ROLE_IDS[role]] : [];
+  const out = [], outIds = [], seen = new Set();
+  names.forEach((x, i) => {
+    const name = String(x).trim(), id = Number(ids[i]) || 0, k = id ? `#${id}` : `=${name.toLowerCase()}`;
+    if (!name || seen.has(k) || out.length >= n) return;
+    seen.add(k); out.push(name); outIds.push(id);
+  });
+  return { [role]: out, ...(outIds.some(Boolean) ? { [ROLE_IDS[role]]: outIds } : {}) };
+}
+// IMDb person ids by TMDB person id or by name, as the IMDb cast check found them (06d)
+const imdbOf = (o, keyOk) => Object.fromEntries(Object.entries(o && typeof o === "object" ? o : {}).filter(([k, v]) => keyOk(k) && /^nm\d{1,10}$/.test(v)).slice(0, 400));
 function cleanMeta(m) {
   const list = (a, n = 20) => [...new Set((Array.isArray(a) ? a : []).map((x) => String(x).trim()).filter(Boolean))].slice(0, n);
   const genre = (g) => g === "Sci-Fi" ? "Science Fiction" : g;
   return {
     src: m.src, v: m.v || null, id: m.id || null, poster: m.poster || null,
     ...(Number(m.tv) ? { tv: Number(m.tv), ...(Number(m.ep) && m.se != null ? { se: Number(m.se) || 0, ep: Number(m.ep) } : {}) } : {}), // on TMDB's TV side (06-lookup)
-    d: list(m.d, 40), c: list(m.c, 300), w: list(m.w, 20), p: list(m.p, 10), m: list(m.m, 10),
+    ...metaPeople(m, "d", 40), ...metaPeople(m, "c", 300), ...metaPeople(m, "w", 20), ...metaPeople(m, "p", 10), ...metaPeople(m, "m", 10),
     g: list((m.g || []).map(genre).filter((g) => GENRES.includes(g)), 6),
     k: list((m.k || []).map(country), 20), l: language(m.l), why: m.why || undefined, r: Math.round(Number(m.r)) || null,
     va: Number(m.va) || null, vc: Number(m.vc) || null, // TMDB audience score out of 10, and how many votes
@@ -416,7 +431,8 @@ function cleanMeta(m) {
     iy: parseInt(m.iy, 10) || null, ik: Array.isArray(m.ik) ? m.ik : undefined, il: Array.isArray(m.il) ? m.il : undefined, inf: m.inf || undefined, // IMDb's year, countries, languages
     t: m.t || undefined, // when it was looked up: of two equally good copies on two devices, the newer is kept
     // the owner's cast checked on IMDb (06d, `castCheck`): when, added, taken off, and whether IMDb's list was partial
-    ...(m.cq ? { cq: String(m.cq).slice(0, 10), ca: list(m.ca, 300), cr: list(m.cr, 300), ...(m.cp ? { cp: true } : {}) } : {}),
+    ...(m.cq ? { cq: String(m.cq).slice(0, 10), ca: list(m.ca, 300), cr: list(m.cr, 300), ...(m.cp ? { cp: true } : {}),
+      cn: imdbOf(m.cn, (k) => /^\d{1,9}$/.test(k)), can: imdbOf(m.can, (k) => k.length <= 120) } : {}),
   };
 }
 // Film details, people's photos, Letterboxd averages and friends that arrive from outside this device (the diary on
@@ -472,21 +488,103 @@ function roleSkip(character) {
   const own = s.replace(APPEARANCE, " ").replace(/\(\s*\)|\[\s*\]/g, " ").replace(/[\s()[\]\-–—:,;/|"'“”‘’]+/g, " ").trim();
   return /[\p{L}\p{N}]/u.test(own) ? "" : "cameo";
 }
-// A film's cast as counted: TMDB's roles that count (06-lookup), put right by IMDb's cast list where the owner's films
-// were checked there (06d, `castCheck`): `cr` those IMDb says don't count, `ca` those IMDb credits and TMDB doesn't.
-const CAST_OF = new WeakMap();
-function castOf(m) {
-  if (!m || !Array.isArray(m.c)) return [];
-  if (!(m.ca && m.ca.length) && !(m.cr && m.cr.length)) return m.c;
-  if (CAST_OF.has(m)) return CAST_OF.get(m);
-  const off = new Set((m.cr || []).map(personKey)), have = new Set();
-  const list = [];
-  for (const n of [...m.c, ...(m.ca || [])]) { const k = personKey(n); if (!k || off.has(k) || have.has(k)) continue; have.add(k); list.push(n); }
-  CAST_OF.set(m, list);
-  return list;
+/* ---------- people, as TMDB knows them: by id ----------
+   Two people can share a name: the owner found Paul Guilfoyle, born 1949, credited with 1940s films (26 Oct 2026); those
+   were Paul Guilfoyle, 1902–1961. TMDB keeps them apart; the site had matched people by name, so it put them together
+   (and showed one face for both). Now each name in a film goes with its TMDB person id (`ci` beside `c`…), and a name
+   that belongs to two or more people in the films kept here is shown, counted, pictured and looked up apart for each:
+   "Paul Guilfoyle (1902–1961)", "Paul Guilfoyle (born 1949)", from TMDB's dates (`FACTS`, 06-lookup), or the years of
+   their films until those come. Everything that counts or shows a person goes through `roleNames`. TMDB's dates also
+   catch a credit given to the wrong person on TMDB itself: one in a film made before the person was born (or, for
+   directing, writing, camera and music, before they were 8) isn't counted (`badCredit`); the people check in Settings
+   lists both (06-lookup, `peopleCheck`). */
+let META_REV = 0, PEOPLE = null;
+function peopleIndex() {
+  if (PEOPLE && PEOPLE.meta === META && PEOPLE.rev === META_REV) return PEOPLE;
+  const facts = typeof FACTS === "object" && FACTS ? FACTS : {};
+  // TMDB sometimes keeps one person twice; two entries with the same IMDb id are one person, under the first
+  const byName = new Map(), byImdb = new Map(), canon = new Map(), nameOf = new Map();
+  for (const [id, f] of Object.entries(facts)) if (f && f.im) { if (byImdb.has(f.im)) canon.set(Number(id), byImdb.get(f.im)); else byImdb.set(f.im, Number(id)); }
+  for (const m of Object.values(META)) {
+    if (!m || m.miss) continue;
+    const y = Number(m.y) || 0;
+    for (const [role, ir] of Object.entries(ROLE_IDS)) {
+      const ids = m[ir];
+      if (!Array.isArray(ids)) continue;
+      (m[role] || []).forEach((n, i) => {
+        const id = canon.get(Number(ids[i])) || Number(ids[i]);
+        if (!id) return;
+        if (!nameOf.has(id)) nameOf.set(id, n);
+        n = nameOf.get(id);
+        const k = personKey(n), g = byName.get(k) || byName.set(k, new Map()).get(k), p = g.get(id) || g.set(id, { name: n, lo: 9999, hi: 0 }).get(id);
+        if (y) { p.lo = Math.min(p.lo, y); p.hi = Math.max(p.hi, y); }
+      });
+    }
+  }
+  const label = new Map(), idOf = new Map(), namesakes = [];
+  for (const [k, g] of byName) {
+    if (g.size < 2) { idOf.set(k, [...g.keys()][0]); continue; }
+    const used = new Set();
+    for (const [id, p] of g) {
+      const f = facts[id];
+      let tag = f && f.b ? (f.d ? `${f.b}–${f.d}` : `born ${f.b}`) : p.hi ? (p.lo === p.hi ? `film of ${p.lo}` : `films ${p.lo}–${p.hi}`) : `TMDB ${id}`;
+      if (used.has(tag)) tag += `, TMDB ${id}`;
+      used.add(tag);
+      const name = `${p.name} (${tag})`, nk = personKey(name);
+      label.set(id, name); idOf.set(nk, id); namesakes.push({ key: k, id, name });
+      if (f && f.p && !PHOTOS[nk]) PHOTOS[nk] = f.p;
+    }
+  }
+  // a person TMDB keeps twice is shown under one name, the first met
+  const twice = new Set(canon.values());
+  for (const id of canon.keys()) nameOf.set(id, nameOf.get(canon.get(id)));
+  for (const id of [...nameOf.keys()]) if (!canon.has(id) && !twice.has(id)) nameOf.delete(id);
+  return (PEOPLE = { meta: META, rev: META_REV, label, idOf, byImdb, canon, nameOf, namesakes });
 }
-// The people of a film in a role: the cast as counted, or its directors, writers and so on.
-const roleNames = (m, role) => (!m ? [] : role === "c" ? castOf(m) : m[role] || []);
+// The TMDB person id behind a name as shown (a namesake's label included), when there's one.
+const personIdOf = (name) => peopleIndex().idOf.get(personKey(name)) || 0;
+// A credit TMDB's own dates make impossible: before the person was born, or before they were 8 behind the camera.
+function badCredit(m, id, role) {
+  const f = typeof FACTS === "object" && FACTS && FACTS[id], y = Number(m && m.y) || 0;
+  return !!(f && f.b && y && y < f.b + (role === "c" ? 0 : 8));
+}
+// A film's people in a role, with their ids: the cast as counted (TMDB's roles that count, 06-lookup), put right by
+// IMDb's cast list where the owner's films were checked there (06d, `castCheck`): `cr` those IMDb says don't count,
+// `ca` those IMDb credits and TMDB doesn't (`can` their IMDb ids), and `cn` the IMDb id IMDb's page gives each of
+// TMDB's people: when TMDB's person has another IMDb id, TMDB gave the role to the wrong person of that name, and it
+// goes to the right one when TMDB's dates for them are here (`byImdb`), else to nobody.
+function rolePeople(m, role) {
+  const ids = m[ROLE_IDS[role]] || [], base = (m[role] || []).map((name, i) => ({ name, id: Number(ids[i]) || 0 }));
+  if (role !== "c" || !m.cq) return base;
+  const P = peopleIndex(), facts = typeof FACTS === "object" && FACTS ? FACTS : {}, off = new Set((m.cr || []).map(personKey)), out = [];
+  for (const p of base) {
+    if (off.has(personKey(p.name))) continue;
+    const nm = m.cn && p.id && m.cn[p.id], mine = p.id && facts[p.id] && facts[p.id].im;
+    if (nm && mine && mine !== nm) { const right = P.byImdb.get(nm); if (right) out.push({ name: p.name, id: right, moved: p.id }); continue; }
+    out.push(p);
+  }
+  for (const n of m.ca || []) { const nm = m.can && m.can[n]; out.push({ name: n, id: (nm && P.byImdb.get(nm)) || 0 }); }
+  return out;
+}
+// The people of a film in a role as shown and counted everywhere: by TMDB person, a namesake under their label,
+// impossible credits left out. Kept per film until the people index changes.
+const ROLE_NAMES = new WeakMap();
+function roleNames(m, role) {
+  if (!m) return [];
+  const P = peopleIndex();
+  let c = ROLE_NAMES.get(m);
+  if (!c || c.P !== P) ROLE_NAMES.set(m, (c = { P, lists: {} }));
+  if (c.lists[role]) return c.lists[role];
+  const out = [], have = new Set();
+  for (const { name, id } of rolePeople(m, role)) {
+    if (id && badCredit(m, id, role)) continue;
+    const cid = (id && P.canon.get(id)) || id, shown = (cid && (P.label.get(cid) || P.nameOf.get(cid))) || name, k = personKey(shown);
+    if (!k || have.has(k)) continue;
+    have.add(k); out.push(shown);
+  }
+  return (c.lists[role] = out);
+}
+const castOf = (m) => roleNames(m, "c");
 
 function inScope(lib, scope) {
   if (scope === "all") return { films: lib.films, entries: lib.entries };

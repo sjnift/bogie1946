@@ -247,7 +247,10 @@ The owner asked for this to be checked every time. A film, diary entry, person o
   "Counting people like Letterboxd"),
   `w` writers, `p` cinematographers, `m` composers, `g` genres, `k` countries, `l` language, `r` runtime,
   `poster`, `id`, `va/vc` TMDB score, `im` IMDb id, `ir/iv/mc/rt` IMDb, Metacritic, Rotten Tomatoes,
-  `pin` (matched by hand), `cq/ca/cr/cp` the cast checked on IMDb (`ir` is IMDb's rating, not the cast). `metaOf(f)` reads it (example films use `EXAMPLE_META`).
+  `pin` (matched by hand), `cq/ca/cr/cp/cn/can` the cast checked on IMDb (`ir` is IMDb's rating, not the cast),
+  `ci/di/wi/pi/mi` the TMDB person ids beside `c/d/w/p/m` (see "People are TMDB's people, by id").
+- `FACTS[tmdbPersonId]`: `{ b, d, im, p, t }` birth and death years, IMDb id, photo, when (`cr-people-v1`, this device
+  only, in backups; asked again after `FACTS_DAYS`). `metaOf(f)` reads it (example films use `EXAMPLE_META`).
 - `LBX[filmKey]`: Letterboxd averages `{ r, n, slug }`; `{ tries: 1, v: 2 }` not found by the scraper; `{ tries: 1, v: 2, few: true,
   slug }` came back from it without an average; after the film's own page is read, `few: 2` (the page shows no average:
   `lbTooFew`) or `{ tries: 2, v: 2 }` (no page at any address its title gives: `lbNotFound`). `lbRemaining` is the rest.
@@ -497,6 +500,28 @@ standard errors or more from what the rest of the diary gives; every sentence op
   film (`keepPhotos`, `CAST_SEEN`). `personKey` keeps letters of any script (a name only in Hangul or kana used to come
   out empty). On the owner's 50 latest films TMDB lists 2,427 roles: 644 uncredited, 5 archive footage, 2 other, 1,776
   counted. People are matched by name; namesakes changed none of the top 100 of 928 films, so ids aren't kept.
+- **People are TMDB's people, by id** (26 Oct 2026: the owner found Paul Guilfoyle, born 1949, credited with 1940s
+  films; those were Paul Guilfoyle, 1902–1961. TMDB keeps them apart (ids 925 and 104714); the site had matched people
+  by name, so it merged them, with one face for both. "How can I trust the cast data at all? I would like a complete
+  fact check of all the actors and crew.") Every name in a film goes with its TMDB person id (`credits()` in
+  06-lookup, kept in step by `metaPeople` in `cleanMeta`; `TMDB_DETAILS_V` 9 read every film again by its id).
+  `peopleIndex()` (05-core, rebuilt when `META` or `META_REV` changes; `saveMeta` bumps it) finds names that belong to
+  two or more ids in the films kept here and labels each: "Paul Guilfoyle (1902–1961)", "Paul Guilfoyle (born 1949)"
+  from `FACTS`, or "(films 1946–1948)" / "(film of 2016)" until TMDB's dates come or where TMDB has none; TMDB entries
+  with the same IMDb id are one person, under the first name met (`canon`, `nameOf`: TMDB keeps some people twice).
+  `roleNames(m, role)` gives every film's people as shown and counted everywhere (stats, drills, the film card,
+  Compare, search, the study, Watch next, filmographies by id through `personIdOf`), so namesakes never meet; a
+  namesake's photo comes from `FACTS`. **The people check** (06-lookup: `runFacts` after lookups, `peopleCheck`,
+  `peopleCheckBlock` in the Cast & crew box on both layouts, for anyone): TMDB's person page for everyone in two or more
+  of the diary's films and everyone who shares a name (`factsWanted`); a credit TMDB's own dates make impossible (a film
+  made before the person was born; behind the camera, before they were 8: `badCredit`) isn't counted and is listed;
+  roles more than five years after a death are listed as worth a look and still counted (posthumous releases are real);
+  with the IMDb cast check, a role whose IMDb person (`cn`) isn't TMDB's person's IMDb id goes to the TMDB person with
+  that IMDb id, if known, else to nobody (`rolePeople`, `moved`), and is listed. Over about 980 real films (the 928
+  and the owner's 50 latest) it found dozens of shared names (two Victor Wongs, Zhang Yis, Tsai Chins, Paul Lamberts…),
+  4,013 people to date (about 400 KB) and one impossible credit (Jesper Kyd, born 1972, composer of The Passion of Joan
+  of Arc, 1928: a later score). The `people` check covers both layouts, labels before and after dates, photos, an
+  impossible credit, a person kept twice, and filmographies by id.
 - **The owner's cast checked on IMDb** (`06d-letterboxd.js`, `castCheckBlock` in the Cast & crew box under Letterboxd
   averages, both layouts, only for a diary whose username is `SITE_OWNER`: `castCheckOn(lib)`). IMDb can't be read
   from the site or from this container, so Apify's page reader (`apify~jsdom-scraper`, the owner's token) opens each
@@ -711,7 +736,7 @@ shows the latest ~50, so it accumulates), commits, and asks Pages to rebuild. Th
 service cut off unless a check stands in for it, service worker off unless asked, reduced motion, pages opened
 with `?example` (pass `example: false` for an empty browser; a check's own `goto` must add `?example` too),
 `phoneTour()` which opens every phone tab, every Stats view for all time and for a year, and every Insights/Compare section), `run.mjs`, and checks:
-`apify`, `imdbcast` (the owner's cast checked on IMDb), `check` (film data check), `counts` (double counting, also with filters on), `reviews` (missing review text spotted; six-film actors), `welcome` (no example diary; import saved at once), `extras` (year picture, On this day, Watch next, PWA), `feed`, `import`,
+`apify`, `imdbcast` (the owner's cast checked on IMDb), `people` (people by TMDB id, the people check), `check` (film data check), `counts` (double counting, also with filters on), `reviews` (missing review text spotted; six-film actors), `welcome` (no example diary; import saved at once), `extras` (year picture, On this day, Watch next, PWA), `feed`, `import`,
 `links` (every link opens something), `pages` (nothing broken shows, no sideways scroll on the phone),
 `routes`, `storage` (IndexedDB move, backup and restore), `site` (the diary on the site: a stand-in GitHub and site),
 `tmdb` (fixing a match, filmography, search), `extras` also covers the story and every kind and shape of picture, `xss` (nothing from outside can run code, about a minute), `study` (a
@@ -738,7 +763,9 @@ day, shared with the owner's own app. The in-app version is the "Check film data
 ## This cloud environment's quirks
 
 - `letterboxd.com` and `cdnjs.cloudflare.com` are blocked from the container (tests use local copies);
-  TMDB, Apify's API and GitHub work. The GitHub Pages settings API is blocked through the proxy.
+  TMDB, Apify's API and GitHub work. So are IMDb (www, m, datasets, GraphQL), Wikipedia, Wikidata and TMDB's website
+  (only its API works); the owner was told (26 Oct 2026) they can allow them under the environment's Network access
+  settings, which would let a session try the IMDb page reader on real pages and check an uploaded backup. The GitHub Pages settings API is blocked through the proxy.
 - GitHub Actions job logs live on blocked storage: scripts print `::error::…` lines, readable with
   `gh api repos/sjnift/bogie1946/check-runs/<job id>/annotations`.
 - A background `python3 -m http.server` in `docs/` stops after two hours; the checks start their own server.

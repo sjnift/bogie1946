@@ -5,7 +5,13 @@
 // away stops there. Visitors' diaries don't offer it.
 import { open, seed, assert, noErrors } from "./lib.mjs";
 
-const meta = (id, c, d = ["Some Director"]) => ({ src: "tmdb", v: 8, id, im: `tt${String(id).padStart(7, "0")}`, d, c, w: [], p: [], m: [], g: ["Drama"], k: ["USA"], l: "English", r: 100 });
+// each person's TMDB id, the same in every film
+const PID = { "Humphrey Bogart": 101, "Peter Lorre": 102, "Bess Flowers": 103, "Lead Player": 201, "Archive Man": 202, "Quiet One": 301, "Song Kang-ho": 401 };
+const meta = (id, c, d = ["Some Director"]) => ({ src: "tmdb", v: 9, id, y: 1940 + id, im: `tt${String(id).padStart(7, "0")}`, d, c, ci: c.map((n) => PID[n]), w: [], p: [], m: [], g: ["Drama"], k: ["USA"], l: "English", r: 100 });
+// TMDB's dates for two people: Night Cafe's Peter Lorre (TMDB 102) has another IMDb id than the one IMDb's page gives
+// for the role, which is TMDB 777's: TMDB gave the role to the wrong person of that name
+const today = new Date().toISOString().slice(0, 10);
+const facts = { 102: { b: 1904, d: 1964, im: "nm9999999", p: "", t: today }, 777: { b: 1904, d: 1964, im: "nm0000048", p: "", t: today } };
 const films = [
   ["Night Cafe", 1942, meta(1, ["Humphrey Bogart", "Bess Flowers", "Peter Lorre"])],
   ["Old Table", 1950, meta(2, ["Lead Player", "Archive Man"])],
@@ -55,7 +61,7 @@ const metas = Object.fromEntries(films.map(([n, y, m]) => [key(n, y), m]));
 export default async function ({ browser, base }) {
   const p = await open(browser, base, "desktop.html"), runs = [];
   await standIn(p, runs);
-  await seed(p, rows("bogie1946"), { "cr-meta-v1": metas, "cr-apify-key": "apify_api_TEST" });
+  await seed(p, rows("bogie1946"), { "cr-meta-v1": metas, "cr-apify-key": "apify_api_TEST", "cr-people-v1": facts });
   await p.click("#btn-settings");
   assert(/Cast checked on IMDb/i.test(await p.innerText("#lookup")), "the owner's Settings offer the IMDb cast check");
   await p.click('[data-lb="ic-start"]');
@@ -76,11 +82,14 @@ export default async function ({ browser, base }) {
   const box = await p.innerText("#lookup");
   assert(/8 of 8 films checked/.test(box) && /added 4 people/.test(box) && /took off 2 people/.test(box) && /in 3 films/.test(box), `the box says what IMDb changed: ${box.match(/\d+ of 8 films checked[^\n]*/)}`);
   assert(/Checked against IMDb for 8 films/.test(await p.evaluate(() => castRuleText())), "the people pages say the cast was checked on IMDb");
+  // the role TMDB gave to the wrong Peter Lorre goes to the right one, and the people check says so
+  const moved = await p.evaluate(() => { const m = META["night cafe|1942"]; return { to: rolePeople(m, "c").find((x) => x.name === "Peter Lorre"), wrong: peopleCheck(MY_LIB).wrong.map((x) => x.name).join() }; });
+  assert(moved.to && moved.to.id === 777 && moved.to.moved === 102 && moved.wrong === "Peter Lorre in Night Cafe (1942)", `the wrong person of a name: ${JSON.stringify(moved)}`);
   noErrors(p, "desktop");
 
   // the phone shows the box too
   const m = await open(browser, base, "mobile.html", { phone: true });
-  await seed(m, rows("bogie1946"), { "cr-meta-v1": metas, "cr-apify-key": "apify_api_TEST" });
+  await seed(m, rows("bogie1946"), { "cr-meta-v1": metas, "cr-apify-key": "apify_api_TEST", "cr-people-v1": facts });
   await m.click("#nav-right [data-act=\"settings\"]");
   await m.waitForFunction(() => /Cast checked on IMDb/i.test(document.body.innerText), null, { timeout: 5000 });
   noErrors(m, "phone");
@@ -88,7 +97,7 @@ export default async function ({ browser, base }) {
   // a trial IMDb turns away: nothing more is tried
   const q = await open(browser, base, "desktop.html"), runs2 = [];
   await standIn(q, runs2, { turnAway: true });
-  await seed(q, rows("bogie1946"), { "cr-meta-v1": metas, "cr-apify-key": "apify_api_TEST" });
+  await seed(q, rows("bogie1946"), { "cr-meta-v1": metas, "cr-apify-key": "apify_api_TEST", "cr-people-v1": facts });
   await q.click("#btn-settings");
   await q.click('[data-lb="ic-start"]');
   await q.waitForFunction(() => !icJob.running && icJob.note, null, { timeout: 10000 });
@@ -98,7 +107,7 @@ export default async function ({ browser, base }) {
 
   // a visitor's own diary doesn't offer it
   const v = await open(browser, base, "desktop.html");
-  await seed(v, rows("someone_else"), { "cr-meta-v1": metas, "cr-apify-key": "apify_api_TEST" });
+  await seed(v, rows("someone_else"), { "cr-meta-v1": metas, "cr-apify-key": "apify_api_TEST", "cr-people-v1": facts });
   await v.click("#btn-settings");
   assert(!/Cast checked on IMDb/i.test(await v.innerText("#lookup")), "a visitor's Settings don't offer the IMDb cast check");
   for (const x of [p, m, q, v]) await x.close();
