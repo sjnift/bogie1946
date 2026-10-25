@@ -36,7 +36,28 @@ function foldTies(list, countOf, start, group) {
 const peopleTies = (label) => (xs, n) => ({ name: `${fmtN(xs.length)} ${label} with ${plural(n, "film")} each`, to: D.names(`${fmtN(xs.length)} ${label} with ${plural(n, "film")} each`, "Most watched first", xs, { faces: true }) });
 
 /* ---------- section bodies ---------- */
-/* ---------- the People and Genres & countries chapters, in full (asked Oct 2026) ---------- */
+/* ---------- the chapters shown in full (asked Oct 2026): People, Genres & countries, When you watch, Ratings ---------- */
+// How your ratings spread across half-stars.
+function ratingBlock(s) {
+  if (!s.rated) return `<div class="empty">No rated films in this period.</div>`;
+  const cols = s.spread.map((x) => ({ a: x.count, b: 0, label: x.r === 0.5 ? "½" : x.r % 1 ? "" : `${x.r}★`, tip: `${stars(x.r)} · ${plural(x.count, "film")}`, to: x.count && DR.rating(s.films, x.r) }));
+  const most = s.spread.reduce((a, b) => b.count > a.count ? b : a);
+  const facts = [
+    ["Average", dlink(DR.rated(s), `${s.avgRating.toFixed(2)} of 5`)], ["Given most", dlink(DR.rating(s.films, most.r), `${stars(most.r)} · ${plural(most.count, "time")}`)],
+    ["Rated films", dlink(DR.rated(s), fmtN(s.rated))], ["Five stars", dlink(s.spread[9].count && DR.rating(s.films, 5), plural(s.spread[9].count, "film"))],
+  ].map(([k, v]) => `<div class="fact"><span class="k">${k}</span><span class="v">${v}</span></div>`).join("");
+  return `<div class="facts">${facts}</div>${colChart(cols, "How many films you gave each rating", "", 162, { unit: "films" })}`;
+}
+// Your highest-rated films, then the lowest, 2½★ and under, lowest first.
+function bestWorstBlock(s) {
+  const views = viewsOf(s);
+  const top = s.films.filter((f) => f.rating).sort((a, b) => b.rating - a.rating || views(b) - views(a) || (b.year || 0) - (a.year || 0)).slice(0, 12);
+  // the lowest rated, 2½★ and under, lowest first
+  const low = s.films.filter((f) => f.rating && f.rating <= 2.5).sort((a, b) => a.rating - b.rating || views(b) - views(a) || a.name.localeCompare(b.name));
+  const lowRow = low.length ? `<h3 class="sub-h">${dlink(low.length > 8 && D.films("Lowest rated", filmsSub(low, "2½★ and under"), low, { scope: s.scope, sort: "given" }), "Lowest rated")}</h3>
+    <div class="posters">${low.slice(0, 8).map(posterHtml).join("")}</div>` : "";
+  return `${top.length ? `<h3 class="sub-h">Highest rated</h3><div class="posters">${top.map(posterHtml).join("")}</div>` : `<div class="empty">No rated films in this period.</div>`}${lowRow}`;
+}
 function peopleBlock(kind, data, s) {
   const t = state.tab[kind];
   const list = t === "most" ? data.most : data.best;
@@ -107,15 +128,23 @@ function diaryBlock(s) {
 }
 // Decades with three or more rated films, best average first.
 const bestDecades = (s) => s.decades.filter((x) => x.ratings.length >= 3).sort((a, b) => b.avg - a.avg || b.count - a.count).slice(0, 5);
-// The best-rated decade, featured near the top of the page with its best films (the owner's call, Oct 2026).
+// The best-rated decade, featured near the top of the page with its best films, and the second and third best below it
+// with theirs, a little smaller (the owner's call, Oct 2026).
 function bestDecadeBlock(s) {
   const [top, ...next] = bestDecades(s);
   if (!top) return "";
-  return `<div class="best-decade"><div class="bd-head"><span class="eyebrow">Your best decade${s.scope === "all" ? "" : ` · watched in ${esc(s.scope)}`}</span>
+  const when = s.scope === "all" ? "" : ` · watched in ${esc(s.scope)}`;
+  const runner = (x, i) => `<div class="bd-runner"><div class="bd-rhead"><span class="eyebrow">${i ? "Third" : "Second"} best${when}</span>
+      <h3 class="bd-rtitle">${dlink(DR.decade(x), `The <span class="accent">${x.decade}s</span>`)}</h3>
+      <p class="muted"><span class="stars">★</span> ${x.avg.toFixed(2)} average from ${plural(x.ratings.length, "rated film")}</p></div>
+    <div class="posters">${x.top.slice(0, 6).map(posterHtml).join("")}</div></div>`;
+  const rest = next.slice(2, 4);
+  return `<div class="best-decade"><div class="bd-head"><span class="eyebrow">Your best decade${when}</span>
       <h3 class="bd-title">${dlink(DR.decade(top), `The <span class="accent">${top.decade}s</span>`)}</h3>
-      <p class="muted"><span class="stars">★</span> ${top.avg.toFixed(2)} average from ${plural(top.ratings.length, "rated film")}</p>
-      ${next.length ? `<p class="bd-next">Then ${joinAnd(next.slice(0, 3).map((x) => `${dlink(DR.decade(x), `the ${x.decade}s`)} <span class="muted">${x.avg.toFixed(2)}</span>`))}.</p>` : ""}</div>
-    <div class="posters">${top.top.slice(0, 8).map(posterHtml).join("")}</div></div>`;
+      <p class="muted"><span class="stars">★</span> ${top.avg.toFixed(2)} average from ${plural(top.ratings.length, "rated film")}</p></div>
+    <div class="posters">${top.top.slice(0, 8).map(posterHtml).join("")}</div></div>
+    ${next.length ? `<div class="bd-runners">${next.slice(0, 2).map(runner).join("")}</div>` : ""}
+    ${rest.length ? `<p class="bd-next">Then ${joinAnd(rest.map((x) => `${dlink(DR.decade(x), `the ${x.decade}s`)} <span class="muted">${x.avg.toFixed(2)}</span>`))}.</p>` : ""}`;
 }
 const milestoneMarks = (s) => s.scope === "all" ? [50, 100, 250, 500, 750, 1000, 1500, 2000, 2500, 3000, 4000, 5000, 7500, 10000] : [25, 50, 100, 150, 200, 250, 300, 365, 400, 500];
 // `most`: the first, the latest and the marks just before it (the main page's card shows five).
@@ -192,10 +221,6 @@ function cardLines(s) {
   if (me) L.milestones = `${hit ? `Your ${ordinal(hit)} film` : "Your first film"}${s.scope === "all" ? "" : ` of ${esc(s.scope)}`}: ${dlink(D.film(me.film, { entry: me }), esc(me.film.name))}, ${fmtDate(me.date)}.`;
   const re = s.films.filter((f) => views(f) > 1).sort((a, b) => views(b) - views(a) || (b.rating || 0) - (a.rating || 0))[0];
   if (re) L.rewatched = `${dlink(D.film(re), esc(re.name))} leads, with ${views(re)} viewings.`;
-  const bm = s.busiestMonth;
-  if (bm) L.logged = `Busiest month: ${dlink(DR.month(s.entries, bm.key), `${monthName(bm.key)}, ${plural(bm.count, "film")}`)}. Longest streak: ${dlink(DR.streak(s), plural(s.streak.days, "day"))} in a row.`;
-  if (s.rated) { const most = s.spread.reduce((a, b) => b.count > a.count ? b : a);
-    L.rated = `${dlink(DR.rated(s), `${s.avgRating.toFixed(2)} on average`)} from ${plural(s.rated, "rated film")}; you give ${dlink(DR.rating(s.films, most.r), stars(most.r))} most.`; }
   const five = s.films.filter((f) => f.rating === 5), low = s.films.filter((f) => f.rating && f.rating <= 2.5);
   if (s.rated) L.top = `${five.length ? dlink(D.films("Five stars", filmsSub(five), five, { scope: s.scope }), plural(five.length, "five-star film")) : "No five-star films yet"}${low.length ? `; ${dlink(D.films("Lowest rated", filmsSub(low, "2½★ and under"), low, { scope: s.scope, sort: "given" }), plural(low.length, "film"))} at 2½★ or under` : ""}.`;
   return L;

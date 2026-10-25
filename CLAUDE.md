@@ -75,20 +75,25 @@ Where it lives:
     Starring / the phone's People says the bar (`castBarText`). Every other kind of person keeps `minRated` (2, or 3
     for 150+ films). The `reviews` check covers both.
   - The best-rated decade is featured prominently with its films' posters (asked again Oct 2026): the desktop's "Best
-    decade" in full right under On this day (`bestDecadeBlock`), the phone's Profile under On this day and Breakdown.
+    decade" in full right under On this day (`bestDecadeBlock`: its head above eight large posters), the phone's Profile
+    under On this day and Breakdown. **The second and third best follow it with their posters, a little smaller**
+    (asked 25 Oct 2026): desktop `.bd-runner`s side by side with six posters each, then "Then the 2000s… and the
+    1950s…"; phone Profile `decadeRunnerCard` under the hero card. The `extras` check covers both.
   - **The desktop main page is a dashboard** (asked Oct 2026: "cluttered with too much data in full view"; a first try
     that cut cards short and opened them in place was rejected, since opening one brought the old clutter back). Recently
     watched, On this day and the best decade show in full; so do **People** (Starring, Directed by, Crew, People over the
-    years / New in a year) and **Genres & countries** (Genre & origin, Genres year by year, Genres as you rate them), as
-    full sections like before (the owner asked for those two back expanded, 25 Oct 2026: `peopleBlock`, `crewBlock`,
-    `catBlock` in `07-render-b.js`; `dashChapters` marks them `full`). Every other chapter is a grid of cards made for
+    years / New in a year), **Genres & countries** (Genre & origin, Around the world, Genres year by year, Genres as you
+    rate them), **When you watch** (Logged, Month by month, Year by year or Against the year before, Habits) and
+    **Ratings** (Rated, Against the crowd with its tabs, Highest & lowest rated), as full sections like before (the owner
+    asked for these back expanded, 25 Oct 2026: `peopleBlock`, `crewBlock`, `catBlock`, `ratingBlock`, `bestWorstBlock`
+    in `07-render-b.js`; `dashChapters` marks them `full`). The other chapters (Films, Reviews, Watch next) are a grid of cards made for
     their size (`07-render-d.js`: `dashChapters`, `dcard`): a title (and its switch, if any), a line with the headline
     numbers (each a link; `cardLines`, `monthsLine`), ONE picture (a chart, a short ranked list, five posters, the month grid)
     and "See all" opening the rest in the pop-up: a list (`D.names`, `D.films`, `D.groups`) or a whole section
-    (`D.block(title, sub, () => html)`, drill kind `block`, the old section functions like `yearsBlock`, `diaryBlock`,
-    `crowdBlock(C, Y, true)` without its tabs). **Nothing is cut off and nothing opens in place.** A lone card in a
-    chapter is full width and uses it (`wide`: highest beside lowest rated, ten Watch next picks). **Highest and lowest
-    rated** are off the top, the last card of Ratings (phone: Stats › Films after Records). The `counts` check also audits every list inside the `block` pop-ups; `xss` opens each of them.
+    (`D.block(title, sub, () => html)`, drill kind `block`, the old section functions like
+    `milestonesBlock`). **Nothing is cut off and nothing opens in place.** A lone card in a chapter is full width and
+    uses it (`wide`: ten Watch next picks). **Highest and lowest rated** are off the top, the last section of Ratings
+    (phone: Stats › Films after Records). The `counts` check also audits every list inside the `block` pop-ups; `xss` opens each of them.
   - **Insights is a study of the diary, not a repeat of the Stats page** (they found the old one inadequate and
     repetitive, Oct 2026): what stood apart and when, how taste moved, what ratings follow and why, how one film led to
     another, and habits with what they explain. No counts or top lists the Stats page already shows (the `study` check

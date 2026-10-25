@@ -96,6 +96,13 @@ function bestDecadeCard(x, scope) {
       <span class="dh-sub"><span class="stars">★</span> ${x.avg.toFixed(2)} average from ${plural(x.ratings.length, "rated film")}${CHEV}</span></button>
     <div class="scroller">${x.top.map((f) => posterItem(f)).join("")}</div></section>`;
 }
+// The second and third best, under it on Profile, a little smaller (the owner's call, Oct 2026).
+function decadeRunnerCard(x, i, scope) {
+  return `<section class="card decade-run"><p class="dh-k">${i ? "Third" : "Second"} best${scope === "all" ? "" : ` · watched in ${esc(scope)}`}</p>
+    <button class="dh-title" type="button" ${dl(DR.decade(x))}><span class="dr-dec">The ${x.decade}s</span>
+      <span class="dh-sub"><span class="stars">★</span> ${x.avg.toFixed(2)} average from ${plural(x.ratings.length, "rated film")}${CHEV}</span></button>
+    <div class="scroller">${x.top.map((f) => posterItem(f)).join("")}</div></section>`;
+}
 // A decade in the ranking: its average and its three best posters.
 const decadeRow = (x, i) => `<button class="drank" type="button" data-k="d${x.decade}" ${dl(DR.decade(x))}><span class="rk">${i + 1}</span>
   <span style="min-width:0"><span class="nm">${x.decade}s</span><span class="sub"><span class="stars">★</span> ${x.avg.toFixed(2)} average · ${plural(x.count, "film")}</span></span>

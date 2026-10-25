@@ -536,7 +536,7 @@ footer { border-top: 1px solid var(--line); padding-block: 22px 40px; color: var
 footer p { margin: 0 0 6px; max-width: 80ch; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 /* the best-rated decade */
-.best-decade { display: grid; grid-template-columns: minmax(180px, 240px) minmax(0, 1fr); gap: 16px 28px; align-items: center; padding: 18px 20px;
+.best-decade { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; padding: 18px 20px;
   border: 1px solid var(--line); border-radius: var(--radius); background: linear-gradient(120deg, color-mix(in srgb, var(--gold) 12%, var(--surface)), var(--surface) 60%); }
 .bd-head { display: grid; gap: 6px; }
 .bd-title { font-family: var(--display); font-weight: 800; font-size: 52px; line-height: .9; text-transform: uppercase; letter-spacing: .01em; }
@@ -544,9 +544,25 @@ footer p { margin: 0 0 6px; max-width: 80ch; }
 .bd-title .accent { color: var(--gold-ink); }
 .bd-head p { margin: 0; }
 .best-decade .posters { grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 10px; }
-.bd-next { font-size: 13.5px; color: var(--ink-2); }
+.bd-next { margin: 0; font-size: 13.5px; color: var(--ink-2); }
+/* the second and third best, side by side, their posters a little smaller */
+.bd-runners { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 14px; }
+.bd-runner { display: grid; gap: 12px; align-content: start; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius);
+  background: linear-gradient(120deg, color-mix(in srgb, var(--gold) 6%, var(--surface)), var(--surface) 60%); }
+.bd-rhead { display: grid; gap: 4px; }
+.bd-rhead p { margin: 0; font-size: 13px; }
+.bd-rtitle { font-family: var(--display); font-weight: 800; font-size: 32px; line-height: .95; text-transform: uppercase; letter-spacing: .01em; }
+.bd-rtitle .dlink { text-decoration: none; }
+.bd-rtitle .accent { color: var(--gold-ink); }
+.bd-runner .posters { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+.bd-runner .poster .art { padding: 6px; }
+.bd-runner .poster .art .t { font-size: 12px; }
+.bd-runner .poster .art .y { font-size: 10.5px; }
+.bd-runner .poster .cap { font-size: 11px; }
+.bd-runners + .bd-next { margin-top: 12px; }
+@media (max-width: 1100px) { .bd-runners { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 1100px) { .best-decade .posters { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
-@media (max-width: 760px) { .best-decade { grid-template-columns: minmax(0, 1fr); } .best-decade .posters { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 760px) { .best-decade .posters { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 /* month by month: a square for every month of every year */
 .mgrid { border-collapse: separate; border-spacing: 3px; width: 100%; font-variant-numeric: tabular-nums; }
 .mgrid th { font-size: 12px; font-weight: 600; color: var(--muted); text-align: center; padding: 2px; }
@@ -576,13 +592,10 @@ footer p { margin: 0 0 6px; max-width: 80ch; }
 .dc-more { all: unset; cursor: pointer; display: inline-block; padding: 8px 0 2px; font-size: 13.5px; font-weight: 600; color: var(--gold-ink); }
 .dc-more:hover { text-decoration: underline 1px; text-underline-offset: 3px; }
 .dc-more:focus-visible { outline: 2px solid var(--gold-ink); outline-offset: 2px; border-radius: 4px; }
-.dc-h { margin: 0 0 6px; font-family: var(--mono); font-size: 11.5px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
 .dc-posters { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
 .dc.wide > .dc-body > .dc-posters { grid-template-columns: repeat(10, minmax(0, 1fr)); }
 @media (max-width: 1100px) { .dc.wide > .dc-body > .dc-posters { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
 .dc .milestones { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-.dc-cols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
-.dc-cols.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .dc-list { display: grid; gap: 2px; }
 .dc-row { all: unset; box-sizing: border-box; cursor: pointer; display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto; gap: 10px; align-items: center;
   padding: 5px 6px; border-radius: 6px; font-size: 13.5px; }
@@ -591,11 +604,7 @@ footer p { margin: 0 0 6px; max-width: 80ch; }
 .dc-row .track { height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
 .dc-row .track span { display: block; height: 100%; background: var(--gold); border-radius: 3px; }
 .dc-row .v { color: var(--ink-2); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
-.dc-row.vs { grid-template-columns: minmax(0, 1fr) auto; }
-.dc-row.vs .v b { color: var(--ink); }
-.dc .habits { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .dc .review-tools input { width: 100%; }
-@media (max-width: 1100px) { .dc-cols { grid-template-columns: minmax(0, 1fr); } }
 /* a whole section in the pop-up */
 .dblock { display: grid; gap: 18px; }
 /* nothing imported yet: just the title band and how to import */

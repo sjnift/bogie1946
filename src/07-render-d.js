@@ -2,7 +2,8 @@
 /* ---------- desktop: the main page below On this day, as a dashboard (asked Oct 2026, after cards that opened in place
    only brought the old clutter back). Each section is a card made for its size: a headline, one picture of it (a chart,
    a few posters, a short list) and "See all" opening the rest in the pop-up. Nothing is cut off and nothing opens in place.
-   People and Genres & countries stay in full, as sections, the way they were before (the owner's call, 25 Oct 2026). */
+   People, Genres & countries, When you watch and Ratings stay in full, as sections, the way they were before (the owner's
+   call, 25 Oct 2026). */
 D.block = (title, sub, html) => ({ kind: "block", title, sub, html });
 const TOP_N = 5;
 // A card: its title (and a switch, where it has one), the line that sums it up, its picture, and a way to the rest.
@@ -17,7 +18,7 @@ const dposters = (films, cap, n = TOP_N) => `<div class="posters dc-posters">${f
 const dlist = (items, valueOf, widthOf, toOf) => `<div class="dc-list">${items.map((x) => `<button class="dc-row" type="button" ${dl(toOf(x))}><span class="n">${esc(x.name)}</span>
   <span class="track" aria-hidden="true"><span style="width:${Math.max(2, widthOf(x) * 100).toFixed(1)}%"></span></span><span class="v">${valueOf(x)}</span></button>`).join("")}</div>`;
 
-// The chapters, in order: cards, except the two marked to show in full.
+// The chapters, in order: cards, except those marked to show in full.
 function dashChapters(s) {
   const all = s.scope === "all", noMeta = !s.withMeta, L = cardLines(s), lib = state.lib, scope = s.scope;
   const I = homeInsights(), R = all ? null : homeInsights(s.scope), views = viewsOf(s);
@@ -55,47 +56,22 @@ function dashChapters(s) {
     all ? section("genre-years", "Genres year by year", "The share of each year's films in each genre.", noMeta ? emptyMeta() : genreYearsBlock(I)) : "",
     all ? section("genre-rates", "Genres as you rate them", "Each genre against your own average and against the crowd.", noMeta ? emptyMeta() : genresBlock(I)) : ""];
 
-  /* when you watch */
-  const tl = s.entries.length ? timeline(s) : [];
-  const unit = s.scope !== "all" ? "week" : tl.length && tl[0].key.length === 7 ? "month" : "year";
-  const logged = s.entries.length ? { line: L.logged, body: colChart(tl, `Diary entries by ${unit}`, "", 110, { unit: "films" }),
-    more: [D.block("Logged", all ? "Diary entries over time, by day and by date" : `Diary entries in ${s.scope}`, () => diaryBlock(s)), "Days, weeks and streaks"] } : null;
-  const G = monthGrid(lib, metaOf, all ? null : s.scope);
-  const months = G ? { line: monthsLine(G), body: monthGridHtml(G),
-    more: [D.block(G.Y ? `Each month of ${G.Y}` : "Each month, across the years", G.Y ? "Against your usual for each month" : "Films, a year, your average and what it leans to", () => monthTableHtml(G)), "Each month in detail"] } : null;
-  let years = null;
-  if (all && I.years.length >= 2) {
-    const top = [...I.years].sort((a, b) => b.films - a.films)[0];
-    years = { line: `${dlink(yearDrill(top, "films"), top.year)} was your fullest year: ${plural(top.films, "film")}.`,
-      body: colChart(I.years.map((p) => ({ a: p.films, b: p.pace && p.pace > p.films ? p.pace - p.films : 0, label: `’${p.year.slice(2)}`, tip: `${p.year}: ${plural(p.films, "film")}${p.pace ? `, on pace for about ${fmtN(p.pace)}` : ""}`, to: p.entries ? yearDrill(p, "films") : null })), "Films by year", "", 110, { unit: "films" }),
-      more: [D.block("Year by year", "By the year you watched, from diary dates", () => yearsBlock(I)), "Hours, ratings and more, year by year"] };
-  }
+  /* when you watch, and ratings: these stay in full too (asked Oct 2026) */
   const prevY = all ? "" : String(+s.scope - 1);
-  const vsprev = !all && R.changes.length ? { line: `${esc(s.scope)} next to ${prevY}.`,
-    body: `<div class="dc-list">${R.changes.slice(0, 4).map((c) => `<button class="dc-row vs" type="button" ${dl(c.to)}><span class="n">${esc(c.label)}</span><span class="v">${esc(String(c.before))} → <b>${esc(String(c.now))}</b></span></button>`).join("")}</div>`,
-    more: [D.block(`${s.scope} against ${prevY}`, "Everything that changed", () => vsPrevBlock(R, prevY)), "Everything against the year before"] } : null;
+  const G = monthGrid(lib, metaOf, all ? null : s.scope), mLine = G && monthsLine(G);
   const hab = all ? I.habits : R.habits.filter((h) => !["Longest streak", "Biggest day", "Oldest film"].includes(h.k));
-  const habits = hab.length ? { line: all ? "When and how you watch." : `When and how you watched in ${esc(s.scope)}.`, body: habitsBlock(hab.slice(0, 2), ""),
-    more: [hab.length > 2 && D.block("Habits", all ? "When and how you watch" : `When and how you watched in ${s.scope}`, () => habitsBlock(hab, "")), `All ${hab.length} habits`] } : null;
-
-  /* ratings */
-  const rated = s.rated ? { line: L.rated, body: colChart(s.spread.map((x) => ({ a: x.count, b: 0, label: x.r === 0.5 ? "½" : x.r % 1 ? "" : `${x.r}★`, tip: `${stars(x.r)} · ${plural(x.count, "film")}`, to: x.count && DR.rating(s.films, x.r) })), "How many films you gave each rating", "", 110, { unit: "films" }),
-    more: [DR.rated(s), `All ${fmtN(s.rated)} rated films`] } : null;
+  const whenFull = [
+    section("logged", "Logged", all ? "Diary entries over time, by day and by date." : `Diary entries in ${esc(s.scope)}, week by week.`, diaryBlock(s)),
+    section("months", "Month by month", G && G.Y ? `Each month of ${esc(G.Y)} against your usual for it.` : "Every month of every year, darker for more.",
+      G ? `${mLine ? `<p class="lead">${mLine}</p>` : ""}${monthGridHtml(G)}${monthTableHtml(G)}` : monthTableHtml(G)),
+    all ? section("years", "Year by year", "By the year you watched, from diary dates.", yearsBlock(I)) : "",
+    all ? "" : section("vsprev", `Against ${prevY}`, `${esc(s.scope)} next to the year before.`, vsPrevBlock(R, prevY)),
+    section("habits", "Habits", all ? "When and how you watch." : `When and how you watched in ${esc(s.scope)}.`, habitsBlock(hab, "Habits come from diary dates."))];
   const k = HOME_INS.k, C = all ? crowdOf(k, lib.films) : crowdOf(k, R.S.films, R.ratingAt), Y = all ? null : s.scope;
-  const crowdTabs = Object.entries(CROWDS).filter(([key]) => (C.available[key] || 0) >= (Y ? 3 : 5) || key === C.key);
-  const crowd = { tabs: crowdTabs.length > 1 ? `<div class="tabs" role="tablist">${crowdTabs.map(([key, c]) => `<button class="tab" role="tab" type="button" data-crowd="${key}" aria-selected="${key === C.key}">${c.label}</button>`).join("")}</div>` : "" };
-  if (C.n < (Y ? 3 : 5)) crowd.body = crowdBlock(C, Y, true);
-  else {
-    crowd.line = `${Y ? `On the ${dlink(C.to, plural(C.n, "film"))} you rated in ${esc(Y)}, you gave` : `Across ${dlink(C.to, plural(C.n, "film"))} you rated, you give`} ${Math.abs(C.meanDiff).toFixed(2)}★ ${C.meanDiff >= 0 ? "more" : "less"} than ${esc(C.label)} on average.`;
-    crowd.body = C.higher.length ? `<h4 class="dc-h">You liked more than ${esc(C.label)}</h4>` + dposters(C.higher.map((p) => p.f), (f) => { const p = C.higher.find((x) => x.f === f);
-      return `<span class="cap"><span class="stars">${stars(p.you)}</span><span class="muted">${esc(C.short)} ${crowdScore(C.key, p.crowd)}</span></span>`; }) : `<p class="status">No film you rated ¾★ or more above them.</p>`;
-    crowd.more = [D.block("Against the crowd", all ? "Where your ratings part ways with everyone else's" : `Films you rated in ${Y}`, () => crowdBlock(C, Y, true)), "Liked more, liked less, hidden gems"];
-  }
-  const ratedFilms = s.films.filter((f) => f.rating).sort((a, b) => b.rating - a.rating || views(b) - views(a) || (b.year || 0) - (a.year || 0));
-  const low = s.films.filter((f) => f.rating && f.rating <= 2.5).sort((a, b) => a.rating - b.rating || views(b) - views(a) || a.name.localeCompare(b.name));
-  const top = ratedFilms.length ? { wide: true, line: L.top,
-    body: `<div class="dc-cols two"><div><h4 class="dc-h">Highest rated</h4>${dposters(ratedFilms)}</div><div><h4 class="dc-h">Lowest rated</h4>${low.length ? dposters(low) : `<p class="status">Nothing at 2½★ or under.</p>`}</div></div>`,
-    more: [D.groups("Highest and lowest rated", "", [D.films("Highest rated", filmsSub(ratedFilms), ratedFilms, { scope, sort: "given" }), ...(low.length ? [D.films("Lowest rated", filmsSub(low, "2½★ and under"), low, { scope, sort: "given" })] : [])]), "All, highest first, and the lowest"] } : null;
+  const ratingsFull = [
+    section("rated", "Rated", "How your ratings spread across half-stars.", ratingBlock(s)),
+    section("crowd", "Against the crowd", all ? "Where your ratings part ways with everyone else's." : `Films you rated in ${esc(s.scope)}.`, crowdBlock(C, Y)),
+    section("top", "Highest &amp; lowest rated", L.top || "Your highest-rated films and your lowest.", bestWorstBlock(s))];
 
   /* reviews and watch next */
   const RI = lib.reviewTextMissing ? null : computeReviewInsights(lib, all ? null : s.scope);
@@ -117,8 +93,8 @@ function dashChapters(s) {
       records ? dcard("records", "Records", { body: records }) : "", dcard("rewatched", "Most rewatched", rewatched)]],
     ["people", "People", peopleFull, true],
     ["origin", "Genres &amp; countries", originFull, true],
-    ["when", "When you watch", [dcard("logged", "Logged", logged), dcard("months", "Month by month", months), dcard("years", "Year by year", years), dcard("vsprev", `Against ${prevY}`, vsprev), dcard("habits", "Habits", habits)]],
-    ["ratings", "Ratings", [dcard("rated", "Rated", rated), dcard("crowd", "Against the crowd", crowd), dcard("top", "Highest &amp; lowest rated", top)]],
+    ["when", "When you watch", whenFull, true],
+    ["ratings", "Ratings", ratingsFull, true],
     ["reviews", "Reviews", [dcard("reviews", "Reviewed", { wide: !reviewStats, line: all ? "Your latest reviews. Search finds any of them." : `What you wrote about films you watched in ${esc(s.scope)}, latest first.`, body: reviewsBlock(s) }),
       dcard("review-stats", "Reviews in numbers", reviewStats)]],
     ["next", "Watch next", [dcard("next", "Watch next", next)]],

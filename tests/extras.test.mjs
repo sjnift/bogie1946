@@ -70,6 +70,11 @@ export default async function ({ browser, base }) {
     await close();
     // the phone's Stats › Years: each year's average rating, the highest in gold and the lowest in purple
     if (phone) {
+      await p.evaluate(() => { state.scope = "all"; goTo("profile", { force: true, top: true }); }); await p.waitForTimeout(200);
+      const dec = await p.evaluate(() => ({ want: Math.min(2, rankedDecades(computeStats(state.lib, metaOf, "all")).length - 1),
+        runs: [...document.querySelectorAll(".decade-run")].map((c) => [c.querySelector(".dr-dec").textContent, c.querySelectorAll(".pitem").length]),
+        sizes: [".decade-hero .pitem", ".decade-run .pitem"].map((sel) => Math.round(document.querySelector(sel).getBoundingClientRect().width)) }));
+      assert(dec.want === 2 && dec.runs.length === 2 && dec.runs.every(([t, n]) => /^The \d{4}s$/.test(t) && n >= 3) && dec.sizes[1] < dec.sizes[0], `phone second and third best decades: ${JSON.stringify(dec)}`);
       await p.evaluate(() => { state.scope = "all"; goTo("years", { force: true, top: true }); }); await p.waitForTimeout(200);
       const ph = await p.evaluate(() => {
         const cells = [...document.querySelectorAll(".yrow")].filter((r) => /^\d{4}$/.test(r.querySelector(".y").textContent.trim()))
@@ -99,20 +104,28 @@ export default async function ({ browser, base }) {
     const full = (ch) => { const out = []; let m = document.getElementById(ch).nextElementSibling;
       while (m && !m.classList.contains("ch-mark")) { out.push(m.classList.contains("credit") ? m.id : `!${m.className}`); m = m.nextElementSibling; } return out; };
     return { ids, cards: document.querySelectorAll("#sections .dc").length, more: document.querySelectorAll("#sections .dc-more").length,
-      people: full("ch-people"), origin: full("ch-origin"), faces: document.querySelectorAll("#starring .person").length, cats: document.querySelectorAll("#origin .cat-grid h3").length }; });
+      people: full("ch-people"), origin: full("ch-origin"), when: full("ch-when"), ratings: full("ch-ratings"),
+      faces: document.querySelectorAll("#starring .person").length, cats: document.querySelectorAll("#origin .cat-grid h3").length,
+      // the best decade, then the second and third with their posters, smaller
+      decades: bestDecades(computeStats(state.lib, metaOf, "all")).length, runners: [...document.querySelectorAll("#best-decade .bd-runner")].map((r) => r.querySelectorAll(".poster").length),
+      sizes: [document.querySelector("#best-decade .best-decade .poster"), document.querySelector("#best-decade .bd-runner .poster")].map((p) => p && Math.round(p.getBoundingClientRect().width)) }; });
   const at = (id) => lay.ids.indexOf(id);
   assert(at("best-decade") > at("recent") && at("best-decade") < at("ch-films") && at("top") > at("ch-ratings") && at("top") > at("rated"), `main page order: ${lay.ids.join(" ")}`);
-  assert(lay.cards >= 10 && lay.more >= 8, `main page cards: ${JSON.stringify({ cards: lay.cards, more: lay.more })}`);
-  assert(lay.people.join() === "starring,directed,crew,people-years" && lay.origin.join() === "origin,world,genre-years,genre-rates" && lay.faces >= 5 && lay.cats === 3,
-    `People and Genres & countries in full: ${JSON.stringify(lay)}`);
+  assert(lay.cards >= 5 && lay.more >= 3, `main page cards: ${JSON.stringify({ cards: lay.cards, more: lay.more })}`);
+  assert(lay.people.join() === "starring,directed,crew,people-years" && lay.origin.join() === "origin,world,genre-years,genre-rates" && lay.faces >= 5 && lay.cats === 3
+    && lay.when.join() === "logged,months,years,habits" && lay.ratings.join() === "rated,crowd,top",
+    `People, Genres & countries, When you watch and Ratings in full: ${JSON.stringify(lay)}`);
+  assert(lay.decades >= 3 && lay.runners.length === 2 && lay.runners.every((n) => n >= 3 && n <= 6) && lay.sizes[1] < lay.sizes[0],
+    `second and third best decades: ${JSON.stringify({ decades: lay.decades, runners: lay.runners, sizes: lay.sizes })}`);
   // a card's "See all" opens the whole section in the pop-up, not in place
-  await d.click("#years .dc-more"); await d.waitForTimeout(150);
-  assert(await d.evaluate(() => $("#dlg").open && !!$("#dlg .dblock table")), "Year by year didn't open in the pop-up");
+  await d.click("#milestones .dc-more"); await d.waitForTimeout(150);
+  assert(await d.evaluate(() => $("#dlg").open && !!$("#dlg .dblock .milestones")), "Milestones didn't open in the pop-up");
+  await d.keyboard.press("Escape"); await d.waitForTimeout(100);
   // tables that compare their rows: the highest of each column in gold, the lowest in purple; the average rating column
   // marks exactly its top and bottom, the films column leaves out a year still under way
   const marks = await d.evaluate(() => {
     const num = (td) => parseFloat(td.textContent.replace(/[^\d.−-]/g, "").replace("−", "-"));
-    const rows = [...$("#dlg .dblock table.data tbody").rows], col = (i) => rows.map((r) => r.cells[i]).filter((td) => /\d/.test(td.textContent));
+    const rows = [...$("#years table.data tbody").rows], col = (i) => rows.map((r) => r.cells[i]).filter((td) => /\d/.test(td.textContent));
     const avg = col(3), vals = avg.map(num), films = rows.filter((r) => !/pace/.test(r.cells[0].textContent)).map((r) => r.cells[1]);
     return { hi: avg.filter((td) => td.classList.contains("hi")).map(num), lo: avg.filter((td) => td.classList.contains("lo")).map(num), max: Math.max(...vals), min: Math.min(...vals),
       filmsHi: films.filter((td) => td.classList.contains("hi")).map(num), filmsMax: Math.max(...films.map(num)),
@@ -120,7 +133,6 @@ export default async function ({ browser, base }) {
   });
   assert(marks.hi.length && marks.hi.every((v) => v === marks.max) && marks.lo.length && marks.lo.every((v) => v === marks.min) && marks.filmsHi[0] === marks.filmsMax
     && marks.unit === " hi/ lo// | //// hi | /", `highest in gold, lowest in purple: ${JSON.stringify(marks)}`);
-  await d.keyboard.press("Escape"); await d.waitForTimeout(100);
   // the full sections keep their switches: Highest rated for actors, and for genres
   await d.click('#starring [data-tab="cast"][data-val="best"]'); await d.waitForTimeout(150);
   await d.click('#origin [data-tab="cats"][data-val="best"]'); await d.waitForTimeout(150);
