@@ -308,6 +308,16 @@ standard errors or more from what the rest of the diary gives; every sentence op
 - Threads: doors that opened (four or more by one person within 120 days), chains (each film sharing someone with one
   seen in the ten days before). Habits: weekends, a genre's month, a month for
   rewatching, comfort after a break, busy against quiet months, marathon days, logging and rating over time, second looks.
+- **A single year** (`computeYearStudy`) is never left blank where it has films (the owner found a 186-film 2021 with
+  nothing under "What set it apart" or month by month, Oct 2026; a realistic made-up diary with no planted patterns
+  left most years empty): what set it apart is clear differences (`standouts`, z 3), then leanings (z 2, said as "a
+  lean toward"), then what it had less of (`shortfalls`), then older/longer/better-regarded and the like (z 2.5); with
+  none, "True to form" says how it kept to the usual mix, with the numbers. Month by month: the year's chapters (a
+  single month can be one, z 3) and "Season by season" (`R.seasons`: each quarter's lean against the rest of the year,
+  genres, decades, places and languages before people). Threads are the year's own (`threadStudy(B, Y, 4)`), not the
+  whole diary's top six. Habits add a day of the week, picking up or slowing down through the year, a break of 10+
+  days, and with none, "Your usual rhythm". The `study` check fails if any year's section (but threads) is empty.
+- People in findings are counts ("4 of 22 were by …, and hardly any the rest of the time": `standoutText`, `vsShare`).
 - It works for any account's export. Without film details (no TMDB key) it still finds decades, release-year
   drifts, ratings by decade and timing, and every habit; genres, countries, people and threads need cast & crew.
 - Speed: about 0.5 s for 2,000 films on a phone slowed four times; the phone works it out in idle time (`warmUp`) and

@@ -91,6 +91,12 @@ function threadsBlock(T, empty = "No film has led to a run of others yet: four o
 }
 
 /* ----- one year, against the rest of the diary ----- */
+// the year's chapters, then what each season leaned toward against the rest of the year
+function monthsBlock(R, Y) {
+  const seasons = R.seasons.length ? (R.chapters.length ? `<h3 class="sub-h">Season by season</h3>` : "") + lineItems(R.seasons, () => "◆") : "";
+  if (!R.chapters.length && !seasons) return `<div class="empty">No stretch of ${esc(Y)} stands apart: you kept much the same mix all year.</div>`;
+  return (R.chapters.length ? chaptersBlock(R.chapters, null, false) : "") + seasons;
+}
 function renderYearInsights(Y) {
   const lib = state.lib, R = desktopStudy(Y);
   $("#hero-title").innerHTML = `<span class="accent">${esc(Y)}</span> insights`;
@@ -103,7 +109,7 @@ function renderYearInsights(Y) {
   $("#insights").innerHTML = [
     section("y-glance", `${esc(Y)} in short`, `The year's clearest differences. ${dlink(R.n.entries && D.story(Y), "▶ Play it as a story")} · ${dlink(R.n.entries && D.share(Y), "share it as a picture")}`, glanceBlock(R.overview, `Nothing about ${esc(Y)} stands out clearly from your other years yet.`)),
     section("y-differ", "What set it apart", `What ${esc(Y)}'s films were made of, against your other years.`, differ + places),
-    section("y-chapters", `${esc(Y)}, month by month`, "Stretches of the year that stood apart.", chaptersBlock(R.chapters, null, false).replace("No stretch of your diary", `No stretch of ${esc(Y)}`)),
+    section("y-chapters", `${esc(Y)}, month by month`, "Stretches of the year that stood apart, and what each season leaned toward.", monthsBlock(R, Y)),
     section("y-ratings", `Ratings in ${esc(Y)}`, "The year against your usual, with the crowd's view of the same films.", findings(R.ratings, `Not enough rated films in ${esc(Y)}.`)),
     section("y-threads", `Threads in ${esc(Y)}`, "Runs of films by the same people that began this year.", threadsBlock(R.threads, `No run of films by one person began in ${esc(Y)}.`)),
     section("y-habits", `Habits in ${esc(Y)}`, "How the year's watching differed from your usual.", findings(R.habits, `${esc(Y)} was much like your other years.`)),

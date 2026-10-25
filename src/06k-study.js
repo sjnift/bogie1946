@@ -101,9 +101,10 @@ function facetCounts(xs) {
 }
 
 /* ----- what sets a group of films apart from the rest of the diary ----- */
-// `strict` is for chapters: people need four films and an eighth of the stretch before they count.
-function standouts(F, B, strict) {
-  const out = [], C = B.counts;
+// `strict` is for chapters: people need four films and an eighth of the stretch before they count. `o` lowers the bar
+// for a leaning ({ z, ratio }); `B.counts` can be another set's (a year's, for its seasons).
+function standouts(F, B, strict, o = {}) {
+  const out = [], C = B.counts, zBar = o.z ?? STUDY_Z, ratio = o.ratio ?? 1.6;
   const nOf = (fid, list) => fid === "dec" ? list.filter((x) => x.dec).length : list.filter((x) => x.m).length;
   for (const [fid, fc] of Object.entries(FACETS)) {
     const n = nOf(fid, F), N = fid === "dec" ? C.n.dec : C.n.meta;
@@ -114,16 +115,41 @@ function standouts(F, B, strict) {
       const p0 = ((C[fid].get(v) || 0) - k) / (N - n), share = k / n;
       const minK = fc.person ? (strict ? 4 : 3) : Math.max(4, Math.ceil(n * 0.08));
       const minGap = fc.person ? (strict ? 0.12 : 0.05) : 0.08;
-      if (k < minK || share - p0 < minGap || share < 1.6 * p0) continue;
+      if (k < minK || share - p0 < minGap || share < ratio * p0) continue;
       const z = zShare(k, n, Math.max(p0, 0.5 / N));
-      if (z < STUDY_Z) continue;
+      if (z < zBar) continue;
       out.push({ fid, v, k, n, share, p0, z, xs: F.filter((x) => fc.vals(x).includes(v)) });
     }
   }
   return out.sort((a, b) => b.z - a.z);
 }
+// What a group of films had much less of than usual: only common things (a tenth or more of the rest), never people.
+function shortfalls(F, B, zBar = STUDY_Z) {
+  const out = [], C = B.counts;
+  for (const [fid, fc] of Object.entries(FACETS)) {
+    if (fc.person) continue;
+    const list = fid === "dec" ? F.filter((x) => x.dec) : F.filter((x) => x.m), n = list.length, N = fid === "dec" ? C.n.dec : C.n.meta;
+    if (n < 20 || N - n < 20) continue;
+    const here = new Map();
+    for (const x of list) for (const v of fc.vals(x)) bump(here, v);
+    for (const [v, all] of C[fid]) {
+      const k = here.get(v) || 0, p0 = (all - k) / (N - n), share = k / n;
+      if (p0 < 0.1 || p0 - share < 0.06 || share > 0.65 * p0) continue;
+      const z = zShare(k, n, p0);
+      if (z > -zBar) continue;
+      out.push({ fid, v, k, n, share, p0, z, xs: list.filter((x) => fc.vals(x).includes(v)) });
+    }
+  }
+  return out.sort((a, b) => a.z - b.z);
+}
+// "crime films", "films from the 1950s", "films by Fritz Lang"
+const kindOf = (fid, v) => fid === "g" ? genreNoun(v) : `films ${FACETS[fid].were(v)}`;
 // "61% were crime films, against 18% the rest of the time"
-const standoutText = (s, rest = "the rest of the time") => `${pc(s.share)}% were ${FACETS[s.fid].were(s.v)}, against ${pc(s.p0)}% ${rest}`;
+// (people as a count: "4 of 22 were by Fritz Lang, and hardly any the rest of the time")
+const vsShare = (p0) => p0 < 0.005 ? "hardly any" : `${pc(p0)}%`;
+const standoutText = (s, rest = "the rest of the time") => FACETS[s.fid].person
+  ? `${s.k} of ${s.n} were ${FACETS[s.fid].were(s.v)}, ${s.p0 < 0.005 ? `and hardly any ${rest}` : `against ${pc(s.p0)}% ${rest}`}`
+  : `${pc(s.share)}% were ${FACETS[s.fid].were(s.v)}, against ${vsShare(s.p0)} ${rest}`;
 // The other things that set a stretch apart, leaving out ones that are the same films again (Japan and Japanese).
 function alsoText(st) {
   const main = st[0], picked = [];
@@ -176,7 +202,7 @@ function studyPeriods(B, unit, within) {
 }
 
 /* ----- chapters: stretches that stood apart ----- */
-function chapters(B, periods, minFilms = 8, bar = STUDY_Z + 0.5, most = 8) {
+function chapters(B, periods, minFilms = 8, bar = STUDY_Z + 0.5, most = 8, minRun = 10) {
   const marks = periods.map((p) => p.F.length >= minFilms ? standouts(p.F, B, true) : []);
   // neighbouring periods that stand out for the same thing make one chapter
   const runs = [];
@@ -191,7 +217,7 @@ function chapters(B, periods, minFilms = 8, bar = STUDY_Z + 0.5, most = 8) {
   return runs.map((r) => {
     const F = r.periods.flatMap((p) => p.F), from = r.periods[0].from, to = r.periods[r.periods.length - 1].to;
     const st = standouts(F, B, true);
-    if (F.length < 10 || !st.length || st[0].z < bar) return null;
+    if (F.length < minRun || !st.length || st[0].z < bar) return null;
     const top = st[0], span = monthSpan(from, to), also = alsoText(st);
     const matching = top.xs, rest = F.filter((x) => !matching.includes(x));
     const months = (+to.slice(0, 4) - +from.slice(0, 4)) * 12 + +to.slice(5, 7) - +from.slice(5, 7) + 1;
@@ -450,6 +476,8 @@ function ratingStudy(B, periods) {
         text: `Next to ${C.label}, you've grown ${tougher ? "tougher" : "kinder"}: you rated films ${apart(gA, "them")} on average in ${y0}, and ${apart(gB)} in ${y1}.` });
     } else if (you && Math.abs(you.t) < 2 && Math.abs(yB - yA) < 0.1) {
       out.judge.push({ big: "Steady", to, text: `Your ratings have held steady since ${y0}, at about ${r(avg(rows(P).map((x) => x.rAt)))} on average${cr && !cMoved ? ", and so has the standing of the films you choose" : ""}.` });
+    } else if (yA != null && yB != null) {
+      out.judge.push({ big: "No clear change", to, text: `Your ratings haven't clearly moved: about ${r(yA)} on average in ${y0}, and ${r(yB)} in ${y1}, a difference that's within the usual ups and downs.` });
     }
     if (sdFit && Math.abs(sdFit.t) >= STUDY_Z && Math.abs(sdFit.to - sdFit.from) >= 0.15)
       out.judge.push({ big: sdFit.to > sdFit.from ? "Wider range" : "Narrower range", to,
@@ -469,8 +497,9 @@ function ratingStudy(B, periods) {
 }
 
 /* ----- threads: how one film led to another ----- */
-function threadStudy(B) {
-  const xs = B.xs, days = xs.map((x) => dayIndex(x.date));
+// `within`: only runs and chains that began in that year.
+function threadStudy(B, within, most = 6) {
+  const xs = B.xs, days = xs.map((x) => dayIndex(x.date)), began = (x) => !within || x.date.startsWith(within);
   const watched = (x) => `Watched ${fmtDate(x.date)}`;
   // gateways: the film that started a run of four or more by one person within 120 days
   const people = new Map();
@@ -481,8 +510,8 @@ function threadStudy(B) {
     if (p.xs.length < 4) continue;
     const ds = p.xs.map((x) => dayIndex(x.date));
     let best = null;
-    for (let i = 0, j = 0; i < ds.length; i++) { while (j + 1 < ds.length && ds[j + 1] - ds[i] <= 120) j++; if (!best || j - i > best.j - best.i) best = { i, j }; }
-    if (best.j - best.i + 1 < 4) continue;
+    for (let i = 0, j = 0; i < ds.length; i++) { while (j + 1 < ds.length && ds[j + 1] - ds[i] <= 120) j++; if (began(p.xs[i]) && (!best || j - i > best.j - best.i)) best = { i, j }; }
+    if (!best || best.j - best.i + 1 < 4) continue;
     runs.push({ ...p, run: p.xs.slice(best.i, best.j + 1), before: best.i, days: ds[best.j] - ds[best.i] });
   }
   runs.sort((a, b) => b.run.length - a.run.length || (a.role === "d" ? -1 : 1) - (b.role === "d" ? -1 : 1) || a.days - b.days);
@@ -495,7 +524,7 @@ function threadStudy(B) {
       : `In ${monthName(opener.date)} you went back to ${r.name} (you'd seen ${r.before === 1 ? "one of their films" : `${r.before} of their films`} before) and watched ${r.run.length} in ${when}, starting with ${opener.f.name}.`;
     gateways.push({ name: r.name, text, run: r.run, films: xsFilms(r.run), date: opener.date,
       to: D.films(r.name, `${r.run.length} films in ${when}${r.before ? ` · ${plural(r.before, "film")} seen before` : ""}`, xsFilms(r.run), { sort: "given", note: (f) => watched(B.byFilm.get(f)), person: { key: personKey(r.name), name: r.name, films: xsFilms(r.run) } }) });
-    if (gateways.length === 6) break;
+    if (gateways.length === most) break;
   }
   // chains: one film leading to the next within ten days through someone in both, five films or more
   const ppl = xs.map((x) => { const m = new Map(); for (const n of [...x.d, ...x.c, ...x.w]) m.set(personKey(n), n); return m; });
@@ -508,10 +537,10 @@ function threadStudy(B) {
   }
   const used = new Set(), chains = [];
   for (const end of xs.map((_, i) => i).sort((a, b) => len[b] - len[a])) {
-    if (len[end] < 5 || chains.length === 3) break;
+    if (len[end] < 5 || chains.length === Math.ceil(most / 2)) break;
     const path = [];
     for (let i = end; i >= 0; i = prev[i]) path.unshift(i);
-    if (path.some((i) => used.has(i))) continue;
+    if (path.some((i) => used.has(i)) || !began(xs[path[0]])) continue;
     const vias = [...new Set(path.slice(1).map((i) => via[i]))];
     if (vias.length < 2) continue;
     path.forEach((i) => used.add(i));
@@ -722,7 +751,7 @@ function computeStudy(lib, metaOf, crowdKey) {
   if (S.drift.list.length) { const d = S.drift.list[0]; o.push({ k: "Biggest shift", big: d.big, text: d.text, to: d.to }); }
   if (R.follow.length && R.follow[0].pct >= FOLLOW_MIN) o.push({ k: "Your ratings follow", big: capFirst(R.follow[0].short.replace(/ \(.*\)$/, "")), text: R.followText, to: R.follow[0].to });
   if (R.beyond.up.length) { const b = R.beyond.up[0]; o.push({ k: R.beyond.vsCrowd ? "You like more than the crowd" : "You like most", big: b.big, text: b.text, to: b.to }); }
-  if (R.judge.length && R.judge[0].big !== "Steady") o.push({ k: "Tougher or choosier?", big: R.judge[0].big, text: R.judge[0].text, to: R.judge[0].to });
+  if (R.judge.length && !["Steady", "No clear change"].includes(R.judge[0].big)) o.push({ k: "Tougher or choosier?", big: R.judge[0].big, text: R.judge[0].text, to: R.judge[0].to });
   if (T.gateways.length) { const g = T.gateways[0]; o.push({ k: "A door that opened", big: g.name, text: g.text, to: g.to }); }
   if (S.habits.length) { const h = S.habits[0]; o.push({ k: "A habit", big: h.big, text: h.text, to: h.to }); }
   S.overview = o;
@@ -738,13 +767,24 @@ function computeYearStudy(lib, metaOf, crowdKey, Y, S = computeStudy(lib, metaOf
   const R = { Y, B, n: { films: xsY.length, entries: EY.length }, first: B.E.length && B.E[0].date.startsWith(Y) };
   const fl = (title, list, o) => D.films(title, filmsSub(xsFilms(list)), xsFilms(list), o);
   const other = "in your other years", fmtC = (v) => crowdScore(B.crowdKey in CROWDS ? B.crowdKey : "tmdb", v);
-  // what set the year apart: what it was made of, then how its films differed
-  const sts = [];
-  for (const s of standouts(xsY, B)) { if (sts.length === 4) break; if (!sts.some((o) => s.xs.filter((x) => o.xs.includes(x)).length >= 0.8 * Math.min(s.xs.length, o.xs.length))) sts.push(s); }
-  R.differ = sts.map((s) => {
-    const also = s.xs;
-    return { big: capFirst(FACETS[s.fid].were(s.v)), text: `${pc(s.share)}% of the films you saw for the first time in ${Y} were ${FACETS[s.fid].were(s.v)}, against ${pc(s.p0)}% ${other}.`,
-      posters: xsFilms(bestFirst(also).slice(0, 6)), to: fl(`${capFirst(FACETS[s.fid].were(s.v))}, ${Y}`, also) };
+  // what set the year apart: what it was made of, clearly, then what it leaned toward and had less of, then how its
+  // films differed. A lean is two standard errors from your other years rather than three, and said as a lean.
+  const picked = [], same = (a, b) => a.fid === b.fid && a.v === b.v || a.xs.filter((x) => b.xs.includes(x)).length >= 0.8 * Math.min(a.xs.length, b.xs.length);
+  const take = (list, tier, most) => { for (const s of list) { if (picked.length >= most) break; if (!picked.some((o) => same(o, s))) picked.push({ ...s, tier }); } };
+  take(standouts(xsY, B), "clear", 4);
+  take(standouts(xsY, B, false, { z: 2, ratio: 1.25 }), "lean", 4);
+  take(shortfalls(xsY, B, 2.5), "fewer", 5);
+  R.differ = picked.map((s) => {
+    const kind = kindOf(s.fid, s.v);
+    if (s.tier === "fewer") {
+      const rest = xsO.filter((x) => FACETS[s.fid].vals(x).includes(s.v));
+      return { big: `Fewer ${kind}`, text: `Fewer ${kind} than usual: ${pc(s.share)}% of what you saw for the first time in ${Y}, against ${pc(s.p0)}% ${other}.`, posters: [],
+        to: D.groups(`Fewer ${kind}`, `${Y} against ${other}`, [s.xs.length && fl(`${capFirst(kind)}, ${Y}`, s.xs), fl(`${capFirst(kind)}, other years`, rest)].filter(Boolean)) };
+    }
+    return { big: capFirst(FACETS[s.fid].were(s.v)), posters: xsFilms(bestFirst(s.xs).slice(0, 6)), to: fl(`${capFirst(FACETS[s.fid].were(s.v))}, ${Y}`, s.xs),
+      text: s.tier === "clear" ? (FACETS[s.fid].person ? `${s.k} of the films you saw for the first time in ${Y} were ${FACETS[s.fid].were(s.v)} (${pc(s.share)}%), against ${vsShare(s.p0)} ${other}.`
+          : `${pc(s.share)}% of the films you saw for the first time in ${Y} were ${FACETS[s.fid].were(s.v)}, against ${vsShare(s.p0)} ${other}.`)
+        : `A lean toward ${kind}: ${FACETS[s.fid].person ? `${plural(s.k, "film")}, ` : ""}${pc(s.share)}% of what you saw for the first time in ${Y}, against ${vsShare(s.p0)} ${other}.` };
   });
   if (EO.length >= 20 && xsY.length >= 10) {
     const tests = [
@@ -755,7 +795,7 @@ function computeYearStudy(lib, metaOf, crowdKey, Y, S = computeStudy(lib, metaOf
     for (const t of tests) {
       const a = xsY.filter((x) => t.val(x) != null), b = xsO.filter((x) => t.val(x) != null);
       const va = a.map(t.val), vb = b.map(t.val), z = zMeans(va, vb), d = avg(va) - avg(vb);
-      if (Math.abs(z) >= STUDY_Z && Math.abs(d) >= t.min) R.differ.push({ big: d > 0 ? t.big : t.big2, text: t.say(avg(va), avg(vb)), posters: [], to: D.groups(d > 0 ? t.big : t.big2, `${Y} against ${other}`, [fl(Y, a, { sort: t.sort || "rating", note: (f) => t.note(B.byFilm.get(f)) }), fl("Other years", b, { sort: t.sort || "rating", note: (f) => t.note(B.byFilm.get(f)) })]) });
+      if (Math.abs(z) >= 2.5 && Math.abs(d) >= t.min) R.differ.push({ big: d > 0 ? t.big : t.big2, text: t.say(avg(va), avg(vb)), posters: [], to: D.groups(d > 0 ? t.big : t.big2, `${Y} against ${other}`, [fl(Y, a, { sort: t.sort || "rating", note: (f) => t.note(B.byFilm.get(f)) }), fl("Other years", b, { sort: t.sort || "rating", note: (f) => t.note(B.byFilm.get(f)) })]) });
     }
     const props = [
       [["More world cinema", "More in English"], "Not in English", (x) => x.l ? x.l !== "English" : null, (a, b) => `${pc(a)}% of ${Y}'s new films weren't in English, against ${pc(b)}% ${other}.`],
@@ -765,12 +805,42 @@ function computeYearStudy(lib, metaOf, crowdKey, Y, S = computeStudy(lib, metaOf
     for (const [bigs, big, f, say] of props) {
       const a = xsY.filter((x) => f(x) != null), b = xsO.filter((x) => f(x) != null), ka = a.filter(f).length, kb = b.filter(f).length;
       const z = zProps(ka, a.length, kb, b.length);
-      if (a.length >= 10 && Math.abs(z) >= STUDY_Z && Math.abs(ka / a.length - kb / b.length) >= 0.08)
+      if (a.length >= 10 && Math.abs(z) >= 2.5 && Math.abs(ka / a.length - kb / b.length) >= 0.08)
         R.differ.push({ big: bigs[z > 0 ? 0 : 1], text: say(ka / a.length, kb / b.length), posters: [], to: fl(`${big}, ${Y}`, a.filter(f)) });
     }
   }
-  // the year's own chapters, month by month
-  R.chapters = notSeasonal(chapters(B, studyPeriods(B, "month", Y), 6, STUDY_Z + 1.5, 4), S.habits);
+  // nothing set it apart: say how it kept to form, with the numbers
+  if (!R.differ.length) {
+    const parts = [];
+    for (const fid of ["g", "dec", "k"]) {
+      const has = (x) => fid === "dec" ? !!x.dec : x.m, inY = xsY.filter(has), inO = xsO.filter(has);
+      if (inY.length < 20 || inO.length < 20) continue;
+      const m = new Map(); for (const x of inY) for (const v of FACETS[fid].vals(x)) bump(m, v);
+      const [v] = [...m].sort((a, b) => b[1] - a[1])[0] || [];
+      if (v == null) continue;
+      const a = inY.filter((x) => FACETS[fid].vals(x).includes(v)), b = inO.filter((x) => FACETS[fid].vals(x).includes(v));
+      parts.push({ kind: kindOf(fid, v), a, sa: a.length / inY.length, sb: b.length / inO.length });
+    }
+    if (parts.length) R.differ.push({ big: "True to form", posters: [],
+      text: `${Y} kept to your usual mix: ${joinAnd(parts.map((p, i) => i ? `${p.kind} ${pc(p.sa)}% (${pc(p.sb)}%)` : `${p.kind} were ${pc(p.sa)}% of its new films (${pc(p.sb)}% ${other})`))}.`,
+      to: D.groups("True to form", `${Y} against ${other}`, parts.map((p) => fl(`${capFirst(p.kind)}, ${Y}`, p.a))) });
+  }
+  // the year's own chapters, month by month: a stretch needs three standard errors here, and can be a single month
+  R.chapters = notSeasonal(chapters(B, studyPeriods(B, "month", Y), 5, STUDY_Z, 4, 8), S.habits);
+  // season by season: what each quarter leaned toward against the rest of the year (where a chapter doesn't say it)
+  R.seasons = [];
+  if (xsY.length >= 40) {
+    const YB = { counts: facetCounts(xsY) };
+    for (const p of studyPeriods(B, "quarter", Y)) {
+      if (p.F.length < 12 || xsY.length - p.F.length < 12) continue;
+      const st = standouts(p.F, YB, false, { z: 1.5, ratio: 1.3 }), s = st.find((x) => !FACETS[x.fid].person) || st[0];
+      if (!s || R.chapters.some((c) => c.top.fid === s.fid && c.top.v === s.v && c.from <= p.to && c.until >= p.from)) continue;
+      const kind = kindOf(s.fid, s.v);
+      R.seasons.push({ span: p.label, text: FACETS[s.fid].person ? `${p.label} leaned toward ${kind}: ${s.k} of the ${p.F.length} films you saw for the first time then, ${s.p0 < 0.005 ? "and hardly any the rest of the year" : `against ${pc(s.p0)}% the rest of the year`}.`
+        : `${p.label} leaned toward ${kind}: ${pc(s.share)}% of what you saw for the first time then, against ${vsShare(s.p0)} the rest of the year.`,
+        to: D.groups(`${p.label}: ${kind}`, `${pc(s.share)}% of the stretch`, [fl(capFirst(kind), s.xs), fl("Everything else you saw then", p.F.filter((x) => !s.xs.includes(x)))]) });
+    }
+  }
   // ratings: the year against your usual, with the crowd's view of the same films
   {
     const ry = xsY.filter((x) => x.rAt), ro = xsO.filter((x) => x.rAt), out = [];
@@ -791,9 +861,8 @@ function computeYearStudy(lib, metaOf, crowdKey, Y, S = computeStudy(lib, metaOf
     }
     R.ratings = out;
   }
-  // threads that began in the year
-  const T = S.threads;
-  R.threads = { gateways: T.gateways.filter((g) => g.date.startsWith(Y)), chains: T.chains.filter((c) => c.date.startsWith(Y)) };
+  // threads that began in the year (its own, not just the whole diary's strongest)
+  R.threads = threadStudy(B, Y, 4);
   // habits: the year against your usual
   {
     const out = [], ents = (title, es, o) => D.entries(title, entriesSub(es), es, o);
@@ -807,6 +876,19 @@ function computeYearStudy(lib, metaOf, crowdKey, Y, S = computeStudy(lib, metaOf
         const a = EY.filter((e) => f(e) != null), b = EO.filter((e) => f(e) != null), ka = a.filter(f).length, kb = b.filter(f).length, z = zProps(ka, a.length, kb, b.length);
         if (a.length >= 15 && Math.abs(z) >= 2.5 && Math.abs(ka / a.length - kb / b.length) >= 0.08) out.push({ big, text: say(ka / a.length, kb / b.length), to: ents(`${big}, ${Y}`, a.filter(f)) });
       }
+      // a day of the week that took a bigger or smaller share than usual (when the weekend line doesn't already say it)
+      {
+        let best = null;
+        for (let wd = 0; wd < 7; wd++) {
+          const ka = EY.filter((e) => weekdayOf(e.date) === wd).length, kb = EO.filter((e) => weekdayOf(e.date) === wd).length;
+          const z = zProps(ka, EY.length, kb, EO.length), d = ka / EY.length - kb / EO.length;
+          if (Math.abs(z) >= 2.5 && Math.abs(d) >= 0.05 && (!best || Math.abs(z) > Math.abs(best.z))) best = { wd, ka, kb, z, d };
+        }
+        if (best && !(best.wd >= 5 && out.some((o) => o.big === "Weekends"))) {
+          const name = `${WEEKDAYS_LONG[best.wd]}s`, es = EY.filter((e) => weekdayOf(e.date) === best.wd);
+          out.push({ big: `${best.d > 0 ? "More" : "Fewer"} ${name}`, text: `${name} took ${pc(best.ka / EY.length)}% of ${Y}'s diary, against ${pc(best.kb / EO.length)}% ${other}.`, to: ents(`${name}, ${Y}`, es, { order: "asc" }) });
+        }
+      }
       const perDay = new Map(); for (const e of B.E) bump(perDay, e.date);
       const mdY = [...perDay].filter(([d, n]) => d.startsWith(Y) && n >= 3), daysY = [...perDay.keys()].filter((d) => d.startsWith(Y)).length;
       const mdO = [...perDay].filter(([d, n]) => !d.startsWith(Y) && n >= 3), daysO = perDay.size - daysY;
@@ -814,12 +896,32 @@ function computeYearStudy(lib, metaOf, crowdKey, Y, S = computeStudy(lib, metaOf
       if (mdY.length >= 3 && Math.abs(zm) >= 2.5) { const es = EY.filter((e) => perDay.get(e.date) >= 3);
         out.push({ big: "Marathon days", text: `${plural(mdY.length, "day")} in ${Y} had three or more films: ${pc(mdY.length / daysY)}% of the days you watched anything, against ${pc(mdO.length / Math.max(1, daysO))}% ${other}.`, to: ents(`Marathon days, ${Y}`, es, { order: "asc" }) }); }
     }
+    // the pace: the first half of the year (or of the part of it in the diary) against the second
+    if (EY.length >= 30) {
+      const lo = Math.max(dayIndex(`${Y}-01-01`), dayIndex(B.E[0].date)), hi = Math.min(dayIndex(`${Y}-12-31`), dayIndex(B.E[B.E.length - 1].date));
+      if (hi - lo >= 120) {
+        const mid = Math.floor((lo + hi) / 2), a = EY.filter((e) => dayIndex(e.date) <= mid), b = EY.filter((e) => dayIndex(e.date) > mid);
+        const da = mid - lo + 1, db = hi - mid, ra = a.length / da, rb = b.length / db;
+        const z = (rb - ra) / Math.sqrt(Math.max(1, a.length) / (da * da) + Math.max(1, b.length) / (db * db));
+        if (Math.abs(z) >= 2.5 && Math.max(ra, rb) >= 1.4 * Math.min(ra, rb)) {
+          const wk = (r) => (r * 7).toFixed(1), from = monthName(isoOfDay(mid + 1)), up = rb > ra;
+          out.push({ big: up ? "Picked up" : "Slowed down", text: `You ${up ? "picked up" : "slowed down"} through ${Y}: about ${wk(rb)} films a week from ${from}, against ${wk(ra)} before.`,
+            to: D.groups(up ? "Picked up" : "Slowed down", `${Y}, before and after ${from}`, [ents(`From ${from}`, b, { order: "asc" }), ents("Before", a, { order: "asc" })]) });
+        }
+      }
+    }
     // the longest gap in the year
     const dates = [...new Set(EY.map((e) => e.date))];
     let gap = null;
-    for (let i = 1; i < dates.length; i++) { const g = dayIndex(dates[i]) - dayIndex(dates[i - 1]) - 1; if (g >= 14 && (!gap || g > gap.g)) gap = { g, a: dates[i - 1], b: dates[i] }; }
+    for (let i = 1; i < dates.length; i++) { const g = dayIndex(dates[i]) - dayIndex(dates[i - 1]) - 1; if (g >= 10 && (!gap || g > gap.g)) gap = { g, a: dates[i - 1], b: dates[i] }; }
     if (gap) { const es = EY.filter((e) => e.date === gap.a || e.date === gap.b);
       out.push({ big: "Longest break", text: `Your longest break in ${Y} ran ${plural(gap.g, "day")}, from ${fmtDate(isoOfDay(dayIndex(gap.a) + 1))} to ${fmtDate(isoOfDay(dayIndex(gap.b) - 1))}.`, to: ents("Either side of the break", es, { order: "asc" }) }); }
+    // nothing changed: say so, with the numbers
+    if (!out.length && EY.length >= 15 && EO.length >= 30) {
+      const share = (es, f) => es.filter(f).length / es.length, we = (e) => weekdayOf(e.date) >= 5, re = (e) => e.rewatch;
+      out.push({ big: "Your usual rhythm", text: `${Y} kept your usual rhythm: ${pc(share(EY, we))}% of its diary at weekends (${pc(share(EO, we))}% ${other}) and ${pc(share(EY, re))}% rewatches (${pc(share(EO, re))}%).`,
+        to: D.groups("Your usual rhythm", `${Y} against ${other}`, [ents(`Weekends, ${Y}`, EY.filter(we), { order: "asc" }), ...(EY.some(re) ? [ents(`Rewatches, ${Y}`, EY.filter(re), { order: "asc" })] : [])]) });
+    }
     R.habits = out;
   }
   // discovery: places and languages that first turned up in the year
@@ -831,11 +933,12 @@ function computeYearStudy(lib, metaOf, crowdKey, Y, S = computeStudy(lib, metaOf
   }
   // the short version
   const o = [];
-  if (R.differ.length) o.push({ k: "What set it apart", big: R.differ[0].big, text: R.differ[0].text, to: R.differ[0].to });
+  if (R.differ.length && R.differ[0].big !== "True to form") o.push({ k: "What set it apart", big: R.differ[0].big, text: R.differ[0].text, to: R.differ[0].to });
   if (R.chapters.length) { const c = R.chapters[0]; o.push({ k: R.chapters.length > 1 ? `${R.chapters.length} chapters` : "A chapter", big: c.title, text: c.text, to: c.to }); }
+  else if (R.seasons.length) { const z = R.seasons[0]; o.push({ k: "Season by season", big: z.span, text: z.text, to: z.to }); }
   if (R.ratings.length && R.ratings[0].big !== "As usual") o.push({ k: "Your ratings", big: R.ratings[0].big, text: R.ratings[0].text, to: R.ratings[0].to });
   if (R.threads.gateways.length) { const g = R.threads.gateways[0]; o.push({ k: "A door that opened", big: g.name, text: g.text, to: g.to }); }
-  if (R.habits.length) { const h = R.habits[0]; o.push({ k: "Habits", big: h.big, text: h.text, to: h.to }); }
+  if (R.habits.length && R.habits[0].big !== "Your usual rhythm") { const h = R.habits[0]; o.push({ k: "Habits", big: h.big, text: h.text, to: h.to }); }
   R.overview = o;
   return R;
 }

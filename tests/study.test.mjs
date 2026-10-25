@@ -113,6 +113,14 @@ export default async function ({ browser, base }) {
   assert(/in Japanese, against/.test(await txt("#y-differ")), `2023's Japanese films weren't set apart: ${await txt("#y-differ")}`);
   assert(/Akira Kurosawa/.test(await txt("#y-threads")), "2023's Kurosawa run wasn't found");
   await audit(d, "desktop insights 2023");
+  // every year says something in each section (owner, Oct 2026: a 186-film year showed nothing set apart or month by month)
+  for (const yr of await d.$$eval("[data-insyear]", (x) => x.map((b) => b.dataset.insyear).filter((y) => y !== "all"))) {
+    await d.click(`[data-insyear="${yr}"]`); await d.waitForSelector("#y-differ");
+    const blank = await d.$$eval("#insights .credit", (xs) => xs.filter((x) => x.querySelector(".credit-body > .empty")).map((x) => x.id));
+    assert(!blank.filter((id) => id !== "y-threads").length, `${yr}: empty sections ${blank}`);
+    assert(!REPEATS.test(await txt("#insights")), `${yr} repeats the Stats page`);
+    await audit(d, `desktop insights ${yr}`);
+  }
   noErrors(d, "desktop");
 
   // the phone: every section, all years and one year

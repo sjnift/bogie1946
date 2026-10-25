@@ -100,7 +100,8 @@ function mYearInsights(Y, tab) {
     const newOnes = (label, list, field) => list.length ? `${label}: ${list.map((v) => { const fs = films.filter((f) => { const m = metaOf(f); return m && (field === "l" ? m.l === v : m[field].includes(v)); });
       return dlink(D.films(`${v} in ${Y}`, filmsSub(fs), fs, { scope: Y }), esc(v)); }).join(", ")}.` : "";
     if (R.newCountries.length || R.newLangs.length) h += sh("First seen this year") + `<p class="lead">${newOnes("Countries", R.newCountries, "k")} ${newOnes("Languages", R.newLangs, "l")}</p>`;
-    return h + mChapters(R.chapters, null, `${esc(Y)}, month by month`);
+    const title = `${esc(Y)}, month by month`, seasons = R.seasons.length ? (R.chapters.length ? sh("Season by season") : "") + mLines(R.seasons, () => "◆") : "";
+    return h + (R.chapters.length ? mChapters(R.chapters, null, title) : sh(title) + (seasons ? "" : `<div class="empty">No stretch of ${esc(Y)} stands apart: you kept much the same mix all year.</div>`)) + seasons;
   }
   if (tab === "ratings") return sh(`Ratings in ${esc(Y)}`) + mFindings(R.ratings, `Not enough rated films in ${esc(Y)}.`);
   if (tab === "threads") return mThreads(R.threads, `No run of films by one person began in ${esc(Y)}.`);
