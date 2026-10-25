@@ -415,6 +415,9 @@ a.chiplet:hover { border-color: var(--gold); }
 .match .score .dlink:hover { color: var(--ink); }
 .cal i[data-list]:hover { outline: 1px solid var(--ink); }
 td .dlink { font-variant-numeric: tabular-nums; }
+/* in a table that compares its rows: the highest of each column in gold, the lowest in purple */
+table.data td.hi { color: var(--gold-ink); font-weight: 700; }
+table.data td.lo { color: color-mix(in srgb, var(--lilac) 80%, white); font-weight: 700; }
 
 /* ---------- the pop-up and the full page ---------- */
 dialog.wide { width: min(720px, calc(100vw - 32px)); }
@@ -506,8 +509,24 @@ dialog.tall { width: min(520px, calc(100vw - 32px)); max-height: 94vh; }
 
 #tip {
   position: fixed; z-index: 50; pointer-events: none; background: var(--ink); color: var(--bg);
-  font-size: 12.5px; padding: 6px 9px; border-radius: 6px; max-width: 240px; line-height: 1.35; box-shadow: var(--shadow);
+  font-size: 12.5px; padding: 6px 9px; border-radius: 6px; max-width: 300px; line-height: 1.4; box-shadow: var(--shadow); white-space: pre-line;
 }
+#tip b { display: block; font-size: 13.5px; margin-bottom: 2px; }
+/* the world map: the more films, the deeper the gold */
+.wmap { --w0: var(--surface-2); --w1: color-mix(in srgb, var(--gold) 34%, var(--surface-2)); --w2: color-mix(in srgb, var(--gold) 55%, var(--surface-2));
+  --w3: color-mix(in srgb, var(--gold) 78%, var(--surface-2)); --w4: var(--gold); --w5: var(--gold-ink); display: grid; gap: 12px; }
+.wsvg { display: block; width: 100%; height: auto; }
+.wsvg .wc { fill: var(--w0); stroke: var(--bg); stroke-width: 1; vector-effect: non-scaling-stroke; stroke-linejoin: round; transition: fill .15s; }
+.wsvg .wc[data-list] { cursor: pointer; }
+.wsvg .wc:hover { stroke: var(--ink); stroke-width: 1.5; }
+.wsvg .l1 { fill: var(--w1); } .wsvg .l2 { fill: var(--w2); } .wsvg .l3 { fill: var(--w3); } .wsvg .l4 { fill: var(--w4); } .wsvg .l5 { fill: var(--w5); }
+.wkey { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; font-size: 12.5px; color: var(--ink-2); }
+.wk { all: unset; display: inline-flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
+button.wk { cursor: pointer; } button.wk:hover { color: var(--ink); } button.wk:focus-visible { outline: 2px solid var(--gold-ink); outline-offset: 2px; border-radius: 3px; }
+.wk i { width: 16px; height: 10px; border-radius: 2px; background: var(--w0); }
+.wk i.l1 { background: var(--w1); } .wk i.l2 { background: var(--w2); } .wk i.l3 { background: var(--w3); } .wk i.l4 { background: var(--w4); } .wk i.l5 { background: var(--w5); }
+.wk-unit { color: var(--muted); }
+.wgone { margin: 0; font-size: 13.5px; color: var(--ink-2); }
 .drop-veil {
   position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; pointer-events: none;
   background: color-mix(in srgb, var(--bg) 82%, transparent); border: 3px dashed var(--gold);

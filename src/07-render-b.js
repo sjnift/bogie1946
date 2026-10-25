@@ -96,10 +96,11 @@ function diaryBlock(s) {
   const wmax = Math.max(1, ...s.weekday);
   const weekdays = `<div class="weekdays" role="group" aria-label="Diary entries by day of the week">${s.weekday.map((n, i) =>
     `<button class="wd" type="button" ${dl(DR.weekday(s.entries, i))} data-tip="${WEEKDAYS_LONG[i]}: ${plural(n, "film")}" aria-label="${WEEKDAYS_LONG[i]}: ${plural(n, "film")}"><span class="cnt">${n}</span><span class="bar-v"><span style="height:${(n / wmax * 100).toFixed(1)}%"></span></span><span class="lbl">${WEEKDAYS[i]}</span></button>`).join("")}</div>`;
+  const shown = cols.filter((c) => c.a + c.b), hA = hiLo(shown.map((c) => c.a)), hB = hiLo(shown.map((c) => c.b));
   const table = `<details class="tbl"><summary>View as table</summary><div class="scroll"><table class="data"><thead><tr><th>${unit[0].toUpperCase() + unit.slice(1)}</th><th class="n">First watches</th><th class="n">Rewatches</th></tr></thead><tbody>${
-    cols.filter((c) => c.a + c.b).map((c) => { const first = c.es.filter((e) => !e.rewatch), again = c.es.filter((e) => e.rewatch);
-      return `<tr><td>${dlink(c.to, esc(c.tipLabel))}</td><td class="n">${dlink(c.a && D.entries(`${c.tipLabel}: first watches`, entriesSub(first), first, { order: "asc" }), c.a)}</td>
-      <td class="n">${dlink(c.b && D.entries(`${c.tipLabel}: rewatches`, entriesSub(again), again, { order: "asc" }), c.b)}</td></tr>`; }).join("")}</tbody></table></div></details>`;
+    shown.map((c, i) => { const first = c.es.filter((e) => !e.rewatch), again = c.es.filter((e) => e.rewatch);
+      return `<tr><td>${dlink(c.to, esc(c.tipLabel))}</td><td class="n${hA[i]}">${dlink(c.a && D.entries(`${c.tipLabel}: first watches`, entriesSub(first), first, { order: "asc" }), c.a)}</td>
+      <td class="n${hB[i]}">${dlink(c.b && D.entries(`${c.tipLabel}: rewatches`, entriesSub(again), again, { order: "asc" }), c.b)}</td></tr>`; }).join("")}</tbody></table></div><p class="status">${HILO_NOTE}</p></details>`;
   return `<div class="facts">${facts}</div>${colChart(cols, `Diary entries by ${unit}`, legend, 162, { unit: "films" })}${table}
     <div class="facts" style="align-items:end; gap:28px 48px"><div class="fact"><span class="k" style="margin-bottom:8px">By day of the week</span>${weekdays}</div>
     <div class="fact" style="min-width:0; max-width:100%"><span class="k" style="margin-bottom:8px">${s.scope === "all" ? "Last 12 months of diary" : "Every day of " + s.scope}</span>${heatmap(s)}</div></div>`;

@@ -47,6 +47,16 @@ function audit() {
     }
     for (const [k, data] of [["cast", s.cast], ["directors", s.directors], ["writers", s.writers], ["genres", s.genres], ["countries", s.countries], ["languages", s.languages]])
       for (const p of data.most) { once(p.films, film, `${w} ${k} ${p.name}`); if (p.count !== p.films.length) bad.push(`${w} ${k} ${p.name}: count ${p.count} for ${p.films.length} films`); }
+    // the world map: every country of the list in exactly one place (on the map, gone, or unknown), each place once,
+    // and a place's films exactly those of the names it gathers, each once (USA and United States of America are one)
+    const W = worldData(s.countries), named = [...W.places, ...W.gone].flatMap((p) => p.names).concat(W.off.map((c) => c.name));
+    if (named.length !== s.countries.most.length || new Set(named).size !== named.length) bad.push(`${w}: the map places ${named.length} country names, the list has ${s.countries.most.length}`);
+    once(W.places, (p) => p.code, `${w} map`);
+    for (const p of [...W.places, ...W.gone]) {
+      once(p.films, film, `${w} map ${p.name}`);
+      const want = new Set(s.countries.most.filter((c) => p.names.includes(c.name)).flatMap((c) => c.films));
+      if (p.count !== p.films.length || p.count !== want.size) bad.push(`${w}: ${p.name} on the map has ${p.count} films, its names ${want.size}`);
+    }
   }
   return bad;
 }
@@ -144,7 +154,7 @@ export default async function ({ browser, base }) {
     reviews: [{ Name: "Twilight's Last Gleaming", Year: "1977", Date: "2026-10-02", "Watched Date": "2026-10-02", Rating: "3.5", Review: "<p>Tense.</p>" }],
     watchlist: [{ Name: "Twilight’s Last Gleaming", Year: "1977" }, { Name: "Ikiru", Year: "1952" }],
   };
-  const meta = { "twilight’s last gleaming|1977": { src: "tmdb", v: 3, id: 75938, d: ["Robert Aldrich"], c: ["Burt Lancaster", "Charles McGraw", "Charles McGraw"], w: [], p: [], m: [], g: ["Thriller", "Thriller"], k: ["USA"], l: "English", r: 146 } };
+  const meta = { "twilight’s last gleaming|1977": { src: "tmdb", v: 3, id: 75938, d: ["Robert Aldrich"], c: ["Burt Lancaster", "Charles McGraw", "Charles McGraw"], w: [], p: [], m: [], g: ["Thriller", "Thriller"], k: ["USA", "United States of America", "Soviet Union", "Elbonia"], l: "English", r: 146 } };
   const feed = { user: "tester", items: [
     { guid: "letterboxd-watch-1", title: "Twilight&#039;s Last Gleaming", year: 1977, watched: "2026-10-02", logged: "2026-10-02", rating: 3.5, rewatch: false, liked: true, tmdb: 75938, review: "" },
     { guid: "letterboxd-watch-2", title: "七人の侍", year: 1954, watched: "2026-08-30", logged: "2026-09-01", rating: 5, rewatch: false, liked: false, tmdb: 346, review: "" }, // date changed since: same viewing
@@ -160,12 +170,14 @@ export default async function ({ browser, base }) {
       const t = MY_LIB.films.find((f) => f.year === 1977), s = computeStats(MY_LIB, metaOf, "all");
       return { films: MY_LIB.films.length, twilight: t.entries.length, rating: t.rating, liked: t.liked, reviews: MY_LIB.reviews.length,
         mcgraw: s.cast.most.find((p) => p.name === "Charles McGraw").count, thriller: s.genres.most.find((g) => g.name === "Thriller").count,
-        watchlist: MY_LIB.watchlistFilms.map((w) => w.name).join(), next: (watchNext(MY_LIB) || { picks: [] }).picks.map((p) => p.f.name).join() };
+        watchlist: MY_LIB.watchlistFilms.map((w) => w.name).join(), next: (watchNext(MY_LIB) || { picks: [] }).picks.map((p) => p.f.name).join(),
+        map: (({ by, gone, off }) => [by.get("US").count, [...by.values()].map((p) => `${p.code}:${p.names.join("+")}`).join(), gone.map((g) => `${g.name} ${g.count}`).join(), off.map((c) => c.name).join()])(worldData(s.countries)).join("|") };
     });
     assert(got.films === 4, `${file}: ${got.films} films, not 4 (one film spelled four ways, or two titles in other scripts merged)`);
     assert(got.twilight === 2 && got.rating === 3.5 && got.liked && got.reviews === 2, `${file}: Twilight's Last Gleaming ${JSON.stringify(got)}`);
     assert(got.mcgraw === 1 && got.thriller === 1, `${file}: a name or genre listed twice in one film counted twice: ${JSON.stringify(got)}`);
     assert(got.watchlist === "Ikiru" && !got.next.includes("Twilight"), `${file}: a watched film is still to watch next: ${got.watchlist}`);
+    assert(/^1\|(.*,)?US:United States of America\+USA(,.*)?\|Soviet Union 1\|Elbonia$/.test(got.map), `${file}: the world map counted a country's two spellings twice, or lost one: ${got.map}`);
     pages.push(p);
   }
   await tour(pages[0], pages[1], "tricky export");

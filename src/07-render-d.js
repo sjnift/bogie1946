@@ -50,6 +50,8 @@ function dashChapters(s) {
     !all && R.firstYear !== s.scope ? section("new-in", `New in ${esc(s.scope)}`, "Directors, actors, countries and languages that first turned up in your diary this year.", noMeta ? emptyMeta() : newInBlock(R)) : ""];
   const originFull = [
     section("origin", "Genre &amp; origin", "Genres, production countries and original languages.", noMeta ? emptyMeta() : catBlock(s)),
+    section("world", "Around the world", "Where your films were made: the more films, the deeper the gold. Hover over a country for more; click it for its films.",
+      noMeta ? emptyMeta() : worldMapHtml(s.countries, { scope: s.scope, total: s.films.filter((f) => metaOf(f) && (metaOf(f).k || []).length).length }) || `<div class="empty">No countries known for these films yet.</div>`),
     all ? section("genre-years", "Genres year by year", "The share of each year's films in each genre.", noMeta ? emptyMeta() : genreYearsBlock(I)) : "",
     all ? section("genre-rates", "Genres as you rate them", "Each genre against your own average and against the crowd.", noMeta ? emptyMeta() : genresBlock(I)) : ""];
 

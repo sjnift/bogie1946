@@ -141,6 +141,7 @@ function bind() {
   document.addEventListener("click", (e) => {
     const t = e.target.closest("[data-instab],[data-ytab],[data-cmptab],[data-trend],[data-cmp],[data-unfriend],[data-lb],[data-crowdsel],[data-act],[data-view],[data-scope],[data-list],[data-role],[data-sort],[data-catsort]");
     if (!t || t.disabled) return;
+    if (t.dataset.list) $("#tip").hidden = true;
     const set = Object.keys(SETS).find((k) => t.dataset[k] != null);
     if (set) {
       const section = set === "instab" || set === "ytab" || set === "cmptab";
@@ -184,7 +185,9 @@ function bind() {
   document.addEventListener("pointerover", (e) => {
     const t = e.target.closest && e.target.closest("[data-tip]");
     if (!t) { tip.hidden = true; return; }
-    tip.textContent = t.dataset.tip; tip.hidden = false; place(e.clientX, e.clientY);
+    tip.textContent = t.dataset.tip;
+    if (t.dataset.tipH) { const b = document.createElement("b"); b.textContent = t.dataset.tipH; tip.prepend(b); }
+    tip.hidden = false; place(e.clientX, e.clientY);
   });
   document.addEventListener("pointermove", (e) => { if (!tip.hidden) place(e.clientX, e.clientY); });
   window.addEventListener("scroll", () => { tip.hidden = true; }, { passive: true });

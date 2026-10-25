@@ -59,6 +59,14 @@ Where it lives:
   - Links look classy: gold text in sentences (desktop), white semibold in sentences (phone), a faint thin
     underline under bare numbers, no underlines in tables (a "click any number" line under each table instead),
     rounded tags for genres, countries, languages and cast. No white dotted underlines.
+  - **Tables that compare their rows mark the highest of each column in gold and the lowest in purple** (asked Oct
+    2026): `hiLo(values)` in `06c-insights.js` gives each row's class (` hi`, ` lo`), with `monthHiLo`, `yearsHiLo`,
+    `genresHiLo` for the month, year-by-year and genres-as-you-rate-them tables on both layouts (phone: the `.yrow` and
+    `.grow` rows), and the desktop's diary table. Values compare as shown (two "3.49"s tie); a year still under way is
+    left out of counts; an end shared by more than three rows, or a column of fewer than three, isn't marked; a line
+    under each says so (`HILO_NOTE`). Not on heat tables (already shaded) or tables whose rows are different measures
+    (a year against the one before, Compare's habits). The `extras` check covers both layouts. A new comparing table
+    should use it.
   - They like charts and data views that are accurate and clear. Both layouts are dark only (asked Oct 2026): don't
     bring back a light look or follow the system's setting.
   - Highest-rated actors over **all time** need **6 rated films** each (`CAST_MIN_RATED`, `s.castMinRated`). In a
@@ -191,7 +199,9 @@ The owner asked for this to be checked every time. A film, diary entry, person o
   `chapterStrip`; see "Insights, the study"; also `crowdOf`, the Stats page's against-the-crowd numbers),
   `06l-filter.js` (filters: `FILTER`, `filteredLib`, `D.filters` and its panel `filtersInner`, `filterStripHtml`,
   `dropEmpties`; see "Filters"), `06m-story.js` (the
-  story: `D.story`, `storyBodyHtml`, `fillStory`, `storyFindings`).
+  story: `D.story`, `storyBodyHtml`, `fillStory`, `storyFindings`), `06n-world.js` (the world map's country shapes and
+  names, `WORLD`; drawn by `tools/make_world.mjs`, never edited by hand), `06o-map.js` (the map: `worldData`,
+  `worldSteps`, `worldMapHtml`; see "World map").
 - `src/site/`: `manifest.webmanifest`, `sw.js` (network-first service worker; skips TMDB, OMDb, Apify),
   icons (drawn by `tools/make_icons.py`), `og.png` (the link preview, 1200×630, drawn from `tools/og.html` by
   `node tools/make_og.mjs`; `build.sh` puts its tags, `PREVIEW`, first in the head of all three pages, before the
@@ -307,6 +317,19 @@ friend replaces the address instead.
   a year, your average rating, and the genre it leans to beyond the rest of the diary ("Leans to", `leanHtml`). For a
   year: its months against your usual for each in other years. Desktop card `months` in "When you watch"; phone
   Stats › Years (`mMonths`). The `counts` check adds up every month.
+- **World map** (asked Oct 2026; `06o-map.js`): where the films were made, the more films the deeper the colour (gold on
+  the computer, green on the phone), in five steps spaced for a long tail (`worldSteps`: 1–2, 3–9, 10–49, 50–199, 200+
+  for a 700-film top). Hover (a tap on the phone) shows the country, its films and share, your average, what it's mostly
+  (genre, language) and its highest rated film (`data-tip-h` is the tip's heading line on both layouts); a click opens
+  its films; each step of the key opens its countries. Countries match by every English spelling (`WORLD.names`,
+  `normCountry`: USA, United States of America…) and gather into one place per code, each film once. Countries that
+  no longer exist (Soviet Union, Yugoslavia, Czechoslovakia, East Germany…) and names the map doesn't know are listed
+  under it ("Not on today's map"), and the countries that came out of them say so on hover. Tiny countries (Hong Kong,
+  Singapore, Malta…) are dots, shown when they have films. Computer: section `world` after Genre & origin; phone: Stats
+  › Breakdown, heading Countries. Follows the year and filters. Shapes: Natural Earth 1:110m, Equal Earth projection,
+  no Antarctica, about 40 KB; to change them, `npm i --no-save d3-geo@3 topojson-client@3 world-atlas@2
+  i18n-iso-countries@7 && node tools/make_world.mjs`. The `counts` check proves every country of the list lands in
+  exactly one place and two spellings of one country count a film once; `extras` hovers, clicks and opens the key.
 - **Insights**: a study of the diary (below), findings only: all years (in short, chapters, through the year, how taste has moved, what
   ratings follow, one film to the next, habits) and each year against the rest of the diary (in short, what set it
   apart, its months, ratings, threads, habits, the year picture).

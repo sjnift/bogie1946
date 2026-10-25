@@ -17,18 +17,19 @@ function yearsScreen(s) {
 // Month by month: the grid of every month, then each calendar month across the years (or, for a year, against usual).
 function mMonths(G) {
   if (!G) return "";
-  const rows = G.cal.filter((c) => c.years).map((c) => {
+  const cal = G.cal.filter((c) => c.years), H = monthHiLo(G, cal);
+  const rows = cal.map((c, i) => {
     const title = G.Y ? `${c.name} ${G.Y}` : `${c.name}, every year`, rated = c.E.filter((e) => e.rating || e.film.rating);
-    const cell = (v, label) => `<span class="c"><b>${v}</b><small>${label}</small></span>`;
-    return `<div class="yrow"><span class="y">${MONTHS[c.i]}</span>${cell(dlink(monthEnts(title, c.E), fmtN(c.E.length)), "films")}
-      ${G.Y ? cell(c.usual != null ? dlink(monthEnts(`${c.name} in your other years`, c.usualE, plural(c.usualYears, "year")), c.usual.toFixed(1)) : "—", "usual")
-        : cell(dlink(monthEnts(title, c.E, plural(c.years, "year")), c.perYear.toFixed(1)), "a year")}
-      ${cell(c.avg ? dlink(monthEnts(`Rated in ${title}`, rated), c.avg.toFixed(2)) : "—", "average")}
+    const cell = (v, label, h) => `<span class="c${h}"><b>${v}</b><small>${label}</small></span>`;
+    return `<div class="yrow"><span class="y">${MONTHS[c.i]}</span>${cell(dlink(monthEnts(title, c.E), fmtN(c.E.length)), "films", H.films[i])}
+      ${G.Y ? cell(c.usual != null ? dlink(monthEnts(`${c.name} in your other years`, c.usualE, plural(c.usualYears, "year")), c.usual.toFixed(1)) : "—", "usual", H.year[i])
+        : cell(dlink(monthEnts(title, c.E, plural(c.years, "year")), c.perYear.toFixed(1)), "a year", H.year[i])}
+      ${cell(c.avg ? dlink(monthEnts(`Rated in ${title}`, rated), c.avg.toFixed(2)) : "—", "average", H.avg[i])}
       ${c.lean ? `<span class="x">Leans to ${leanHtml(c, title)}</span>` : ""}</div>`;
   }).join("");
   const line = monthsLine(G);
   return sh("Month by month") + (line ? `<p class="lead" style="margin:-4px 0 12px">${line}</p>` : "") + `<div class="card mgrid-card">${monthGridHtml(G)}</div>` +
-    sh(G.Y ? `Each month of ${esc(G.Y)}` : "Each month, across the years") + `<div class="group">${rows}</div><p class="note">Darker squares are busier months${G.Y ? "; “usual” is the same month in your other years" : ""}. Tap any number to see the films.</p>`;
+    sh(G.Y ? `Each month of ${esc(G.Y)}` : "Each month, across the years") + `<div class="group">${rows}</div><p class="note">Darker squares are busier months${G.Y ? "; “usual” is the same month in your other years" : ""}. ${HILO_NOTE} Tap any number to see the films.</p>`;
 }
 function crowdScreen(s) {
   const k = crowdKey();
@@ -52,8 +53,9 @@ function mYears(I) {
   const legend = anyPace ? `<div class="legend"><span><i style="background:var(--green-mark)"></i>Watched</span><span><i style="background:var(--blue-mark)"></i>Rest of this year at your pace</span></div>` : "";
   const chart = colChart(I.years.map((p) => ({ a: Math.max(0, T.value(p) || 0), b: T.extra ? T.extra(p) : 0, label: `’${p.year.slice(2)}`, tip: T.tip(p), to: p.entries ? yearDrill(p, t) : null })), `${T.label} by year`, legend, 130,
     t === "rating" ? { values: (c) => c.a.toFixed(2), base: valuesBase(I.years.map((p) => p.avgRating), 0.25) } : { unit: T.unit });
-  const rows = [...I.years].reverse().map((p) => {
-    const cell = (what, v, label) => `<span class="c"><b>${v == null ? "—" : dlink(yearDrill(p, what), v)}</b><small>${label}</small></span>`;
+  const ys = [...I.years].reverse(), H = yearsHiLo(ys);
+  const rows = ys.map((p, i) => {
+    const cell = (what, v, label) => `<span class="c${(H[what] || [])[i] || ""}"><b>${v == null ? "—" : dlink(yearDrill(p, what), v)}</b><small>${label}</small></span>`;
     const g = p.topGenre, gf = g && p.F.filter(hasGenre(g[0]));
     const extra = [g ? dlink(D.films(`${g[0]} in ${p.year}`, filmsSub(gf), gf, { scope: p.year }), esc(g[0])) : "",
       p.topDirector && p.topDirector[1] > 1 ? dlink(personDrill(state.lib, p.topDirector[0], "d", p.F), esc(p.topDirector[0])) : "",
@@ -62,7 +64,7 @@ function mYears(I) {
       ${cell("hours", fmtN(Math.round(p.hours)), "hours")}${cell("rating", p.avgRating ? p.avgRating.toFixed(2) : null, "average")}${extra ? `<span class="x">${extra}</span>` : ""}</div>`;
   }).join("");
   return sh("Year by year") + chipBar("trend", Object.entries(TRENDS).map(([k, x]) => [k, x.label]), t) + `<div class="card" style="margin-top:12px">${chart}</div>` +
-    sh("Every year") + `<div class="group">${rows}</div><p class="note">Tap any number to see what's behind it.</p>`;
+    sh("Every year") + `<div class="group">${rows}</div><p class="note">${HILO_NOTE}${ys.some((p) => p.pace) ? " A year still under way isn't marked for its counts." : ""} Tap any number to see what's behind it.</p>`;
 }
 
 function mGenreYears(I) {
@@ -80,11 +82,12 @@ function mGenres(I) {
   if (!I.genres.length) return "";
   const max = Math.max(0.5, ...I.genres.map((g) => Math.abs(g.vsCrowd || 0)), ...I.genres.map((g) => Math.abs(g.vsMe)));
   const bar = (d) => d == null ? `<span class="dim">—</span>` : `<span class="dbar" aria-hidden="true"><span class="mid"></span><span class="fill ${d >= 0 ? "pos" : "neg"}" style="width:${Math.min(50, Math.abs(d) / max * 50).toFixed(1)}%"></span></span>`;
-  const rows = I.genres.map((g) => `<button class="grow" type="button" data-list="${reg(g.name, `${plural(g.count, "film")} · ${g.mine.toFixed(2)} average`, g.films)}">
-    <span style="min-width:0"><span class="nm">${esc(g.name)}</span><span class="sub">${plural(g.count, "film")} · ★ ${g.mine.toFixed(2)}</span></span>
-    <span class="gcol">${bar(g.vsMe)}<span class="v">${signed(g.vsMe)}</span></span><span class="gcol">${bar(g.vsCrowd)}<span class="v">${g.vsCrowd == null ? "" : signed(g.vsCrowd)}</span></span>${CHEV}</button>`).join("");
+  const H = genresHiLo(I.genres);
+  const rows = I.genres.map((g, i) => `<button class="grow" type="button" data-list="${reg(g.name, `${plural(g.count, "film")} · ${g.mine.toFixed(2)} average`, g.films)}">
+    <span style="min-width:0"><span class="nm">${esc(g.name)}</span><span class="sub"><span class="${H.count[i].trim()}">${plural(g.count, "film")}</span> · <span class="${H.mine[i].trim()}">★ ${g.mine.toFixed(2)}</span></span></span>
+    <span class="gcol">${bar(g.vsMe)}<span class="v${H.vsMe[i]}">${signed(g.vsMe, 2)}</span></span><span class="gcol">${bar(g.vsCrowd)}<span class="v${H.vsCrowd[i]}">${g.vsCrowd == null ? "" : signed(g.vsCrowd, 2)}</span></span>${CHEV}</button>`).join("");
   return sh("Genres as you rate them") + `<div class="ghead"><span></span><span>vs your avg</span><span>vs ${esc(I.crowd.short)}</span><span></span></div><div class="group">${rows}</div>
-    <div class="legend" style="margin-top:10px"><span><i style="background:var(--green-mark)"></i>Higher</span><span><i style="background:var(--blue-mark)"></i>Lower</span><span>in stars</span></div>`;
+    <div class="legend" style="margin-top:10px"><span><i style="background:var(--green-mark)"></i>Higher</span><span><i style="background:var(--blue-mark)"></i>Lower</span><span>in stars</span></div><p class="note">${HILO_NOTE}</p>`;
 }
 
 function mPeopleYears(I) {

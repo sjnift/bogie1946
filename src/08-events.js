@@ -160,7 +160,9 @@ function bind() {
   document.addEventListener("pointerover", (e) => {
     const t = e.target.closest && e.target.closest("[data-tip]");
     if (!t) { tip.hidden = true; return; }
-    tip.textContent = t.dataset.tip; tip.hidden = false; place(e.clientX, e.clientY);
+    tip.textContent = t.dataset.tip;
+    if (t.dataset.tipH) { const b = document.createElement("b"); b.textContent = t.dataset.tipH; tip.prepend(b); }
+    tip.hidden = false; place(e.clientX, e.clientY);
   });
   document.addEventListener("pointermove", (e) => { if (!tip.hidden) place(e.clientX, e.clientY); });
   document.addEventListener("pointerleave", () => { tip.hidden = true; });

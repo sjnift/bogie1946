@@ -13,7 +13,8 @@ async function clickThrough(page, scope, panel, where, min = 6) {
     const kind = await el.evaluate((e) => `${(e.closest("section, .sh") || {}).id || ""}|${e.className}|${e.tagName}`);
     seen.set(kind, (seen.get(kind) || 0) + 1);
     if (seen.get(kind) > 2 || !(await el.isVisible())) continue;
-    await el.click();
+    // a country on the map is an odd shape (France reaches to South America), so it's clicked as itself, not at its middle
+    if (await el.evaluate((e) => e instanceof SVGGeometryElement)) await el.dispatchEvent("click"); else await el.click();
     await page.waitForTimeout(40);
     const title = await page.evaluate((p) => { const d = document.querySelector(p); return d && d.open ? d.querySelector("h2, h3").textContent : null; }, panel);
     assert(title, `${where}: link ${i} (${kind}) opened nothing`);

@@ -16,15 +16,17 @@ const needYears = (what) => `<div class="empty">${what} need diary entries from 
 // Each calendar month across the years (or, for a year, against your usual): the table behind the grid.
 function monthTableHtml(G) {
   if (!G) return `<div class="empty">Months come from diary dates, and there are none in this period.</div>`;
-  const rows = G.cal.filter((c) => c.years).map((c) => {
+  const cal = G.cal.filter((c) => c.years);
+  const H = monthHiLo(G, cal);
+  const rows = cal.map((c, i) => {
     const rated = c.E.filter((e) => e.rating || e.film.rating), title = G.Y ? `${c.name} ${G.Y}` : `${c.name}, every year`;
-    return `<tr><td>${esc(c.name)}</td><td class="n">${dlink(monthEnts(title, c.E), fmtN(c.E.length))}</td>
-      <td class="n">${G.Y ? (c.usual != null ? dlink(monthEnts(`${c.name} in your other years`, c.usualE, plural(c.usualYears, "year")), c.usual.toFixed(1)) : "—") : dlink(monthEnts(title, c.E, plural(c.years, "year")), c.perYear.toFixed(1))}</td>
-      <td class="n">${c.avg ? dlink(monthEnts(`Rated in ${title}`, rated), c.avg.toFixed(2)) : "—"}</td>
+    return `<tr><td>${esc(c.name)}</td><td class="n${H.films[i]}">${dlink(monthEnts(title, c.E), fmtN(c.E.length))}</td>
+      <td class="n${H.year[i]}">${G.Y ? (c.usual != null ? dlink(monthEnts(`${c.name} in your other years`, c.usualE, plural(c.usualYears, "year")), c.usual.toFixed(1)) : "—") : dlink(monthEnts(title, c.E, plural(c.years, "year")), c.perYear.toFixed(1))}</td>
+      <td class="n${H.avg[i]}">${c.avg ? dlink(monthEnts(`Rated in ${title}`, rated), c.avg.toFixed(2)) : "—"}</td>
       <td>${leanHtml(c, title)}</td></tr>`;
   }).join("");
   return `<div class="scroll"><table class="data"><thead><tr><th>Month</th><th class="n">Films</th><th class="n">${G.Y ? "Usual" : "A year"}</th><th class="n">Your average</th><th>Leans to</th></tr></thead><tbody>${rows}</tbody></table></div>
-    <p class="status">${G.Y ? "“Usual” is the same month in your other years. " : ""}“Leans to” is the genre that month has most more of than the rest of ${G.Y ? "the year" : "your diary"}. Click any number to see the films.</p>`;
+    <p class="status">${G.Y ? "“Usual” is the same month in your other years. " : ""}“Leans to” is the genre that month has most more of than the rest of ${G.Y ? "the year" : "your diary"}. ${HILO_NOTE} Click any number to see the films.</p>`;
 }
 function yearsBlock(I) {
   if (I.years.length < 2) return needYears("Year-by-year trends");
@@ -46,14 +48,15 @@ function yearsBlock(I) {
     ${mult("Rewatches (%)", "rewatches", (p) => pctOf(p.rewatches, p.entries), (p) => `${p.year}: ${pctOf(p.rewatches, p.entries)}% of entries`, null, { unit: "%" })}
   </div>`;
   const top = (p, pair, role) => pair && pair[1] > 1 ? `${dlink(personDrill(state.lib, pair[0], role, p.F), esc(pair[0]))} <span class="muted">${pair[1]}</span>` : "—";
-  const rows = [...I.years].reverse().map((p) => { const cell = (what, v) => v == null || v === "—" ? "—" : dlink(yearDrill(p, what), v);
+  const ys = [...I.years].reverse(), H = yearsHiLo(ys);
+  const rows = ys.map((p, i) => { const cell = (what, v) => v == null || v === "—" ? "—" : dlink(yearDrill(p, what), v);
     return `<tr><td>${cell("entries", p.year)}${p.pace ? ` <span class="muted">(pace ${fmtN(p.pace)})</span>` : ""}</td>
-    <td class="n">${cell("films", fmtN(p.films))}</td><td class="n">${cell("hours", fmtN(Math.round(p.hours)))}</td><td class="n">${cell("rating", p.avgRating ? p.avgRating.toFixed(2) : null)}</td>
-    <td class="n">${cell("new", p.newShare != null ? p.newShare + "%" : null)}</td><td class="n">${cell("nonEnglish", p.nonEnglish != null ? p.nonEnglish + "%" : null)}</td><td class="n">${cell("countries", p.countries || null)}</td>
+    <td class="n${H.films[i]}">${cell("films", fmtN(p.films))}</td><td class="n${H.hours[i]}">${cell("hours", fmtN(Math.round(p.hours)))}</td><td class="n${H.rating[i]}">${cell("rating", p.avgRating ? p.avgRating.toFixed(2) : null)}</td>
+    <td class="n${H.newShare[i]}">${cell("new", p.newShare != null ? p.newShare + "%" : null)}</td><td class="n${H.nonEnglish[i]}">${cell("nonEnglish", p.nonEnglish != null ? p.nonEnglish + "%" : null)}</td><td class="n${H.countries[i]}">${cell("countries", p.countries || null)}</td>
     <td>${p.topGenre ? dlink(D.films(`${p.topGenre[0]} in ${p.year}`, filmsSub(p.F.filter(hasGenre(p.topGenre[0]))), p.F.filter(hasGenre(p.topGenre[0])), { scope: p.year }), esc(p.topGenre[0])) : "—"}</td>
     <td>${top(p, p.topDirector, "d")}</td><td>${top(p, p.topActor, "c")}</td></tr>`; }).join("");
   return legend + charts + `<div class="tbl-wrap"><table class="data"><thead><tr><th>Year</th><th class="n">Films</th><th class="n">Hours</th><th class="n">Avg ★</th>
-    <th class="n">New releases</th><th class="n">Not English</th><th class="n">Countries</th><th>Top genre</th><th>Top director</th><th>Top actor</th></tr></thead><tbody>${rows}</tbody></table></div><p class="status">Click any number to see the films or diary entries behind it.</p>`;
+    <th class="n">New releases</th><th class="n">Not English</th><th class="n">Countries</th><th>Top genre</th><th>Top director</th><th>Top actor</th></tr></thead><tbody>${rows}</tbody></table></div><p class="status">${HILO_NOTE}${ys.some((p) => p.pace) ? " A year still under way isn't marked for its counts." : ""} Click any number to see the films or diary entries behind it.</p>`;
 }
 
 function genreYearsBlock(I) {
@@ -74,13 +77,14 @@ function divBar(d, max) {
 function genresBlock(I) {
   if (!I.genres.length) return `<div class="empty">Needs genres with three or more rated films.</div>`;
   const max = Math.max(0.5, ...I.genres.map((g) => Math.max(Math.abs(g.vsMe), Math.abs(g.vsCrowd || 0))));
-  const rows = I.genres.map((g) => { const to = D.films(g.name, `${plural(g.count, "film")} · ${g.mine.toFixed(2)} average`, g.films);
-    return `<tr><td>${dlink(to, esc(g.name))}</td><td class="n">${dlink(to, fmtN(g.count))}</td><td class="n">${dlink(to, g.share + "%")}</td><td class="n">${dlink(to, g.mine.toFixed(2))}</td>
-    <td>${dlink(to, divBar(g.vsMe, max))}</td><td>${g.vsCrowd == null ? divBar(null) : dlink(crowdDrill(g.films, I.crowd.key, `${g.name} against ${I.crowd.label}`), divBar(g.vsCrowd, max))}</td></tr>`; }).join("");
+  const H = genresHiLo(I.genres);
+  const rows = I.genres.map((g, i) => { const to = D.films(g.name, `${plural(g.count, "film")} · ${g.mine.toFixed(2)} average`, g.films);
+    return `<tr><td>${dlink(to, esc(g.name))}</td><td class="n${H.count[i]}">${dlink(to, fmtN(g.count))}</td><td class="n${H.share[i]}">${dlink(to, g.share + "%")}</td><td class="n${H.mine[i]}">${dlink(to, g.mine.toFixed(2))}</td>
+    <td class="${H.vsMe[i].trim()}">${dlink(to, divBar(g.vsMe, max))}</td><td class="${H.vsCrowd[i].trim()}">${g.vsCrowd == null ? divBar(null) : dlink(crowdDrill(g.films, I.crowd.key, `${g.name} against ${I.crowd.label}`), divBar(g.vsCrowd, max))}</td></tr>`; }).join("");
   return `<div class="legend"><span><i style="background:var(--gold)"></i>Higher</span><span><i style="background:var(--lilac)"></i>Lower</span></div>
     <div class="tbl-wrap"><table class="data"><thead><tr><th>Genre</th><th class="n">Films</th><th class="n">Share</th><th class="n">Your avg ★</th>
     <th>Against your average</th><th>Against ${esc(I.crowd.label)}</th></tr></thead><tbody>${rows}</tbody></table></div>
-    <p class="status">Genres with three or more rated films. Differences are in stars. Click any number to see the films.</p>`;
+    <p class="status">Genres with three or more rated films. Differences are in stars. ${HILO_NOTE} Click any number to see the films.</p>`;
 }
 
 function peopleYearsBlock(I) {

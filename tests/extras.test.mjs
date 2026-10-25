@@ -37,6 +37,48 @@ export default async function ({ browser, base }) {
     await p.evaluate((phone) => { const f = EXAMPLE_FRIENDS[0]; return phone ? openSheet(D.shareMatch(f.id, f.name)) : openDrill(D.shareMatch(f.id, f.name)); }, phone);
     await imgSize("1080x1350", "taste match");
     await close();
+    // the world map (computer: under Genre & origin; phone: Stats › Breakdown): the country with the most films is the
+    // deepest shade, tells its numbers on hover and opens its films; the key opens the countries of each shade
+    await p.goto(`${base}${file}?example#/${phone ? "genres" : ""}`); await p.waitForFunction(() => typeof state === "object" && state.lib);
+    await p.waitForSelector(".wsvg");
+    const map = await p.evaluate(() => {
+      const W = worldData(computeStats(state.lib, metaOf, state.scope).countries), top = W.places[0], el = document.querySelector(`.wsvg [aria-label^="${top.name}:"]`);
+      el.scrollIntoView({ block: "center" });
+      const b = el.getBBox(), M = el.getScreenCTM();
+      let at = null;
+      for (let i = 1; i < 16 && !at; i++) for (let j = 1; j < 16 && !at; j++) {
+        const pt = new DOMPoint(b.x + b.width * i / 16, b.y + b.height * j / 16);
+        if (el.isPointInFill(pt)) { const s = pt.matrixTransform(M); if (document.elementFromPoint(s.x, s.y) === el) at = { x: s.x, y: s.y }; }
+      }
+      return { name: top.name, count: top.count, cls: el.getAttribute("class"), places: W.places.length, lit: document.querySelectorAll(".wsvg [data-list]").length, at };
+    });
+    await p.waitForTimeout(200); // the scroll to it hides any tip, so hover once it has settled
+    assert(map.at && map.cls.includes("l5") && map.lit === map.places, `${file} world map: ${JSON.stringify(map)}`);
+    if (!phone) {
+      await p.mouse.move(map.at.x, map.at.y); await p.waitForTimeout(80);
+      const tip = await p.$eval("#tip", (t) => [t.hidden, t.querySelector("b") && t.querySelector("b").textContent, t.textContent]);
+      assert(!tip[0] && tip[1] === map.name && tip[2].includes(`${map.count} film`), `${file} world map hover: ${JSON.stringify(tip)}`);
+      await p.mouse.click(map.at.x, map.at.y);
+    } else await p.touchscreen.tap(map.at.x, map.at.y);
+    await p.waitForTimeout(250);
+    const opened = await p.evaluate((panel) => { const d = document.querySelector(panel); return d && d.open ? d.querySelector("h2, h3").textContent : null; }, panel);
+    assert(opened === map.name, `${file} world map click opened ${opened}, not ${map.name}`);
+    await close();
+    await p.click(".wkey button.wk"); await p.waitForTimeout(200);
+    const keyed = await p.evaluate((panel) => { const d = document.querySelector(panel); return d && d.open ? d.querySelector("h2, h3").textContent : null; }, panel);
+    assert(/^Countries with /.test(keyed || ""), `${file} world map key opened ${keyed}`);
+    await close();
+    // the phone's Stats › Years: each year's average rating, the highest in gold and the lowest in purple
+    if (phone) {
+      await p.evaluate(() => { state.scope = "all"; goTo("years", { force: true, top: true }); }); await p.waitForTimeout(200);
+      const ph = await p.evaluate(() => {
+        const cells = [...document.querySelectorAll(".yrow")].filter((r) => /^\d{4}$/.test(r.querySelector(".y").textContent.trim()))
+          .map((r) => [...r.querySelectorAll(".c")].find((c) => c.querySelector("small").textContent === "average")).filter((c) => c && /\d/.test(c.textContent));
+        const v = (c) => parseFloat(c.querySelector("b").textContent), vals = cells.map(v);
+        return { n: cells.length, hi: cells.filter((c) => c.classList.contains("hi")).map(v), lo: cells.filter((c) => c.classList.contains("lo")).map(v), max: Math.max(...vals), min: Math.min(...vals) };
+      });
+      assert(ph.n >= 3 && ph.hi.length && ph.hi.every((x) => x === ph.max) && ph.lo.length && ph.lo.every((x) => x === ph.min), `phone years, gold and purple: ${JSON.stringify(ph)}`);
+    }
     noErrors(p, file);
   }
   const d = await open(browser, base, "desktop.html", { worker: true });
@@ -61,11 +103,23 @@ export default async function ({ browser, base }) {
   const at = (id) => lay.ids.indexOf(id);
   assert(at("best-decade") > at("recent") && at("best-decade") < at("ch-films") && at("top") > at("ch-ratings") && at("top") > at("rated"), `main page order: ${lay.ids.join(" ")}`);
   assert(lay.cards >= 10 && lay.more >= 8, `main page cards: ${JSON.stringify({ cards: lay.cards, more: lay.more })}`);
-  assert(lay.people.join() === "starring,directed,crew,people-years" && lay.origin.join() === "origin,genre-years,genre-rates" && lay.faces >= 5 && lay.cats === 3,
+  assert(lay.people.join() === "starring,directed,crew,people-years" && lay.origin.join() === "origin,world,genre-years,genre-rates" && lay.faces >= 5 && lay.cats === 3,
     `People and Genres & countries in full: ${JSON.stringify(lay)}`);
   // a card's "See all" opens the whole section in the pop-up, not in place
   await d.click("#years .dc-more"); await d.waitForTimeout(150);
   assert(await d.evaluate(() => $("#dlg").open && !!$("#dlg .dblock table")), "Year by year didn't open in the pop-up");
+  // tables that compare their rows: the highest of each column in gold, the lowest in purple; the average rating column
+  // marks exactly its top and bottom, the films column leaves out a year still under way
+  const marks = await d.evaluate(() => {
+    const num = (td) => parseFloat(td.textContent.replace(/[^\d.−-]/g, "").replace("−", "-"));
+    const rows = [...$("#dlg .dblock table.data tbody").rows], col = (i) => rows.map((r) => r.cells[i]).filter((td) => /\d/.test(td.textContent));
+    const avg = col(3), vals = avg.map(num), films = rows.filter((r) => !/pace/.test(r.cells[0].textContent)).map((r) => r.cells[1]);
+    return { hi: avg.filter((td) => td.classList.contains("hi")).map(num), lo: avg.filter((td) => td.classList.contains("lo")).map(num), max: Math.max(...vals), min: Math.min(...vals),
+      filmsHi: films.filter((td) => td.classList.contains("hi")).map(num), filmsMax: Math.max(...films.map(num)),
+      unit: [hiLo([3, 1, 2, null]), hiLo([0, 0, 0, 0, 5]), hiLo([1, 2])].map((x) => x.join("/")).join(" | ") };
+  });
+  assert(marks.hi.length && marks.hi.every((v) => v === marks.max) && marks.lo.length && marks.lo.every((v) => v === marks.min) && marks.filmsHi[0] === marks.filmsMax
+    && marks.unit === " hi/ lo// | //// hi | /", `highest in gold, lowest in purple: ${JSON.stringify(marks)}`);
   await d.keyboard.press("Escape"); await d.waitForTimeout(100);
   // the full sections keep their switches: Highest rated for actors, and for genres
   await d.click('#starring [data-tab="cast"][data-val="best"]'); await d.waitForTimeout(150);
