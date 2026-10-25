@@ -2,7 +2,7 @@
 /* ---------- page state ---------- */
 const state = {
   mode: "example", lib: null, scope: "all", page: "stats", crowd: null, wn: "any", insYear: "all", reviewQuery: "", cmp: null, cmpError: "", unfriend: null,
-  tab: { cast: "most", directors: "most", crew: "w", cats: "most" },
+  tab: { cast: "most", directors: "most", crew: "w", crewSort: "most", cats: "most" },
   more: { cast: false, directors: false },
 };
 let MY_LIB = null, EXAMPLE_LIB = null, STATS = null;

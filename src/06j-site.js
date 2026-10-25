@@ -28,7 +28,7 @@ let SITE = ls.get(SITE_REC, null), SITEPUB = ls.get(SITE_PUB, null);
 // the key works for the site's repository whatever it's called, so a renamed one is followed
 if (SITEPUB && SITE_GH_REPO && SITEPUB.repo !== SITE_GH_REPO) { SITEPUB.repo = SITE_GH_REPO; ls.set(SITE_PUB, SITEPUB); }
 // index: undefined until the site has been asked, null when it has no diary
-const site = { index: undefined, offline: false, checked: 0, busy: "", note: "", err: false, noteIn: "publish", applying: false, armed: null, timer: null, due: 0, job: null };
+const site = { index: undefined, offline: false, checked: 0, busy: "", note: "", err: false, noteIn: "publish", applying: false, armed: null, timer: null, due: 0, job: null, acted: 0 };
 const saveSite = () => { SITE ? ls.set(SITE_REC, SITE) : ls.del(SITE_REC); SITEPUB ? ls.set(SITE_PUB, SITEPUB) : ls.del(SITE_PUB); };
 
 /* ----- bytes, hashes and the lock ----- */
@@ -486,19 +486,24 @@ function siteBoxInner(kind) {
 // typed and which sections are open stay as they were (while it works, and when it didn't), unless it just worked.
 const siteDrawn = new WeakMap();
 function siteRedraw() {
-  const keep = !(site.note && !site.err && !site.busy);
+  // What's typed and which sections are open stay across redraws, except right after a button pressed here worked
+  // (then the boxes start empty). A background update finishing never wipes what someone is typing.
+  if (site.err) site.acted = 0;
+  const keep = !(site.acted && Date.now() - site.acted < 120000 && site.note && !site.busy);
+  let redrawn = false;
   for (const el of document.querySelectorAll("[data-sitebox]")) {
     const html = siteBox(el.dataset.sitebox);
     if (siteDrawn.get(el) !== html || el.innerHTML.trim() === "" !== !html.trim()) {
       const summary = (d) => (d.querySelector("summary") || {}).textContent;
       const open = new Set([...el.querySelectorAll("details[open]")].map(summary));
       const typed = Object.fromEntries([...el.querySelectorAll("input[name]")].map((i) => [i.name, i.value]));
-      el.innerHTML = html; siteDrawn.set(el, html);
+      el.innerHTML = html; siteDrawn.set(el, html); redrawn = true;
       if (!keep) continue;
       for (const d of el.querySelectorAll("details")) if (open.has(summary(d))) d.open = true;
       for (const i of el.querySelectorAll("input[name]")) if (typed[i.name] && !i.value) i.value = typed[i.name];
     }
   }
+  if (!keep && redrawn) site.acted = 0;
   // the computer's Settings section for it shows only when there's something in it
   const sec = document.getElementById("set-site"), sb = document.getElementById("site-box");
   if (sec) sec.hidden = !SITE_ON || !sb || !sb.innerHTML.trim();
@@ -509,6 +514,7 @@ document.addEventListener("click", (e) => {
   const box = t.closest("[data-sitebox]"), where = box ? box.dataset.sitebox : "publish";
   const val = (n) => ((box && box.querySelector(`[name="${n}"]`)) || {}).value || "";
   const a = t.dataset.site;
+  site.acted = Date.now();
   if (a !== "remove") { clearTimeout(site.armed); site.armed = null; }
   if (a === "unlock") siteUnlock(val("pass"), where);
   else if (a === "create" || a === "password") {

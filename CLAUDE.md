@@ -260,7 +260,8 @@ friend replaces the address instead.
 ## Features (all on both layouts)
 
 - **Stats**: recently watched (8 latest entries on the desktop main page, `recentBlock`; 12 on the phone's Profile;
-  a year shows its last ones), films, hours, diary, ratings, rewatches, reviews, most watched actors/directors/crew, genres,
+  a year shows its last ones), films, hours, diary, ratings, rewatches, reviews, most watched and highest rated
+  actors/directors/crew (the desktop's Crew has both, `state.tab.crewSort`, asked Oct 2026), genres,
   countries, languages, decades, milestones with posters, records, highest and lowest rated, On this day, Watch next,
   Reviewed (search; the desktop main page shows the latest 3, cut short, and "All N reviews" opens the rest:
   `REVIEWS_SHOWN`) and, from the old Insights page, year by year, genres year by year and as you rate them, people over
@@ -391,7 +392,8 @@ app**. `06j-site.js`:
   averages a minute after lookups finish (only the parts that changed). "Update the site now", "Change the password",
   "Use a new GitHub key", "Take my diary off the site" (deletes `docs/diary/`; nothing goes up again until it's put
   back), and, where the password is asked for, "Forgot the password?" (see "Known limits"). The boxes keep what's
-  typed and which sections are open across redraws, unless something just worked (`siteRedraw`). At start a device sends whatever the site lacks or has differently (`siteDiffers`).
+  typed and which sections are open across redraws, unless a button pressed there just worked (`siteRedraw`,
+  `site.acted`; a background update finishing never wipes what's being typed, which once made the `site` check flaky). At start a device sends whatever the site lacks or has differently (`siteDiffers`).
 - Opening it: any device with nothing imported shows, under the import box, "Are you @user? Open your diary", folded
   (most people there are friends with their own export), which unfolds to the password box; the key
   made from it is kept (`cr-site-v1`), the parts are read from the site (`diary/<part>.bin?v=<when>`) and saved

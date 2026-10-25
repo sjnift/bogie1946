@@ -124,12 +124,14 @@ function decadeBlock(s) {
   return hero + colChart(cols, "Films by decade of release", "", 162, { unit: "films" }) + list;
 }
 function crewBlock(s) {
-  const t = state.tab.crew;
+  const t = state.tab.crew, best = state.tab.crewSort === "best";
   const data = { w: s.writers, p: s.dop, m: s.music }[t];
   const label = { w: "writers", p: "cinematographers", m: "composers" }[t];
-  const list = foldTies(data.most, (p) => p.count, 1, peopleTies(label)).slice(0, 15);
-  const body = list.length ? rankRows(list, (p) => p.group ? `${plural(p.count, "film")} each` : plural(p.count, "film"), (p) => p.count / data.most[0].count, 1, personSub) : `<div class="empty">Nobody to show yet.</div>`;
-  return tabs("crew", [["w", "Written by"], ["p", "Shot by"], ["m", "Music by"]], t) + body;
+  const list = best ? data.best.slice(0, 15) : foldTies(data.most, (p) => p.count, 1, peopleTies(label)).slice(0, 15);
+  const body = !list.length ? `<div class="empty">${best ? `None of these ${label} has ${s.minRated} or more rated films yet.` : "Nobody to show yet."}</div>`
+    : best ? rankRows(list, (p) => p.avg.toFixed(2), (p) => p.avg / 5, 1, personSub)
+    : rankRows(list, (p) => p.group ? `${plural(p.count, "film")} each` : plural(p.count, "film"), (p) => p.count / data.most[0].count, 1, personSub);
+  return `<div class="tab-rows">${tabs("crew", [["w", "Written by"], ["p", "Shot by"], ["m", "Music by"]], t)}${tabs("crewSort", [["most", "Most watched"], ["best", "Highest rated"]], state.tab.crewSort)}</div>` + body;
 }
 function milestonesBlock(s) {
   const E = s.entries;
@@ -221,7 +223,7 @@ function renderSections(s) {
     ["people", "People", [
       section("starring", "Starring", `${everyone(s.cast, "Actors")} in the top ${CAST_DEPTH} billed of each film. Highest rated needs ${s.castMinRated}+ rated films.`, people("cast", s.cast)),
       section("directed", "Directed by", `${everyone(s.directors, "Directors")}.`, people("directors", s.directors)),
-      section("crew", "Crew", "Writers, cinematographers and composers.", noMeta ? emptyMeta() : crewBlock(s)),
+      section("crew", "Crew", `Writers, cinematographers and composers. Highest rated needs ${s.minRated}+ rated films.`, noMeta ? emptyMeta() : crewBlock(s)),
       M.peopleYears, M.newIn]],
     ["origin", "Genres &amp; countries", [
       section("origin", "Genre &amp; origin", "Genres, production countries and original languages.", noMeta ? emptyMeta() : catBlock(s)),
