@@ -128,6 +128,28 @@ export default async function ({ browser, base }) {
     && lay.crew.map((c) => c[0]).join() === "Written by,Shot by,Music by" && lay.crew.every((c) => c[1] >= 1 && c[1] <= 5), `the trims: ${JSON.stringify(lay)}`);
   assert(lay.decades >= 3 && lay.runners.length === 2 && lay.runners.every((n) => n >= 3 && n <= 6) && lay.sizes[1] < lay.sizes[0],
     `second and third best decades: ${JSON.stringify({ decades: lay.decades, runners: lay.runners, sizes: lay.sizes })}`);
+  // under the faces: actors down to the 21st, directors down to their first row of ties, the same number of rows (and the
+  // same height) on Most watched and Highest rated; Show more brings the rest
+  const peopleRows = () => d.evaluate(() => Object.fromEntries(["starring", "directed"].map((id) => [id, { r: [...document.querySelectorAll(`#${id} .people-rows .rank-row`)].map((x) => x.querySelector(".r").textContent),
+    h: Math.round(document.getElementById(id).getBoundingClientRect().height) }])));
+  const most = await peopleRows();
+  await d.click('#starring [data-tab="cast"][data-val="best"]'); await d.click('#directed [data-tab="directors"][data-val="best"]'); await d.waitForTimeout(150);
+  const best = await peopleRows();
+  await d.click('#starring [data-tab="cast"][data-val="most"]'); await d.click('#directed [data-tab="directors"][data-val="most"]'); await d.waitForTimeout(150);
+  // (Highest rated can hold fewer people than that: then it shows what it has)
+  const bestLen = await d.evaluate(() => { const s = computeStats(state.lib, metaOf, "all"); return { starring: s.cast.best.length, directed: s.directors.best.length }; });
+  const lastRank = (r) => parseInt(String(r[r.length - 1]).split("–")[0], 10), tieAt = most.directed.r.findIndex((x) => /–/.test(x));
+  const same = (k) => best[k].r.length === Math.min(most[k].r.length, Math.max(0, bestLen[k] - 12)) && (best[k].r.length !== most[k].r.length || bestLen[k] < 12 || best[k].h === most[k].h);
+  assert(most.starring.r.length && lastRank(most.starring.r) <= 21 && (tieAt < 0 || tieAt === most.directed.r.length - 1) && same("starring") && same("directed"),
+    `people rows: ${JSON.stringify({ most, best, bestLen })}`);
+  // the world map zooms (and the view stays through a redraw), and comes back out
+  await d.evaluate(() => document.getElementById("world").scrollIntoView());
+  const vb = () => d.$eval("#world .wsvg", (s) => s.getAttribute("viewBox"));
+  const vb0 = await vb();
+  await d.click('#world [data-wz="in"]'); const vb1 = await vb();
+  await d.evaluate(() => renderSections(STATS)); const vb2 = await vb();
+  await d.click('#world [data-wz="reset"]'); const vb3 = await vb();
+  assert(vb1 !== vb0 && +vb1.split(" ")[2] < +vb0.split(" ")[2] && vb2 === vb1 && vb3 === vb0, `map zoom: ${[vb0, vb1, vb2, vb3].join(" | ")}`);
   // a row's "See all" opens the whole list in the pop-up
   await d.click("#top .row-h .dlink"); await d.waitForTimeout(150);
   const seen = await d.evaluate(() => [$("#dlg").open, $("#dlg h2, #dlg h3").textContent, $("#dlg").querySelectorAll(".drill-row, .film-row, li, .dr").length]);

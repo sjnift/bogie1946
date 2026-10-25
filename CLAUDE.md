@@ -96,7 +96,10 @@ Where it lives:
     year keeps "Every day of …"); Year by year has **one row of three charts** (films, average rating, film age) and the
     table carries hours, not in English and rewatches; **Crew shows writers, cinematographers and composers side by
     side, five each** with "See all N ›" (`crewBlock`, `CREW_N`; one Most watched / Highest rated switch for all three;
-    it was fifteen rows behind three tabs); **Genre & origin shows genres and languages only**, the countries
+    it was fifteen rows behind three tabs); **Starring and Directed by** show twelve faces, then rows down to the 21st
+    actor, and for directors down to their first row of ties (if that comes sooner), the **same number of rows on Most
+    watched and Highest rated**, each row one line, so switching doesn't move the page (`peopleRowsShown`, `PEOPLE_TO`;
+    "Show more" brings the rest); **Genre & origin shows genres and languages only**, the countries
     being on the map, which lists the most watched and highest rated under it (`worldMapHtml(…, { tops: true })`); with no
     reviews at all, only one empty review box. Don't bring back cards or "open in place". **Highest and lowest rated**
     are off the top, the last section of Ratings (phone: Stats › Films after Records). The `extras` check covers the
@@ -337,7 +340,10 @@ friend replaces the address instead.
   `normCountry`: USA, United States of America…) and gather into one place per code, each film once. Countries that
   no longer exist (Soviet Union, Yugoslavia, Czechoslovakia, East Germany…) and names the map doesn't know are listed
   under it ("Not on today's map"), and the countries that came out of them say so on hover. Tiny countries (Hong Kong,
-  Singapore, Malta…) are dots, shown when they have films. Computer: section `world` after Genre & origin (which no
+  Singapore, Malta…) are dots, shown when they have films. **It zooms** (asked Oct 2026): + / − / ⟲ (over the map on
+  the computer, under it on the phone), a pinch (phone or trackpad), ctrl or ⌘ with the wheel (plain scrolling still
+  scrolls the page); zoomed in, a drag moves it, and a drag never opens a country (`WORLD_VIEW`, `worldSet`,
+  `worldZoom`; up to eight times; the view stays through redraws). Computer: section `world` after Genre & origin (which no
   longer has a countries column), with the most watched and highest rated countries in a line each under the key
   (`tops`); phone: Stats › Breakdown, heading Countries, above the list. Follows the year and filters. Shapes: Natural Earth 1:110m, Equal Earth projection,
   no Antarctica, about 40 KB; to change them, `npm i --no-save d3-geo@3 topojson-client@3 world-atlas@2

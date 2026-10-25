@@ -116,7 +116,7 @@ function genresScreen(s) {
       const list = best ? data.best : data.most;
       const map = field === "countries" ? worldMapHtml(s.countries, { scope: s.scope, total: s.films.filter((f) => metaOf(f) && (metaOf(f).k || []).length).length }) : "";
       html += sh(label, list.length > 6 ? seeAll(`data-act="cat" data-field="${field}"`, `All ${fmtN(list.length)}`) : "") +
-        (map ? `<div class="card wcard">${map}<p class="wnote">Tap a country for its films.</p></div>` : "") +
+        (map ? `<div class="card wcard">${map}<p class="wnote">Tap a country for its films. Pinch or use + and − to zoom, and drag to move around.</p></div>` : "") +
         (list.length ? `<div class="group">${list.slice(0, 6).map((c) => catRow(c, list[0].count, best)).join("")}</div>` : `<div class="empty">${best ? "Needs 3 or more rated films each." : "Nothing yet."}</div>`);
     }
   } else html += needMeta();

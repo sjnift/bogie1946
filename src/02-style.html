@@ -296,6 +296,8 @@ main { padding-block: 8px 64px; }
   .face .initials { font-size: 28px; }
 }
 .person .nm { font-weight: 600; font-size: 14px; line-height: 1.25; overflow-wrap: anywhere; }
+/* in Starring and Directed by every name has room for two lines, so Most watched and Highest rated are the same height */
+.people .person .nm { min-height: 2.5em; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .person .ct { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; margin-top: -6px; }
 
 .rank-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
@@ -524,6 +526,15 @@ dialog.tall { width: min(520px, calc(100vw - 32px)); max-height: 94vh; }
 .wmap { --w0: var(--surface-2); --w1: color-mix(in srgb, var(--gold) 34%, var(--surface-2)); --w2: color-mix(in srgb, var(--gold) 55%, var(--surface-2));
   --w3: color-mix(in srgb, var(--gold) 78%, var(--surface-2)); --w4: var(--gold); --w5: var(--gold-ink); display: grid; gap: 12px; }
 .wsvg { display: block; width: 100%; height: auto; }
+.wbox { position: relative; }
+.wsvg { touch-action: pan-y; } .wsvg.zoomed { touch-action: none; cursor: grab; } .wsvg.zoomed:active { cursor: grabbing; }
+.wzoom { position: absolute; top: 8px; right: 8px; display: grid; gap: 4px; }
+.wzoom button { all: unset; box-sizing: border-box; width: 30px; height: 30px; display: grid; place-items: center; cursor: pointer; border-radius: 8px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent); box-shadow: inset 0 0 0 1px var(--line-2, var(--line)); color: var(--ink); font-size: 18px; line-height: 1; font-weight: 600; }
+.wzoom button:hover:not(:disabled) { background: var(--surface-2); }
+.wzoom button:disabled { opacity: .35; cursor: default; }
+.wzoom button:focus-visible { outline: 2px solid var(--gold-ink); outline-offset: 2px; }
+
 .wsvg .wc { fill: var(--w0); stroke: var(--bg); stroke-width: 1; vector-effect: non-scaling-stroke; stroke-linejoin: round; transition: fill .15s; }
 .wsvg .wc[data-list] { cursor: pointer; }
 .wsvg .wc:hover { stroke: var(--ink); stroke-width: 1.5; }
@@ -622,6 +633,7 @@ body.empty #settings, body.empty .foot-settings { display: none !important; }
 .ch-mark:first-child { margin-top: 18px; }
 .rank-row .also { color: var(--muted); font-weight: 400; font-size: 13px; }
 .rank-row.tied .n { white-space: normal; }
+.people-rows .rank-row.tied .n { white-space: nowrap; } /* under the faces every row is one line, so the two lists line up */
 .rank-list.tied-list .rank-row { grid-template-columns: 62px minmax(0, 1.2fr) minmax(0, 2fr) 92px; }
 .rank-row.tied .r { white-space: nowrap; }
 /* ---------- pictures to share, and the story ---------- */

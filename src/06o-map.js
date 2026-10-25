@@ -90,6 +90,86 @@ function worldMapHtml(countries, o) {
     + lead("Highest rated", countries.best, (c) => c.avg.toFixed(2))
     + (countries.most.length > 6 ? `<p class="wtops">${dlink(D.names("Countries", `${plural(countries.most.length, "country", "countries")}, most watched first`, countries.most.map((c) => ({ name: c.name, films: c.films, value: fmtN(c.count),
       note: `${plural(c.count, "film")}${c.avg ? ` · ${c.avg.toFixed(2)} average` : ""}`, to: toOf(c) }))), `All ${fmtN(countries.most.length)} countries ›`)}</p>` : "") : "";
-  return `<div class="wmap"><svg class="wsvg" viewBox="0 0 ${WORLD.w} ${WORLD.h}" role="group" aria-label="World map of where your films were made">${shapes}${dots}</svg>${key}${tops}${gone}</div>`;
+  const v = WORLD_VIEW, zoomed = v.w < WORLD.w - 0.5;
+  const zoom = `<div class="wzoom" role="group" aria-label="Zoom the map"><button type="button" data-wz="in" aria-label="Zoom in">+</button><button type="button" data-wz="out" aria-label="Zoom out"${zoomed ? "" : " disabled"}>−</button><button type="button" data-wz="reset" aria-label="Whole world"${zoomed ? "" : " disabled"}>⟲</button></div>`;
+  return `<div class="wmap"><div class="wbox"><svg class="wsvg${zoomed ? " zoomed" : ""}" viewBox="${[v.x, v.y, v.w, v.h].map((n) => +n.toFixed(1)).join(" ")}" role="group" aria-label="World map of where your films were made">${shapes}${dots}</svg>${zoom}</div>${key}${tops}${gone}</div>`;
 }
+
+/* ----- zooming the map (asked Oct 2026): + and − (and ⟲ for the whole world), pinching on a phone or trackpad, ctrl or ⌘
+   with the mouse wheel; once zoomed in, drag to move around. A drag never opens a country; a plain click or tap does.
+   The view is kept while the page redraws, so the map doesn't jump back out. ----- */
+let WORLD_VIEW = { x: 0, y: 0, w: WORLD.w, h: WORLD.h };
+const WORLD_MAX = 8; // eight times closer, enough for Belgium or Lebanon
+function worldSet(svg, v) {
+  const w = Math.min(WORLD.w, Math.max(WORLD.w / WORLD_MAX, v.w)), h = w * WORLD.h / WORLD.w;
+  const x = Math.min(WORLD.w - w, Math.max(0, v.x)), y = Math.min(WORLD.h - h, Math.max(0, v.y));
+  WORLD_VIEW = { x, y, w, h };
+  const zoomed = w < WORLD.w - 0.5;
+  for (const s of document.querySelectorAll(".wsvg")) {
+    s.setAttribute("viewBox", [x, y, w, h].map((n) => +n.toFixed(1)).join(" "));
+    s.classList.toggle("zoomed", zoomed);
+    const box = s.closest(".wbox");
+    if (box) for (const b of box.querySelectorAll('[data-wz="out"], [data-wz="reset"]')) b.disabled = !zoomed;
+  }
+}
+// zoom by `k` (above 1 is closer) keeping the point under (cx, cy) on screen where it is
+function worldZoom(svg, k, cx, cy) {
+  const r = svg.getBoundingClientRect(), v = WORLD_VIEW;
+  const fx = r.width ? (cx - r.left) / r.width : 0.5, fy = r.height ? (cy - r.top) / r.height : 0.5;
+  const w = Math.min(WORLD.w, Math.max(WORLD.w / WORLD_MAX, v.w / k)), h = w * WORLD.h / WORLD.w;
+  worldSet(svg, { x: v.x + fx * v.w - fx * w, y: v.y + fy * v.h - fy * h, w, h });
+}
+document.addEventListener("click", (e) => {
+  const b = e.target.closest && e.target.closest("[data-wz]");
+  if (!b) return;
+  const svg = b.closest(".wbox").querySelector(".wsvg"), r = svg.getBoundingClientRect();
+  if (b.dataset.wz === "reset") worldSet(svg, { x: 0, y: 0, w: WORLD.w, h: WORLD.h });
+  else worldZoom(svg, b.dataset.wz === "in" ? 1.8 : 1 / 1.8, r.left + r.width / 2, r.top + r.height / 2);
+});
+// ctrl or ⌘ with the wheel, and a trackpad pinch (which comes as one): plain scrolling still scrolls the page
+document.addEventListener("wheel", (e) => {
+  const svg = e.target.closest && e.target.closest(".wsvg");
+  if (!svg || !(e.ctrlKey || e.metaKey)) return;
+  e.preventDefault();
+  worldZoom(svg, Math.exp(-e.deltaY * 0.01), e.clientX, e.clientY);
+}, { passive: false });
+// dragging (once zoomed in) and pinching
+const WZ = { pts: new Map(), start: null, moved: false };
+document.addEventListener("pointerdown", (e) => {
+  const svg = e.target.closest && e.target.closest(".wsvg");
+  if (!svg || (e.pointerType === "mouse" && e.button !== 0)) return;
+  WZ.pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  WZ.svg = svg; WZ.moved = false;
+  WZ.start = { view: { ...WORLD_VIEW }, pts: new Map([...WZ.pts].map(([k, p]) => [k, { ...p }])) };
+});
+document.addEventListener("pointermove", (e) => {
+  if (!WZ.pts.has(e.pointerId) || !WZ.svg) return;
+  WZ.pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  const r = WZ.svg.getBoundingClientRect(), v0 = WZ.start.view, per = v0.w / (r.width || 1);
+  const [a, b] = [...WZ.pts.values()], [a0, b0] = [...WZ.start.pts.values()];
+  if (b && b0) { // two fingers: zoom about where they started, and follow them
+    const d0 = Math.hypot(b0.x - a0.x, b0.y - a0.y) || 1, d = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+    const m0 = { x: (a0.x + b0.x) / 2, y: (a0.y + b0.y) / 2 }, m = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    const w = Math.min(WORLD.w, Math.max(WORLD.w / WORLD_MAX, v0.w * d0 / d)), k = w / v0.w;
+    const sx = v0.x + (m0.x - r.left) * per, sy = v0.y + (m0.y - r.top) * per;
+    worldSet(WZ.svg, { x: sx - (m.x - r.left) * per * k, y: sy - (m.y - r.top) * per * k, w });
+    WZ.moved = true;
+  } else if (a0 && v0.w < WORLD.w - 0.5) { // one finger or the mouse, zoomed in: move the map
+    const dx = a.x - a0.x, dy = a.y - a0.y;
+    if (WZ.moved || Math.hypot(dx, dy) > 4) { WZ.moved = true; worldSet(WZ.svg, { x: v0.x - dx * per, y: v0.y - dy * per, w: v0.w }); }
+  }
+  const tip = WZ.moved && document.getElementById("tip");
+  if (tip) tip.hidden = true; // the name of whatever a drag passed over doesn't stay up
+});
+const wzEnd = (e) => {
+  if (!WZ.pts.delete(e.pointerId)) return;
+  WZ.start = { view: { ...WORLD_VIEW }, pts: new Map([...WZ.pts].map(([k, p]) => [k, { ...p }])) };
+  if (!WZ.pts.size) WZ.svg = null;
+};
+document.addEventListener("pointerup", wzEnd);
+document.addEventListener("pointercancel", wzEnd);
+// a drag or a pinch isn't a click on the country it ended over
+document.addEventListener("click", (e) => {
+  if (WZ.moved && e.target.closest && e.target.closest(".wsvg")) { e.stopPropagation(); e.preventDefault(); WZ.moved = false; }
+}, true);
 </script>

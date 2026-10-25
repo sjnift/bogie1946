@@ -69,6 +69,15 @@ function bestWorstBlock(s) {
 const ROW_N = 7;
 const posterRow = (title, items, to, draw) => `<h3 class="sub-h row-h"><span>${title}</span>${items.length > ROW_N ? dlink(to, `See all ${fmtN(items.length)} ›`) : ""}</h3>
   <div class="posters one-row">${items.slice(0, ROW_N).map(draw).join("")}</div>`;
+// How many rows go under the twelve faces, the same for Most watched and Highest rated so switching doesn't move the
+// page (the owner's trim, Oct 2026): actors down to the 21st; directors down to their first row of ties (when it
+// comes before the 21st), the rest of the ties and everyone else behind "Show more".
+const PEOPLE_TO = 21;
+function peopleRowsShown(kind, data) {
+  const rows = foldTies(data.most.slice(12), (p) => p.count, 13, peopleTies(kind === "cast" ? "actors" : "directors"));
+  const upTo = rows.filter((r) => parseInt(r.rank, 10) <= PEOPLE_TO).length, tie = rows.findIndex((r) => r.group);
+  return kind === "directors" && tie >= 0 ? Math.min(tie + 1, upTo) : upTo;
+}
 function peopleBlock(kind, data, s) {
   const t = state.tab[kind];
   const list = t === "most" ? data.most : data.best;
@@ -77,7 +86,7 @@ function peopleBlock(kind, data, s) {
   const cards = top.map((p, i) => `<button class="person" type="button" data-list="${reg(p.name, personSub(p), p.films, p)}">
     ${faceHtml(p, i + 1)}<span class="nm">${esc(p.name)}</span>
     <span class="ct">${t === "most" ? plural(p.count, "film") : `<span class="stars">★</span> ${p.avg.toFixed(2)} · ${plural(p.ratings.length, "film")}`}</span></button>`).join("");
-  const limit = state.more[kind] ? 60 : 12; // rows below the cards
+  const limit = state.more[kind] ? 60 : peopleRowsShown(kind, data); // rows below the cards
   const all = t === "most" ? foldTies(list.slice(12), (p) => p.count, 13, peopleTies(kind === "cast" ? "actors" : "directors")) : list.slice(12).map((p, i) => ({ ...p, rank: 13 + i }));
   const rest = all.slice(0, limit);
   const max = list[0].count;
@@ -85,7 +94,7 @@ function peopleBlock(kind, data, s) {
     (p) => t === "most" ? (p.group ? `${plural(p.count, "film")} each` : plural(p.count, "film")) : p.avg.toFixed(2),
     (p) => t === "most" ? p.count / max : p.avg / 5, 13, personSub) : "";
   const moreBtn = all.length > limit ? `<div><button class="btn small" type="button" data-more="${kind}">Show more</button></div>` : "";
-  return `<div class="people">${cards}</div>${rows}${moreBtn}`;
+  return `<div class="people">${cards}</div><div class="people-rows">${rows}</div>${moreBtn}`;
 }
 function catBlock(s) {
   const t = state.tab.cats;

@@ -538,6 +538,14 @@ img.fade.in { opacity: 1; }
 .wmap { --w0: var(--surface-3); --w1: color-mix(in srgb, var(--green) 32%, var(--surface-3)); --w2: color-mix(in srgb, var(--green) 50%, var(--surface-3));
   --w3: color-mix(in srgb, var(--green) 68%, var(--surface-3)); --w4: color-mix(in srgb, var(--green) 85%, var(--surface-3)); --w5: var(--green); display: grid; gap: 10px; }
 .wsvg { display: block; width: 100%; height: auto; }
+.wbox { position: relative; }
+.wsvg { touch-action: pan-y; } .wsvg.zoomed { touch-action: none; cursor: grab; } .wsvg.zoomed:active { cursor: grabbing; }
+.wzoom { display: flex; justify-content: flex-end; gap: 6px; margin-top: 8px; } /* under the map: on a phone it's too small to cover */
+.wzoom button { all: unset; box-sizing: border-box; width: 34px; height: 34px; display: grid; place-items: center; cursor: pointer; border-radius: 8px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent); box-shadow: inset 0 0 0 1px var(--line-2, var(--line)); color: var(--ink); font-size: 18px; line-height: 1; font-weight: 600; }
+.wzoom button:disabled { opacity: .35; cursor: default; }
+.wzoom button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
 .wsvg .wc { fill: var(--w0); stroke: var(--surface); stroke-width: .75; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
 .wsvg .l1 { fill: var(--w1); } .wsvg .l2 { fill: var(--w2); } .wsvg .l3 { fill: var(--w3); } .wsvg .l4 { fill: var(--w4); } .wsvg .l5 { fill: var(--w5); }
 .wkey { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; font-size: 12.5px; color: var(--ink-2); }
