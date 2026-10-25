@@ -95,7 +95,7 @@ function tasteProfile(p, metaOf) {
   for (const f of films) {
     const m = metaOf(f); if (!m) continue;
     withMeta++;
-    new Set(m.g).forEach((g) => bump(genres, g)); new Set(m.d).forEach((d) => bump(directors, d)); new Set(m.c).forEach((c) => bump(actors, c));
+    new Set(m.g).forEach((g) => bump(genres, g)); new Set(m.d).forEach((d) => bump(directors, d)); new Set(castOf(m)).forEach((c) => bump(actors, c));
     if (m.l) { langKnown++; if (m.l !== "English") nonEng++; }
   }
   const spread = Array(10).fill(0);

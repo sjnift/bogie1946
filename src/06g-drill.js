@@ -79,7 +79,7 @@ const unitsDrill = (cols, unit, per) => D.names(`Diary entries by ${unit}`, `${p
 // Every film in a library with one person in it: a director, writer or one of the top-billed cast.
 function personDrill(lib, name, role, among = lib.films) {
   const k = personKey(name);
-  const films = among.filter((f) => { const m = metaOf(f); return m && (m[role] || []).some((n) => personKey(n) === k); });
+  const films = among.filter((f) => { const m = metaOf(f); return m && roleNames(m, role).some((n) => personKey(n) === k); });
   const ratings = films.filter((f) => f.rating).map((f) => f.rating);
   return DR.person({ key: k, name, films, ratings, count: films.length, avg: avg(ratings) }, { lib });
 }
@@ -215,7 +215,7 @@ function filmCardHtml(d) {
     tags.push(...[...new Set(m.g)].map((g) => dlink(catDrill(lib, g, "g"), esc(g))), ...[...new Set(m.k)].map((k) => dlink(catDrill(lib, k, "k"), esc(k))), ...(m.l ? [dlink(catDrill(lib, m.l, "l"), esc(m.l))] : []));
   }
   const crowd = crowdBits(f, m);
-  const cast = m && m.c.length ? `<section class="fc-sec"><h4>Cast</h4><div class="fc-chips">${m.c.slice(0, 12).map((n) => dlink(personDrill(lib, n, "c"), esc(n))).join("")}</div></section>` : "";
+  const cast = m && castOf(m).length ? `<section class="fc-sec"><h4>Cast</h4><div class="fc-chips">${castOf(m).slice(0, 12).map((n) => dlink(personDrill(lib, n, "c"), esc(n))).join("")}</div></section>` : "";
   const tm = META[f.key];
   const links = [`<a href="${esc(lbUrl(f))}" target="_blank" rel="noopener">Letterboxd ↗</a>`,
     tmdbHref(tm) && !IN_VIEWER ? `<a href="${tmdbHref(tm)}" target="_blank" rel="noopener">TMDB ↗</a>` : "",

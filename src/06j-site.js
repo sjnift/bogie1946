@@ -166,7 +166,7 @@ const newerRows = (a, b) => (rowsWhen(a) !== rowsWhen(b) ? rowsWhen(a) > rowsWhe
    then goes up, and the other devices take it. */
 // The better of two copies of a film's details: matched by hand, then found, then a newer kind of match, then more
 // filled in, then looked up more recently.
-const metaScore = (m) => (!m ? -1 : (m.pin ? 1e6 : 0) + (m.miss ? 0 : 1e4) + (m.v || 0) * 100 + (m.om ? 10 : 0) + (m.ik ? 5 : 0));
+const metaScore = (m) => (!m ? -1 : (m.pin ? 1e6 : 0) + (m.miss ? 0 : 1e4) + (m.v || 0) * 100 + (m.om ? 10 : 0) + (m.ik ? 5 : 0) + (m.cq ? 3 : 0));
 const metaBetter = (a, b) => metaScore(a) !== metaScore(b) ? metaScore(a) > metaScore(b) : (a.t || "") > (b.t || "");
 const mergeMeta = (a, b) => { const out = { ...a }; for (const [k, m] of Object.entries(b || {})) if (!out[k] || !metaBetter(out[k], m)) out[k] = m; return out; };
 const mergeLbx = (a, b) => { const out = { ...a }; for (const [k, x] of Object.entries(b || {})) if (!(out[k] && out[k].r && !(x && x.r))) out[k] = x; return out; };

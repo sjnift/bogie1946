@@ -134,7 +134,7 @@ document.addEventListener("load", (e) => {
   if (t.src.startsWith(IMG_TMDB) && !IMG_SEEN.ok) { IMG_SEEN.ok++; for (const i of IMG_SEEN.held) i.remove(); IMG_SEEN.held = []; } // reachable: those were just missing
   if (t.classList.contains("fade")) t.classList.add("in");
 }, true);
-const KEYS = { rows: "cr-rows-v1", meta: "cr-meta-v1", photos: "cr-photos-v1", tmdb: "cr-tmdb-key", omdb: "cr-omdb-key", apify: "cr-apify-key", lbx: "cr-letterboxd-v1", lbRun: "cr-letterboxd-run", friends: "cr-friends-v1", view: "cr-view-v1", filmo: "cr-filmo-v1" };
+const KEYS = { rows: "cr-rows-v1", meta: "cr-meta-v1", photos: "cr-photos-v1", tmdb: "cr-tmdb-key", omdb: "cr-omdb-key", apify: "cr-apify-key", lbx: "cr-letterboxd-v1", lbRun: "cr-letterboxd-run", icRun: "cr-imdbcast-run", friends: "cr-friends-v1", view: "cr-view-v1", filmo: "cr-filmo-v1" };
 /* Small things (keys, the view) live in localStorage. The big ones (the export, film details, Letterboxd
    averages, friends' exports) live in IndexedDB, which holds far more than localStorage's few megabytes.
    store.init() reads them into memory once at start; after that reads are instant and writes go to the
@@ -415,6 +415,8 @@ function cleanMeta(m) {
     y: parseInt(m.y, 10) || null, // TMDB's release year
     iy: parseInt(m.iy, 10) || null, ik: Array.isArray(m.ik) ? m.ik : undefined, il: Array.isArray(m.il) ? m.il : undefined, inf: m.inf || undefined, // IMDb's year, countries, languages
     t: m.t || undefined, // when it was looked up: of two equally good copies on two devices, the newer is kept
+    // the owner's cast checked on IMDb (06d, `castCheck`): when, added, taken off, and whether IMDb's list was partial
+    ...(m.cq ? { cq: String(m.cq).slice(0, 10), ca: list(m.ca, 300), cr: list(m.cr, 300), ...(m.cp ? { cp: true } : {}) } : {}),
   };
 }
 // Film details, people's photos, Letterboxd averages and friends that arrive from outside this device (the diary on
@@ -437,9 +439,54 @@ const safeFriends = (a) => (Array.isArray(a) ? a : []).filter((f) => f && f.rows
   .map((f) => ({ id: String(f.id || "").replace(/[^\w-]/g, "").slice(0, 40) || `f${hash32(f.name)}`, name: f.name.slice(0, 100), rows: f.rows }));
 
 /* ---------- stats ---------- */
-// The cast counts as Letterboxd's "Most watched" does: every credited role (06-lookup, `creditedCast`). These top billed
-// are what's kept of a film TMDB gives no character names for, and whose photos are always kept.
+// The top billed of a film, whose photos are always kept (06-lookup, `keepPhotos`).
 const CAST_BILLED = 15;
+/* Whether a role counts in "Most watched", by Letterboxd's rule: roles it marks as cameos don't, "for instance if
+   there is no character name associated with the role or it is listed as uncredited" (its help centre, the "Stan Lee
+   rule"). TMDB, where Letterboxd's cast comes from, writes what a role is in its character (its bible: "(uncredited)",
+   "(archive footage)", "(voice)"), and Indian films often credit a cameo as one. So, role by role (asked 26 Oct 2026,
+   "finely treading the line"), a role doesn't count when it
+   - has no character name (nothing, or only punctuation), or is uncredited;
+   - is a cameo: "Cameo", "Cameo Appearance", "Dancer (cameo appearance)", "Self - Cameo";
+   - is a special, guest or friendly appearance with no character of its own ("Special Appearance", "Guest Appearance",
+     "Special Appearance in 'Maahi Ve' Song"); one that names its character ("Mohan Bhargav (Special Appearance)")
+     is a credited part, and counts;
+   - is archive footage or sound (filmed for something else: Elvis in Forrest Gump), a deleted scene, or credit only.
+   An extended cameo that names its character ("Tiger (Extended Cameo)") counts: a credited part of some length, which
+   is what sets it apart from a cameo; a bare "Extended Cameo" doesn't. Voice roles, "Self" and narrators count.
+   Letterboxd also marks some cameos by hand (Stan Lee's in Avengers: Endgame is "Driver (1970)" on TMDB), which no
+   outside data shows. Returns why a role doesn't count, or "" when it does. */
+const ROLE_SKIP = [
+  [/\buncredited\b/i, "uncredited"], [/\barchiv(?:e|al)\s+(?:footage|sound|audio|material|recordings?|photos?|images?|clips?)\b/i, "archive footage"],
+  [/\b(scenes?\s+deleted|deleted\s+scenes?|credit\s+only)\b/i, "not in the film"],
+];
+// "cameo" as a label, not a word in a character's name ("Man in Cameo Shop")
+const CAMEO_LABEL = /\(\s*cameo\b[^)]*\)|(?:^|[-–—:|,/]\s*)cameo(?:\s+(?:appearance|role))?\s*$|^\s*cameo\b/i;
+const APPEARANCE = /\b(?:extended\s+cameo(?:\s+(?:appearance|role))?|(?:special|guest|friendly)\s+appearances?(?:\s+in\b.*)?)/gi;
+function roleSkip(character) {
+  const s = String(character == null ? "" : character).trim();
+  if (!/[\p{L}\p{N}]/u.test(s)) return "no character";
+  for (const [re, why] of ROLE_SKIP) if (re.test(s)) return why;
+  if (CAMEO_LABEL.test(s.replace(APPEARANCE, " ").trim())) return "cameo"; // a cameo, other than an extended one
+  // what's left of the character once the appearance is taken out: a name of its own, or nothing
+  const own = s.replace(APPEARANCE, " ").replace(/\(\s*\)|\[\s*\]/g, " ").replace(/[\s()[\]\-–—:,;/|"'“”‘’]+/g, " ").trim();
+  return /[\p{L}\p{N}]/u.test(own) ? "" : "cameo";
+}
+// A film's cast as counted: TMDB's roles that count (06-lookup), put right by IMDb's cast list where the owner's films
+// were checked there (06d, `castCheck`): `cr` those IMDb says don't count, `ca` those IMDb credits and TMDB doesn't.
+const CAST_OF = new WeakMap();
+function castOf(m) {
+  if (!m || !Array.isArray(m.c)) return [];
+  if (!(m.ca && m.ca.length) && !(m.cr && m.cr.length)) return m.c;
+  if (CAST_OF.has(m)) return CAST_OF.get(m);
+  const off = new Set((m.cr || []).map(personKey)), have = new Set();
+  const list = [];
+  for (const n of [...m.c, ...(m.ca || [])]) { const k = personKey(n); if (!k || off.has(k) || have.has(k)) continue; have.add(k); list.push(n); }
+  CAST_OF.set(m, list);
+  return list;
+}
+// The people of a film in a role: the cast as counted, or its directors, writers and so on.
+const roleNames = (m, role) => (!m ? [] : role === "c" ? castOf(m) : m[role] || []);
 
 function inScope(lib, scope) {
   if (scope === "all") return { films: lib.films, entries: lib.entries };
@@ -459,8 +506,8 @@ function rankPeople(films, metaOf, role, minRated) {
   const map = new Map();
   for (const f of films) {
     const m = metaOf(f);
-    if (!m || !m[role]) continue;
-    const names = m[role];
+    if (!m || (role !== "c" && !m[role])) continue;
+    const names = roleNames(m, role);
     const seen = new Set();
     for (const name of names) {
       const k = personKey(name);

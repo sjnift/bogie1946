@@ -219,7 +219,7 @@ async function init() {
   siteStart();
   // New diary entries from the daily feed, then a saved key picks up films not yet looked up.
   // (lookups wait until this device has what the site has, so nothing found elsewhere is looked up again)
-  if (MY_LIB) { await refreshFeed(); siteSettled().then(() => autoLookup(allFilmsLib())); pollLetterboxd(MY_LIB); }
+  if (MY_LIB) { await refreshFeed(); siteSettled().then(() => autoLookup(allFilmsLib())); pollLetterboxd(MY_LIB); pollCastCheck(MY_LIB); }
   countVisit(); // (06j-site)
 }
 // Loads the feed for the imported member and redraws with any entries it adds.

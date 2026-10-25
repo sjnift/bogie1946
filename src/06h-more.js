@@ -125,7 +125,7 @@ function searchIndex(lib) {
   for (const f of lib.films) {
     const m = metaOf(f);
     if (!m) continue;
-    for (const role of ["d", "c", "w", "p", "m"]) for (const name of m[role]) {
+    for (const role of ["d", "c", "w", "p", "m"]) for (const name of roleNames(m, role)) {
       const k = personKey(name);
       let p = people.get(k);
       if (!p) { p = { key: k, name, films: new Set(), roles: new Map(), k }; people.set(k, p); }
@@ -190,7 +190,7 @@ function watchNext(lib) {
   const add = (map, k, name, r) => { let x = map.get(k); if (!x) map.set(k, x = { name, n: 0, sum: 0 }); x.n++; x.sum += r; };
   for (const f of rated) {
     const m = metaOf(f); if (!m) continue;
-    new Set(m.d).forEach((n) => add(dirs, personKey(n), n, f.rating)); new Set(m.c.slice(0, 6)).forEach((n) => add(cast, personKey(n), n, f.rating)); new Set(m.g).forEach((g) => add(genres, g, g, f.rating));
+    new Set(m.d).forEach((n) => add(dirs, personKey(n), n, f.rating)); new Set(castOf(m).slice(0, 6)).forEach((n) => add(cast, personKey(n), n, f.rating)); new Set(m.g).forEach((g) => add(genres, g, g, f.rating));
   }
   const lean = (x, k) => x ? (x.sum - x.n * base) / (x.n + k) : 0; // pulled towards your average when there are few films
   const crowdOf = (f, m) => { const lb = LBX[f.key]; return lb && lb.r ? lb.r : m && m.ir && (m.iv || 0) >= 100 ? m.ir / 2 : m && m.va && (m.vc || 0) >= 25 ? m.va / 2 : null; };
@@ -202,7 +202,7 @@ function watchNext(lib) {
     if (m) {
       const ds = m.d.map((n) => ({ n, x: dirs.get(personKey(n)) })).filter((d) => d.x);
       if (ds.length) { const v = avg(ds.map((d) => lean(d.x, 2))); parts.push({ v, why: `You rate ${ds[0].n}'s films ${(ds[0].x.sum / ds[0].x.n).toFixed(1)}★ on average (${plural(ds[0].x.n, "film")})` }); }
-      const cs = m.c.slice(0, 4).map((n) => ({ n, x: cast.get(personKey(n)) })).filter((c) => c.x && c.x.n >= 2);
+      const cs = castOf(m).slice(0, 4).map((n) => ({ n, x: cast.get(personKey(n)) })).filter((c) => c.x && c.x.n >= 2);
       if (cs.length) { const best = cs.sort((a, b) => b.x.n - a.x.n)[0]; parts.push({ v: avg(cs.map((c) => lean(c.x, 3))) * 0.6, why: `${best.n} is in ${plural(best.x.n, "film")} you've rated, ${(best.x.sum / best.x.n).toFixed(1)}★ on average` }); }
       const gs = m.g.map((g) => genres.get(g)).filter(Boolean);
       if (gs.length) { const v = avg(gs.map((g) => lean(g, 5))) * 0.8, top = [...gs].sort((a, b) => Math.abs(lean(b, 5)) - Math.abs(lean(a, 5)))[0];
@@ -226,7 +226,7 @@ const wnDrill = (list, title) => { const by = new Map(list.map((p) => [p.f, p]))
 // The role a person mostly has in your diary: directing, acting, writing, camera or music.
 function roleIn(lib, name) {
   const k = personKey(name), n = { d: 0, c: 0, w: 0, p: 0, m: 0 };
-  for (const f of lib.films) { const m = metaOf(f); if (!m) continue; for (const r of Object.keys(n)) if (m[r].some((x) => personKey(x) === k)) n[r]++; }
+  for (const f of lib.films) { const m = metaOf(f); if (!m) continue; for (const r of Object.keys(n)) if (roleNames(m, r).some((x) => personKey(x) === k)) n[r]++; }
   return Object.keys(n).sort((a, b) => n[b] - n[a] || (a === "d" ? -1 : 0))[0];
 }
 const filmoBusy = new Set();

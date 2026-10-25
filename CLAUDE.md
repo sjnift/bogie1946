@@ -247,13 +247,13 @@ The owner asked for this to be checked every time. A film, diary entry, person o
   "Counting people like Letterboxd"),
   `w` writers, `p` cinematographers, `m` composers, `g` genres, `k` countries, `l` language, `r` runtime,
   `poster`, `id`, `va/vc` TMDB score, `im` IMDb id, `ir/iv/mc/rt` IMDb, Metacritic, Rotten Tomatoes,
-  `pin` (matched by hand). `metaOf(f)` reads it (example films use `EXAMPLE_META`).
+  `pin` (matched by hand), `cq/ca/cr/cp` the cast checked on IMDb (`ir` is IMDb's rating, not the cast). `metaOf(f)` reads it (example films use `EXAMPLE_META`).
 - `LBX[filmKey]`: Letterboxd averages `{ r, n, slug }`; `{ tries: 1, v: 2 }` not found by the scraper; `{ tries: 1, v: 2, few: true,
   slug }` came back from it without an average; after the film's own page is read, `few: 2` (the page shows no average:
   `lbTooFew`) or `{ tries: 2, v: 2 }` (no page at any address its title gives: `lbNotFound`). `lbRemaining` is the rest.
 - `KNOWN_IDS[filmKey]`: exact TMDB ids from the feed; lookups use them first.
 - Storage (`store` in `05-core.js`): small things in localStorage (API keys `cr-tmdb-key`, `cr-omdb-key`,
-  `cr-apify-key`; views `cr-view-v1`, `cr-mview-v1`; `cr-letterboxd-run`; the diary on the site `cr-site-v1`, `cr-site-pub-v1`, `cr-site-dirty`); big things in IndexedDB database
+  `cr-apify-key`; views `cr-view-v1`, `cr-mview-v1`; `cr-letterboxd-run`; `cr-imdbcast-run`; the diary on the site `cr-site-v1`, `cr-site-pub-v1`, `cr-site-dirty`); big things in IndexedDB database
   `credits-roll`, store `kv` (`cr-rows-v1`, `cr-meta-v1`, `cr-photos-v1`, `cr-letterboxd-v1`, `cr-friends-v1`,
   `cr-filmo-v1`), read into memory by `await store.init()` at start (both `init()`s), moved over from
   localStorage automatically (a localStorage copy wins: only an older page version writes one).
@@ -472,25 +472,48 @@ standard errors or more from what the rest of the diary gives; every sentence op
   `FILM_FIXES` (by TMDB id, with a `why`) corrects facts TMDB has wrong (The Prowler 1951 is American; Breaking
   the Waves is in English; The Battle of Algiers in French). A film's language is TMDB's original language unless
   it's spoken in exactly one other (`spokenIn`). Every TMDB country is kept (it used to stop at 6, which made
-  lists differ from Letterboxd's). `TMDB_MATCH_VERSION` (7) re-looks-up films when matching changes; from 6 on, a
+  lists differ from Letterboxd's). `TMDB_MATCH_VERSION` (8) re-looks-up films when matching changes; from 6 on, a
   film whose match is unchanged keeps its details without a second request, unless what's kept of a film has changed
-  since (`TMDB_DETAILS_V`, 7: the whole credited cast): then it's read again by its id alone, one request, no search
-  (`rereadRef`; films matched by hand too, keeping their pin). Watchlist films are looked up too.
-- **Counting people like Letterboxd** (a guest found actor and director counts off, 25 Oct 2026). Letterboxd's
-  "Most watched" counts every credited role, however far down the bill, but not cameos, which it marks by no character
-  name or "uncredited" (its help centre's "Stan Lee rule"). Until then the app kept only the top 15 billed, uncredited
-  or not: over 928 real films (TMDB's top rated, popular, Indian, Korean, Japanese, old and animated), only 10 of the top
-  20 actors matched Letterboxd's way, and supporting and voice actors (John Ratzenberger 11 of 22, Amitabh Bachchan's
-  cameos) fell short; directors stopped at 6 a film (Disney's anthologies). Now `creditedCast` keeps every role with a
-  character not marked uncredited (a film TMDB gives no character names at all keeps its top 15, `CAST_BILLED`), and
-  `cleanMeta` keeps up to 300 cast, 40 directors, 20 writers, 10 cinematographers and composers; on the same films every
-  director and 199 of the top 200 actors then matched (the one left: two people TMDB has under one name; people are
-  matched by name, `personKey`, and namesakes changed none of the top 100, so ids aren't kept). Matching found the
-  right film for all 928. Everything that counts a person uses the whole `m.c` (stats, the person drill, people over
-  the years, Compare, search); the study and Watch next keep their own few top billed. Photos are kept for directors,
-  the top 15 billed and anyone already met in another film (`keepPhotos`, `CAST_SEEN`), not every one-off player.
-  `personKey` keeps letters of any script (a name only in Hangul or kana used to come out empty and go uncounted). The
-  `tmdb` check covers the cast rule, photos, the reread by id (pinned too) and a Korean name.
+  since (`TMDB_DETAILS_V`, 8: the whole credited cast, role by role): then it's read again by its id alone, one request,
+  no search (`rereadRef`; films matched by hand too, keeping their pin). Watchlist films are looked up too.
+- **Counting people like Letterboxd** (a guest found actor and director counts off, 25 Oct 2026; then the owner asked
+  for it "finely treading the line with credited, not credited and cameo and sometimes extended cameos", and for their
+  own diary checked against IMDb, 26 Oct 2026). Letterboxd's help centre: roles it marks as cameos don't count toward
+  "Most watched", "for instance if there is no character name associated with the role or it is listed as uncredited"
+  (the "Stan Lee rule"); every other role does, however far down the bill. Until 25 Oct only the top 15 billed counted,
+  uncredited or not: over 928 real films only 10 of the top 20 actors matched Letterboxd's way, and directors stopped
+  at 6 a film. Now, role by role (`roleSkip` in `05-core.js`, on TMDB's character, where TMDB's bible writes
+  "(uncredited)", "(archive footage)", "(voice)"): no character name (or only punctuation), uncredited, a cameo label
+  ("Cameo", "Cameo Appearance", "Dancer (cameo appearance)", "Self - Cameo"; not the word in a name, "Man in Cameo
+  Shop"), a special, guest or friendly appearance with no character of its own ("Special Appearance in 'Maahi Ve'
+  Song"), archive footage or sound, a deleted scene and credit only don't count; an extended cameo or special
+  appearance that names its character ("Tiger (Extended Cameo)", "Mohan Bhargav (Special Appearance)"), voice roles,
+  "Self" and narrators do. A film with no character names at all counts nobody, as on Letterboxd. Letterboxd also
+  marks some cameos by hand (Stan Lee's Endgame role is "Driver (1970)" on TMDB), which nothing outside shows.
+  `creditedCast` keeps the roles that count (`cleanMeta`: up to 300 cast, 40 directors, 20 writers, 10
+  cinematographers and composers); everything that counts a person goes through `castOf(m)` / `roleNames(m, role)`
+  (stats, the person drill, people over the years, Compare, search, the film card); the study and Watch next take
+  their few top billed from it. Photos are kept for directors, the top 15 billed and anyone already met in another
+  film (`keepPhotos`, `CAST_SEEN`). `personKey` keeps letters of any script (a name only in Hangul or kana used to come
+  out empty). On the owner's 50 latest films TMDB lists 2,427 roles: 644 uncredited, 5 archive footage, 2 other, 1,776
+  counted. People are matched by name; namesakes changed none of the top 100 of 928 films, so ids aren't kept.
+- **The owner's cast checked on IMDb** (`06d-letterboxd.js`, `castCheckBlock` in the Cast & crew box under Letterboxd
+  averages, both layouts, only for a diary whose username is `SITE_OWNER`: `castCheckOn(lib)`). IMDb can't be read
+  from the site or from this container, so Apify's page reader (`apify~jsdom-scraper`, the owner's token) opens each
+  film's `https://www.imdb.com/title/tt…/fullcredits/` and `CAST_PAGE_FN` reads the cast: IMDb's data
+  (`__NEXT_DATA__`, the page since 2025: a walk for people `nm…` under the cast category, with characters and
+  attributes), else the older `cast_list` table, else each name with its character link. `castCheckOf` applies
+  `roleSkip` to IMDb's roles against TMDB's: a role TMDB counts that IMDb marks uncredited, a cameo, archive footage or
+  cut comes off (`cr`); a credited role with a character that TMDB doesn't count goes on (`ca`), under TMDB's spelling
+  of that person elsewhere in the diary (`nameOrderKey`: "Kang-ho Song" is "Song Kang-ho"); IMDb giving no character
+  takes nothing off. `cq` when, `cp` a partial list; kept through rereads (`CAST_CHECK_FIELDS`), backups and the
+  diary on the site (`metaScore` prefers a checked copy). A run tries `CAST_TRIAL` (5) films first and stops there if
+  IMDb didn't let Apify read 3 of them; it goes on with the rest only if they'd cost no more than `CAST_BUDGET` ($1.50)
+  at the trial's price (`usageTotalUsd`), else says what they'd cost. Runs survive closing the page (`KEYS.icRun`,
+  `pollCastCheck` in both `init()`s). The box links who was added and taken off, and in which films. **Not yet tried
+  against the real IMDb** (blocked from the container): the page function was tried on stand-in pages of all three
+  layouts; if the owner reports that it found nothing, look at what IMDb's page holds now. The `imdbcast` check covers
+  both layouts, the trial, a trial turned away, the counts and visitors.
 - **OMDb** (free key, 1,000 films a day): IMDb, Metacritic, Rotten Tomatoes scores from the IMDb id, plus IMDb's
   year, countries and languages (`iy`, `ik`, `il`; `inf` when IMDb doesn't know the id). Films fetched before
   those were kept are fetched again, a day's allowance at a time.
@@ -688,7 +711,7 @@ shows the latest ~50, so it accumulates), commits, and asks Pages to rebuild. Th
 service cut off unless a check stands in for it, service worker off unless asked, reduced motion, pages opened
 with `?example` (pass `example: false` for an empty browser; a check's own `goto` must add `?example` too),
 `phoneTour()` which opens every phone tab, every Stats view for all time and for a year, and every Insights/Compare section), `run.mjs`, and checks:
-`apify`, `check` (film data check), `counts` (double counting, also with filters on), `reviews` (missing review text spotted; six-film actors), `welcome` (no example diary; import saved at once), `extras` (year picture, On this day, Watch next, PWA), `feed`, `import`,
+`apify`, `imdbcast` (the owner's cast checked on IMDb), `check` (film data check), `counts` (double counting, also with filters on), `reviews` (missing review text spotted; six-film actors), `welcome` (no example diary; import saved at once), `extras` (year picture, On this day, Watch next, PWA), `feed`, `import`,
 `links` (every link opens something), `pages` (nothing broken shows, no sideways scroll on the phone),
 `routes`, `storage` (IndexedDB move, backup and restore), `site` (the diary on the site: a stand-in GitHub and site),
 `tmdb` (fixing a match, filmography, search), `extras` also covers the story and every kind and shape of picture, `xss` (nothing from outside can run code, about a minute), `study` (a
@@ -740,7 +763,8 @@ day, shared with the owner's own app. The in-app version is the "Check film data
   (wrong match), The Prowler, Breaking the Waves, The Battle of Algiers (TMDB errors) and the 6-country cap.
   The rest were release-date conventions and co-production lists, now shown as "not an error".
 - A guest found actor and director counts off (25 Oct 2026): only the top 15 billed counted, and directors stopped at 6
-  a film → every credited role, as Letterboxd counts them (see "Counting people like Letterboxd").
+  a film → every credited role, as Letterboxd counts them; then role by role (cameos, extended cameos, special
+  appearances, archive footage) and, for the owner, checked on IMDb (26 Oct; see "Counting people like Letterboxd").
 - Three films had no TMDB match (Oct 2026): Glass Onion (TMDB adds ": A Knives Out Mystery"), Nathan for You:
   Finding Frances, The Sorrow and the Pity → pinned by IMDb id, plus half-title matching.
 - The owner asked for admin things off the main page (Oct 2026) → the desktop Settings page.

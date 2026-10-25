@@ -223,7 +223,7 @@ function renderLookupBox() {
       body = coverage + `Lookups aren't available in this view. Open the downloadable copy of this page in your browser and use a TMDB key instead.</p>`;
     }
   }
-  el.innerHTML = head + meter + body + note + saveNote + imdbBlock(lib, false) + letterboxdBlock(lib, false) + feedBlock(lib, false) + dataCheckBlock(lib, false) + picturesBlock(false);
+  el.innerHTML = head + meter + body + note + saveNote + imdbBlock(lib, false) + letterboxdBlock(lib, false) + castCheckBlock(lib, false) + feedBlock(lib, false) + dataCheckBlock(lib, false) + picturesBlock(false);
 }
 function progressText() {
   const what = job.kind === "tmdb" ? "on TMDB" : "with Claude";
@@ -239,6 +239,8 @@ function renderLookupProgress() {
   if (ip) ip.textContent = imdbProgressText();
   const lp = $("#lb-progress");
   if (lp) lp.textContent = lbProgressText();
+  const cp = $("#ic-progress");
+  if (cp) cp.textContent = castProgressText();
   const m = $("#lookup-meter");
   if (m && state.lib) {
     const have = state.lib.films.filter((f) => metaOf(f)).length;

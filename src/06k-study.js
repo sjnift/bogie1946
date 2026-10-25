@@ -78,7 +78,7 @@ function studyBase(lib, metaOf, crowdKey) {
       if (!e.rewatch) {
         const cs = crowd.score(m, f), votes = popGet(f, m);
         const x = { f, e, date: e.date, m: !!m, g: m ? [...new Set(m.g)] : [], k: m ? [...new Set(m.k)] : [], l: (m && m.l) || null,
-          d: m ? [...new Set(m.d)] : [], c: m ? [...new Set(m.c.slice(0, 6))] : [], w: m ? [...new Set(m.w || [])] : [],
+          d: m ? [...new Set(m.d)] : [], c: m ? [...new Set(castOf(m).slice(0, 6))] : [], w: m ? [...new Set(m.w || [])] : [],
           dec: f.year ? Math.floor(f.year / 10) * 10 : null, age: f.year ? Math.max(0, +e.date.slice(0, 4) - f.year) : null, rt: (m && m.r) || null,
           crowd: cs ? cs / 2 : null, votes: votes || null, rating: f.rating || null, rAt: e.rating || null };
         x.newDir = x.d.length > 0 && x.d.every((n) => !seenDir.has(personKey(n)));

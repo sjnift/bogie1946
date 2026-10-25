@@ -4,7 +4,7 @@
 import { open, seed, assert, noErrors } from "./lib.mjs";
 
 const movie = (id, title, date, dir, cast) => ({ id, title, release_date: date, poster_path: null, genres: [{ name: "Crime" }], production_countries: [{ name: "United States of America" }],
-  original_language: "en", runtime: 110, vote_average: 7.5, vote_count: 9000, imdb_id: "tt0393109", credits: { cast: cast.map((name, order) => ({ name, order })), crew: [{ name: dir, job: "Director" }] } });
+  original_language: "en", runtime: 110, vote_average: 7.5, vote_count: 9000, imdb_id: "tt0393109", credits: { cast: cast.map((name, order) => ({ name, order, character: `Role ${order + 1}` })), crew: [{ name: dir, job: "Director" }] } });
 
 export default async function ({ browser, base }) {
   const p = await open(browser, base, "desktop.html");
@@ -60,7 +60,11 @@ export default async function ({ browser, base }) {
           ...Array.from({ length: 16 }, (_, i) => ({ name: `Lead ${i + 1}`, order: i, character: `Role ${i + 1}`, profile_path: `/l${i + 1}.jpg` })),
           { name: "Party Extra", order: 16, character: "Party Guest (uncredited)" }, { name: "Walk On", order: 17, character: "" },
           { name: "Familiar Face", order: 18, character: "Barman", profile_path: "/ff.jpg" }, { name: "김청아", order: 19, character: "Shop Owner" },
-          { name: "Voice Player", order: 20, character: "Additional Voices (voice)" }] } },
+          { name: "Voice Player", order: 20, character: "Additional Voices (voice)" },
+          // a fine line: an extended cameo or special appearance that names its character is a part; a bare one isn't
+          { name: "Extended Star", order: 21, character: "Tiger (Extended Cameo)" }, { name: "Song Guest", order: 22, character: 'Special Appearance in "Maahi Ve" Song' },
+          { name: "Archive Face", order: 23, character: "Self (archive footage)" }, { name: "Cameo Star", order: 24, character: "Cameo Appearance" },
+          { name: "Named Guest", order: 25, character: "Rohit (Special Appearance)" }, { name: "Cut Player", order: 26, character: "Sentry (deleted scene)" }] } },
         5002: { release_date: "2000-01-01" },
       }[id] || {};
       return json({ ...movie(id, "x", "1990-01-01", "Someone", ["Someone Else"]), ...details });
@@ -74,14 +78,14 @@ export default async function ({ browser, base }) {
       "/3/tv/128062": { id: 128062, name: "The Sorrow and the Pity", first_air_date: "1969-09-18", poster_path: "/sorrow.jpg", vote_average: 7.9, vote_count: 23,
         genres: [{ name: "Documentary" }, { name: "War & Politics" }], production_countries: [{ name: "Germany" }, { name: "Switzerland" }],
         original_language: "fr", spoken_languages: [{ iso_639_1: "en" }, { iso_639_1: "fr" }, { iso_639_1: "de" }], seasons: [{ season_number: 1, poster_path: "/s1.jpg" }],
-        external_ids: { imdb_id: "tt0066904" }, aggregate_credits: { cast: [person("Marcel Ophüls", { order: 0 }), person("André Harris", { order: 1 })],
+        external_ids: { imdb_id: "tt0066904" }, aggregate_credits: { cast: [person("Marcel Ophüls", { order: 0, roles: [{ character: "Self - Interviewer" }] }), person("André Harris", { order: 1, roles: [{ character: "Self" }] })],
           crew: [person("Marcel Ophüls", { jobs: [{ job: "Director" }, { job: "Writer" }] }), person("André Gazut", { jobs: [{ job: "Director of Photography" }] })] } },
       "/3/tv/128062/season/1": { episodes: [{ runtime: 122 }, { runtime: 128 }] },
       "/3/tv/58957": { id: 58957, name: "Nathan for You", poster_path: "/nathan.jpg", genres: [{ name: "Comedy" }, { name: "Documentary" }],
         production_countries: [{ name: "United States of America" }], original_language: "en", spoken_languages: [{ iso_639_1: "en" }],
         seasons: [{ season_number: 0, poster_path: "/s0.jpg" }, { season_number: 4, poster_path: "/s4.jpg" }] },
       "/3/tv/58957/season/4/episode/7": { name: "Finding Frances", air_date: "2017-11-09", runtime: 84, vote_average: 9.4, vote_count: 17, crew: [person("Jakob Skrzypa", { job: "Production Assistant" })],
-        guest_stars: [person("William Heath", { order: 500 })], credits: { cast: [person("Nathan Fielder", { order: 0 })] }, external_ids: { imdb_id: "tt7277634" } },
+        guest_stars: [person("William Heath", { order: 500, character: "Self" })], credits: { cast: [person("Nathan Fielder", { order: 0, character: "Self" })] }, external_ids: { imdb_id: "tt7277634" } },
     }[u.pathname];
     if (u.pathname.startsWith("/3/tv/")) return tv ? json(tv) : r.fulfill({ status: 404, body: "{}" });
     const query = u.searchParams.get("query"), year = u.searchParams.get("year");
@@ -108,7 +112,7 @@ export default async function ({ browser, base }) {
     { "cr-meta-v1": { "the ear|1970": { src: "tmdb", v: 3, id: 35002, d: ["Don Chaffey"], c: ["Victoria Vetri"], w: [], p: [], m: [], g: ["Adventure"], k: ["UK"], l: "English", r: 100 },
       "brick|2005": { src: "tmdb", v: 6, id: 9270, d: ["Rian Johnson"], c: ["Joseph Gordon-Levitt"], w: [], p: [], m: [], g: ["Crime"], k: ["USA"], l: "English", r: 110 },
       // details as they're kept now, so not looked up; and a film matched by hand before the whole cast was kept
-      "kept film|2003": { src: "tmdb", v: 7, id: 5003, d: ["Someone"], c: ["Familiar Face"], w: [], p: [], m: [], g: ["Drama"], k: ["USA"], l: "English", r: 90 },
+      "kept film|2003": { src: "tmdb", v: 8, id: 5003, d: ["Someone"], c: ["Familiar Face"], w: [], p: [], m: [], g: ["Drama"], k: ["USA"], l: "English", r: 90 },
       "pinned film|2000": { src: "tmdb", v: 6, id: 5002, pin: true, d: ["Old Name"], c: [], w: [], p: [], m: [], g: ["Drama"], k: ["USA"], l: "English", r: 90 },
       // films missed before matching learned half-titles: looked up again
       "wake up dead man|2025": { src: "tmdb", miss: true, v: 6 }, "the sorrow and the pity|1969": { src: "tmdb", miss: true, v: 6 },
@@ -126,9 +130,9 @@ export default async function ({ browser, base }) {
     return { c: m.c.join(), photos: ["lead 1", "lead 16", "familiar face"].map((k) => PHOTOS[k] || "-").join(), pin: [pin.pin, pin.v, pin.d.join()].join(),
       korean: s.cast.most.filter((p) => p.name === "김청아").length, face: (s.cast.most.find((p) => p.name === "Familiar Face") || {}).count };
   });
-  assert(cast.c === [...Array.from({ length: 16 }, (_, i) => `Lead ${i + 1}`), "Familiar Face", "김청아", "Voice Player"].join(), `the credited cast: ${cast.c}`);
+  assert(cast.c === [...Array.from({ length: 16 }, (_, i) => `Lead ${i + 1}`), "Familiar Face", "김청아", "Voice Player", "Extended Star", "Named Guest"].join(), `the credited cast: ${cast.c}`);
   assert(cast.photos === "/l1.jpg,-,/ff.jpg", `photos kept for the top billed and people met before, not every one-off player: ${cast.photos}`);
-  assert(cast.pin === "true,7,Someone" && !searched.includes("Pinned Film") && looked.includes("5002"), `a film matched by hand, read again at its place: ${cast.pin}`);
+  assert(cast.pin === "true,8,Someone" && !searched.includes("Pinned Film") && looked.includes("5002"), `a film matched by hand, read again at its place: ${cast.pin}`);
   assert(cast.korean === 1 && cast.face === 2, `people counted: a name in Korean ${cast.korean}, someone in two films ${cast.face}`);
   const more = await q.evaluate(() => ({ cop: META["a cop|1972"].id, waves: [META["breaking the waves|1996"].l, META["breaking the waves|1996"].k.length], prowler: META["the prowler|1951"].k.join(), why: META["the prowler|1951"].why }));
   assert(more.cop === 42741, `A Cop (1972) should be Melville's Un flic, not a 1947 film: ${more.cop}`);

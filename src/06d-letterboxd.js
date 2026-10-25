@@ -344,5 +344,224 @@ function lbAction(act, lib) {
     });
   } else if (act === "change") { editApify = true; renderLookup(); $("#apify-key")?.focus(); }
   else if (act === "all" || act === "rest" || act === "missing" || act === "retry") startLetterboxd(lib, act === "all" ? "all" : "rest");
+  else if (act === "ic-start") startCastCheck(lib);
+}
+/* ---------- The owner's cast, checked against IMDb (asked 26 Oct 2026) ----------
+   "In my case cross check it with IMDb data and apply it to my people stats." IMDb keeps the fullest cast lists and
+   says which roles are uncredited, voice or archive footage, but neither this site nor the container it's built in can
+   read IMDb (it lets no other site in). So, as for Letterboxd's pages, Apify's page reader opens each film's full cast
+   page on IMDb (/title/tt…/fullcredits/) through the owner's own Apify account, and our page function reads the cast
+   from it: IMDb's data (`__NEXT_DATA__`, the page since 2025), else the cast table of the older page, else each name
+   with its character link. Letterboxd's rule (`roleSkip`) is then applied to IMDb's roles:
+   - a role TMDB counts that IMDb marks uncredited, as a cameo, as archive footage or cut, comes off (`cr`);
+   - a credited role with a character on IMDb that TMDB doesn't count (missing there, or uncredited, or with no
+     character) goes on (`ca`), under the spelling TMDB uses for that person elsewhere in the diary when there is one
+     (IMDb writes "Kang-ho Song" where TMDB has "Song Kang-ho");
+   - a role IMDb lists with no character takes nothing off: that is IMDb not knowing, not a cameo.
+   `cq` is when it was checked, `cp` that IMDb's page held only part of a very long cast. Only the owner's own diary
+   (`isSiteOwner`) offers it. It tries CAST_TRIAL films first and goes on only if IMDb let Apify read them, and only
+   when the rest would cost no more than CAST_BUDGET, worked out from what the trial cost. */
+const CAST_CHECK_FIELDS = ["cq", "ca", "cr", "cp"];
+const CAST_TRIAL = 5, CAST_BUDGET = 1.5, CAST_PER_RUN = 2000;
+const icJob = { running: false, started: 0, note: "", err: false, stats: null };
+const castChecked = () => (MY_LIB && isSiteOwner() ? MY_LIB.films.filter((f) => META[f.key] && META[f.key].cq).length : 0);
+const castToCheck = (lib) => lib.films.filter((f) => { const m = META[f.key]; return m && !m.miss && /^tt\d+$/.test(m.im || "") && !m.cq; });
+const castCheckOn = (lib) => !IN_VIEWER && !!lib && !!lib.profile && String(lib.profile.username || "").toLowerCase() === SITE_OWNER;
+const CAST_PAGE_FN = `async function pageFunction(context) {
+  const { request, response, body, window } = context, u = request.userData || {};
+  const doc = window && window.document && window.document.documentElement;
+  const html = String(body || (doc ? doc.outerHTML : "") || "");
+  const status = response ? response.status || response.statusCode || null : null;
+  const plain = (h) => String(h || "").replace(/<[^>]+>/g, " ").replace(/&amp;/g, "&").replace(/&#0?39;|&apos;|&#x27;/g, "'").replace(/&quot;/g, '"')
+    .replace(/&nbsp;|&#160;/g, " ").replace(/&#(\\d+);/g, (m, n) => String.fromCharCode(+n)).replace(/\\s+/g, " ").trim();
+  const people = new Map();
+  let total = 0, layout = "";
+  const add = (id, name, role) => {
+    if (!/^nm\\d+$/.test(id || "") || !name) return;
+    const x = people.get(id), r = String(role || "").trim();
+    if (!x) people.set(id, [id, String(name).trim().slice(0, 120), r.slice(0, 300)]);
+    else if (r && !x[2].includes(r)) x[2] = (x[2] ? x[2] + " / " : "") + r.slice(0, 200);
+  };
+  const str = (v) => (typeof v === "string" ? v : v && typeof v === "object" ? String(v.text || v.name && (typeof v.name === "string" ? v.name : v.name.text) || (v.nameText && v.nameText.text) || v.value || "") : "");
+  const strs = (v) => (Array.isArray(v) ? v : v && Array.isArray(v.edges) ? v.edges.map((e) => e && e.node) : v ? [v] : []).map(str).filter(Boolean);
+  const CREW = /^(director|writer|producer|composer|cinematographer|editor|casting|production|art|set|costume|make|sound|special|visual|stunt|camera|animation|editorial|location|music|script|transportation|miscellaneous|thanks|crew)/;
+  // IMDb's own data for the page: the cast category's people, with their characters and attributes
+  const walk = (node, cast, depth) => {
+    if (!node || typeof node !== "object" || depth > 60) return;
+    if (Array.isArray(node)) { for (const x of node) walk(x, cast, depth + 1); return; }
+    const cid = String(node.id || (node.category && node.category.id) || "").toLowerCase();
+    const cname = String(typeof node.name === "string" ? node.name : (node.category && (node.category.text || node.category.name)) || "").toLowerCase();
+    if (cid === "cast" || cid === "actor" || cid === "actress" || cid === "self" || cname === "cast") cast = true;
+    else if (cid && !/^nm\\d+$/.test(cid) && CREW.test(cid)) cast = false;
+    if (cast && typeof node.total === "number" && node.total > total) total = node.total;
+    const pid = /^nm\\d+$/.test(node.id || "") ? node.id : /^nm\\d+$/.test(node.nameId || "") ? node.nameId : node.name && /^nm\\d+$/.test(node.name.id || "") ? node.name.id : "";
+    if (cast && pid) {
+      const name = node.rowTitle || (node.nameText && node.nameText.text) || (node.name && node.name.nameText && node.name.nameText.text) || (typeof node.name === "string" ? node.name : "") || node.title || "";
+      const chars = strs(node.characters || node.character || node.characterNames).join(" / ");
+      const attrs = strs(node.attributes || node.attribute).map((a) => (/^\\(/.test(a) ? a : "(" + a + ")")).join(" ");
+      if (typeof name === "string" && name) add(pid, name, [chars, attrs].filter(Boolean).join(" "));
+    }
+    for (const k in node) if (node[k] && typeof node[k] === "object") walk(node[k], cast, depth + 1);
+  };
+  const nd = html.match(/<script[^>]*id="__NEXT_DATA__"[^>]*>([\\s\\S]*?)<\\/script>/);
+  if (nd) { try { walk(JSON.parse(nd[1]), false, 0); if (people.size) layout = "data"; } catch (e) {} }
+  // the older page: a table of the cast, each row a name and its character
+  const table = !people.size && html.match(/<table[^>]*class="[^"]*cast_list[^"]*"[^>]*>([\\s\\S]*?)<\\/table>/i);
+  if (table) {
+    for (const row of table[1].split(/<tr[\\s>]/i)) {
+      const a = row.match(/<a[^>]+href="\\/name\\/(nm\\d+)[^"]*"[^>]*>\\s*([^<]+?)\\s*<\\/a>/i), ch = row.match(/<td[^>]*class="[^"]*character[^"]*"[^>]*>([\\s\\S]*?)<\\/td>/i);
+      if (a) add(a[1], plain(a[2]), ch ? plain(ch[1]) : "");
+    }
+    if (people.size) layout = "table";
+  }
+  // else each name that has a character link after it, and what's written by it
+  if (!people.size) {
+    for (const chunk of html.split(/(?=<a[^>]+href="\\/name\\/nm\\d+)/i).slice(1)) {
+      const a = chunk.match(/^<a[^>]+href="\\/name\\/(nm\\d+)[^"]*"[^>]*>([\\s\\S]*?)<\\/a>/i);
+      const ch = chunk.match(/<a[^>]+href="\\/title\\/tt\\d+\\/characters\\/[^"]*"[^>]*>([\\s\\S]*?)<\\/a>/i);
+      if (!a || !ch || !plain(a[2])) continue;
+      const near = plain(chunk.slice(0, 1500)), attrs = (near.match(/\\((?:uncredited|voice|archive[^)]*|as [^)]+|credit only|scenes? deleted|deleted scenes?|cameo[^)]*)\\)/gi) || []).join(" ");
+      add(a[1], plain(a[2]), [plain(ch[1]), attrs].filter(Boolean).join(" "));
+    }
+    if (people.size) layout = "links";
+  }
+  const cast = [...people.values()];
+  return { key: u.key, tt: u.tt, status, layout, n: cast.length, total: Math.max(total, cast.length), more: total > cast.length, cast };
+}`;
+
+// People are the same across TMDB and IMDb when their names are, in any order ("Song Kang-ho", "Kang-ho Song").
+const nameOrderKey = (n) => personKey(n).split(" ").filter(Boolean).sort().join(" ");
+// What IMDb's cast says of one film, put against what TMDB counts: what to add and what to take off.
+function castCheckOf(m, cast, spelling) {
+  const tmdb = new Map();
+  for (const n of m.c || []) { tmdb.set(personKey(n), n); tmdb.set(nameOrderKey(n), n); }
+  const add = [], off = [];
+  for (const [, name, role] of cast) {
+    const roles = String(role || "").split(" / ").map((r) => r.trim());
+    const why = roles.map((r) => roleSkip(r)), counts = why.some((w) => !w);
+    const known = tmdb.get(personKey(name)) || tmdb.get(nameOrderKey(name));
+    // taken off only on IMDb's word that the role isn't one (no character on IMDb is IMDb not knowing)
+    if (known && !counts && why.every((w) => w && w !== "no character")) off.push(known);
+    else if (!known && counts) add.push(spelling.get(nameOrderKey(name)) || name);
+  }
+  return { ca: [...new Set(add)], cr: [...new Set(off)] };
+}
+function startCastCheck(lib) {
+  const films = castCheckOn(lib) ? castToCheck(lib) : [];
+  if (!films.length || icJob.running || !apifyKey()) return;
+  return castRun(lib, films.slice(0, CAST_TRIAL), { phase: "trial", started: Date.now() });
+}
+function castRun(lib, films, meta) {
+  const urls = films.map((f) => { const tt = META[f.key].im;
+    return { url: `https://www.imdb.com/title/${tt}/fullcredits/`, uniqueKey: `${tt}|${f.key}`, headers: { "Accept-Language": "en-US,en;q=0.9" }, userData: { key: f.key, tt } }; });
+  Object.assign(icJob, { running: true, started: meta.started || Date.now(), note: "", err: false });
+  renderLookup();
+  return apify(`/acts/${LB_READER}/runs?memory=1024&timeout=3600`, { method: "POST", body: JSON.stringify({ startUrls: urls, pageFunction: CAST_PAGE_FN,
+    proxyConfiguration: { useApifyProxy: true }, linkSelector: "", maxCrawlingDepth: 0, maxConcurrency: 6, maxRequestRetries: 3, pageLoadTimeoutSecs: 45,
+    maxPagesPerCrawl: urls.length + 5 }) })
+    .then((run) => { store.set(KEYS.icRun, { ...meta, id: run.data.id, dataset: run.data.defaultDatasetId, at: meta.started || Date.now(), keys: films.map((f) => f.key) }); return pollCastCheck(lib); })
+    .catch((e) => finishCastCheck(e));
+}
+// Waits for the run (also on page load, so a run started earlier is picked up), then keeps what IMDb said.
+async function pollCastCheck(lib) {
+  const r = store.get(KEYS.icRun, null);
+  if (!r || !apifyKey() || !lib) return;
+  Object.assign(icJob, { running: true, started: r.at, note: "", err: false });
+  renderLookup();
+  try {
+    let run;
+    for (;;) {
+      run = (await apify(`/actor-runs/${r.id}`)).data;
+      if (["SUCCEEDED", "FAILED", "ABORTED", "TIMED-OUT"].includes(run.status)) break;
+      renderLookupProgress();
+      await sleep(8000);
+    }
+    const items = [];
+    for (let offset = 0; ; offset += 500) {
+      const page = await apify(`/datasets/${r.dataset}/items?clean=true&offset=${offset}&limit=500&fields=key,tt,status,layout,n,total,more,cast`);
+      items.push(...page);
+      if (page.length < 500) break;
+    }
+    store.del(KEYS.icRun);
+    const byKey = new Map(lib.films.map((f) => [f.key, f])), today = new Date().toISOString().slice(0, 10);
+    // the spelling TMDB uses for each person anywhere in the diary
+    const spelling = new Map();
+    for (const f of lib.films) for (const n of (META[f.key] && META[f.key].c) || []) if (!spelling.has(nameOrderKey(n))) spelling.set(nameOrderKey(n), n);
+    let read = 0, added = 0, off = 0;
+    for (const it of items) {
+      const f = it && byKey.get(it.key), m = f && META[f.key];
+      if (!m || !Array.isArray(it.cast) || !it.n || m.im !== it.tt) continue;
+      const cast = it.cast.filter((x) => Array.isArray(x) && /^nm\d+$/.test(x[0]) && typeof x[1] === "string").map((x) => [x[0], x[1], String(x[2] || "")]);
+      const d = castCheckOf(m, cast, spelling);
+      META[f.key] = { ...m, cq: today, ca: d.ca, cr: d.cr, ...(it.more ? { cp: true } : {}) };
+      read++; added += d.ca.length; off += d.cr.length;
+    }
+    saveMeta();
+    const st = { read: (r.read || 0) + read, added: (r.added || 0) + added, off: (r.off || 0) + off, asked: (r.keys || []).length, got: read };
+    const cost = Number(run.usageTotalUsd) || 0, spent = (r.spent || 0) + cost;
+    if (r.phase === "trial") {
+      // IMDb let Apify in for most of the trial: go on with the rest, if it fits the budget
+      if (read < Math.min(3, st.asked)) return finishCastCheck({ code: "blocked", got: read, asked: st.asked });
+      const rest = castToCheck(lib), each = cost && read ? cost / st.asked : 0.0008, projected = each * rest.length + 0.01;
+      if (rest.length && projected <= CAST_BUDGET) return castRun(lib, rest.slice(0, CAST_PER_RUN), { phase: "rest", started: r.at, ...st, spent });
+      icJob.stats = { ...st, spent, projected: rest.length ? projected : 0 };
+      return finishCastCheck(null);
+    }
+    icJob.stats = { ...st, spent };
+    finishCastCheck(run.status === "SUCCEEDED" ? null : { code: "stopped" });
+  } catch (e) {
+    if (e && ((e.code === "http" && e.status === 404) || e.code === "credit")) store.del(KEYS.icRun);
+    finishCastCheck(e);
+  }
+}
+function finishCastCheck(e) {
+  icJob.running = false;
+  icJob.err = !!e && e.code !== "stopped";
+  const st = icJob.stats || {}, left = MY_LIB ? castToCheck(MY_LIB).length : 0;
+  const did = st.read ? `Checked ${plural(st.read, "film")} on IMDb: ${plural(st.added || 0, "role")} IMDb credits went on, and ${plural(st.off || 0, "role")} IMDb marks uncredited, as a cameo or as archive footage came off.` : "";
+  icJob.note = !e ? `${did}${st.projected ? ` The other ${plural(left, "film")} would use about $${st.projected.toFixed(2)} of Apify credit: start them with the button above when you like.` : left ? ` ${plural(left, "film is", "films are")} still to check.` : ""}`.trim() || "Done."
+    : e.code === "blocked" ? `IMDb didn't let Apify read its cast pages (${e.got} of ${e.asked} came back), so nothing more was tried and almost no credit was used. Try again another day.`
+    : e.code === "stopped" ? `Apify stopped early, usually because this month's free credit ran out. ${did} The rest are checked next time.`
+    : e.code === "auth" ? "Apify didn't accept your token. Change it in Letterboxd averages above."
+    : e.code === "credit" ? `Apify wouldn't start the run because of this month's credit${e.said ? ` ("${e.said}")` : ""}. It comes back at the start of next month.`
+    : e instanceof TypeError ? "Couldn't reach Apify. Check your connection; a run already started is picked up next time you open the page."
+    : e.said ? `Apify wouldn't do it. It said: "${e.said}"` : "Something went wrong talking to Apify. Try again in a minute.";
+  scheduleRender();
+}
+function castProgressText() {
+  const mins = Math.max(0, Math.round((Date.now() - icJob.started) / 60000));
+  return `Apify is reading IMDb's cast lists for you (started ${mins ? `${mins} min ago` : "just now"}). You can close this page; the results are picked up when you come back.`;
+}
+// The films whose cast IMDb put right, and the people it added or took off, for the box below and its links.
+function castChanges(lib) {
+  const add = new Map(), off = new Map(), films = [];
+  for (const f of lib.films) {
+    const m = META[f.key];
+    if (!m || !m.cq || (!(m.ca || []).length && !(m.cr || []).length)) continue;
+    films.push(f);
+    for (const [map, list] of [[add, m.ca || []], [off, m.cr || []]]) for (const n of list) {
+      const k = personKey(n), p = map.get(k) || map.set(k, { key: k, name: n, films: [] }).get(k);
+      p.films.push(f);
+    }
+  }
+  const sorted = (map) => [...map.values()].sort((a, b) => b.films.length - a.films.length || a.name.localeCompare(b.name));
+  return { films, add: sorted(add), off: sorted(off) };
+}
+// In the Cast & crew box, under Letterboxd averages, on both layouts: the owner's diary only.
+function castCheckBlock(lib, phone) {
+  if (!castCheckOn(lib)) return "";
+  const title = phone ? `<p class="title" style="margin-top:6px">Cast checked on IMDb</p>` : `<h3 class="sub-h">Cast checked on IMDb</h3>`;
+  const note = icJob.note ? `<p class="status${icJob.err ? " err" : ""}" role="status">${esc(icJob.note)}</p>` : "";
+  const what = `<p class="status">Who counts as cast follows Letterboxd's rule: every credited role, but not cameos, uncredited roles or archive footage. For your diary, each film's full cast list on IMDb puts TMDB's right: roles IMDb marks uncredited, as a cameo or as archive footage come off, and credited roles IMDb has that TMDB lacks go on.</p>`;
+  if (icJob.running) return title + `<p class="status" id="ic-progress" role="status">${castProgressText()}</p>`;
+  if (!apifyKey()) return title + what + `<p class="status">It reads IMDb through your Apify account: save your Apify token in Letterboxd averages above first.</p>`;
+  const todo = castToCheck(lib), done = lib.films.filter((f) => META[f.key] && META[f.key].cq).length, ch = castChanges(lib);
+  const btn = (label) => phone ? `<button class="btn green block" type="button" data-lb="ic-start">${label}</button>` : `<button class="btn primary" type="button" data-lb="ic-start">${label}</button>`;
+  const row = (button, text) => phone ? `${button}<p class="status">${text}</p>` : `<div class="lookup-row">${button}<span class="status">${text}</span></div>`;
+  const changes = done ? `<p class="status">${fmtN(done)} of ${plural(lib.films.length, "film")} checked. IMDb ${ch.add.length ? dlink(D.names("Added from IMDb", "Credited on IMDb, not counted on TMDB", ch.add), `added ${plural(ch.add.length, "person", "people")}`) : "added nobody"}
+    and ${ch.off.length ? dlink(D.names("Taken off by IMDb", "Uncredited, a cameo or archive footage on IMDb", ch.off), `took off ${plural(ch.off.length, "person", "people")}`) : "took nobody off"}${ch.films.length ? `, in ${dlink(D.films("Cast put right by IMDb", plural(ch.films.length, "film"), ch.films, { sort: "name" }), plural(ch.films.length, "film"))}` : ""}.</p>` : "";
+  const start = todo.length ? row(btn(done ? `Check the other ${plural(todo.length, "film")}` : `Check ${plural(todo.length, "film")} on IMDb`),
+    `Tries ${CAST_TRIAL} films first and goes on only if IMDb lets Apify in, using well under $${CAST_BUDGET.toFixed(2)} of your Apify credit for the lot (it says first if it would be more).`) : "";
+  return title + what + changes + start + note;
 }
 </script>

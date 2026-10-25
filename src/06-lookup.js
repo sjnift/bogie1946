@@ -94,9 +94,10 @@ async function tmdbGet(path, params, key, signal) {
 // 6: every country TMDB lists (it used to stop at 6), the language a film is spoken in, hand-checked fixes.
 // 7: the whole credited cast (it stopped at the top 15 billed) and every director; a film matched since 6 is only read
 // again by its id (`rereadRef`), as its match hasn't changed.
-const TMDB_MATCH_VERSION = 7;
+// 8: who counts in a cast follows Letterboxd's rule role by role (`roleSkip`: cameos, archive footage, cut scenes).
+const TMDB_MATCH_VERSION = 8;
 // The last version that changed what's kept of a film: older details are read again, even when the match is the same.
-const TMDB_DETAILS_V = 7;
+const TMDB_DETAILS_V = 8;
 // Bump when matching finds films it used to miss, so only those are looked up again.
 // 7: a title that is half of the other ("Glass Onion: A Knives Out Mystery" for Glass Onion).
 // 8: a pinned film TMDB keeps on its TV side (The Sorrow and the Pity, Nathan for You: Finding Frances).
@@ -171,18 +172,13 @@ function rereadRef(prev) {
   if (Number(prev.tv)) return { tv: Number(prev.tv), ...(Number(prev.ep) ? { se: Number(prev.se) || 0, ep: Number(prev.ep) } : {}) };
   return Number(prev.id) ? { movie: Number(prev.id) } : null;
 }
-// Who counts as a film's cast, as Letterboxd's "Most watched" counts them: every role with a character name, however
-// far down the bill, but not cameos, which Letterboxd marks by no character name or "uncredited" (its "Stan Lee rule").
-// Until Oct 2026 the top 15 billed counted, uncredited or not, which left out most supporting and voice actors (a guest
-// found their actor counts off). A film TMDB gives no character names at all keeps its top billed: the names are
-// missing there, the roles aren't cameos. `roleOf` reads a credit's character.
-const CAMEO = /\buncredited\b/i;
+// Who counts as a film's cast: the roles Letterboxd's "Most watched" counts (`roleSkip` in 05-core), however far down
+// the bill. Until Oct 2026 the top 15 billed counted, uncredited or not, which left out most supporting and voice
+// actors (a guest found their actor counts off). `roleOf` reads a credit's character.
+const creditedCast = (list, roleOf) => list.filter((c) => !roleSkip(roleOf(c)));
 // What the people pages say of it (inside Claude, film details come from Claude, with each film's main cast).
-const castRuleText = () => (IN_VIEWER ? "Counts each film's main cast." : "Every credited role counts, as on Letterboxd, but not cameos.");
-function creditedCast(list, roleOf) {
-  const named = list.filter((c) => String(roleOf(c) || "").trim());
-  return named.length ? named.filter((c) => !CAMEO.test(roleOf(c))) : list.slice(0, CAST_BILLED);
-}
+const castRuleText = () => (IN_VIEWER ? "Counts each film's main cast."
+  : "Every credited role counts, as on Letterboxd; cameos, uncredited roles and archive footage don't." + (castChecked() ? ` Checked against IMDb for ${plural(castChecked(), "film")}.` : ""));
 // Photos kept from a film's credits: its directors, its top billed, and anyone already met in another film, so a
 // supporting actor whose films add up has a face, without photos of thousands of one-off players. `CAST_SEEN` is
 // everyone in the films looked up so far (worked out again at the start of each run of lookups).
@@ -274,7 +270,7 @@ async function tmdbTvDetails(ref, key, signal) {
   const names = (list) => [...new Set(list.map((x) => x.name))];
   const directors = crew.filter((c) => did(c, ["Director"]));
   // a programme's cast has each person's roles across its episodes; credited if any of them is
-  const roleOf = (c) => c.roles ? ((c.roles.find((x) => String(x.character || "").trim() && !CAMEO.test(x.character)) || c.roles[0] || {}).character) : c.character;
+  const roleOf = (c) => c.roles ? ((c.roles.find((x) => !roleSkip(x.character)) || c.roles[0] || {}).character) : c.character;
   cast = creditedCast(cast.filter((c, i) => cast.findIndex((x) => x.name === c.name) === i), roleOf);
   keepPhotos(cast, directors);
   return cleanMeta({
@@ -322,6 +318,8 @@ async function runTmdb(lib, key) {
           // keep IMDb scores already fetched for the same film, so OMDb's daily allowance isn't spent twice
           const prev = META[f.key];
           if (prev && prev.om && prev.im === m.im) for (const k of IMDB_FIELDS) m[k] = prev[k];
+          // and what IMDb's cast list said of it (06d, `castCheck`)
+          if (prev && prev.cq && prev.im === m.im) for (const k of CAST_CHECK_FIELDS) if (prev[k] !== undefined) m[k] = prev[k];
           META[f.key] = m;
         }
       } catch (e) {
