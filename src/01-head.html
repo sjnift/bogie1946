@@ -1,5 +1,6 @@
 <title>Credits Roll</title>
 <meta name="claude:viewport-fit-sides" content="cover">
+<meta name="color-scheme" content="dark">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&family=Schibsted+Grotesk:wght@400;500;600;700&display=swap">
@@ -31,24 +32,8 @@
   --radius: 10px;
   color-scheme: dark;
 }
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme="dark"]) {
-    --bg: #F6F2F4; --surface: #FFFFFF; --surface-2: #F0EAEF; --line: #E2D9E0;
-    --ink: #1E1722; --ink-2: #4E4553; --muted: #6A6070;
-    --gold: #B07A12; --gold-ink: #8A5E0B; --lilac: #6D5FD3;
-    --heat-1: #D4AA55; --heat-2: #B07A12; --heat-3: #7A520A;
-    --danger: #B4232F; --on-gold: #FFFFFF; --gold-btn: #946510; --shadow: 0 18px 40px rgba(60, 30, 60, .14);
-    color-scheme: light;
-  }
-}
-:root[data-theme="light"] {
-  --bg: #F6F2F4; --surface: #FFFFFF; --surface-2: #F0EAEF; --line: #E2D9E0;
-  --ink: #1E1722; --ink-2: #4E4553; --muted: #6A6070;
-  --gold: #B07A12; --gold-ink: #8A5E0B; --lilac: #6D5FD3;
-  --heat-1: #D4AA55; --heat-2: #B07A12; --heat-3: #7A520A;
-  --danger: #B4232F; --on-gold: #FFFFFF; --gold-btn: #946510; --shadow: 0 18px 40px rgba(60, 30, 60, .14);
-  color-scheme: light;
-}
+/* Always dark, whatever the system or the viewer asks for (the owner's call, Oct 2026): no light look. */
+:root, :root[data-theme="light"] { color-scheme: dark; }
 
 * { box-sizing: border-box; }
 body {

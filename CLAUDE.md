@@ -17,7 +17,8 @@ export (the ZIP from Letterboxd → Settings → Data) entirely in the browser a
 comparisons with friends and more, in two layouts:
 
 - **Desktop**: a "screening programme" look (dark, gold accents, Big Shoulders Display headings), inspired by
-  boxd.megolo.com and Letterboxd Pro's year pages.
+  boxd.megolo.com and Letterboxd Pro's year pages. **Always dark**, whatever the system or the Claude viewer asks for
+  (the owner's call, 25 Oct 2026; the light look it used to switch to was removed).
 - **Phone**: the Letterboxd app, modernised (rebuilt Oct 2026 after the owner found the old one "wonky and
   creaky"): Letterboxd's slate background and green/orange/blue, a profile with a blurred poster backdrop, a
   see-through header that frosts as you scroll, big bold titles, rounded cards, white year chips that stay in
@@ -58,7 +59,8 @@ Where it lives:
   - Links look classy: gold text in sentences (desktop), white semibold in sentences (phone), a faint thin
     underline under bare numbers, no underlines in tables (a "click any number" line under each table instead),
     rounded tags for genres, countries, languages and cast. No white dotted underlines.
-  - They like charts and data views that are accurate, clear and consistent in light and dark mode.
+  - They like charts and data views that are accurate and clear. Both layouts are dark only (asked Oct 2026): don't
+    bring back a light look or follow the system's setting.
   - Highest-rated actors over **all time** need **6 rated films** each (`CAST_MIN_RATED`, `s.castMinRated`); a single
     year, and every other kind of person, keeps `minRated` (2, or 3 for 150+ films).
   - The best-rated decade is featured with its films' posters (phone Breakdown and desktop "Released").
