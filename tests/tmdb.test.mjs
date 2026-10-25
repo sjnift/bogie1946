@@ -58,8 +58,25 @@ export default async function ({ browser, base }) {
       }[id] || {};
       return json({ ...movie(id, "x", "1990-01-01", "Someone", ["Someone Else"]), ...details });
     }
-    const found = { tt11564570: 661374, tt7277634: 1002, tt0066904: 1003 }[u.pathname.split("/find/")[1]];
-    if (u.pathname.startsWith("/3/find/")) return json({ movie_results: found ? [{ id: found }] : [] });
+    // as TMDB answers: Glass Onion is a film; The Sorrow and the Pity a two-part TV programme; Finding Frances an episode
+    const find = { tt11564570: { movie_results: [{ id: 661374 }] }, tt0066904: { tv_results: [{ id: 128062 }] },
+      tt7277634: { tv_episode_results: [{ id: 1388583, show_id: 58957, season_number: 4, episode_number: 7 }] } }[u.pathname.split("/find/")[1]];
+    if (u.pathname.startsWith("/3/find/")) return json({ movie_results: [], tv_results: [], tv_episode_results: [], ...find });
+    const person = (name, extra) => ({ name, profile_path: null, ...extra });
+    const tv = {
+      "/3/tv/128062": { id: 128062, name: "The Sorrow and the Pity", first_air_date: "1969-09-18", poster_path: "/sorrow.jpg", vote_average: 7.9, vote_count: 23,
+        genres: [{ name: "Documentary" }, { name: "War & Politics" }], production_countries: [{ name: "Germany" }, { name: "Switzerland" }],
+        original_language: "fr", spoken_languages: [{ iso_639_1: "en" }, { iso_639_1: "fr" }, { iso_639_1: "de" }], seasons: [{ season_number: 1, poster_path: "/s1.jpg" }],
+        external_ids: { imdb_id: "tt0066904" }, aggregate_credits: { cast: [person("Marcel Ophüls", { order: 0 }), person("André Harris", { order: 1 })],
+          crew: [person("Marcel Ophüls", { jobs: [{ job: "Director" }, { job: "Writer" }] }), person("André Gazut", { jobs: [{ job: "Director of Photography" }] })] } },
+      "/3/tv/128062/season/1": { episodes: [{ runtime: 122 }, { runtime: 128 }] },
+      "/3/tv/58957": { id: 58957, name: "Nathan for You", poster_path: "/nathan.jpg", genres: [{ name: "Comedy" }, { name: "Documentary" }],
+        production_countries: [{ name: "United States of America" }], original_language: "en", spoken_languages: [{ iso_639_1: "en" }],
+        seasons: [{ season_number: 0, poster_path: "/s0.jpg" }, { season_number: 4, poster_path: "/s4.jpg" }] },
+      "/3/tv/58957/season/4/episode/7": { name: "Finding Frances", air_date: "2017-11-09", runtime: 84, vote_average: 9.4, vote_count: 17, crew: [person("Jakob Skrzypa", { job: "Production Assistant" })],
+        guest_stars: [person("William Heath", { order: 500 })], credits: { cast: [person("Nathan Fielder", { order: 0 })] }, external_ids: { imdb_id: "tt7277634" } },
+    }[u.pathname];
+    if (u.pathname.startsWith("/3/tv/")) return tv ? json(tv) : r.fulfill({ status: 404, body: "{}" });
     const query = u.searchParams.get("query"), year = u.searchParams.get("year");
     // TMDB's title is longer than Letterboxd's, or is one half of it; "Alien" (1979) must not become "Alien: Resurrection"
     if (query === "Wake Up Dead Man") return json({ results: [hit(812583, "Wake Up Dead Man: A Knives Out Mystery", "2025-11-26", 3000)] });
@@ -81,7 +98,9 @@ export default async function ({ browser, base }) {
     { "cr-meta-v1": { "the ear|1970": { src: "tmdb", v: 3, id: 35002, d: ["Don Chaffey"], c: ["Victoria Vetri"], w: [], p: [], m: [], g: ["Adventure"], k: ["UK"], l: "English", r: 100 },
       "brick|2005": { src: "tmdb", v: 6, id: 9270, d: ["Rian Johnson"], c: ["Joseph Gordon-Levitt"], w: [], p: [], m: [], g: ["Crime"], k: ["USA"], l: "English", r: 110 },
       // films missed before matching learned half-titles: looked up again
-      "wake up dead man|2025": { src: "tmdb", miss: true, v: 6 }, "the sorrow and the pity|1969": { src: "tmdb", miss: true, v: 6 } }, "cr-tmdb-key": "k123" });
+      "wake up dead man|2025": { src: "tmdb", miss: true, v: 6 }, "the sorrow and the pity|1969": { src: "tmdb", miss: true, v: 6 },
+      // missed while only TMDB's films were looked at, as the owner's devices had it (Oct 2026): looked up again
+      "nathan for you: finding frances|2017": { src: "tmdb", miss: true, v: 7, via: "tt7277634" } }, "cr-tmdb-key": "k123" });
   await q.waitForFunction(() => MY_LIB.films.every((f) => META[f.key] && META[f.key].v >= TMDB_MATCH_VERSION) && !needsLookup(MY_LIB, "tmdb").length && !job.running, null, { timeout: 8000 });
   const ear = await q.evaluate(() => { const s = computeStats(MY_LIB, metaOf, "all"), where = (list) => list.most.filter((x) => x.films.some((f) => f.name === "The Ear")).map((x) => x.name).join();
     return { id: META["the ear|1970"].id, country: where(s.countries), language: where(s.languages), heat: !!META["heat|1934"].miss, brick: META["brick|2005"].id };
@@ -94,9 +113,17 @@ export default async function ({ browser, base }) {
   assert(more.waves[0] === "English" && more.waves[1] === 13, `Breaking the Waves: language ${more.waves[0]} (spoken in English), ${more.waves[1]} of 13 countries kept`);
   assert(more.prowler === "USA" && /American/.test(more.why || ""), `The Prowler's country: ${more.prowler}`);
   const halves = await q.evaluate(() => Object.fromEntries(["glass onion|2022", "nathan for you: finding frances|2017", "the sorrow and the pity|1969", "wake up dead man|2025",
-    "show name: special title|2019", "alien|1979"].map((k) => [k, META[k].miss ? "miss" : `${META[k].id}${META[k].via ? ` via ${META[k].via}` : ""}`])));
-  assert(JSON.stringify(halves) === JSON.stringify({ "glass onion|2022": "661374 via tt11564570", "nathan for you: finding frances|2017": "1002 via tt7277634",
-    "the sorrow and the pity|1969": "1003 via tt0066904", "wake up dead man|2025": "812583", "show name: special title|2019": "1004", "alien|1979": "miss" }), `titled differently on TMDB: ${JSON.stringify(halves)}`);
+    "show name: special title|2019", "alien|1979"].map((k) => { const m = META[k];
+      return [k, m.miss ? "miss" : `${m.tv ? `tv ${m.tv}${m.ep ? `/${m.se}/${m.ep}` : ""}` : m.id}${m.via ? ` via ${m.via}` : ""}`]; })));
+  assert(JSON.stringify(halves) === JSON.stringify({ "glass onion|2022": "661374 via tt11564570", "nathan for you: finding frances|2017": "tv 58957/4/7 via tt7277634",
+    "the sorrow and the pity|1969": "tv 128062 via tt0066904", "wake up dead man|2025": "812583", "show name: special title|2019": "1004", "alien|1979": "miss" }), `titled differently on TMDB: ${JSON.stringify(halves)}`);
+  // what TMDB's TV side gives: the programme's director, cast and length added up; the episode's cast and guests, its
+  // season's poster, the show's genres and country; and the links go to those TV pages
+  const onTv = await q.evaluate(() => Object.fromEntries(["the sorrow and the pity|1969", "nathan for you: finding frances|2017"].map((k) => { const m = META[k];
+    return [k, [m.d.join(), m.c.join(), m.r, m.l, m.g.join(), m.k.join(), m.poster, m.im, m.y, tmdbHref(m)].join(" | ")]; })));
+  assert(onTv["the sorrow and the pity|1969"] === "Marcel Ophüls | Marcel Ophüls,André Harris | 250 | French | Documentary,War | Germany,Switzerland | /sorrow.jpg | tt0066904 | 1969 | https://www.themoviedb.org/tv/128062"
+    && onTv["nathan for you: finding frances|2017"] === " | Nathan Fielder,William Heath | 84 | English | Comedy,Documentary | USA | /s4.jpg | tt7277634 | 2017 | https://www.themoviedb.org/tv/58957/season/4/episode/7",
+    `films TMDB has as TV: ${JSON.stringify(onTv)}`);
   const check = await q.evaluate(() => dataCheck(MY_LIB).nomatch.map((x) => x.name).join());
   assert(check === "Alien (1979),Heat (1934)", `still without a TMDB match: ${check}`);
   noErrors(q, "phone");

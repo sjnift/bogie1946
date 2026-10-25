@@ -5,7 +5,7 @@ const ordinal = (n) => { const s = ["th", "st", "nd", "rd"], v = n % 100; return
 // A small link to the TMDB page a film was matched to, so a wrong match is easy to spot.
 const tmdbLink = (f) => {
   const m = f && META[f.key];
-  return m && m.src === "tmdb" && Number(m.id) && !IN_VIEWER ? ` <a class="tmdb-link" href="https://www.themoviedb.org/movie/${Number(m.id)}" target="_blank" rel="noopener" title="See the film this was matched to on TMDB">TMDB ↗</a>` : "";
+  return tmdbHref(m) && !IN_VIEWER ? ` <a class="tmdb-link" href="${tmdbHref(m)}" target="_blank" rel="noopener" title="See the film this was matched to on TMDB">TMDB ↗</a>` : "";
 };
 // A year's label under its column: every year while they fit, every other past 8, every fourth past 16, always the latest.
 const yearTick = (i, n, year) => (n - 1 - i) % (n > 16 ? 4 : n > 8 ? 2 : 1) ? "" : `’${String(year).slice(2)}`;

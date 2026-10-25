@@ -218,7 +218,7 @@ function filmCardHtml(d) {
   const cast = m && m.c.length ? `<section class="fc-sec"><h4>Cast</h4><div class="fc-chips">${m.c.slice(0, 12).map((n) => dlink(personDrill(lib, n, "c"), esc(n))).join("")}</div></section>` : "";
   const tm = META[f.key];
   const links = [`<a href="${esc(lbUrl(f))}" target="_blank" rel="noopener">Letterboxd ↗</a>`,
-    tm && tm.src === "tmdb" && Number(tm.id) && !IN_VIEWER ? `<a href="https://www.themoviedb.org/movie/${Number(tm.id)}" target="_blank" rel="noopener">TMDB ↗</a>` : "",
+    tmdbHref(tm) && !IN_VIEWER ? `<a href="${tmdbHref(tm)}" target="_blank" rel="noopener">TMDB ↗</a>` : "",
     m && /^tt\d+$/.test(m.im || "") ? `<a href="https://www.imdb.com/title/${m.im}/" target="_blank" rel="noopener">IMDb ↗</a>` : ""].filter(Boolean).join("");
   return `<div class="fcard">${d.badge ? `<p class="fc-badge">${esc(d.badge)}</p>` : ""}<div class="fc-top">${thumb(f, true)}<div class="fc-facts">
       ${facts.join("")}${m ? "" : `<p class="dr-s">No cast &amp; crew details yet.</p>`}
@@ -244,7 +244,7 @@ async function runFix(key, repaint) {
   FIX_NOTE = { key, text: "Looking it up on TMDB…" }; repaint();
   try {
     const m = await fixMatch(f, text);
-    FIXING = null; FIX_NOTE = { key, text: `Matched to TMDB film ${m.id}${m.d.length ? `, directed by ${m.d.join(" and ")}` : ""}. Every stat uses it now.` };
+    FIXING = null; FIX_NOTE = { key, text: `Matched to ${m.tv ? `TMDB's TV ${m.ep ? "episode" : "programme"}` : `TMDB film ${m.id}`}${m.d.length ? `, directed by ${m.d.join(" and ")}` : ""}. Every stat uses it now.` };
     SEARCH_INDEX = null; DATA_REV++; render(); repaint();
   } catch (e) {
     FIX_NOTE = { key, text: (e && e.message) || "Couldn't reach TMDB." }; repaint();

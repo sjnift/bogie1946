@@ -95,7 +95,8 @@ async function tmdbGet(path, params, key, signal) {
 const TMDB_MATCH_VERSION = 6;
 // Bump when matching finds films it used to miss, so only those are looked up again.
 // 7: a title that is half of the other ("Glass Onion: A Knives Out Mystery" for Glass Onion).
-const TMDB_MISS_VERSION = Math.max(TMDB_MATCH_VERSION, 7);
+// 8: a pinned film TMDB keeps on its TV side (The Sorrow and the Pity, Nathan for You: Finding Frances).
+const TMDB_MISS_VERSION = Math.max(TMDB_MATCH_VERSION, 8);
 // The words of a title that matter, in any script: "The Ear" → ear, "Love & Mercy" → love, mercy.
 const TITLE_SKIP = new Set(["the", "a", "an", "and", "of", "la", "le", "les", "el", "il", "der", "die", "das"]);
 const titleWords = (s) => new Set(String(s || "").replace(/&/g, " and ").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
@@ -143,17 +144,27 @@ function halfTitled(results, f) {
   return (results || []).filter((r) => (!f.year || !yearOf(r) || Math.abs(yearOf(r) - f.year) <= 1) && (fits(r.title) || fits(r.original_title)))
     .sort((a, b) => (b.vote_count || 0) - (a.vote_count || 0))[0] || null;
 }
-// The TMDB id for a pinned film: a TMDB id as it is, an IMDb id through TMDB's find.
-async function tmdbIdFor(known, key, signal) {
-  if (!/^tt\d+$/.test(String(known))) return known;
-  const r = await tmdbGet(`/find/${known}`, { external_source: "imdb_id" }, key, signal);
-  return (r && r.movie_results && r.movie_results[0] && r.movie_results[0].id) || null;
+// Where a pinned film is on TMDB: a TMDB film id as it is; an IMDb id through TMDB's find, which can land on TMDB's TV
+// side as well (The Sorrow and the Pity is a two-part TV programme there, Nathan for You: Finding Frances an episode of
+// the show; both had no match until Oct 2026 because only films were taken): { movie }, { tv } or { tv, se, ep }.
+async function tmdbRefFor(known, key, signal) {
+  if (!/^tt\d+$/.test(String(known))) return { movie: Number(known) };
+  const r = (await tmdbGet(`/find/${known}`, { external_source: "imdb_id" }, key, signal)) || {};
+  const first = (a) => (Array.isArray(a) && a[0]) || null, mv = first(r.movie_results), tv = first(r.tv_results), ep = first(r.tv_episode_results);
+  if (mv && mv.id) return { movie: mv.id };
+  if (tv && tv.id) return { tv: tv.id };
+  if (ep && ep.show_id && ep.season_number != null && ep.episode_number) return { tv: ep.show_id, se: ep.season_number, ep: ep.episode_number };
+  return null;
 }
+const tmdbFetch = (ref, key, signal) => (ref.movie ? tmdbDetails(ref.movie, key, signal) : tmdbTvDetails(ref, key, signal));
+// A TMDB page for a film's details: its film page, or its TV programme or episode.
+const tmdbHref = (m) => !m || m.src !== "tmdb" ? "" : Number(m.tv) ? `https://www.themoviedb.org/tv/${Number(m.tv)}${Number(m.ep) ? `/season/${Number(m.se)}/episode/${Number(m.ep)}` : ""}`
+  : Number(m.id) ? `https://www.themoviedb.org/movie/${Number(m.id)}` : "";
 // `prev` is what the film was matched to before: when the match hasn't changed, its details are kept.
 async function tmdbFilm(f, key, signal, prev) {
   const known = knownId(f);
   if (known) {
-    const id = await tmdbIdFor(known, key, signal), m = id && await tmdbDetails(id, key, signal);
+    const ref = await tmdbRefFor(known, key, signal), m = ref && await tmdbFetch(ref, key, signal);
     if (m && !m.miss) return { ...m, via: known };
   }
   const search = async (query, year) => ((await tmdbGet("/search/movie", { query, year: year || "", include_adult: "false" }, key, signal)) || {}).results || [];
@@ -190,6 +201,49 @@ async function tmdbDetails(id, key, signal) {
     k: (d.production_countries || []).map((c) => c.name),
     l: spokenIn(d), r: d.runtime, va: d.vote_average, vc: d.vote_count, im: d.imdb_id, t: new Date().toISOString(),
     ...(FILM_FIXES[d.id] || {}),
+  });
+}
+// TMDB's TV genres in the film genres the rest of the app counts.
+const TV_GENRES = { "Action & Adventure": ["Action", "Adventure"], "Sci-Fi & Fantasy": ["Science Fiction", "Fantasy"], "War & Politics": ["War"], Kids: ["Family"] };
+// The details of something TMDB keeps on its TV side that Letterboxd has as a film: a whole programme (its directors,
+// cast and crew across its episodes, its length the episodes added up) or one episode (its own crew, cast and guests,
+// with the show's genres, countries and language, and its season's poster). It carries `tv` (and `se`, `ep`), not a
+// film `id`, so it's never taken for the TMDB film with the same number.
+async function tmdbTvDetails(ref, key, signal) {
+  const miss = { src: "tmdb", miss: true, v: TMDB_MISS_VERSION }, episode = ref.ep != null;
+  const show = await tmdbGet(`/tv/${Number(ref.tv)}`, { append_to_response: episode ? "" : "aggregate_credits,external_ids" }, key, signal);
+  if (!show) return miss;
+  let crew, cast, r, y, va, vc, im, poster;
+  if (episode) {
+    const e = await tmdbGet(`/tv/${Number(ref.tv)}/season/${Number(ref.se)}/episode/${Number(ref.ep)}`, { append_to_response: "credits,external_ids" }, key, signal);
+    if (!e) return miss;
+    const byOrder = (a) => (a || []).slice().sort((x, z) => (x.order || 0) - (z.order || 0));
+    crew = e.crew || []; cast = [...byOrder(e.credits && e.credits.cast), ...byOrder(e.guest_stars)];
+    r = e.runtime; y = e.air_date; va = e.vote_average; vc = e.vote_count; im = e.external_ids && e.external_ids.imdb_id;
+    poster = ((show.seasons || []).find((s) => s.season_number === Number(ref.se)) || {}).poster_path || show.poster_path;
+  } else {
+    const ac = show.aggregate_credits || {};
+    crew = ac.crew || []; cast = (ac.cast || []).slice().sort((x, z) => (x.order || 0) - (z.order || 0));
+    r = 0; // the whole programme: every episode of its seasons, specials left out
+    for (const s of (show.seasons || []).filter((s) => s.season_number > 0).slice(0, 3)) {
+      const sd = await tmdbGet(`/tv/${Number(ref.tv)}/season/${Number(s.season_number)}`, {}, key, signal);
+      for (const x of (sd && sd.episodes) || []) r += Number(x.runtime) || 0;
+    }
+    y = show.first_air_date; va = show.vote_average; vc = show.vote_count; im = show.external_ids && show.external_ids.imdb_id; poster = show.poster_path;
+  }
+  const did = (c, jobs) => (c.jobs ? c.jobs.map((j) => j.job) : [c.job]).some((j) => jobs.includes(j));
+  const names = (list) => [...new Set(list.map((x) => x.name))];
+  const directors = crew.filter((c) => did(c, ["Director"]));
+  cast = cast.filter((c, i) => cast.findIndex((x) => x.name === c.name) === i).slice(0, CAST_DEPTH);
+  for (const p of [...cast, ...directors]) if (p.profile_path && !PHOTOS[personKey(p.name)]) PHOTOS[personKey(p.name)] = p.profile_path;
+  return cleanMeta({
+    src: "tmdb", v: TMDB_MATCH_VERSION, tv: show.id, ...(episode ? { se: Number(ref.se), ep: Number(ref.ep) } : {}), poster, y: parseInt(String(y || "").slice(0, 4), 10),
+    d: names(directors), c: cast.map((c) => c.name),
+    w: names(crew.filter((c) => did(c, ["Screenplay", "Writer", "Story"]))),
+    p: names(crew.filter((c) => did(c, ["Director of Photography"]))),
+    m: names(crew.filter((c) => did(c, ["Original Music Composer", "Music"]))),
+    g: [...new Set((show.genres || []).flatMap((g) => TV_GENRES[g.name] || [g.name]))],
+    k: (show.production_countries || []).map((c) => c.name), l: spokenIn(show), r: r || null, va, vc, im, t: new Date().toISOString(),
   });
 }
 // A film's language: TMDB's original language, unless the film is spoken only in another one (Breaking the
@@ -424,14 +478,16 @@ async function fixMatch(f, text) {
   const key = tmdbKey();
   if (!key) throw new Error("Add your TMDB key in Settings → Film details first.");
   const t = String(text || "").trim();
-  let id = (t.match(/themoviedb\.org\/movie\/(\d+)/) || t.match(/^(\d+)$/) || [])[1];
+  const id = (t.match(/themoviedb\.org\/movie\/(\d+)/) || t.match(/^(\d+)$/) || [])[1];
+  const ep = t.match(/themoviedb\.org\/tv\/(\d+)[^/\s]*\/season\/(\d+)\/episode\/(\d+)/), tv = t.match(/themoviedb\.org\/tv\/(\d+)/);
   const imdb = (t.match(/\b(tt\d{5,})\b/) || [])[1];
-  if (!id && imdb) {
-    id = await tmdbIdFor(imdb, key);
-    if (!id) throw new Error("TMDB doesn't know a film with that IMDb link.");
+  let ref = id ? { movie: Number(id) } : ep ? { tv: Number(ep[1]), se: Number(ep[2]), ep: Number(ep[3]) } : tv ? { tv: Number(tv[1]) } : null;
+  if (!ref && imdb) {
+    ref = await tmdbRefFor(imdb, key);
+    if (!ref) throw new Error("TMDB doesn't know a film with that IMDb link.");
   }
-  if (!id) throw new Error("Paste a link to the film on themoviedb.org or imdb.com.");
-  const m = await tmdbDetails(id, key);
+  if (!ref) throw new Error("Paste a link to the film on themoviedb.org or imdb.com.");
+  const m = await tmdbFetch(ref, key);
   if (!m || m.miss) throw new Error("TMDB has no film with that id.");
   m.pin = true;
   META[f.key] = m;

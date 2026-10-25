@@ -443,9 +443,16 @@ standard errors or more from what the rest of the diary gives; every sentence op
   TMDB), and never one TMDB dates more than 2 years *earlier* (A Cop, 1972, had matched a 1947 film).
   `FILM_IDS` pins films TMDB's search can't find by title and year, by TMDB id (A Cop → Un flic 42741, The Ear →
   88953) or by IMDb id, turned into TMDB's through its find endpoint (Glass Onion tt11564570, Nathan for You: Finding
-  Frances tt7277634, The Sorrow and the Pity tt0066904); the details then carry `via` (`fromKnownId`). A title that
+  Frances tt7277634, The Sorrow and the Pity tt0066904); the details then carry `via` (`fromKnownId`). Find can land on
+  TMDB's **TV side** (`tmdbRefFor` → `{ movie }`, `{ tv }` or `{ tv, se, ep }`; `tmdbFetch`): The Sorrow and the Pity is
+  a two-part TV programme there and Finding Frances an episode of Nathan for You, so both stayed "No TMDB match" until
+  25 Oct 2026, when only films were taken (the `tmdb` check's stand-in had wrongly answered with films; it now answers
+  as TMDB does). `tmdbTvDetails` reads a programme (directors, cast and crew across episodes, length the episodes added
+  up) or an episode (its crew, cast and guests, its season's poster, the show's genres, countries and language; TV
+  genres mapped by `TV_GENRES`, "War & Politics" → War). These carry `tv` (`se`, `ep`), never a film `id`; links go
+  through `tmdbHref`. "Wrong film?" takes TMDB TV and episode links too. TMDB lists no director for Finding Frances. A title that
   is half of TMDB's is matched too (`halfTitled`: "Glass Onion: A Knives Out Mystery"; Letterboxd's "Show: Episode"
-  as TMDB's "Episode"), only as a whole title within a year. `TMDB_MISS_VERSION` (7) looks up again only films
+  as TMDB's "Episode"), only as a whole title within a year. `TMDB_MISS_VERSION` (8) looks up again only films
   missed before, when matching learns to find more;
   `FILM_FIXES` (by TMDB id, with a `why`) corrects facts TMDB has wrong (The Prowler 1951 is American; Breaking
   the Waves is in English; The Battle of Algiers in French). A film's language is TMDB's original language unless

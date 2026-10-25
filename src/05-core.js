@@ -402,6 +402,7 @@ function cleanMeta(m) {
   const genre = (g) => g === "Sci-Fi" ? "Science Fiction" : g;
   return {
     src: m.src, v: m.v || null, id: m.id || null, poster: m.poster || null,
+    ...(Number(m.tv) ? { tv: Number(m.tv), ...(Number(m.ep) && m.se != null ? { se: Number(m.se) || 0, ep: Number(m.ep) } : {}) } : {}), // on TMDB's TV side (06-lookup)
     d: list(m.d, 6), c: list(m.c, 15), w: list(m.w, 6), p: list(m.p, 4), m: list(m.m, 4),
     g: list((m.g || []).map(genre).filter((g) => GENRES.includes(g)), 6),
     k: list((m.k || []).map(country), 20), l: language(m.l), why: m.why || undefined, r: Math.round(Number(m.r)) || null,
