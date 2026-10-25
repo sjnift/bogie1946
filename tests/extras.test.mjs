@@ -88,6 +88,30 @@ export default async function ({ browser, base }) {
     }
     noErrors(p, file);
   }
+  // phone pictures: a poster that has loaded fades in (it once stayed invisible: the page listened for "load" on the
+  // window, which a picture's load never reaches), and a TMDB that never answers is caught by the check at start
+  {
+    const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64");
+    for (const tmdb of ["answers", "hangs"]) {
+      const p = await open(browser, base, "mobile.html", { phone: true });
+      await p.context().route(/image\.tmdb\.org/, (r) => tmdb === "answers" ? r.fulfill({ contentType: "image/png", body: png }) : null);
+      await p.context().route(/wsrv\.nl/, (r) => r.fulfill({ contentType: "image/png", body: png }));
+      await p.evaluate(() => { for (const f of state.lib.films.slice(0, 12)) EXAMPLE_META[f.key] = { ...EXAMPLE_META[f.key], poster: `/x${f.key.length}.png` };
+        META["probe|0"] = { poster: "/probe.png" }; IMG_STATE = ""; imgProbe(); DATA_REV++; goTo("profile", { force: true, top: true }); });
+      await p.waitForFunction(() => IMG_STATE && IMG_STATE !== "checking", null, { timeout: 12000 }).catch(() => {});
+      await p.waitForTimeout(600);
+      const pic = await p.evaluate(() => { const shown = [...document.querySelectorAll(".poster img.fade")].filter((i) => i.complete && i.naturalWidth > 0);
+        return { state: IMG_STATE, via: IMG_VIA, loaded: shown.length, visible: shown.filter((i) => i.classList.contains("in") && getComputedStyle(i).opacity === "1").length,
+          relay: shown.filter((i) => i.src.startsWith("https://wsrv.nl/")).length }; });
+      const want = tmdb === "answers" ? "tmdb" : "relay";
+      assert(pic.state === want && pic.via === want && pic.loaded >= 3 && pic.visible === pic.loaded && (want === "tmdb" ? !pic.relay : pic.relay === pic.loaded),
+        `phone pictures when TMDB ${tmdb}: ${JSON.stringify(pic)}`);
+      const line = await p.evaluate(() => picturesBlock(true)); // Settings (the example shows its own box there instead)
+      assert(want === "tmdb" ? /straight from TMDB/.test(line) : /wsrv\.nl/.test(line), `phone Settings says how pictures come: "${line}"`);
+      noErrors(p, `phone pictures (TMDB ${tmdb})`);
+      await p.close();
+    }
+  }
   const d = await open(browser, base, "desktop.html", { worker: true });
   const otd = await d.evaluate(() => { const T = onThisDay(state.lib, new Date(2026, 4, 3)); return T.entries.length && T.entries.every((e) => Math.abs(dayIndex(`2026${e.date.slice(4)}`) - dayIndex("2026-05-03")) <= 3); });
   assert(otd, "On this day picked the wrong dates");

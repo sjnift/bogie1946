@@ -427,9 +427,15 @@ standard errors or more from what the rest of the diary gives; every sentence op
 - **Pictures** (posters, people's photos) come from `image.tmdb.org`; where a device can't reach it (some internet
   providers in India block TMDB now and then; the owner lost every picture to it, 25 Oct 2026) they come through
   **wsrv.nl**, a free image relay (`IMG_RELAY`): when TMDB's pictures fail and none has loaded, the app switches by
-  itself, re-points the pictures on screen and remembers it for a week (`IMG_VIA`, `cr-img-via`, `imgRelay`; the layouts'
-  `IMG` is a `let` for it). The security policy allows `wsrv.nl` for images; the checks cut it off like any outside
-  service, and `extras` stands in for it to prove the switch.
+  itself, re-points the pictures on screen and starts with the relay for a week (`IMG_VIA`, `cr-img-via`, `imgUse`; the
+  layouts' `IMG` is a `let` for it). Some connections leave TMDB hanging instead of refusing it, so at start
+  `imgProbe` (both `init()`s) asks TMDB and the relay for one of the diary's own posters, picked at random: TMDB if it
+  answers, the relay if TMDB hasn't in 5 s or failed, "none" after 20 s. Settings (both layouts, in the lookup box)
+  says which (`picturesBlock`, `imgStatusHtml`, `IMG_STATE`) with "Check again". The image `error`/`load` listeners are
+  on the **document**: a picture's `load` never reaches the window, and while it was listened for there (23–25 Oct
+  2026) no phone poster or photo faded in (`img.fade` waits for `in`). The security policy allows `wsrv.nl` for
+  images; the checks cut it off like any outside service, and `extras` stands in for it to prove the switch, the check
+  at start with a TMDB that never answers, and that phone posters become visible.
 - **TMDB** (owner's key, saved in their browser): search with ±2-year tolerance and vote weighting
   (`pickHit`; Letterboxd and TMDB can disagree on a year, e.g. Brick 2005 vs 2006), details with credits.
   A hit must have the same title, or nearly (`titleLike` ≥ 0.75 on the words that matter, in any script);

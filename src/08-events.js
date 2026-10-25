@@ -193,6 +193,7 @@ async function init() {
   for (const e of document.querySelectorAll("[data-built]")) e.textContent = builtText(); // the footer, in the viewer's own time zone
   await store.init();
   META = store.get(KEYS.meta, {}); PHOTOS = store.get(KEYS.photos, {}); LBX = store.get(KEYS.lbx, {});
+  if (showImages) imgProbe(); // can this device reach TMDB's pictures, or only the relay? (05-core)
   const ex = buildExample();
   EXAMPLE_FRIENDS = buildExampleFriends().map((f) => ({ ...f, lib: buildLibrary(f.rows) }));
   loadFriends();

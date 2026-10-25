@@ -82,6 +82,13 @@ function feedBlock(lib, phone) {
     Your diary must be public on Letterboxd; the entries are then also public on this site.</p>`;
 }
 
+// Settings: where this device gets posters and photos (TMDB, or the relay where TMDB can't be reached; see 05-core).
+function picturesBlock(phone) {
+  if (IN_VIEWER) return "";
+  const title = phone ? `<p class="title" style="margin-top:6px">Posters and photos</p>` : `<h3 class="sub-h">Posters and photos</h3>`;
+  return title + `<p class="status" data-img-status>${imgStatusHtml()}</p>`;
+}
+
 /* ---------- backups: the same diary on another device ---------- */
 function backupData(withKeys) {
   const b = { app: "credits-roll", v: 1, at: new Date().toISOString(), rows: store.get(KEYS.rows, null), meta: META, photos: PHOTOS, lbx: LBX, friends: store.get(KEYS.friends, []) };

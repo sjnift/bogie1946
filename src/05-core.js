@@ -46,24 +46,75 @@ const weekdayOf = (iso) => (new Date(iso + "T00:00:00Z").getUTCDay() + 6) % 7; /
 // Posters and photos come from TMDB's picture server, image.tmdb.org. Where a device can't reach it (some internet
 // providers in India block TMDB now and then; the owner lost every picture to it, Oct 2026), the same pictures come
 // through wsrv.nl, a free image relay that fetches them from TMDB on its own servers. The app switches by itself when
-// TMDB's pictures fail and none has loaded, re-points the pictures on screen, and remembers it for a week.
+// TMDB's pictures fail and none has loaded, or when a check at start finds TMDB silent (below), re-points the pictures
+// on screen, and remembers it for a week.
 const IMG_TMDB = "https://image.tmdb.org/t/p/", IMG_RELAY = "https://wsrv.nl/?url=image.tmdb.org/t/p/", IMG_VIA_KEY = "cr-img-via";
 let IMG_VIA = (() => { try { const v = JSON.parse(localStorage.getItem(IMG_VIA_KEY) || "null"); return v && v.via === "relay" && Date.now() - v.at < 7 * 864e5 ? "relay" : "tmdb"; } catch { return "tmdb"; } })();
 const imgBase = (size = "w185") => (IMG_VIA === "relay" ? IMG_RELAY : IMG_TMDB) + size;
 const IMG_SEEN = { ok: 0, bad: 0, held: [], timer: null };
-const viaRelay = (src) => IMG_RELAY + src.slice(IMG_TMDB.length);
-function imgRelay() {
-  if (IMG_VIA === "relay") return;
-  IMG_VIA = "relay";
-  try { localStorage.setItem(IMG_VIA_KEY, JSON.stringify({ via: "relay", at: Date.now() })); } catch {}
+function imgUse(via) {
+  if (IMG_VIA === via) return;
+  const [from, to] = via === "relay" ? [IMG_TMDB, IMG_RELAY] : [IMG_RELAY, IMG_TMDB];
+  IMG_VIA = via;
+  try { if (via === "relay") localStorage.setItem(IMG_VIA_KEY, JSON.stringify({ via, at: Date.now() })); else localStorage.removeItem(IMG_VIA_KEY); } catch {}
   IMG = imgBase(); // the layouts' own base for pictures (07-render-a, m03-screens)
-  for (const i of [...IMG_SEEN.held, ...document.querySelectorAll(`img[src^="${IMG_TMDB}"]`)]) { i.style.visibility = ""; i.src = viaRelay(i.src); }
+  for (const i of [...IMG_SEEN.held, ...document.querySelectorAll(`img[src^="${from}"]`)]) { i.style.visibility = ""; if (i.src.startsWith(from)) i.src = to + i.src.slice(from.length); }
   IMG_SEEN.held = [];
 }
+const imgRelay = () => imgUse("relay");
+/* Some connections don't refuse TMDB but leave its pictures hanging, so none ever fails and the switch never comes
+   (the owner's phone, Oct 2026). So at start one of the diary's own posters, picked at random so it's rarely one the
+   browser kept, is asked of TMDB and of the relay at once: TMDB is used if it answers, the relay if it answers and
+   TMDB hasn't within 5 seconds, or has failed. A device that used the relay last time starts with it (so pictures show
+   at once) and goes back to TMDB if TMDB answers. `IMG_STATE` is what Settings says: "checking", "tmdb", "relay", or
+   "none" when neither answered in 20 seconds; "Check again" there asks again. */
+let IMG_STATE = "", IMG_TRIES = 0;
+function imgProbe() {
+  if (IMG_STATE === "checking") return;
+  const paths = [];
+  for (const m of Object.values(typeof META === "object" && META || {})) if (m && imagePath(m.poster)) paths.push(m.poster);
+  if (!paths.length) { // nothing to show yet: look again once films have details (a first import), for a while
+    if (IMG_TRIES++ < 80) setTimeout(imgProbe, 15000);
+    return;
+  }
+  const path = paths[Math.floor(Math.random() * paths.length)];
+  const got = {}, t0 = Date.now(), timers = [];
+  const done = (via) => {
+    IMG_STATE = via; timers.forEach(clearTimeout);
+    if (via === "none") { for (const i of IMG_SEEN.held) i.remove(); IMG_SEEN.held = []; }
+    else { if (via === "tmdb") IMG_SEEN.ok++; imgUse(via); } // TMDB answers: a picture that fails later is just missing
+    for (const e of document.querySelectorAll("[data-img-status]")) e.innerHTML = imgStatusHtml();
+  };
+  const decide = () => {
+    if (IMG_STATE !== "checking") return;
+    if (got.tmdb) return done("tmdb");
+    if (got.relay && (got.tmdb === false || Date.now() - t0 >= 5000)) return done("relay");
+    if (got.tmdb === false && got.relay === false) return done("none");
+    if (Date.now() - t0 >= 20000) done("none");
+  };
+  IMG_STATE = "checking";
+  for (const via of ["tmdb", "relay"]) {
+    const i = new Image();
+    i.onload = () => { got[via] = i.naturalWidth > 0; decide(); };
+    i.onerror = () => { got[via] = false; decide(); };
+    i.src = (via === "relay" ? IMG_RELAY : IMG_TMDB) + "w92" + path;
+  }
+  timers.push(setTimeout(decide, 5000), setTimeout(decide, 20000));
+}
+function imgStatusHtml() {
+  const again = ` <button type="button" class="linkish" data-img-check>Check again</button>`;
+  if (IMG_STATE === "relay") return `TMDB's picture server can't be reached from this device (some internet providers block it), so posters and photos come through <b>wsrv.nl</b>, a free picture relay. TMDB is tried again each time the app opens.${again}`;
+  if (IMG_STATE === "none") return `Neither TMDB's picture server nor the relay answered on this device, so films show title cards instead of posters. Another connection (Wi-Fi instead of mobile data, or the other way round) may bring them back.${again}`;
+  if (IMG_STATE === "tmdb") return "Posters and photos come straight from TMDB.";
+  if (IMG_STATE === "checking") return "Checking how this device reaches posters and photos…";
+  return IMG_VIA === "relay" ? "Posters and photos come through wsrv.nl, a free picture relay, because TMDB's picture server couldn't be reached from this device." : "Posters and photos come from TMDB.";
+}
+document.addEventListener("click", (e) => { if (e.target.closest && e.target.closest("[data-img-check]")) { IMG_TRIES = 0; imgProbe(); for (const x of document.querySelectorAll("[data-img-status]")) x.innerHTML = imgStatusHtml(); } });
 // Pictures that fail to load are taken away (a title card or initials show instead), and a phone poster fades in once
 // it has loaded. Done here, for the whole page, rather than with onerror/onload in the markup: the page's security
-// policy runs no code written in the markup.
-addEventListener("error", (e) => {
+// policy runs no code written in the markup. On the document, not the window: a picture's "load" never reaches the
+// window (browsers stop it at the document), so from 23 to 25 Oct 2026 no phone poster or photo ever faded in.
+document.addEventListener("error", (e) => {
   const t = e.target;
   if (!t || t.tagName !== "IMG") return;
   // TMDB's server and nothing from it has loaded yet: held back (out of sight) until it's clear whether it's blocked
@@ -75,7 +126,7 @@ addEventListener("error", (e) => {
   }
   if (!t.closest("#share-img, .share-img")) t.remove();
 }, true);
-addEventListener("load", (e) => {
+document.addEventListener("load", (e) => {
   const t = e.target;
   if (!t || t.tagName !== "IMG") return;
   if (t.src.startsWith(IMG_TMDB) && !IMG_SEEN.ok) { IMG_SEEN.ok++; for (const i of IMG_SEEN.held) i.remove(); IMG_SEEN.held = []; } // reachable: those were just missing
