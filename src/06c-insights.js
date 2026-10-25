@@ -24,6 +24,13 @@ function hiLo(values) {
   return values.map((v) => v == null || !Number.isFinite(v) ? "" : hi && v === max ? " hi" : lo && v === min ? " lo" : "");
 }
 const HILO_NOTE = "Highest in each column in gold, lowest in purple.";
+// Average rating by year as columns: only the best year's number (gold) and the worst's (purple) are written over them,
+// the rest show on hover or tap, so a long run of years doesn't crowd (the owner found every number congested, Oct 2026).
+function avgYearsChart(years) {
+  const shown = years.map((p) => p.avgRating ? +p.avgRating.toFixed(2) : null), H = hiLo(shown);
+  const mark = new Map(years.map((p, i) => [p.year, H[i].trim()])), few = shown.filter((v) => v != null).length < 3;
+  return { values: (c) => { const k = mark.get(c.year); return few ? c.a.toFixed(2) : k ? `<b class="${k}">${c.a.toFixed(2)}</b>` : ""; }, base: valuesBase(years.map((p) => p.avgRating), 0.25) };
+}
 // each calendar month: films, films a year (or the usual for that month), your average
 const monthHiLo = (G, cal) => ({ films: hiLo(cal.map((c) => c.E.length)), year: hiLo(cal.map((c) => G.Y ? (c.usual != null ? +c.usual.toFixed(1) : null) : +c.perYear.toFixed(1))),
   avg: hiLo(cal.map((c) => c.avg ? +c.avg.toFixed(2) : null)) });

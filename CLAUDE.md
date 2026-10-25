@@ -385,7 +385,10 @@ standard errors or more from what the rest of the diary gives; every sentence op
 - **Compare**: add friends' export ZIPs (stored in the browser); taste match, overlap, agree/disagree, rating
   style, genres, people, watch next for each other, watch together, habits; Everyone view for 2+ friends.
 - **Charts** (`colChart`): `{ unit }` names what the gridline counts ("20 films", "50 h", "20%"); averages (rating by
-  year) are drawn with `{ values, base }`, their numbers over columns that start just under the lowest (`valuesBase`).
+  year) are drawn with `{ values, base }`, columns that start just under the lowest (`valuesBase`), and only the best
+  year's number (gold) and the worst's (purple) over them, the rest on hover or tap (`avgYearsChart`; the owner found a
+  number on every column congested, 25 Oct 2026). Year labels under charts thin out on long diaries (`yearTick`: every
+  other past 8 years, every fourth past 16, always the latest).
   Poster title cards shrink long words instead of breaking them (`titleFit`).
 - **Pictures to share** (`06i-share.js`): a year, all time (desktop hero and phone Profile, "share it as a picture";
   the desktop's Insights year, the phone's Insights year) or a taste match (Compare, both layouts), as a feed post or a

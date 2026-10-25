@@ -51,8 +51,8 @@ function mYears(I) {
   const t = TRENDS[state.trend] ? state.trend : "films", T = TRENDS[t];
   const anyPace = t === "films" && I.years.some((p) => p.pace && p.pace > p.films);
   const legend = anyPace ? `<div class="legend"><span><i style="background:var(--green-mark)"></i>Watched</span><span><i style="background:var(--blue-mark)"></i>Rest of this year at your pace</span></div>` : "";
-  const chart = colChart(I.years.map((p) => ({ a: Math.max(0, T.value(p) || 0), b: T.extra ? T.extra(p) : 0, label: `’${p.year.slice(2)}`, tip: T.tip(p), to: p.entries ? yearDrill(p, t) : null })), `${T.label} by year`, legend, 130,
-    t === "rating" ? { values: (c) => c.a.toFixed(2), base: valuesBase(I.years.map((p) => p.avgRating), 0.25) } : { unit: T.unit });
+  const chart = colChart(I.years.map((p, i) => ({ a: Math.max(0, T.value(p) || 0), b: T.extra ? T.extra(p) : 0, label: yearTick(i, I.years.length, p.year), year: p.year, tip: T.tip(p), to: p.entries ? yearDrill(p, t) : null })), `${T.label} by year`, legend, 130,
+    t === "rating" ? avgYearsChart(I.years) : { unit: T.unit });
   const ys = [...I.years].reverse(), H = yearsHiLo(ys);
   const rows = ys.map((p, i) => {
     const cell = (what, v, label) => `<span class="c${(H[what] || [])[i] || ""}"><b>${v == null ? "—" : dlink(yearDrill(p, what), v)}</b><small>${label}</small></span>`;
@@ -101,7 +101,7 @@ function mPeopleYears(I) {
   if (obs.length) html += sh(`New in ${I.latest}`) + `<div class="group">${obs.map((p, i) => row(p, i, `${p.inLatest}`, (q) => `${q.role} · ${plural(q.inLatest, "film")} in ${I.latest}, none before`)).join("")}</div>`;
   if (comp.length) html += sh("Long-time companions") + `<div class="group">${comp.map((p, i) => row(p, i, `${p.years.size}y`, (q) => `${q.role} · ${plural(q.years.size, "year")} of your diary`)).join("")}</div>`;
   if (P.discoveries.length >= 2) html += sh("Directors discovered each year") + `<div class="card">` +
-    colChart(P.discoveries.map((d) => ({ a: d.count, b: 0, label: `’${d.year.slice(2)}`, tip: `${d.year}: ${plural(d.count, "new director")}`,
+    colChart(P.discoveries.map((d, i) => ({ a: d.count, b: 0, label: yearTick(i, P.discoveries.length, d.year), tip: `${d.year}: ${plural(d.count, "new director")}`,
       to: d.count && D.names(`Directors new in ${d.year}`, plural(d.count, "director"), d.people, { faces: true }) })), "New directors by year", "", 80, { unit: "new" }) + `</div>`;
   return html;
 }

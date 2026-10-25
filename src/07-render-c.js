@@ -30,13 +30,12 @@ function monthTableHtml(G) {
 }
 function yearsBlock(I) {
   if (I.years.length < 2) return needYears("Year-by-year trends");
-  const yr = (p) => `’${p.year.slice(2)}`;
   const mult = (title, what, value, tip, extra, opts = {}) => {
-    const cols = I.years.map((p) => ({ a: Math.max(0, value(p) || 0), b: extra ? extra(p) : 0, label: yr(p), tip: tip(p), to: p.entries ? yearDrill(p, what) : null }));
+    const cols = I.years.map((p, i) => ({ a: Math.max(0, value(p) || 0), b: extra ? extra(p) : 0, label: yearTick(i, I.years.length, p.year), year: p.year, tip: tip(p), to: p.entries ? yearDrill(p, what) : null }));
     return `<div class="mult"><h3>${title}</h3>${colChart(cols, title + " by year", "", 90, opts)}</div>`;
   };
-  // averages read as numbers over their columns, which start a little below the lowest
-  const ratingOpts = { values: (c) => c.a.toFixed(2), base: valuesBase(I.years.map((p) => p.avgRating), 0.25) };
+  // averages: columns that start a little below the lowest, the best and worst year's number over them
+  const ratingOpts = avgYearsChart(I.years);
   const anyPace = I.years.some((p) => p.pace && p.pace > p.films);
   const legend = anyPace ? `<div class="legend"><span><i style="background:var(--gold)"></i>Watched</span><span><i style="background:var(--lilac)"></i>Rest of this year at your current pace</span></div>` : "";
   const charts = `<div class="mults">
@@ -96,7 +95,7 @@ function peopleYearsBlock(I) {
     .sort((a, b) => b.inLatest - a.inLatest).slice(0, 8), (p) => p.inLatest);
   const comp = widthBy([...P.compDirectors.map((p) => ({ ...p, role: "director" })), ...P.compActors.map((p) => ({ ...p, role: "actor" }))]
     .sort((a, b) => b.years.size - a.years.size || b.count - a.count).slice(0, 8), (p) => p.years.size);
-  const disc = P.discoveries.length >= 2 ? `<div><h3>Directors discovered each year</h3>${colChart(P.discoveries.map((d) => ({ a: d.count, b: 0, label: `’${d.year.slice(2)}`, tip: `${d.year}: ${plural(d.count, "new director")}`,
+  const disc = P.discoveries.length >= 2 ? `<div><h3>Directors discovered each year</h3>${colChart(P.discoveries.map((d, i) => ({ a: d.count, b: 0, label: yearTick(i, P.discoveries.length, d.year), tip: `${d.year}: ${plural(d.count, "new director")}`,
       to: d.count && D.names(`Directors new in ${d.year}`, plural(d.count, "director"), d.people, { faces: true }) })), "New directors by year", "", 90, { unit: "new" })}
     <p class="status">Directors whose first film in your diary came that year. Your first diary year is left out.</p></div>` : "";
   return `<div class="ins-grid">

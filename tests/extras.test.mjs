@@ -129,10 +129,14 @@ export default async function ({ browser, base }) {
     const avg = col(3), vals = avg.map(num), films = rows.filter((r) => !/pace/.test(r.cells[0].textContent)).map((r) => r.cells[1]);
     return { hi: avg.filter((td) => td.classList.contains("hi")).map(num), lo: avg.filter((td) => td.classList.contains("lo")).map(num), max: Math.max(...vals), min: Math.min(...vals),
       filmsHi: films.filter((td) => td.classList.contains("hi")).map(num), filmsMax: Math.max(...films.map(num)),
-      unit: [hiLo([3, 1, 2, null]), hiLo([0, 0, 0, 0, 5]), hiLo([1, 2])].map((x) => x.join("/")).join(" | ") };
+      unit: [hiLo([3, 1, 2, null]), hiLo([0, 0, 0, 0, 5]), hiLo([1, 2])].map((x) => x.join("/")).join(" | "),
+      // the average rating chart writes only its best year (gold) and worst (purple), not every year's number
+      chart: [...document.querySelectorAll("#years .mult .cv")].map((c) => c.innerHTML).filter(Boolean),
+      ticks: [yearTick(0, 6, 2021), yearTick(0, 15, 2012), yearTick(1, 15, 2013), yearTick(14, 15, 2026), yearTick(2, 20, 2009)].join(",") };
   });
   assert(marks.hi.length && marks.hi.every((v) => v === marks.max) && marks.lo.length && marks.lo.every((v) => v === marks.min) && marks.filmsHi[0] === marks.filmsMax
-    && marks.unit === " hi/ lo// | //// hi | /", `highest in gold, lowest in purple: ${JSON.stringify(marks)}`);
+    && marks.unit === " hi/ lo// | //// hi | /" && marks.chart.length >= 2 && marks.chart.length <= 6 && marks.chart.every((h) => /^<b class="(hi|lo)">\d\.\d\d<\/b>$/.test(h))
+    && marks.ticks === "’21,’12,,’26,", `highest in gold, lowest in purple: ${JSON.stringify(marks)}`);
   // the full sections keep their switches: Highest rated for actors, and for genres
   await d.click('#starring [data-tab="cast"][data-val="best"]'); await d.waitForTimeout(150);
   await d.click('#origin [data-tab="cats"][data-val="best"]'); await d.waitForTimeout(150);
