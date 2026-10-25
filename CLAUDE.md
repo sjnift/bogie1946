@@ -480,14 +480,18 @@ standard errors or more from what the rest of the diary gives; every sentence op
   **The scraper leaves the average out for some films** that have thousands of ratings (the owner's 132, 25 Oct 2026:
   they came back with title and address but no `averageRating`). So **"Get the remaining N films"** (`rest`, one
   button for everything without an average) asks the scraper by address only for films never asked, then reads each
-  remaining film's own Letterboxd page through Apify's general page reader `apify~cheerio-scraper` (nothing per film,
-  a few cents of running time; `?memory=512`), with our own reading (`LB_PAGE_FN`): the structured data's `ratingValue`
+  remaining film's own Letterboxd page through Apify's general page reader `apify~jsdom-scraper` (nothing per film,
+  a few cents of running time; `?memory=1024`; it must be one Apify lists with **limited** access: `apify~cheerio-scraper`
+  wants full access and Apify refused to start it with the owner's token, 25 Oct 2026), with our own reading (`LB_PAGE_FN`,
+  plain text matching on the page's `body`, so it works in either reader): the structured data's `ratingValue`
   and `ratingCount`, else `twitter:data2` ("3.95 out of 5"), else the ratings summary Letterboxd loads beside the page
   (`/csi/film/<slug>/ratings-summary/` and `rating-histogram/`, "Weighted average of … based on …"). It reads the
   address the scraper came back with, or both of the title's; a page of another year (a plain address of a shared
   title) is ignored. Pages Letterboxd turns away from Apify's data-centre addresses are read once more through its
   residential ones (`home`). `lbPageResults` keeps an average, marks `few: 2` / `tries: 2`, or leaves a film unread
-  for next time. The page function was tried on sample pages with cheerio; the `apify` check replays the whole flow.
+  for next time. The page function was tried on sample pages (as text and through JSDOM); the `apify` check replays
+  the whole flow. **Apify's own reason is shown when it won't start a run** (`apify()` reads `error.type`/`message`):
+  only a refusal about usage reads as "credit used up" (a 403 for the full-access reader was once shown as that).
   **Visitors use a free Apify account of their own** (asked 25 Oct 2026; the owner turned down sharing any Apify credit):
   without a token the box walks them through it (sign up, Settings → API & Integrations, paste, Save token), the token
   is checked with Apify (`/users/me`) before it's kept, and until a diary has its first averages a line under "against

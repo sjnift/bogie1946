@@ -25,10 +25,14 @@ async function apify(path, opts = {}) {
   const res = await fetch("https://api.apify.com/v2" + path, {
     ...opts, headers: { "Content-Type": "application/json", Authorization: "Bearer " + apifyKey() },
   });
-  if (res.status === 401) throw { code: "auth" };
-  if (res.status === 402 || res.status === 403) throw { code: "credit" };
-  if (!res.ok) throw { code: "http", status: res.status };
-  return res.json();
+  if (res.ok) return res.json();
+  // Apify says why it refused: { error: { type, message } }. Only a refusal about usage is "out of credit" (a refusal
+  // read as that once hid that the page reader needed more access than a token gives: 25 Oct 2026).
+  const why = await res.json().then((j) => (j && j.error) || {}).catch(() => ({}));
+  const said = { status: res.status, type: String(why.type || ""), said: String(why.message || "").slice(0, 300) };
+  if (res.status === 401) throw { code: "auth", ...said };
+  if ((res.status === 402 || res.status === 403) && /usage|credit|limit|payment|funds|plan/i.test(said.type + " " + said.said)) throw { code: "credit", ...said };
+  throw { code: "http", ...said };
 }
 const lbFound = (f) => LBX[f.key] && LBX[f.key].r;
 // A film looked for by address and not found is left alone (until "Look for them again"). Tries from before both
@@ -69,24 +73,32 @@ async function startLetterboxd(lib, mode) {
   return fresh.length ? lbAddressRun(lib, fresh, "year", { mode: "rest", matched: 0 }) : lbPageRun(lib, { mode: "rest", matched: 0 });
 }
 
-/* Each remaining film's own Letterboxd page, read through Apify's general page reader (apify/cheerio-scraper: nothing
-   per film, only a few cents of running time), with the reading done here (LB_PAGE_FN): the average from the page's
+/* Each remaining film's own Letterboxd page, read through Apify's general page reader (apify/jsdom-scraper: nothing per
+   film, only a few cents of running time), with the reading done here (LB_PAGE_FN): the average from the page's
    structured data, else its "x out of 5" line, else the ratings summary Letterboxd loads beside the page. Each page
-   says its year, so a plain address that leads to another film of the same name is told apart. */
-const LB_READER = "apify~cheerio-scraper";
+   says its year, so a plain address that leads to another film of the same name is told apart. The reader must be one
+   Apify lists with limited access: apify/cheerio-scraper wants full access to the account, and Apify wouldn't start
+   it with the owner's token (25 Oct 2026, a 403 the app then misread as "credit used up"). The page function reads
+   only the page's text (`body`), so it works in either. */
+const LB_READER = "apify~jsdom-scraper";
 const LB_PAGE_FN = `async function pageFunction(context) {
-  const { $, request, response, body } = context, u = request.userData || {};
-  const html = String(body || ""), num = (x) => { const n = parseFloat(String(x).replace(/,/g, "")); return isFinite(n) ? n : null; };
+  const { request, response, body, window } = context, u = request.userData || {};
+  const doc = window && window.document && window.document.documentElement;
+  const html = String(body || (doc ? doc.outerHTML : "") || "");
+  const num = (x) => { const n = parseFloat(String(x).replace(/,/g, "")); return isFinite(n) ? n : null; };
   const status = response ? response.status || response.statusCode || null : null;
-  const ld = $("script[type='application/ld+json']").map((i, e) => $(e).html()).get().join(" ");
+  const attrs = (tag) => { const o = {}, re = /([\\w:-]+)\\s*=\\s*"([^"]*)"/g; let a; while ((a = re.exec(tag))) o[a[1].toLowerCase()] = a[2]; return o; };
+  const tags = (name) => html.match(new RegExp("<" + name + "\\\\b[^>]*>", "gi")) || [];
+  const meta = (k, v) => { for (const t of tags("meta")) { const a = attrs(t); if (a[k] === v) return a.content || ""; } return ""; };
+  const ld = (html.match(/<script[^>]*application\\/ld\\+json[^>]*>[\\s\\S]*?<\\/script>/gi) || []).join(" ");
   let r = null, n = null, m;
   if ((m = ld.match(/"ratingValue"\\s*:\\s*"?([\\d.]+)/))) r = num(m[1]);
   if ((m = ld.match(/"ratingCount"\\s*:\\s*"?([\\d,]+)/))) n = num(m[1]);
-  if (!r && (m = ($("meta[name='twitter:data2']").attr("content") || "").match(/([\\d.]+)\\s+out of 5/))) r = num(m[1]);
+  if (!r && (m = meta("name", "twitter:data2").match(/([\\d.]+)\\s+out of 5/))) r = num(m[1]);
   if (!r && (m = html.match(/[Ww]eighted average of ([\\d.]+) based on ([\\d,]+)/))) { r = num(m[1]); n = num(m[2]); }
-  const og = $("meta[property='og:title']").attr("content") || "";
-  const y = (og.match(/\\((\\d{4})\\)\\s*$/) || ld.match(/"startDate"\\s*:\\s*"(\\d{4})/) || [])[1];
-  const canon = $("link[rel='canonical']").attr("href") || request.loadedUrl || request.url;
+  const og = meta("property", "og:title"), y = (og.match(/\\((\\d{4})\\)\\s*$/) || ld.match(/"startDate"\\s*:\\s*"(\\d{4})/) || [])[1];
+  let canon = request.loadedUrl || request.url;
+  for (const t of tags("link")) { const a = attrs(t); if (a.rel === "canonical" && a.href) canon = a.href; }
   const slug = u.slug || (String(canon).match(/\\/film\\/([^/]+)\\//) || [])[1] || null, year = u.year || (y ? Number(y) : null);
   const gone = status === 404;
   if (!r && !gone && !u.csi && slug) for (const part of ["ratings-summary", "rating-histogram"])
@@ -128,7 +140,7 @@ async function lbRun(lib, input, meta) {
   Object.assign(lbJob, { running: true, started: meta.started || Date.now(), note: "", err: false, badKey: false });
   renderLookup();
   try {
-    const run = await apify(`/acts/${meta.actor || LB_ACTOR}/runs${meta.actor ? "?memory=512&timeout=1200" : ""}`, { method: "POST", body: JSON.stringify(input) });
+    const run = await apify(`/acts/${meta.actor || LB_ACTOR}/runs${meta.actor ? "?memory=1024&timeout=1200" : ""}`, { method: "POST", body: JSON.stringify(input) });
     store.set(KEYS.lbRun, { ...meta, id: run.data.id, dataset: run.data.defaultDatasetId, at: meta.started || Date.now(), asked: input.maxResults });
     await pollLetterboxd(lib);
   } catch (e) { finishLetterboxd(e); }
@@ -249,10 +261,10 @@ function finishLetterboxd(e, matched = 0) {
   lbJob.note = !e ? `Done.${matched || !st.updated ? ` Added Letterboxd averages for ${plural(matched, "film")}.` : ""}${got}${rest}`
     : e.code === "stopped" ? `Apify stopped the run early, usually because this month's free credit ran out. Kept the ${plural(matched, "film")} it finished.${rest}`
     : e.code === "auth" ? "Apify didn't accept that token. Copy it again from Apify Console → Settings → API & Integrations."
-    : e.code === "credit" ? "Apify wouldn't start the run. On the free plan that means this month's $5 of credit is used up; it comes back at the start of next month."
+    : e.code === "credit" ? `Apify wouldn't start the run because of this month's credit${e.said ? ` ("${e.said}")` : ""}. On the free plan it comes back at the start of next month.`
     : e instanceof TypeError ? "Couldn't reach Apify. Check your connection; a run already started is picked up next time you open the page."
     : e.code === "gone" ? "A run started with your previous Apify token can't be read with this one, so it was set aside. Start a new one with the button above."
-    : "Something went wrong talking to Apify. Try again in a minute.";
+    : e.said ? `Apify wouldn't do it. It said: "${e.said}"` : "Something went wrong talking to Apify. Try again in a minute.";
   scheduleRender();
 }
 

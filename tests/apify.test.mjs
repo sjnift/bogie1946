@@ -10,6 +10,7 @@ const special = [["8½", 1963, "8-half"], ["M*A*S*H", 1970, "mash"], ["Heat", 19
 // the films' own pages, as the page reader finds them: Tiny Short has an average the scraper left out, Obscure Short none
 // at all, Twin Title's plain address is another film of that name
 const homeOnly = new Set();
+let refuse = null; // Apify refusing to start a run: { status, error }
 const pages = { "tiny-short": [2019, 3.4, 9000], "obscure-short": [2015, null, 0], "twin-title": [1990, 2.9, 500], "twin-title-1960": [1960, 3.9, 4000] };
 // titles shared with another film on Letterboxd: theirs has the year in its address, the plain one is the other film's
 const shared = Array.from({ length: 40 }, (_, i) => [`Remade ${i}`, 1940 + i, `remade-${i}-${1940 + i}`]);
@@ -24,6 +25,7 @@ export default async function ({ browser, base }) {
     const req = r.request(), u = new URL(req.url()), cors = { "access-control-allow-origin": "*", "access-control-allow-headers": "authorization, content-type" };
     if (req.method() === "OPTIONS") return r.fulfill({ status: 204, headers: cors });
     const json = (o, status = 200) => r.fulfill({ status, headers: cors, contentType: "application/json", body: JSON.stringify(o) });
+    if (u.pathname.endsWith("/runs") && refuse) return r.fulfill({ status: refuse.status, headers: cors, contentType: "application/json", body: JSON.stringify({ error: refuse.error }) });
     if (u.pathname.endsWith("/runs")) { bodies.push({ ...JSON.parse(req.postData()), actor: u.pathname.split("/acts/")[1].split("/")[0], query: u.search });
       return json({ data: { id: "run" + bodies.length, defaultDatasetId: "ds" + bodies.length } }); }
     if (u.pathname.includes("/actor-runs/gone")) return json({ error: { type: "record-not-found" } }, 404); // a run of the token used before
@@ -31,7 +33,7 @@ export default async function ({ browser, base }) {
     if (u.pathname.includes("/datasets/")) {
       const input = bodies[+u.pathname.match(/ds(\d+)/)[1] - 1], off = +u.searchParams.get("offset");
       const item = (f, s) => ({ recordType: "film", title: f[0], year: String(f[1]), filmSlug: s, averageRating: /Short/.test(f[0]) ? null : 3.8, ratingsCount: 500 });
-      if (input.actor === "apify~cheerio-scraper") return json(input.startUrls.map(({ url, userData }) => { const s = url.match(/film\/([^/]+)\//)[1], pg = pages[s];
+      if (input.actor === "apify~jsdom-scraper") return json(input.startUrls.map(({ url, userData }) => { const s = url.match(/film\/([^/]+)\//)[1], pg = pages[s];
         if (homeOnly.has(s) && !(input.proxyConfiguration.apifyProxyGroups || []).includes("RESIDENTIAL")) return null; // turned away
         return pg ? { key: userData.key, sure: userData.sure, slug: s, year: pg[0], r: pg[1], n: pg[2], status: 200, gone: false } : { key: userData.key, sure: userData.sure, slug: s, status: 404, gone: true }; }).filter(Boolean).slice(off, off + 1000));
       // like the actor: films in the order asked, an address that doesn't exist costs nothing, and the run stops at its cap
@@ -57,7 +59,7 @@ export default async function ({ browser, base }) {
   assert(!urls(bodies[2]).some((s) => /^(heat|remade-)/.test(s)), `films found with their year were asked for again: ${urls(bodies[2]).filter((s) => /^(heat|remade-)/.test(s))}`);
   // the page reader: Apify's general one, on a small machine, given the address the scraper came back with or both of the title's
   const reader = bodies[3], asked = reader.startUrls.map((x) => x.url.replace("https://letterboxd.com/film/", ""));
-  assert(reader.actor === "apify~cheerio-scraper" && /memory=512/.test(reader.query) && reader.linkSelector === "" && /ratingValue/.test(reader.pageFunction), `the page reader's run: ${reader.actor} ${reader.query}`);
+  assert(reader.actor === "apify~jsdom-scraper" && /memory=1024/.test(reader.query) && reader.linkSelector === "" && /ratingValue/.test(reader.pageFunction), `the page reader's run: ${reader.actor} ${reader.query}`);
   assert(["tiny-short/", "obscure-short/", "twin-title/", "twin-title-1960/", "not-under-this-title/", "not-under-this-title-2001/"].every((x) => asked.includes(x)) && !asked.includes("tiny-short-2019/"),
     `the pages read: ${asked}`);
   const r = await p.evaluate((sp) => sp.map(([n, y]) => { const x = LBX[filmKey(n, y)]; return x && x.r ? `${x.slug} ${x.r}` : "none"; }), special);
@@ -76,6 +78,17 @@ export default async function ({ browser, base }) {
   const home = bodies.slice(n0);
   assert(home.length === 2 && !home[0].proxyConfiguration.apifyProxyGroups && home[1].proxyConfiguration.apifyProxyGroups.join() === "RESIDENTIAL"
     && await p.evaluate(() => (LBX[filmKey("Lost Page", 1977)] || {}).r) === 3.7, `read again through home connections: ${JSON.stringify(home.map((b) => b.proxyConfiguration))}`);
+  // Apify's own reason when it won't start a run: only a refusal about usage reads as "credit used up" (a 403 for an
+  // actor wanting full access to the account was once shown as that)
+  refuse = { status: 403, error: { type: "insufficient-permissions", message: "You do not have permission to run this Actor." } };
+  await p.evaluate(([n, y]) => { LBX[filmKey(n, y)] = { tries: 1, v: 2, few: true, slug: "lost-page" }; render(); }, turnedAway);
+  await p.click('[data-lb="rest"]'); await p.waitForFunction(() => !lbJob.running);
+  const said = await p.evaluate(() => lbJob.note);
+  assert(/permission to run this Actor/.test(said) && !/credit/.test(said), `a refusal that isn't about credit: ${said}`);
+  refuse = { status: 402, error: { type: "not-enough-usage-to-run-paid-actor", message: "Monthly usage limit exceeded." } };
+  await p.click('[data-lb="rest"]'); await p.waitForFunction(() => !lbJob.running);
+  assert(/this month's credit/.test(await p.evaluate(() => lbJob.note)), `a refusal about usage: ${await p.evaluate(() => lbJob.note)}`);
+  refuse = null;
   // a run started with the token used before can't be read with the new one: set aside, not asked for at every start
   await p.evaluate(async () => { store.set(KEYS.lbRun, { id: "gone", dataset: "x", at: Date.now(), mode: "missing", phase: "plain", keys: [], slugs: {} }); await pollLetterboxd(MY_LIB); });
   const gone = await p.evaluate(() => [!!store.get(KEYS.lbRun, null), lbJob.note]);
