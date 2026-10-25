@@ -76,7 +76,7 @@ const shareWho = (lib) => state.mode === "example" ? "EXAMPLE DIARY" : lib.profi
 // Four posters in a row from `y`, with a caption under each.
 async function sharePosters(ctx, C, F, items, y, withPosters, caption) {
   const M = 72, pw = 216, ph = 324, gap = (C.w - 2 * M - 4 * pw) / 3;
-  const imgs = await Promise.all(items.map((x) => { const m = metaOf(x.f); return withPosters && showImages && m && imagePath(m.poster) ? loadImg(`https://image.tmdb.org/t/p/w342${m.poster}`) : null; }));
+  const imgs = await Promise.all(items.map((x) => { const m = metaOf(x.f); return withPosters && showImages && m && imagePath(m.poster) ? loadImg(`${imgBase("w342")}${m.poster}`) : null; }));
   items.forEach((x, i) => {
     const px = M + i * (pw + gap);
     ctx.save(); ctx.beginPath(); ctx.roundRect(px, y, pw, ph, 10); ctx.clip();

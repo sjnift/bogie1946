@@ -13,7 +13,7 @@ const policy = (hashes) => [
   `script-src 'self' ${hashes.map((h) => `'sha256-${h}'`).join(" ")}`,
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src https://fonts.gstatic.com",
-  "img-src 'self' data: blob: https://image.tmdb.org",
+  "img-src 'self' data: blob: https://image.tmdb.org https://wsrv.nl", // wsrv.nl: TMDB's pictures where TMDB is blocked
   "connect-src 'self' https://api.themoviedb.org https://www.omdbapi.com https://api.apify.com https://api.github.com",
   "manifest-src 'self'",
   "worker-src 'self'",

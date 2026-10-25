@@ -6,7 +6,7 @@ const state = {
   more: { cast: false, directors: false },
 };
 let MY_LIB = null, EXAMPLE_LIB = null, STATS = null;
-const IMG = "https://image.tmdb.org/t/p/w185";
+let IMG = imgBase(); // TMDB's picture server, or the relay where it can't be reached (05-core)
 const showImages = !IN_VIEWER; // pages inside Claude can't load outside images
 
 function metaOf(f) {

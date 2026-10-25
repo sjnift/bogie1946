@@ -49,6 +49,11 @@ function act(t) {
   else if (a === "cat") push({ type: "cat", field: t.dataset.field, title: t.dataset.field[0].toUpperCase() + t.dataset.field.slice(1) });
   else if (a === "all-rated" || a === "liked") openSheet(a === "liked" ? DR.liked(STATS) : D.films("Highest rated", filmsSub(STATS.films.filter((f) => f.rating)), STATS.films.filter((f) => f.rating), { scope: STATS.scope }));
   else if (a === "more-people") { state.peopleLimit += 100; render(); }
+  else if (a === "less-people") { // back to fifty, and up to where the list starts
+    state.peopleLimit = 50; render();
+    const h = document.querySelector("#screen .group");
+    if (h) scrollTo(0, Math.max(0, h.getBoundingClientRect().top + scrollY - 140));
+  }
   else if (a === "more-diary") { state.diaryLimit += 120; render(); }
   else if (a === "forget") {
     if (!state.forgetArmed) {

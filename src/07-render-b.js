@@ -93,7 +93,8 @@ function peopleBlock(kind, data, s) {
   const rows = rest.length ? rankRows(rest,
     (p) => t === "most" ? (p.group ? `${plural(p.count, "film")} each` : plural(p.count, "film")) : p.avg.toFixed(2),
     (p) => t === "most" ? p.count / max : p.avg / 5, 13, personSub) : "";
-  const moreBtn = all.length > limit ? `<div><button class="btn small" type="button" data-more="${kind}">Show more</button></div>` : "";
+  const moreBtn = state.more[kind] ? `<div><button class="btn small" type="button" data-less="${kind}">Show less</button></div>`
+    : all.length > limit ? `<div><button class="btn small" type="button" data-more="${kind}">Show more</button></div>` : "";
   return `<div class="people">${cards}</div><div class="people-rows">${rows}</div>${moreBtn}`;
 }
 function catBlock(s) {

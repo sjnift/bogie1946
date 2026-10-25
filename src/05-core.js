@@ -43,10 +43,44 @@ const personKey = (n) => String(n).normalize("NFD").replace(/[̀-ͯ]/g, "").toLo
 const dayIndex = (iso) => Math.floor(Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10)) / 864e5);
 const weekdayOf = (iso) => (new Date(iso + "T00:00:00Z").getUTCDay() + 6) % 7; // Monday = 0
 
-// Pictures that fail to load are taken away, and a phone poster fades in once it has loaded. Done here, for the whole
-// page, rather than with onerror/onload in the markup: the page's security policy runs no code written in the markup.
-addEventListener("error", (e) => { const t = e.target; if (t && t.tagName === "IMG" && !t.closest("#share-img, .share-img")) t.remove(); }, true);
-addEventListener("load", (e) => { const t = e.target; if (t && t.tagName === "IMG" && t.classList.contains("fade")) t.classList.add("in"); }, true);
+// Posters and photos come from TMDB's picture server, image.tmdb.org. Where a device can't reach it (some internet
+// providers in India block TMDB now and then; the owner lost every picture to it, Oct 2026), the same pictures come
+// through wsrv.nl, a free image relay that fetches them from TMDB on its own servers. The app switches by itself when
+// TMDB's pictures fail and none has loaded, re-points the pictures on screen, and remembers it for a week.
+const IMG_TMDB = "https://image.tmdb.org/t/p/", IMG_RELAY = "https://wsrv.nl/?url=image.tmdb.org/t/p/", IMG_VIA_KEY = "cr-img-via";
+let IMG_VIA = (() => { try { const v = JSON.parse(localStorage.getItem(IMG_VIA_KEY) || "null"); return v && v.via === "relay" && Date.now() - v.at < 7 * 864e5 ? "relay" : "tmdb"; } catch { return "tmdb"; } })();
+const imgBase = (size = "w185") => (IMG_VIA === "relay" ? IMG_RELAY : IMG_TMDB) + size;
+const IMG_SEEN = { ok: 0, bad: 0, held: [], timer: null };
+const viaRelay = (src) => IMG_RELAY + src.slice(IMG_TMDB.length);
+function imgRelay() {
+  if (IMG_VIA === "relay") return;
+  IMG_VIA = "relay";
+  try { localStorage.setItem(IMG_VIA_KEY, JSON.stringify({ via: "relay", at: Date.now() })); } catch {}
+  IMG = imgBase(); // the layouts' own base for pictures (07-render-a, m03-screens)
+  for (const i of [...IMG_SEEN.held, ...document.querySelectorAll(`img[src^="${IMG_TMDB}"]`)]) { i.style.visibility = ""; i.src = viaRelay(i.src); }
+  IMG_SEEN.held = [];
+}
+// Pictures that fail to load are taken away (a title card or initials show instead), and a phone poster fades in once
+// it has loaded. Done here, for the whole page, rather than with onerror/onload in the markup: the page's security
+// policy runs no code written in the markup.
+addEventListener("error", (e) => {
+  const t = e.target;
+  if (!t || t.tagName !== "IMG") return;
+  // TMDB's server and nothing from it has loaded yet: held back (out of sight) until it's clear whether it's blocked
+  if (t.src.startsWith(IMG_TMDB) && IMG_VIA === "tmdb" && !IMG_SEEN.ok) {
+    IMG_SEEN.bad++; IMG_SEEN.held.push(t); t.style.visibility = "hidden";
+    if (IMG_SEEN.bad >= 2) imgRelay();
+    else if (!IMG_SEEN.timer) IMG_SEEN.timer = setTimeout(() => { if (!IMG_SEEN.ok) imgRelay(); }, 4000);
+    return;
+  }
+  if (!t.closest("#share-img, .share-img")) t.remove();
+}, true);
+addEventListener("load", (e) => {
+  const t = e.target;
+  if (!t || t.tagName !== "IMG") return;
+  if (t.src.startsWith(IMG_TMDB) && !IMG_SEEN.ok) { IMG_SEEN.ok++; for (const i of IMG_SEEN.held) i.remove(); IMG_SEEN.held = []; } // reachable: those were just missing
+  if (t.classList.contains("fade")) t.classList.add("in");
+}, true);
 const KEYS = { rows: "cr-rows-v1", meta: "cr-meta-v1", photos: "cr-photos-v1", tmdb: "cr-tmdb-key", omdb: "cr-omdb-key", apify: "cr-apify-key", lbx: "cr-letterboxd-v1", lbRun: "cr-letterboxd-run", friends: "cr-friends-v1", view: "cr-view-v1", filmo: "cr-filmo-v1" };
 /* Small things (keys, the view) live in localStorage. The big ones (the export, film details, Letterboxd
    averages, friends' exports) live in IndexedDB, which holds far more than localStorage's few megabytes.

@@ -142,6 +142,14 @@ export default async function ({ browser, base }) {
   const same = (k) => best[k].r.length === Math.min(most[k].r.length, Math.max(0, bestLen[k] - 12)) && (best[k].r.length !== most[k].r.length || bestLen[k] < 12 || best[k].h === most[k].h);
   assert(most.starring.r.length && lastRank(most.starring.r) <= 21 && (tieAt < 0 || tieAt === most.directed.r.length - 1) && same("starring") && same("directed"),
     `people rows: ${JSON.stringify({ most, best, bestLen })}`);
+  // Show more opens a list under the faces, Show less closes it again
+  const rowsNow = () => d.$$eval("#starring .people-rows .rank-row", (x) => x.length);
+  const r0 = await rowsNow();
+  if (await d.$("#starring [data-more]")) {
+    await d.click("#starring [data-more]"); await d.waitForTimeout(100); const r1 = await rowsNow();
+    await d.click("#starring [data-less]"); await d.waitForTimeout(100); const r2 = await rowsNow();
+    assert(r1 > r0 && r2 === r0 && await d.$("#starring [data-more]"), `show more, show less: ${[r0, r1, r2]}`);
+  }
   // the world map zooms (and the view stays through a redraw), and comes back out
   await d.evaluate(() => document.getElementById("world").scrollIntoView());
   const vb = () => d.$eval("#world .wsvg", (s) => s.getAttribute("viewBox"));
@@ -191,6 +199,14 @@ export default async function ({ browser, base }) {
   await d.keyboard.press("Escape"); await d.waitForTimeout(100);
   const wn = await d.evaluate(() => { const W = watchNext(state.lib); return W && W.picks.filter((p) => p.known).map((p) => [p.f.name, +p.pred.toFixed(2), p.why.length]); });
   assert(wn && wn.length && wn.every(([, x]) => x >= 0.5 && x <= 5) && wn.every((x, i) => !i || x[1] <= wn[i - 1][1]), `Watch next: ${JSON.stringify(wn)}`);
+  // pictures: where TMDB's picture server can't be reached (the checks cut it off), they come through the relay
+  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64");
+  await d.context().route(/wsrv\.nl/, (r) => r.fulfill({ contentType: "image/png", body: png, headers: { "access-control-allow-origin": "*" } }));
+  await d.evaluate(() => { for (const f of state.lib.films.slice(0, 8)) EXAMPLE_META[f.key] = { ...EXAMPLE_META[f.key], poster: `/x${f.key.length}.png` }; render(); });
+  await d.waitForFunction(() => IMG_VIA === "relay" && [...document.querySelectorAll('img[src^="https://wsrv.nl/"]')].some((i) => i.complete && i.naturalWidth > 0), null, { timeout: 10000 }).catch(() => {});
+  const relay = await d.evaluate(() => ({ via: IMG_VIA, base: IMG, loaded: [...document.querySelectorAll('img[src^="https://wsrv.nl/"]')].filter((i) => i.complete && i.naturalWidth > 0).length,
+    tmdbLeft: document.querySelectorAll('img[src^="https://image.tmdb.org/"]').length }));
+  assert(relay.via === "relay" && relay.base.startsWith("https://wsrv.nl/") && relay.loaded >= 1 && relay.tmdbLeft === 0, `pictures through the relay: ${JSON.stringify(relay)}`);
   const pwa = await d.evaluate(async () => { const m = await (await fetch("manifest.webmanifest")).json(); const reg = await navigator.serviceWorker.ready; return [m.name, !!reg.active]; });
   assert(pwa[0] && pwa[1], `install as an app: ${pwa}`);
   noErrors(d, "desktop");

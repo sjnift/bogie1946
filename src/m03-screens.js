@@ -7,7 +7,7 @@ const state = {
 };
 let MY_LIB = null, EXAMPLE_LIB = null, STATS = null, YEARS = [], BASE_LIB = null, YEARS_OF = null;
 const FILTER_VIEWS = new Set(["profile", "diary", "films", "people", "genres", "years", "crowd"]);
-const IMG = "https://image.tmdb.org/t/p/w185";
+let IMG = imgBase(); // TMDB's picture server, or the relay where it can't be reached (05-core)
 const showImages = !IN_VIEWER; // pages inside Claude can't load outside images
 const VIEW_KEY = "cr-mview-v1";
 const STATS_VIEWS = ["films", "people", "genres", "years", "crowd"];
@@ -341,7 +341,8 @@ function peopleScreen(s) {
     return `<button class="pod${i ? "" : " first"}" type="button" data-list="${reg(p.name, filmsTitle(p), p.films, p)}">${avatar(p, "lg")}<span class="rkb">${i + 1}</span><span class="nm">${esc(p.name)}</span><span class="ct">${val(p)}</span></button>`; }).join("")}</div>` : "";
   const from = podium ? 3 : 0;
   const rows = list.slice(from, state.peopleLimit).map((p, i) => personRow(p, i + from + 1, best)).join("");
-  const more = list.length > state.peopleLimit ? `<button class="row" type="button" data-act="more-people" data-auto><span>Show more</span><span class="count">${fmtN(list.length - state.peopleLimit)} more</span>${CHEV}</button>` : "";
+  const more = (list.length > state.peopleLimit ? `<button class="row" type="button" data-act="more-people" data-auto><span>Show more</span><span class="count">${fmtN(list.length - state.peopleLimit)} more</span>${CHEV}</button>` : "")
+    + (state.peopleLimit > 50 && list.length > 50 ? `<button class="row" type="button" data-act="less-people"><span>Show less</span><span class="count">back to the first 50</span>${CHEV}</button>` : "");
   const label = { c: "actors", d: "directors", w: "writers", p: "cinematographers", m: "composers" }[role];
   return head + (list.length ? podium + sh(`${fmtN(list.length)} ${label}`) + (note + bestNote ? `<p class="status" style="margin:-6px 0 10px">${esc(note + bestNote)}</p>` : "") +
     (rows ? `<div class="group">${rows}${more}</div>` : "") : `<div class="empty">Nobody to show for this period.${bestNote ? ` ${esc(bestNote)}` : ""}</div>`);

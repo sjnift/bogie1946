@@ -99,7 +99,8 @@ Where it lives:
     it was fifteen rows behind three tabs); **Starring and Directed by** show twelve faces, then rows down to the 21st
     actor, and for directors down to their first row of ties (if that comes sooner), the **same number of rows on Most
     watched and Highest rated**, each row one line, so switching doesn't move the page (`peopleRowsShown`, `PEOPLE_TO`;
-    "Show more" brings the rest); **Genre & origin shows genres and languages only**, the countries
+    "Show more" brings the rest, and "Show less" takes it away again, the button staying where it was on screen; the
+    phone's People list has "Show less" back to the first 50); **Genre & origin shows genres and languages only**, the countries
     being on the map, which lists the most watched and highest rated under it (`worldMapHtml(…, { tops: true })`); with no
     reviews at all, only one empty review box. Don't bring back cards or "open in place". **Highest and lowest rated**
     are off the top, the last section of Ratings (phone: Stats › Films after Records). The `extras` check covers the
@@ -423,6 +424,12 @@ standard errors or more from what the rest of the diary gives; every sentence op
 
 ## Outside services
 
+- **Pictures** (posters, people's photos) come from `image.tmdb.org`; where a device can't reach it (some internet
+  providers in India block TMDB now and then; the owner lost every picture to it, 25 Oct 2026) they come through
+  **wsrv.nl**, a free image relay (`IMG_RELAY`): when TMDB's pictures fail and none has loaded, the app switches by
+  itself, re-points the pictures on screen and remembers it for a week (`IMG_VIA`, `cr-img-via`, `imgRelay`; the layouts'
+  `IMG` is a `let` for it). The security policy allows `wsrv.nl` for images; the checks cut it off like any outside
+  service, and `extras` stands in for it to prove the switch.
 - **TMDB** (owner's key, saved in their browser): search with ±2-year tolerance and vote weighting
   (`pickHit`; Letterboxd and TMDB can disagree on a year, e.g. Brick 2005 vs 2006), details with credits.
   A hit must have the same title, or nearly (`titleLike` ≥ 0.75 on the words that matter, in any script);

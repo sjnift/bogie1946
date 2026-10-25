@@ -66,7 +66,7 @@ function bind() {
 
   document.addEventListener("click", (e) => { const c = e.target.closest("[data-copycheck]"); if (c) copyDataCheck(c); });
   document.addEventListener("click", (e) => {
-    const t = e.target.closest("[data-expand],[data-reimport],[data-insyear],#btn-add-friend,[data-cmp],[data-unfriend],[data-lb],[data-crowd],[data-scope],[data-tab],[data-more],[data-list],[data-close],[data-dback],[data-drillpage],[data-drillback],[data-drillmore],[data-fix],[data-fixsave],[data-fixcancel],[data-wn],#btn-search,#btn-backup,[data-sharego],#btn-tmdb,#btn-change-key,#btn-omdb,#btn-change-omdb,#btn-claude,#btn-claude-retry,#btn-stop");
+    const t = e.target.closest("[data-expand],[data-reimport],[data-insyear],#btn-add-friend,[data-cmp],[data-unfriend],[data-lb],[data-crowd],[data-scope],[data-tab],[data-more],[data-less],[data-list],[data-close],[data-dback],[data-drillpage],[data-drillback],[data-drillmore],[data-fix],[data-fixsave],[data-fixcancel],[data-wn],#btn-search,#btn-backup,[data-sharego],#btn-tmdb,#btn-change-key,#btn-omdb,#btn-change-omdb,#btn-claude,#btn-claude-retry,#btn-stop");
     if (!t) return;
     if (t.hasAttribute("data-expand")) {
       const text = t.previousElementSibling, open = text.classList.toggle("clamp") === false;
@@ -85,7 +85,13 @@ function bind() {
     else if (t.dataset.crowd) { state.crowd = t.dataset.crowd; render(); $(`[data-crowd="${t.dataset.crowd}"]`)?.focus(); }
     else if (t.dataset.scope) { state.scope = t.dataset.scope; state.more = { cast: false, directors: false }; saveView(); routeReplace = true; render(); routeReplace = false; }
     else if (t.dataset.tab) { state.tab[t.dataset.tab] = t.dataset.val; renderSections(STATS); $(`[data-tab="${t.dataset.tab}"][data-val="${t.dataset.val}"]`)?.focus(); }
-    else if (t.dataset.more) { state.more[t.dataset.more] = true; renderSections(STATS); }
+    else if (t.dataset.more || t.dataset.less) {
+      // the button stays where it was on screen, so a list closing up doesn't throw you somewhere else on the page
+      const kind = t.dataset.more || t.dataset.less, sec = t.closest("section"), top = t.getBoundingClientRect().top;
+      state.more[kind] = !!t.dataset.more; renderSections(STATS);
+      const b = sec && document.getElementById(sec.id) && document.getElementById(sec.id).querySelector("[data-more], [data-less]");
+      if (b) scrollBy(0, b.getBoundingClientRect().top - top);
+    }
     else if (t.dataset.list) { const dlg = $("#dlg"); openDrill(drillGet(t.dataset.list), dlg.open && dlg.contains(t)); }
     else if (t.hasAttribute("data-close")) $("#dlg").close();
     else if (t.hasAttribute("data-dback")) history.back();
