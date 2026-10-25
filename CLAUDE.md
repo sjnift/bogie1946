@@ -246,8 +246,9 @@ The owner asked for this to be checked every time. A film, diary entry, person o
   `w` writers, `p` cinematographers, `m` composers, `g` genres, `k` countries, `l` language, `r` runtime,
   `poster`, `id`, `va/vc` TMDB score, `im` IMDb id, `ir/iv/mc/rt` IMDb, Metacritic, Rotten Tomatoes,
   `pin` (matched by hand). `metaOf(f)` reads it (example films use `EXAMPLE_META`).
-- `LBX[filmKey]`: Letterboxd averages `{ r, n, slug }`, `{ tries, v: 2 }` when not found, or `{ tries, v: 2, few: true, slug }`
-  when the film is on Letterboxd with too few ratings there for an average (`lbTooFew`).
+- `LBX[filmKey]`: Letterboxd averages `{ r, n, slug }`; `{ tries: 1, v: 2 }` not found by the scraper; `{ tries: 1, v: 2, few: true,
+  slug }` came back from it without an average; after the film's own page is read, `few: 2` (the page shows no average:
+  `lbTooFew`) or `{ tries: 2, v: 2 }` (no page at any address its title gives: `lbNotFound`). `lbRemaining` is the rest.
 - `KNOWN_IDS[filmKey]`: exact TMDB ids from the feed; lookups use them first.
 - Storage (`store` in `05-core.js`): small things in localStorage (API keys `cr-tmdb-key`, `cr-omdb-key`,
   `cr-apify-key`; views `cr-view-v1`, `cr-mview-v1`; `cr-letterboxd-run`; the diary on the site `cr-site-v1`, `cr-site-pub-v1`, `cr-site-dirty`); big things in IndexedDB database
@@ -476,6 +477,17 @@ standard errors or more from what the rest of the diary gives; every sentence op
   marked not found for good, with no way to retry (the owner had 144 films without averages then). A run that stops at its cap now marks
   nothing; films not found have "Look for them again" (`retry`); films on Letterboxd without an average are listed
   apart. A stored run the current token can't read (one started with the token used before) is set aside ("gone").
+  **The scraper leaves the average out for some films** that have thousands of ratings (the owner's 132, 25 Oct 2026:
+  they came back with title and address but no `averageRating`). So **"Get the remaining N films"** (`rest`, one
+  button for everything without an average) asks the scraper by address only for films never asked, then reads each
+  remaining film's own Letterboxd page through Apify's general page reader `apify~cheerio-scraper` (nothing per film,
+  a few cents of running time; `?memory=512`), with our own reading (`LB_PAGE_FN`): the structured data's `ratingValue`
+  and `ratingCount`, else `twitter:data2` ("3.95 out of 5"), else the ratings summary Letterboxd loads beside the page
+  (`/csi/film/<slug>/ratings-summary/` and `rating-histogram/`, "Weighted average of … based on …"). It reads the
+  address the scraper came back with, or both of the title's; a page of another year (a plain address of a shared
+  title) is ignored. Pages Letterboxd turns away from Apify's data-centre addresses are read once more through its
+  residential ones (`home`). `lbPageResults` keeps an average, marks `few: 2` / `tries: 2`, or leaves a film unread
+  for next time. The page function was tried on sample pages with cheerio; the `apify` check replays the whole flow.
   **Visitors use a free Apify account of their own** (asked 25 Oct 2026; the owner turned down sharing any Apify credit):
   without a token the box walks them through it (sign up, Settings → API & Integrations, paste, Save token), the token
   is checked with Apify (`/users/me`) before it's kept, and until a diary has its first averages a line under "against

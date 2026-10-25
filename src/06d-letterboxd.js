@@ -12,8 +12,10 @@ const LB_PRICE_PER_FILM = 0.0036, LB_PRICE_PER_RUN = 0.005;
 const LB_RUN_CAP = 1300; // films per run: about $4.69, inside the free plan's $5 a month
 const runCost = (films) => films * LB_PRICE_PER_FILM + LB_PRICE_PER_RUN;
 const cost = (n) => n < 0.01 ? "under 1¢" : `about $${n.toFixed(2)}`;
-// film key → { r: average out of 5, n: ratings, slug, at } once found; { tries: 1, v: 2 } when not found by title; and
-// { tries: 1, v: 2, few: true, slug } when the film is on Letterboxd but has too few ratings there for an average
+// film key → { r: average out of 5, n: ratings, slug, at } once found; { tries: 1, v: 2 } when the scraper didn't find it
+// by title; { tries: 1, v: 2, few: true, slug } when it came back without an average; and, once the film's own page has
+// been read (below), { tries: 1, v: 2, few: 2, slug } when the page shows no average, { tries: 2, v: 2 } when there's
+// no page at any address its title gives
 let LBX = store.get(KEYS.lbx, {});
 const apifyKey = () => store.get(KEYS.apify, "");
 const lbJob = { running: false, started: 0, note: "", err: false, badKey: false };
@@ -34,8 +36,12 @@ const lbFound = (f) => LBX[f.key] && LBX[f.key].r;
 const lbTries = (f) => { const x = LBX[f.key]; return x && x.v === 2 ? x.tries || 0 : 0; };
 const lbFew = (f) => !lbFound(f) && !!(LBX[f.key] && LBX[f.key].few);
 const lbMissing = (lib) => lib.films.filter((f) => !lbFound(f) && lbTries(f) < 1);
-const lbNotFound = (lib) => lib.films.filter((f) => !lbFound(f) && lbTries(f) >= 1 && !lbFew(f));
-const lbTooFew = (lib) => lib.films.filter(lbFew);
+// what reading the film's own page settled: no average shown there (too few ratings), or no page at all
+const lbTooFew = (lib) => lib.films.filter((f) => lbFew(f) && LBX[f.key].few === 2);
+const lbNotFound = (lib) => lib.films.filter((f) => !lbFound(f) && lbTries(f) >= 2);
+// every film still without an average that a run can get: never asked, not found by the scraper, or come back without
+// one (the scraper leaves the average out for some films that have thousands of ratings: the owner's 132, Oct 2026)
+const lbRemaining = (lib) => lib.films.filter((f) => !lbFound(f) && lbTries(f) < 2 && !(lbFew(f) && LBX[f.key].few === 2));
 // Letterboxd's address for a film: its title in lowercase with hyphens, accents and most punctuation dropped
 const LB_LETTERS = { "ø": "o", "æ": "ae", "œ": "oe", "ß": "ss", "ł": "l", "đ": "d", "ð": "d", "þ": "th", "ı": "i" };
 const lbSlug = (name) => String(name).toLowerCase().replace(/½/g, " half ").replace(/[øæœßłđðþı]/g, (c) => LB_LETTERS[c])
@@ -57,8 +63,53 @@ async function startLetterboxd(lib, mode) {
     if (!user) { Object.assign(lbJob, { note: "Your import has no Letterboxd username. Import the whole export ZIP, which includes profile.csv.", err: true }); renderLookup(); return; }
     return lbRun(lib, { startUrls: [`https://letterboxd.com/${user}/films/`], includeReviews: false, maxResults: Math.min(lib.films.length + 20, LB_RUN_CAP) }, { mode, phase: "profile" });
   }
-  const films = (mode === "retry" ? lbNotFound(lib) : lbMissing(lib)).slice(0, Math.floor(LB_RUN_CAP / LB_SPARE) - 5);
-  return lbAddressRun(lib, films, "year", { mode, matched: 0 });
+  // "rest" (and the older "missing", "retry"): films never asked go to the scraper by address; then every film still
+  // without an average has its own Letterboxd page read
+  const fresh = lbMissing(lib).slice(0, Math.floor(LB_RUN_CAP / LB_SPARE) - 5);
+  return fresh.length ? lbAddressRun(lib, fresh, "year", { mode: "rest", matched: 0 }) : lbPageRun(lib, { mode: "rest", matched: 0 });
+}
+
+/* Each remaining film's own Letterboxd page, read through Apify's general page reader (apify/cheerio-scraper: nothing
+   per film, only a few cents of running time), with the reading done here (LB_PAGE_FN): the average from the page's
+   structured data, else its "x out of 5" line, else the ratings summary Letterboxd loads beside the page. Each page
+   says its year, so a plain address that leads to another film of the same name is told apart. */
+const LB_READER = "apify~cheerio-scraper";
+const LB_PAGE_FN = `async function pageFunction(context) {
+  const { $, request, response, body } = context, u = request.userData || {};
+  const html = String(body || ""), num = (x) => { const n = parseFloat(String(x).replace(/,/g, "")); return isFinite(n) ? n : null; };
+  const status = response ? response.status || response.statusCode || null : null;
+  const ld = $("script[type='application/ld+json']").map((i, e) => $(e).html()).get().join(" ");
+  let r = null, n = null, m;
+  if ((m = ld.match(/"ratingValue"\\s*:\\s*"?([\\d.]+)/))) r = num(m[1]);
+  if ((m = ld.match(/"ratingCount"\\s*:\\s*"?([\\d,]+)/))) n = num(m[1]);
+  if (!r && (m = ($("meta[name='twitter:data2']").attr("content") || "").match(/([\\d.]+)\\s+out of 5/))) r = num(m[1]);
+  if (!r && (m = html.match(/[Ww]eighted average of ([\\d.]+) based on ([\\d,]+)/))) { r = num(m[1]); n = num(m[2]); }
+  const og = $("meta[property='og:title']").attr("content") || "";
+  const y = (og.match(/\\((\\d{4})\\)\\s*$/) || ld.match(/"startDate"\\s*:\\s*"(\\d{4})/) || [])[1];
+  const canon = $("link[rel='canonical']").attr("href") || request.loadedUrl || request.url;
+  const slug = u.slug || (String(canon).match(/\\/film\\/([^/]+)\\//) || [])[1] || null, year = u.year || (y ? Number(y) : null);
+  const gone = status === 404;
+  if (!r && !gone && !u.csi && slug) for (const part of ["ratings-summary", "rating-histogram"])
+    await context.enqueueRequest({ url: "https://letterboxd.com/csi/film/" + slug + "/" + part + "/", userData: { key: u.key, sure: u.sure, csi: true, slug, year } });
+  return { key: u.key, sure: !!u.sure, csi: !!u.csi, slug, year, r, n, status, gone };
+}`;
+function lbPageRun(lib, carry) {
+  const byKey = new Map(lib.films.map((f) => [f.key, f]));
+  const films = (carry.only ? carry.only.map((k) => byKey.get(k)).filter(Boolean) : lbRemaining(lib)).slice(0, 1500), urls = [];
+  for (const f of films) {
+    const known = LBX[f.key] && LBX[f.key].slug;
+    // the address the scraper came back with, or both the title's (the one with the year is that film's for sure)
+    // (uniqueKey: two films of the same title each get the page read for them)
+    if (known) urls.push({ url: `https://letterboxd.com/film/${known}/`, uniqueKey: `${known}|${f.key}`, userData: { key: f.key, sure: true } });
+    else for (const s of lbUrls(f)) urls.push({ url: `https://letterboxd.com/film/${s}/`, uniqueKey: `${s}|${f.key}`, userData: { key: f.key, sure: s !== lbSlug(f.name) } });
+  }
+  if (!urls.length) return finishLetterboxd(null, carry.matched);
+  // Apify's shared data-centre addresses first; pages Letterboxd turned away there are tried once more through home
+  // connections (its residential addresses: a few cents more, from the same credit)
+  const proxy = carry.home ? { useApifyProxy: true, apifyProxyGroups: ["RESIDENTIAL"] } : { useApifyProxy: true };
+  return lbRun(lib, { startUrls: urls, pageFunction: LB_PAGE_FN, proxyConfiguration: proxy, linkSelector: "", maxCrawlingDepth: 1,
+    maxConcurrency: 4, maxRequestRetries: 4, pageLoadTimeoutSecs: 30, maxPagesPerCrawl: urls.length * 3 + 10 },
+    { mode: carry.mode, matched: carry.matched, started: carry.started, home: !!carry.home, phase: "page", actor: LB_READER, keys: films.map((f) => f.key) });
 }
 // One of the two address runs for these films: "year" (films without a year go straight on to the plain run) or "plain".
 function lbAddressRun(lib, films, phase, carry) {
@@ -77,7 +128,7 @@ async function lbRun(lib, input, meta) {
   Object.assign(lbJob, { running: true, started: meta.started || Date.now(), note: "", err: false, badKey: false });
   renderLookup();
   try {
-    const run = await apify(`/acts/${LB_ACTOR}/runs`, { method: "POST", body: JSON.stringify(input) });
+    const run = await apify(`/acts/${meta.actor || LB_ACTOR}/runs${meta.actor ? "?memory=512&timeout=1200" : ""}`, { method: "POST", body: JSON.stringify(input) });
     store.set(KEYS.lbRun, { ...meta, id: run.data.id, dataset: run.data.defaultDatasetId, at: meta.started || Date.now(), asked: input.maxResults });
     await pollLetterboxd(lib);
   } catch (e) { finishLetterboxd(e); }
@@ -99,11 +150,13 @@ async function pollLetterboxd(lib) {
       await sleep(8000);
     }
     const items = [];
+    const fields = r.phase === "page" ? "key,sure,csi,slug,year,r,n,status,gone" : "recordType,title,year,filmSlug,averageRating,ratingsCount";
     for (let offset = 0; ; offset += 1000) {
-      const page = await apify(`/datasets/${r.dataset}/items?clean=true&offset=${offset}&limit=1000&fields=recordType,title,year,filmSlug,averageRating,ratingsCount`);
+      const page = await apify(`/datasets/${r.dataset}/items?clean=true&offset=${offset}&limit=1000&fields=${fields}`);
       items.push(...page);
       if (page.length < 1000) break;
     }
+    if (r.phase === "page") return lbPageResults(lib, r, status, items);
     // Match each film Apify returns to one in the diary: by title and year, then by title alone when only one
     // film has it and the years are within one, then by the address it was asked for.
     const byTitle = new Map(), byKey = new Map(lib.films.map((f) => [f.key, f]));
@@ -140,9 +193,11 @@ async function pollLetterboxd(lib) {
       const next = [...left, ...(r.rest || [])].map((k) => byKey.get(k)).filter(Boolean);
       if (next.length) return lbAddressRun(lib, next, "plain", { mode: r.mode, matched: total, started: r.at });
     }
-    // a film asked for at both its addresses that didn't come back isn't on Letterboxd under its title; unless the run
-    // stopped at its cap first, when those it didn't reach stay missing and are asked for next time
+    // a film asked for at both its addresses that didn't come back isn't found by the scraper; unless the run stopped
+    // at its cap first, when those it didn't reach stay missing and are asked for next time
     else if (r.phase !== "profile" && r.mode !== "all" && status === "SUCCEEDED" && !capped) for (const k of left) LBX[k] = { tries: 1, v: 2 };
+    // then every film still without an average has its own page read
+    if (r.mode === "rest" && status === "SUCCEEDED" && r.phase !== "profile") { store.set(KEYS.lbx, LBX); return lbPageRun(lib, { mode: "rest", matched: total, started: r.at }); }
     lbJob.stats = { updated: hit.size - matched, stray: r.mode === "all" ? stray : 0, capped: capped && (r.mode === "all" ? "profile" : "address") };
     store.set(KEYS.lbx, LBX);
     finishLetterboxd(status === "SUCCEEDED" ? null : { code: "stopped" }, total);
@@ -153,12 +208,43 @@ async function pollLetterboxd(lib) {
     finishLetterboxd(e);
   }
 }
+// What the films' own pages said: an average (from a page of the right year), a page with none, or no page at all.
+// A film whose pages Apify couldn't load is left as it was, to be asked again.
+function lbPageResults(lib, r, status, items) {
+  const today = new Date().toISOString().slice(0, 10), byKey = new Map(lib.films.map((f) => [f.key, f]));
+  const got = new Map();
+  for (const it of items) {
+    const f = it && byKey.get(it.key);
+    if (!f) continue;
+    const g = got.get(f.key) || got.set(f.key, { reached: false, gone: 0 }).get(f.key);
+    const y = Number(it.year) || null, right = it.sure || !y || !f.year || Math.abs(y - f.year) <= 1;
+    if (!right) continue; // another film of the same name
+    if (it.gone) { g.gone++; continue; }
+    g.reached = true; g.slug = g.slug || it.slug || null;
+    if (Number(it.r) > 0 && !(g.r > 0)) Object.assign(g, { r: Number(it.r), n: Number(it.n) || 0, slug: it.slug || g.slug });
+  }
+  let matched = 0;
+  const unread = [];
+  for (const k of r.keys || []) {
+    const g = got.get(k), was = LBX[k] || {};
+    if (g && g.r > 0) { LBX[k] = { r: g.r, n: g.n, slug: g.slug, at: today }; matched++; }
+    else if (g && g.reached) LBX[k] = { tries: 1, v: 2, few: 2, slug: g.slug || was.slug || null };
+    else if (g && g.gone && status === "SUCCEEDED") LBX[k] = { tries: 2, v: 2 };
+    else unread.push(k);
+  }
+  store.set(KEYS.lbx, LBX);
+  store.del(KEYS.lbRun);
+  const total = (r.matched || 0) + matched;
+  if (unread.length && !r.home) return lbPageRun(lib, { mode: r.mode, matched: total, started: r.at, home: true, only: unread });
+  lbJob.stats = { unread: unread.length };
+  finishLetterboxd(status === "SUCCEEDED" || r.home ? null : { code: "stopped" }, total);
+}
 function finishLetterboxd(e, matched = 0) {
   lbJob.running = false;
   lbJob.err = !!e && e.code !== "stopped";
   lbJob.badKey = !!e && e.code === "auth";
-  const left = lbMissing(state.lib || MY_LIB).length, st = lbJob.stats || {};
-  const rest = left ? ` ${plural(left, "film is", "films are")} still missing${st.capped === "profile" ? `, because one run stops at ${fmtN(LB_RUN_CAP)} films to stay inside the free credit` : ""}; get ${left === 1 ? "it" : "them"} with the button above, next month if this month's free credit is used up.` : "";
+  const left = lbRemaining(state.lib || MY_LIB).length, st = lbJob.stats || {};
+  const rest = left ? ` ${plural(left, "film is", "films are")} still without an average${st.capped === "profile" ? `, because one run stops at ${fmtN(LB_RUN_CAP)} films to stay inside the free credit` : ""}${st.unread ? `: Letterboxd didn't let Apify in for ${st.unread === left ? (left === 1 ? "it" : "them") : `${fmtN(st.unread)} of them`} this time` : ""}; get ${left === 1 ? "it" : "them"} with the button above${st.unread ? " in a while" : ", next month if this month's free credit is used up"}.` : "";
   const got = `${st.updated ? ` Updated ${plural(st.updated, "film")} already there.` : ""}${st.stray ? ` ${plural(st.stray, "film")} from your Letterboxd profile didn't match a film in this import, so ${st.stray === 1 ? "it was" : "they were"} left out.` : ""}`;
   lbJob.note = !e ? `Done.${matched || !st.updated ? ` Added Letterboxd averages for ${plural(matched, "film")}.` : ""}${got}${rest}`
     : e.code === "stopped" ? `Apify stopped the run early, usually because this month's free credit ran out. Kept the ${plural(matched, "film")} it finished.${rest}`
@@ -192,23 +278,22 @@ function letterboxdBlock(lib, phone) {
     return title + steps + (phone ? input + save : `<div class="lookup-row">${input}${save}</div>`) +
       `<p class="status">${free} Your token is saved in this browser only${SITE_ON && SITE ? " (and in your locked diary on this site)" : ""}.</p>` + note;
   }
-  const total = lib.films.length, missing = lbMissing(lib), found = lib.films.filter(lbFound).length, gone = lbNotFound(lib).length, few = lbTooFew(lib);
-  const askCost = (n) => cost(n * LB_PRICE_PER_FILM * LB_SPARE + 2 * LB_PRICE_PER_RUN);
+  const total = lib.films.length, missing = lbRemaining(lib), fresh = lbMissing(lib).length, found = lib.films.filter(lbFound).length, gone = lbNotFound(lib).length, few = lbTooFew(lib);
+  const askCost = (n) => cost(n * LB_PRICE_PER_FILM * LB_SPARE + 3 * LB_PRICE_PER_RUN + 0.03);
   let body;
   if (!found && !gone) {
     const n = Math.min(total, LB_RUN_CAP);
     body = row(btn("all", total > LB_RUN_CAP ? `Get averages for the first ${fmtN(n)} of ${plural(total, "film")}` : `Get Letterboxd averages for ${plural(total, "film")}`),
       `Uses ${cost(runCost(n))} of Apify credit.${total > LB_RUN_CAP ? " The rest come next month, inside the free credit." : ""}`);
   } else if (missing.length) {
-    const n = Math.min(missing.length, Math.floor(LB_RUN_CAP / LB_SPARE) - 5);
-    body = `<p class="status">${fmtN(found)} of ${plural(total, "film")} have Letterboxd averages; ${dlink(D.films("Missing Letterboxd averages", plural(missing.length, "film"), missing, { sort: "name" }), `${fmtN(missing.length)} don't yet`)}.</p>` +
-      row(btn("missing", `Get ${n < missing.length ? `${fmtN(n)} of the ` : "the "}${plural(missing.length, "missing film")}`), `Uses about ${askCost(n)} of Apify credit. Each film is looked up by its Letterboxd address, with its year first, then without.`);
+    const n = Math.min(fresh, Math.floor(LB_RUN_CAP / LB_SPARE) - 5);
+    body = `<p class="status">${fmtN(found)} of ${plural(total, "film")} have Letterboxd averages; ${dlink(D.films("Without a Letterboxd average yet", plural(missing.length, "film"), missing, { sort: "name" }), `${fmtN(missing.length)} don't yet`)}.</p>` +
+      row(btn("rest", `Get the remaining ${plural(missing.length, "film")}`), `Uses ${n ? askCost(n) : "a few cents"} of Apify credit. ${n ? `${n === missing.length ? "They're" : `${fmtN(n)} not asked for before are`} looked up by their Letterboxd address; then any still without an average have their own Letterboxd page read for it.` : "Each film's own Letterboxd page is read for its average."}`);
   } else body = `<p class="status">${fmtN(found)} of ${plural(total, "film")} have Letterboxd averages. ${link("all", `Refresh them (${cost(runCost(Math.min(total, LB_RUN_CAP)))})`)}</p>`;
-  const goneList = gone && D.films("Not found on Letterboxd", "Not found at either of the addresses their titles give", lbNotFound(lib), { sort: "name" });
-  const goneNote = gone ? `<p class="status">${dlink(goneList, plural(gone, "film"))} couldn't be found on Letterboxd by title, so ${gone === 1 ? "it's" : "they're"} left out of Letterboxd comparisons.
-    ${missing.length ? "" : link("retry", `Look for ${gone === 1 ? "it" : "them"} again (${askCost(Math.min(gone, LB_RUN_CAP))})`)}</p>` : "";
-  const fewNote = few.length ? `<p class="status">${dlink(D.films("Too few ratings on Letterboxd", "On Letterboxd, but with too few ratings there for an average", few, { sort: "name" }), plural(few.length, "film"))}
-    ${few.length === 1 ? "is" : "are"} on Letterboxd but ${few.length === 1 ? "has" : "have"} too few ratings there for an average.</p>` : "";
+  const goneList = gone && D.films("Not found on Letterboxd", "No Letterboxd page at the addresses their titles give", lbNotFound(lib), { sort: "name" });
+  const goneNote = gone ? `<p class="status">${dlink(goneList, plural(gone, "film"))} ${gone === 1 ? "has" : "have"} no Letterboxd page at the address ${gone === 1 ? "its title gives" : "their titles give"}, so ${gone === 1 ? "it's" : "they're"} left out of Letterboxd comparisons.</p>` : "";
+  const fewNote = few.length ? `<p class="status">${dlink(D.films("No average on Letterboxd", "Their Letterboxd pages show no average: too few ratings there", few, { sort: "name" }), plural(few.length, "film"))}
+    ${few.length === 1 ? "shows" : "show"} no average on ${few.length === 1 ? "its" : "their"} Letterboxd page: too few ratings there.</p>` : "";
   return title + body + goneNote + fewNote + `<p class="status">${free} ${link("change", "Change Apify token")}</p>` + note;
 }
 // Under "against the crowd" on both layouts, until this diary has its first Letterboxd averages.
@@ -235,6 +320,6 @@ function lbAction(act, lib) {
       renderLookup();
     });
   } else if (act === "change") { editApify = true; renderLookup(); $("#apify-key")?.focus(); }
-  else if (act === "all" || act === "missing" || act === "retry") startLetterboxd(lib, act);
+  else if (act === "all" || act === "rest" || act === "missing" || act === "retry") startLetterboxd(lib, act === "all" ? "all" : "rest");
 }
 </script>
