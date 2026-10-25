@@ -83,7 +83,8 @@ Where it lives:
     page (`#/settings`) and the phone's Settings screen (gear). The desktop main page shows at most one line
     (`#lookup-mini`) while films are looked up or still lack cast and crew, linking to Settings.
   - **Friends use the site too** (Oct 2026: "personal record keeping and sharing with my friends so that they can
-    analyse their own Letterboxd data"). A first visit leads with importing your own export and a privacy line; the
+    analyse their own Letterboxd data"). A first visit leads with importing your own export: two steps and a button,
+    no taglines ("free", "nothing to sign up for": removed at the owner's request, 25 Oct 2026); the
     owner's password box is folded into "Are you @user? Open your diary" below it (`owner-open`), and owner-only things
     (the daily feed's GitHub step, "Put your diary on this site" without the GitHub key) stay hidden or folded for
     others. Shared links show a preview (title, line, `og.png`).

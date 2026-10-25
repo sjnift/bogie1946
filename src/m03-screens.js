@@ -173,12 +173,11 @@ function welcomeScreen() {
   const why = LOAD_ERROR ? `<div class="card notice"><p class="title">Your saved diary couldn't be read</p><p class="status err">${esc(LOAD_ERROR)}</p><p class="status">Import your export again.</p></div>`
     : store.failed ? `<div class="card notice"><p class="title">Your diary isn't showing</p><p class="status">This browser's saved data couldn't be opened just now. Close the app completely and open it again. If it still isn't there, import your export or a backup file again.</p></div>` : "";
   return `<section class="hero"><div class="hero-bg" aria-hidden="true"></div><div class="hero-in">
-      <span class="avatar xl" aria-hidden="true">${ICON.sparkle}</span><h2 class="hname">Credits Roll</h2><p class="hhandle">Your Letterboxd diary, in numbers. Free, with nothing to sign up for.</p></div></section>
-    ${why}<div class="card glow notice"><p class="title">See your own stats in a minute</p>
-      <ol class="steps"><li>On <a href="https://letterboxd.com/settings/data/" target="_blank" rel="noopener">letterboxd.com</a>, open Settings → Data.</li>
-        <li>Choose Export your data and download the ZIP.</li><li>Import the ZIP here.</li></ol>
-      <button class="btn green block" type="button" data-act="import">${ICON.upload}Import your export</button>
-      <p class="status">A backup file from another device works the same way. Your diary stays in this browser: only film titles and years go to TMDB, to find cast and crew.</p>
+      <span class="avatar xl" aria-hidden="true">${ICON.sparkle}</span><h2 class="hname">Credits Roll</h2></div></section>
+    ${why}<div class="card glow notice"><p class="title">Import your diary</p>
+      <ol class="steps"><li>On <a href="https://letterboxd.com/settings/data/" target="_blank" rel="noopener">letterboxd.com</a>, open Settings → Data and choose Export your data.</li>
+        <li>Import the ZIP here.</li></ol>
+      <button class="btn green block" type="button" data-act="import">${ICON.upload}Import export</button>
       ${state.importError ? `<p class="status err" role="alert">${esc(state.importError)}</p>` : ""}</div><div data-sitebox="open">${siteBox("open")}</div>
     ${IN_VIEWER ? `<p class="note">This Claude version keeps its own copy of an import. Your saved diary is on the website, <a href="https://sjnift.github.io/bogie1946/" target="_blank" rel="noopener">sjnift.github.io/bogie1946</a>.</p>` : ""}
     <div class="foot"><p class="stamp">Updated <!--BUILD--></p></div>`;

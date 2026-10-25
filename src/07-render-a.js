@@ -71,16 +71,16 @@ function openSearch() {
 // The page with nothing imported: what to do, and why the diary isn't showing if the browser lost hold of it.
 function renderWelcome() {
   $("#example-notice").hidden = false;
-  $("#hero-eyebrow").textContent = "Free · nothing to sign up for";
-  $("#hero-title").innerHTML = "Your diary, <span class=\"accent\">in numbers</span>";
-  $("#hero-sub").innerHTML = "Stats, insights and comparisons with friends, from your Letterboxd diary.";
+  // plain and short: what to do, nothing else (the owner's call, Oct 2026)
+  $("#hero-eyebrow").textContent = "";
+  $("#hero-title").innerHTML = "Import your <span class=\"accent\">diary</span>";
+  $("#hero-sub").innerHTML = "";
   $("#notice-text").innerHTML = (LOAD_ERROR ? `<p><strong>Your saved diary couldn't be read</strong> (${esc(LOAD_ERROR)}). Import your export again.</p>` : store.failed
     ? `<p><strong>This browser's saved data couldn't be opened just now</strong>, so your diary isn't showing. Close the page and open it again; if it still isn't there, import your export or a backup file again.</p>` : "") +
-    `<p><strong>See your own stats in a minute</strong></p><ol class="steps"><li>On <a href="https://letterboxd.com/settings/data/" target="_blank" rel="noopener">letterboxd.com → Settings → Data</a>, choose <em>Export your data</em> and download the ZIP.</li>
-    <li>Import the ZIP here, or drop it anywhere on this page. A backup file from another device works too.</li></ol>
-    <p class="trust">Your diary stays in this browser: only film titles and years go to TMDB, to find cast and crew.</p>`;
+    `<ol class="steps"><li>On <a href="https://letterboxd.com/settings/data/" target="_blank" rel="noopener">letterboxd.com → Settings → Data</a>, choose <em>Export your data</em>.</li>
+    <li>Import the ZIP here.</li></ol>`;
   $("#btn-import-2").classList.add("primary");
-  $("#btn-import-2").textContent = "Import your export";
+  $("#btn-import-2").textContent = "Import export";
   $("#backup").hidden = true;
   for (const sel of ["#insights", "#compare", "#drillpage"]) $(sel).hidden = true;
 }
