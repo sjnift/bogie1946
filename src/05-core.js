@@ -39,7 +39,9 @@ const unescapeText = (s) => String(s).replace(/&(?:#(\d+)|#x([\da-f]+)|(amp|lt|g
 const titleKey = (name, year) => `${unescapeText(name).normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim()}|${parseInt(year, 10) || ""}`;
 // A quick number that's always the same for the same text (FNV-1a), for spreading things into groups.
 const hash32 = (s) => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); } return h >>> 0; };
-const personKey = (n) => String(n).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+// A person's name as a key: accents and case aside, letters of any script kept (a name with no Latin letters, 김청아,
+// used to come out empty and its person went uncounted; Cem Yılmaz kept his ı).
+const personKey = (n) => String(n).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^\p{L}\p{M}\p{N}]+/gu, " ").trim();
 const dayIndex = (iso) => Math.floor(Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10)) / 864e5);
 const weekdayOf = (iso) => (new Date(iso + "T00:00:00Z").getUTCDay() + 6) % 7; // Monday = 0
 
@@ -403,7 +405,7 @@ function cleanMeta(m) {
   return {
     src: m.src, v: m.v || null, id: m.id || null, poster: m.poster || null,
     ...(Number(m.tv) ? { tv: Number(m.tv), ...(Number(m.ep) && m.se != null ? { se: Number(m.se) || 0, ep: Number(m.ep) } : {}) } : {}), // on TMDB's TV side (06-lookup)
-    d: list(m.d, 6), c: list(m.c, 15), w: list(m.w, 6), p: list(m.p, 4), m: list(m.m, 4),
+    d: list(m.d, 40), c: list(m.c, 300), w: list(m.w, 20), p: list(m.p, 10), m: list(m.m, 10),
     g: list((m.g || []).map(genre).filter((g) => GENRES.includes(g)), 6),
     k: list((m.k || []).map(country), 20), l: language(m.l), why: m.why || undefined, r: Math.round(Number(m.r)) || null,
     va: Number(m.va) || null, vc: Number(m.vc) || null, // TMDB audience score out of 10, and how many votes
@@ -435,7 +437,9 @@ const safeFriends = (a) => (Array.isArray(a) ? a : []).filter((f) => f && f.rows
   .map((f) => ({ id: String(f.id || "").replace(/[^\w-]/g, "").slice(0, 40) || `f${hash32(f.name)}`, name: f.name.slice(0, 100), rows: f.rows }));
 
 /* ---------- stats ---------- */
-const CAST_DEPTH = 15; // top-billed cast counted per film
+// The cast counts as Letterboxd's "Most watched" does: every credited role (06-lookup, `creditedCast`). These top billed
+// are what's kept of a film TMDB gives no character names for, and whose photos are always kept.
+const CAST_BILLED = 15;
 
 function inScope(lib, scope) {
   if (scope === "all") return { films: lib.films, entries: lib.entries };
@@ -456,7 +460,7 @@ function rankPeople(films, metaOf, role, minRated) {
   for (const f of films) {
     const m = metaOf(f);
     if (!m || !m[role]) continue;
-    const names = role === "c" ? m.c.slice(0, CAST_DEPTH) : m[role];
+    const names = m[role];
     const seen = new Set();
     for (const name of names) {
       const k = personKey(name);

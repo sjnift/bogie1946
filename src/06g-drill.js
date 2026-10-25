@@ -79,7 +79,7 @@ const unitsDrill = (cols, unit, per) => D.names(`Diary entries by ${unit}`, `${p
 // Every film in a library with one person in it: a director, writer or one of the top-billed cast.
 function personDrill(lib, name, role, among = lib.films) {
   const k = personKey(name);
-  const films = among.filter((f) => { const m = metaOf(f); return m && (role === "c" ? m.c.slice(0, CAST_DEPTH) : m[role] || []).some((n) => personKey(n) === k); });
+  const films = among.filter((f) => { const m = metaOf(f); return m && (m[role] || []).some((n) => personKey(n) === k); });
   const ratings = films.filter((f) => f.rating).map((f) => f.rating);
   return DR.person({ key: k, name, films, ratings, count: films.length, avg: avg(ratings) }, { lib });
 }

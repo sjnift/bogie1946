@@ -42,7 +42,7 @@ export default async function ({ browser, base }) {
 
   // matching: TMDB dates The Ear by its 1990 release, and its search for "The Ear" in 1970 offers other films
   const q = await open(browser, base, "mobile.html", { phone: true });
-  const looked = [];
+  const looked = [], searched = [];
   await q.context().route(/api\.themoviedb\.org/, (r) => {
     const u = new URL(r.request().url()), json = (o) => r.fulfill({ contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: JSON.stringify(o) });
     const hit = (id, title, date, votes, original = title) => ({ id, title, original_title: original, release_date: date, vote_count: votes });
@@ -55,6 +55,13 @@ export default async function ({ browser, base }) {
         145: { production_countries: countries("Denmark", "France", "Netherlands", "Norway", "Sweden", "Finland", "Iceland", "United Kingdom", "Italy", "Belgium", "Germany", "Switzerland", "United States of America"),
           original_language: "da", spoken_languages: [{ iso_639_1: "en" }], release_date: "1996-07-05" },
         22985: { production_countries: countries("United Kingdom"), original_language: "en", spoken_languages: [{ iso_639_1: "en" }], release_date: "1951-05-25" },
+        // as Letterboxd counts a cast: every credited role however far down, not cameos (uncredited, or no character)
+        5001: { release_date: "2001-01-01", credits: { crew: [{ name: "Big Director", job: "Director" }], cast: [
+          ...Array.from({ length: 16 }, (_, i) => ({ name: `Lead ${i + 1}`, order: i, character: `Role ${i + 1}`, profile_path: `/l${i + 1}.jpg` })),
+          { name: "Party Extra", order: 16, character: "Party Guest (uncredited)" }, { name: "Walk On", order: 17, character: "" },
+          { name: "Familiar Face", order: 18, character: "Barman", profile_path: "/ff.jpg" }, { name: "김청아", order: 19, character: "Shop Owner" },
+          { name: "Voice Player", order: 20, character: "Additional Voices (voice)" }] } },
+        5002: { release_date: "2000-01-01" },
       }[id] || {};
       return json({ ...movie(id, "x", "1990-01-01", "Someone", ["Someone Else"]), ...details });
     }
@@ -78,6 +85,8 @@ export default async function ({ browser, base }) {
     }[u.pathname];
     if (u.pathname.startsWith("/3/tv/")) return tv ? json(tv) : r.fulfill({ status: 404, body: "{}" });
     const query = u.searchParams.get("query"), year = u.searchParams.get("year");
+    if (u.pathname === "/3/search/movie") searched.push(query);
+    if (query === "Big Cast") return json({ results: [hit(5001, "Big Cast", "2001-01-01", 500)] });
     // TMDB's title is longer than Letterboxd's, or is one half of it; "Alien" (1979) must not become "Alien: Resurrection"
     if (query === "Wake Up Dead Man") return json({ results: [hit(812583, "Wake Up Dead Man: A Knives Out Mystery", "2025-11-26", 3000)] });
     if (query === "Special Title") return json({ results: year === "2019" ? [hit(1004, "Special Title", "2019-05-01", 40)] : [] });
@@ -94,9 +103,13 @@ export default async function ({ browser, base }) {
   await seed(q, { profile: [{ Username: "tester" }], watched: [{ Name: "The Ear", Year: "1970" }, { Name: "Heat", Year: "1934" }, { Name: "Brick", Year: "2005" },
     { Name: "A Cop", Year: "1972" }, { Name: "Breaking the Waves", Year: "1996" }, { Name: "The Prowler", Year: "1951" },
     { Name: "Glass Onion", Year: "2022" }, { Name: "Nathan for You: Finding Frances", Year: "2017" }, { Name: "The Sorrow and the Pity", Year: "1969" },
-    { Name: "Wake Up Dead Man", Year: "2025" }, { Name: "Show Name: Special Title", Year: "2019" }, { Name: "Alien", Year: "1979" }], diary: [], ratings: [] },
+    { Name: "Wake Up Dead Man", Year: "2025" }, { Name: "Show Name: Special Title", Year: "2019" }, { Name: "Alien", Year: "1979" },
+    { Name: "Big Cast", Year: "2001" }, { Name: "Kept Film", Year: "2003" }, { Name: "Pinned Film", Year: "2000" }], diary: [], ratings: [] },
     { "cr-meta-v1": { "the ear|1970": { src: "tmdb", v: 3, id: 35002, d: ["Don Chaffey"], c: ["Victoria Vetri"], w: [], p: [], m: [], g: ["Adventure"], k: ["UK"], l: "English", r: 100 },
       "brick|2005": { src: "tmdb", v: 6, id: 9270, d: ["Rian Johnson"], c: ["Joseph Gordon-Levitt"], w: [], p: [], m: [], g: ["Crime"], k: ["USA"], l: "English", r: 110 },
+      // details as they're kept now, so not looked up; and a film matched by hand before the whole cast was kept
+      "kept film|2003": { src: "tmdb", v: 7, id: 5003, d: ["Someone"], c: ["Familiar Face"], w: [], p: [], m: [], g: ["Drama"], k: ["USA"], l: "English", r: 90 },
+      "pinned film|2000": { src: "tmdb", v: 6, id: 5002, pin: true, d: ["Old Name"], c: [], w: [], p: [], m: [], g: ["Drama"], k: ["USA"], l: "English", r: 90 },
       // films missed before matching learned half-titles: looked up again
       "wake up dead man|2025": { src: "tmdb", miss: true, v: 6 }, "the sorrow and the pity|1969": { src: "tmdb", miss: true, v: 6 },
       // missed while only TMDB's films were looked at, as the owner's devices had it (Oct 2026): looked up again
@@ -107,7 +120,16 @@ export default async function ({ browser, base }) {
   });
   assert(ear.id === 88953 && ear.country === "Czechoslovakia" && ear.language === "Czech", `The Ear: ${JSON.stringify(ear)}`);
   assert(ear.heat, "a 1934 film matched a Heat from decades later, though several films share that title");
-  assert(ear.brick === 9270 && !looked.includes("9270"), `Brick, matched to the same film as before, was fetched again: ${looked}`);
+  // matched before the whole cast was kept: read again by its id, once, without searching for it again
+  assert(ear.brick === 9270 && looked.filter((x) => x === "9270").length === 1 && !searched.includes("Brick"), `Brick, matched to the same film as before: details ${looked}, searched ${searched}`);
+  const cast = await q.evaluate(() => { const m = META["big cast|2001"], pin = META["pinned film|2000"], s = computeStats(MY_LIB, metaOf, "all");
+    return { c: m.c.join(), photos: ["lead 1", "lead 16", "familiar face"].map((k) => PHOTOS[k] || "-").join(), pin: [pin.pin, pin.v, pin.d.join()].join(),
+      korean: s.cast.most.filter((p) => p.name === "김청아").length, face: (s.cast.most.find((p) => p.name === "Familiar Face") || {}).count };
+  });
+  assert(cast.c === [...Array.from({ length: 16 }, (_, i) => `Lead ${i + 1}`), "Familiar Face", "김청아", "Voice Player"].join(), `the credited cast: ${cast.c}`);
+  assert(cast.photos === "/l1.jpg,-,/ff.jpg", `photos kept for the top billed and people met before, not every one-off player: ${cast.photos}`);
+  assert(cast.pin === "true,7,Someone" && !searched.includes("Pinned Film") && looked.includes("5002"), `a film matched by hand, read again at its place: ${cast.pin}`);
+  assert(cast.korean === 1 && cast.face === 2, `people counted: a name in Korean ${cast.korean}, someone in two films ${cast.face}`);
   const more = await q.evaluate(() => ({ cop: META["a cop|1972"].id, waves: [META["breaking the waves|1996"].l, META["breaking the waves|1996"].k.length], prowler: META["the prowler|1951"].k.join(), why: META["the prowler|1951"].why }));
   assert(more.cop === 42741, `A Cop (1972) should be Melville's Un flic, not a 1947 film: ${more.cop}`);
   assert(more.waves[0] === "English" && more.waves[1] === 13, `Breaking the Waves: language ${more.waves[0]} (spoken in English), ${more.waves[1]} of 13 countries kept`);

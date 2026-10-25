@@ -243,7 +243,8 @@ The owner asked for this to be checked every time. A film, diary entry, person o
   reviews, uri), `entries` (diary, oldest first), `reviews` (sanitised HTML + text), `profile`, `watchlistFilms`
   (film-like objects, minus films already watched). `watched.csv` and the diary decide what is seen; likes,
   ratings and reviews only mark films already there.
-- `META[filmKey]`: film details from TMDB (or Claude in the artifact): `d` directors, `c` cast (top 15),
+- `META[filmKey]`: film details from TMDB (or Claude in the artifact): `d` directors, `c` cast (every credited role, see
+  "Counting people like Letterboxd"),
   `w` writers, `p` cinematographers, `m` composers, `g` genres, `k` countries, `l` language, `r` runtime,
   `poster`, `id`, `va/vc` TMDB score, `im` IMDb id, `ir/iv/mc/rt` IMDb, Metacritic, Rotten Tomatoes,
   `pin` (matched by hand). `metaOf(f)` reads it (example films use `EXAMPLE_META`).
@@ -471,8 +472,25 @@ standard errors or more from what the rest of the diary gives; every sentence op
   `FILM_FIXES` (by TMDB id, with a `why`) corrects facts TMDB has wrong (The Prowler 1951 is American; Breaking
   the Waves is in English; The Battle of Algiers in French). A film's language is TMDB's original language unless
   it's spoken in exactly one other (`spokenIn`). Every TMDB country is kept (it used to stop at 6, which made
-  lists differ from Letterboxd's). `TMDB_MATCH_VERSION` (6) re-looks-up films when matching changes; from 6 on, a
-  film whose match is unchanged keeps its details without a second request. Watchlist films are looked up too.
+  lists differ from Letterboxd's). `TMDB_MATCH_VERSION` (7) re-looks-up films when matching changes; from 6 on, a
+  film whose match is unchanged keeps its details without a second request, unless what's kept of a film has changed
+  since (`TMDB_DETAILS_V`, 7: the whole credited cast): then it's read again by its id alone, one request, no search
+  (`rereadRef`; films matched by hand too, keeping their pin). Watchlist films are looked up too.
+- **Counting people like Letterboxd** (a guest found actor and director counts off, 25 Oct 2026). Letterboxd's
+  "Most watched" counts every credited role, however far down the bill, but not cameos, which it marks by no character
+  name or "uncredited" (its help centre's "Stan Lee rule"). Until then the app kept only the top 15 billed, uncredited
+  or not: over 928 real films (TMDB's top rated, popular, Indian, Korean, Japanese, old and animated), only 10 of the top
+  20 actors matched Letterboxd's way, and supporting and voice actors (John Ratzenberger 11 of 22, Amitabh Bachchan's
+  cameos) fell short; directors stopped at 6 a film (Disney's anthologies). Now `creditedCast` keeps every role with a
+  character not marked uncredited (a film TMDB gives no character names at all keeps its top 15, `CAST_BILLED`), and
+  `cleanMeta` keeps up to 300 cast, 40 directors, 20 writers, 10 cinematographers and composers; on the same films every
+  director and 199 of the top 200 actors then matched (the one left: two people TMDB has under one name; people are
+  matched by name, `personKey`, and namesakes changed none of the top 100, so ids aren't kept). Matching found the
+  right film for all 928. Everything that counts a person uses the whole `m.c` (stats, the person drill, people over
+  the years, Compare, search); the study and Watch next keep their own few top billed. Photos are kept for directors,
+  the top 15 billed and anyone already met in another film (`keepPhotos`, `CAST_SEEN`), not every one-off player.
+  `personKey` keeps letters of any script (a name only in Hangul or kana used to come out empty and go uncounted). The
+  `tmdb` check covers the cast rule, photos, the reread by id (pinned too) and a Korean name.
 - **OMDb** (free key, 1,000 films a day): IMDb, Metacritic, Rotten Tomatoes scores from the IMDb id, plus IMDb's
   year, countries and languages (`iy`, `ik`, `il`; `inf` when IMDb doesn't know the id). Films fetched before
   those were kept are fetched again, a day's allowance at a time.
@@ -721,6 +739,8 @@ day, shared with the owner's own app. The in-app version is the "Check film data
 - The owner's first full data check (1,556 films, Oct 2026) listed 445 differences; the real problems were A Cop
   (wrong match), The Prowler, Breaking the Waves, The Battle of Algiers (TMDB errors) and the 6-country cap.
   The rest were release-date conventions and co-production lists, now shown as "not an error".
+- A guest found actor and director counts off (25 Oct 2026): only the top 15 billed counted, and directors stopped at 6
+  a film → every credited role, as Letterboxd counts them (see "Counting people like Letterboxd").
 - Three films had no TMDB match (Oct 2026): Glass Onion (TMDB adds ": A Knives Out Mystery"), Nathan for You:
   Finding Frances, The Sorrow and the Pity → pinned by IMDb id, plus half-title matching.
 - The owner asked for admin things off the main page (Oct 2026) → the desktop Settings page.

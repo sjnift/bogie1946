@@ -25,7 +25,7 @@ function dashChapters(s) {
   const everyone = (data, label) => dlink(data.total && D.names(label, `${fmtN(data.total)} in all, most watched first`, data.most, { faces: true }), `${fmtN(data.total)} ${label.toLowerCase()}`);
   const people = (kind, data) => noMeta ? emptyMeta() : tabs(kind, [["most", "Most watched"], ["best", "Highest rated"]], state.tab[kind]) + peopleBlock(kind, data, s);
   const peopleFull = [
-    section("starring", "Starring", `${everyone(s.cast, "Actors")} in the top ${CAST_DEPTH} billed of each film. ${castBarText(s)}`, people("cast", s.cast)),
+    section("starring", "Starring", `${everyone(s.cast, "Actors")}. ${castRuleText()} ${castBarText(s)}`, people("cast", s.cast)),
     section("directed", "Directed by", `${everyone(s.directors, "Directors")}.`, people("directors", s.directors)),
     section("crew", "Crew", `Writers, cinematographers and composers. Highest rated needs ${s.minRated}+ rated films.`, noMeta ? emptyMeta() : crewBlock(s)),
     all ? section("people-years", "People over the years", "Who's new, who stays, and how many directors each year brought.", noMeta ? emptyMeta() : peopleYearsBlock(I)) : "",

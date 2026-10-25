@@ -24,7 +24,7 @@ const REPO = "sjnift/bogie1946", TOKEN = "github_pat_test", PASS = "popcorn and 
 const rows = { profile: [{ "Date Joined": "2020-01-01", Username: "tester", "Given Name": "Sam", "Email Address": "someone@example.com", Bio: "hi" }],
   watched: [{ Name: "Heat", Year: "1995", Date: "2024-01-01" }], diary: [{ Name: "Heat", Year: "1995", Date: "2024-02-03", "Watched Date": "2024-02-03", Rating: "4.5" }],
   ratings: [{ Name: "Heat", Year: "1995", Rating: "4.5" }] };
-const film = (id, d) => ({ src: "tmdb", v: 6, id, d: [d], c: [], w: [], p: [], m: [], g: ["Crime"], k: ["USA"], l: "English", r: 120 });
+const film = (id, d) => ({ src: "tmdb", v: 7, id, d: [d], c: [], w: [], p: [], m: [], g: ["Crime"], k: ["USA"], l: "English", r: 120 });
 const meta = { "heat|1995": film(949, "Michael Mann") };
 
 // The repository as a map of path → blob sha for each tree; blobs are named the way git names them.
@@ -222,7 +222,7 @@ export default async function ({ browser, base }) {
   // What the phone looks up goes up (only the one part it falls in) and reaches the computer; then neither has
   // anything to send
   const zKey = "z|2010", before = { ...gh.files() };
-  await b.evaluate((k) => { META[k] = cleanMeta({ src: "tmdb", v: 6, id: 10, d: ["Z"], c: [], w: [], p: [], m: [], g: ["Drama"], k: ["Japan"], l: "Japanese", r: 100, t: new Date().toISOString() }); saveMeta(); return sitePublish(); }, zKey);
+  await b.evaluate((k) => { META[k] = cleanMeta({ src: "tmdb", v: 7, id: 10, d: ["Z"], c: [], w: [], p: [], m: [], g: ["Drama"], k: ["Japan"], l: "Japanese", r: 100, t: new Date().toISOString() }); saveMeta(); return sitePublish(); }, zKey);
   const changed = Object.keys(gh.files()).filter((f) => gh.files()[f] !== before[f]).map((f) => f.slice(11)).sort();
   assert(JSON.stringify(changed) === JSON.stringify([`${shardOf(zKey)}.bin`, "index.json"].sort()), `the phone sent: ${changed}`);
   await a.evaluate(() => siteCheck(true));
@@ -233,8 +233,8 @@ export default async function ({ browser, base }) {
   assert(patches() === p0, "a device sent something the site already had");
 
   // Two devices with different copies of one film's details settle on the newer one, instead of overwriting each other
-  await a.evaluate(() => { META["q|1999"] = cleanMeta({ src: "tmdb", v: 6, id: 5, d: ["Older"], c: [], w: [], p: [], m: [], g: ["Drama"], k: ["USA"], l: "English", r: 90, t: "2026-01-01T00:00:00.000Z" }); return sitePublish(); });
-  await b.evaluate(() => { META["q|1999"] = cleanMeta({ src: "tmdb", v: 6, id: 5, d: ["Newer"], c: [], w: [], p: [], m: [], g: ["Drama"], k: ["USA"], l: "English", r: 90, t: "2026-02-01T00:00:00.000Z" }); });
+  await a.evaluate(() => { META["q|1999"] = cleanMeta({ src: "tmdb", v: 7, id: 5, d: ["Older"], c: [], w: [], p: [], m: [], g: ["Drama"], k: ["USA"], l: "English", r: 90, t: "2026-01-01T00:00:00.000Z" }); return sitePublish(); });
+  await b.evaluate(() => { META["q|1999"] = cleanMeta({ src: "tmdb", v: 7, id: 5, d: ["Newer"], c: [], w: [], p: [], m: [], g: ["Drama"], k: ["USA"], l: "English", r: 90, t: "2026-02-01T00:00:00.000Z" }); });
   await b.evaluate(() => siteCheck(true)); await b.evaluate(() => sitePublish());
   await a.evaluate(() => siteCheck(true));
   p0 = patches();
@@ -261,7 +261,7 @@ export default async function ({ browser, base }) {
   // The computer finds the new film's details; the phone, opened again, takes them from the site before looking
   // anything up, so it asks TMDB for nothing
   const samKey = await a.evaluate(() => MY_LIB.films.find((f) => f.name.startsWith("Le Sam")).key);
-  await a.evaluate((k) => { META[k] = cleanMeta({ src: "tmdb", v: 6, id: 5511, d: ["Jean-Pierre Melville"], c: ["Alain Delon"], w: [], p: [], m: [], g: ["Crime"], k: ["France"], l: "French", r: 105, t: new Date().toISOString() }); saveMeta(); return sitePublish(); }, samKey);
+  await a.evaluate((k) => { META[k] = cleanMeta({ src: "tmdb", v: 7, id: 5511, d: ["Jean-Pierre Melville"], c: ["Alain Delon"], w: [], p: [], m: [], g: ["Crime"], k: ["France"], l: "French", r: 105, t: new Date().toISOString() }); saveMeta(); return sitePublish(); }, samKey);
   tmdbCalls = 0;
   await b.reload();
   await b.waitForFunction((k) => typeof state === "object" && MY_LIB && META[k], samKey, { timeout: 8000 });
@@ -270,7 +270,7 @@ export default async function ({ browser, base }) {
 
   // Another device updates the site at the moment the computer does: the computer's first try loses, it brings
   // that change in, and the second try carries both.
-  await a.evaluate(() => { META["x|2001"] = cleanMeta({ src: "tmdb", v: 6, id: 1, d: ["A"], c: [], w: [], p: [], m: [], g: ["Drama"], k: ["France"], l: "French", r: 90 }); });
+  await a.evaluate(() => { META["x|2001"] = cleanMeta({ src: "tmdb", v: 7, id: 1, d: ["A"], c: [], w: [], p: [], m: [], g: ["Drama"], k: ["France"], l: "French", r: 90 }); });
   gh.beforePatch = async () => {
     const ix = JSON.parse(gh.file("docs/diary/index.json")), part = shardOf("y|2002"), m = await openPart(key, gh.file(`docs/diary/${part}.bin`), `${part}|${ix.parts[part]}`), at = new Date().toISOString();
     m["y|2002"] = film(2, "B");

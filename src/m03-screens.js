@@ -334,7 +334,7 @@ function peopleScreen(s) {
   const head = statsHead() + chipBar("role", [["c", "Actors"], ["d", "Directors"], ["w", "Writers"], ["p", "Camera"], ["m", "Music"]], role) +
     segBar("sort", [["most", "Most watched"], ["best", "Highest rated"]], state.sort, "small");
   if (!s.withMeta) return head + needMeta();
-  const note = role === "c" ? `Counts the top ${CAST_DEPTH} billed cast of each film.` : "";
+  const note = role === "c" ? castRuleText() : "";
   const bestNote = best ? `${note ? " " : ""}${role === "c" ? castBarText(s) : `Highest rated needs ${s.minRated} or more rated films.`}` : "";
   const val = (p) => best ? `★ ${p.avg.toFixed(2)}` : plural(p.count, "film");
   const podium = list.length >= 3 ? `<div class="podium">${[1, 0, 2].map((i) => { const p = list[i];

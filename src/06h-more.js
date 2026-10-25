@@ -125,7 +125,7 @@ function searchIndex(lib) {
   for (const f of lib.films) {
     const m = metaOf(f);
     if (!m) continue;
-    for (const role of ["d", "c", "w", "p", "m"]) for (const name of role === "c" ? m.c.slice(0, CAST_DEPTH) : m[role]) {
+    for (const role of ["d", "c", "w", "p", "m"]) for (const name of m[role]) {
       const k = personKey(name);
       let p = people.get(k);
       if (!p) { p = { key: k, name, films: new Set(), roles: new Map(), k }; people.set(k, p); }
@@ -226,7 +226,7 @@ const wnDrill = (list, title) => { const by = new Map(list.map((p) => [p.f, p]))
 // The role a person mostly has in your diary: directing, acting, writing, camera or music.
 function roleIn(lib, name) {
   const k = personKey(name), n = { d: 0, c: 0, w: 0, p: 0, m: 0 };
-  for (const f of lib.films) { const m = metaOf(f); if (!m) continue; for (const r of Object.keys(n)) if ((r === "c" ? m.c.slice(0, CAST_DEPTH) : m[r]).some((x) => personKey(x) === k)) n[r]++; }
+  for (const f of lib.films) { const m = metaOf(f); if (!m) continue; for (const r of Object.keys(n)) if (m[r].some((x) => personKey(x) === k)) n[r]++; }
   return Object.keys(n).sort((a, b) => n[b] - n[a] || (a === "d" ? -1 : 0))[0];
 }
 const filmoBusy = new Set();

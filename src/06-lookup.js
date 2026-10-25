@@ -61,7 +61,7 @@ function needsLookup(lib, kind) {
   return lib.films.filter((f) => {
     const m = META[f.key];
     if (kind === "tmdb") {
-      if (m && m.pin) return false;
+      if (m && m.pin) return !!rereadRef(m); // matched by hand: only read again, at the same place, when details change
       if (knownId(f) && !fromKnownId(f, m)) return true;
       if (!m) return true;
       if (m.src === "tmdb") return (m.v || 1) < (m.miss ? TMDB_MISS_VERSION : TMDB_MATCH_VERSION);
@@ -92,7 +92,11 @@ async function tmdbGet(path, params, key, signal) {
 // matched to When Dinosaurs Ruled the Earth, the most-voted film of 1970 that TMDB's search turned up.
 // 5: TMDB's release year is kept too (`y`), for the film data check.
 // 6: every country TMDB lists (it used to stop at 6), the language a film is spoken in, hand-checked fixes.
-const TMDB_MATCH_VERSION = 6;
+// 7: the whole credited cast (it stopped at the top 15 billed) and every director; a film matched since 6 is only read
+// again by its id (`rereadRef`), as its match hasn't changed.
+const TMDB_MATCH_VERSION = 7;
+// The last version that changed what's kept of a film: older details are read again, even when the match is the same.
+const TMDB_DETAILS_V = 7;
 // Bump when matching finds films it used to miss, so only those are looked up again.
 // 7: a title that is half of the other ("Glass Onion: A Knives Out Mystery" for Glass Onion).
 // 8: a pinned film TMDB keeps on its TV side (The Sorrow and the Pity, Nathan for You: Finding Frances).
@@ -160,8 +164,43 @@ const tmdbFetch = (ref, key, signal) => (ref.movie ? tmdbDetails(ref.movie, key,
 // A TMDB page for a film's details: its film page, or its TV programme or episode.
 const tmdbHref = (m) => !m || m.src !== "tmdb" ? "" : Number(m.tv) ? `https://www.themoviedb.org/tv/${Number(m.tv)}${Number(m.ep) ? `/season/${Number(m.se)}/episode/${Number(m.ep)}` : ""}`
   : Number(m.id) ? `https://www.themoviedb.org/movie/${Number(m.id)}` : "";
+// A film matched since version 6 whose details are older than TMDB_DETAILS_V: where it is on TMDB, to read it again
+// there with one request instead of searching for it (its match, pinned by hand or not, stays).
+function rereadRef(prev) {
+  if (!prev || prev.src !== "tmdb" || prev.miss || !((prev.v || 0) >= 6 && (prev.v || 0) < TMDB_DETAILS_V)) return null;
+  if (Number(prev.tv)) return { tv: Number(prev.tv), ...(Number(prev.ep) ? { se: Number(prev.se) || 0, ep: Number(prev.ep) } : {}) };
+  return Number(prev.id) ? { movie: Number(prev.id) } : null;
+}
+// Who counts as a film's cast, as Letterboxd's "Most watched" counts them: every role with a character name, however
+// far down the bill, but not cameos, which Letterboxd marks by no character name or "uncredited" (its "Stan Lee rule").
+// Until Oct 2026 the top 15 billed counted, uncredited or not, which left out most supporting and voice actors (a guest
+// found their actor counts off). A film TMDB gives no character names at all keeps its top billed: the names are
+// missing there, the roles aren't cameos. `roleOf` reads a credit's character.
+const CAMEO = /\buncredited\b/i;
+// What the people pages say of it (inside Claude, film details come from Claude, with each film's main cast).
+const castRuleText = () => (IN_VIEWER ? "Counts each film's main cast." : "Every credited role counts, as on Letterboxd, but not cameos.");
+function creditedCast(list, roleOf) {
+  const named = list.filter((c) => String(roleOf(c) || "").trim());
+  return named.length ? named.filter((c) => !CAMEO.test(roleOf(c))) : list.slice(0, CAST_BILLED);
+}
+// Photos kept from a film's credits: its directors, its top billed, and anyone already met in another film, so a
+// supporting actor whose films add up has a face, without photos of thousands of one-off players. `CAST_SEEN` is
+// everyone in the films looked up so far (worked out again at the start of each run of lookups).
+let CAST_SEEN = null;
+function keepPhotos(cast, directors) {
+  if (!CAST_SEEN) { CAST_SEEN = new Set(); for (const m of Object.values(META)) for (const n of (m && m.c) || []) CAST_SEEN.add(personKey(n)); }
+  cast.forEach((p, i) => { const k = personKey(p.name); if (k && p.profile_path && !PHOTOS[k] && (i < CAST_BILLED || CAST_SEEN.has(k))) PHOTOS[k] = p.profile_path; });
+  for (const p of directors) { const k = personKey(p.name); if (k && p.profile_path && !PHOTOS[k]) PHOTOS[k] = p.profile_path; }
+  for (const p of cast) CAST_SEEN.add(personKey(p.name));
+}
 // `prev` is what the film was matched to before: when the match hasn't changed, its details are kept.
 async function tmdbFilm(f, key, signal, prev) {
+  const again = rereadRef(prev);
+  if (again && (prev.pin || !knownId(f) || fromKnownId(f, prev))) {
+    const m = await tmdbFetch(again, key, signal);
+    if (m && !m.miss) return { ...m, ...(prev.via ? { via: prev.via } : {}), ...(prev.pin ? { pin: prev.pin } : {}) };
+    if (prev.pin) return { ...prev, v: TMDB_DETAILS_V }; // gone from TMDB: a match made by hand stays as it was
+  }
   const known = knownId(f);
   if (known) {
     const ref = await tmdbRefFor(known, key, signal), m = ref && await tmdbFetch(ref, key, signal);
@@ -179,7 +218,7 @@ async function tmdbFilm(f, key, signal, prev) {
   for (const half of hit ? [] : titleHalves(f.name)) if ((hit = halfTitled(await search(half, f.year), f))) break;
   // (a pinned film TMDB doesn't know keeps the pin, so it isn't asked for again every time)
   if (!hit) return { src: "tmdb", miss: true, v: TMDB_MISS_VERSION, ...(known ? { via: known } : {}) };
-  if (prev && prev.src === "tmdb" && !prev.miss && prev.id === hit.id && prev.c && prev.v >= 6) return { ...prev, v: TMDB_MATCH_VERSION, y: parseInt((hit.release_date || "").slice(0, 4), 10) || prev.y || null };
+  if (prev && prev.src === "tmdb" && !prev.miss && prev.id === hit.id && prev.c && prev.v >= TMDB_DETAILS_V) return { ...prev, v: TMDB_MATCH_VERSION, y: parseInt((hit.release_date || "").slice(0, 4), 10) || prev.y || null };
   return tmdbDetails(hit.id, key, signal);
 }
 // One TMDB film's details and credits, by its id.
@@ -187,9 +226,9 @@ async function tmdbDetails(id, key, signal) {
   const d = await tmdbGet(`/movie/${id}`, { append_to_response: "credits" }, key, signal);
   if (!d) return { src: "tmdb", miss: true, v: TMDB_MISS_VERSION };
   const crew = (d.credits && d.credits.crew) || [];
-  const cast = ((d.credits && d.credits.cast) || []).slice().sort((a, b) => a.order - b.order).slice(0, CAST_DEPTH);
+  const cast = creditedCast(((d.credits && d.credits.cast) || []).slice().sort((a, b) => a.order - b.order), (c) => c.character);
   const names = (list) => [...new Set(list.map((x) => x.name))];
-  for (const p of [...cast, ...crew.filter((c) => c.job === "Director")]) if (p.profile_path && !PHOTOS[personKey(p.name)]) PHOTOS[personKey(p.name)] = p.profile_path;
+  keepPhotos(cast, crew.filter((c) => c.job === "Director"));
   return cleanMeta({
     src: "tmdb", v: TMDB_MATCH_VERSION, id: d.id, poster: d.poster_path, y: parseInt((d.release_date || "").slice(0, 4), 10),
     d: names(crew.filter((c) => c.job === "Director")),
@@ -234,8 +273,10 @@ async function tmdbTvDetails(ref, key, signal) {
   const did = (c, jobs) => (c.jobs ? c.jobs.map((j) => j.job) : [c.job]).some((j) => jobs.includes(j));
   const names = (list) => [...new Set(list.map((x) => x.name))];
   const directors = crew.filter((c) => did(c, ["Director"]));
-  cast = cast.filter((c, i) => cast.findIndex((x) => x.name === c.name) === i).slice(0, CAST_DEPTH);
-  for (const p of [...cast, ...directors]) if (p.profile_path && !PHOTOS[personKey(p.name)]) PHOTOS[personKey(p.name)] = p.profile_path;
+  // a programme's cast has each person's roles across its episodes; credited if any of them is
+  const roleOf = (c) => c.roles ? ((c.roles.find((x) => String(x.character || "").trim() && !CAMEO.test(x.character)) || c.roles[0] || {}).character) : c.character;
+  cast = creditedCast(cast.filter((c, i) => cast.findIndex((x) => x.name === c.name) === i), roleOf);
+  keepPhotos(cast, directors);
   return cleanMeta({
     src: "tmdb", v: TMDB_MATCH_VERSION, tv: show.id, ...(episode ? { se: Number(ref.se), ep: Number(ref.ep) } : {}), poster, y: parseInt(String(y || "").slice(0, 4), 10),
     d: names(directors), c: cast.map((c) => c.name),
@@ -267,6 +308,7 @@ function lookupRender() {
 async function runTmdb(lib, key) {
   const queue = needsLookup(lib, "tmdb");
   Object.assign(job, { running: true, kind: "tmdb", ctl: new AbortController(), done: 0, total: queue.length, failed: 0, note: "", err: false, badKey: false });
+  CAST_SEEN = null;
   renderLookup();
   const signal = job.ctl.signal;
   let fatal = null, sinceSave = 0;
