@@ -181,11 +181,16 @@ function letterboxdBlock(lib, phone) {
   const free = `Free with Apify's free plan: no card needed, and its $5 of credit a month covers about ${fmtN(LB_RUN_CAP)} films. On that plan nothing is ever charged; runs just stop when the month's credit is used up.`;
   if (lbJob.running) return title + `<p class="status" id="lb-progress" role="status">${lbProgressText()}</p>`;
   if (!apifyKey() || editApify || lbJob.badKey) {
-    const input = `<label class="sr-only" for="apify-key">Apify API token</label><input ${phone ? 'class="key" ' : ""}id="apify-key" type="password" autocomplete="off" spellcheck="false" placeholder="Apify API token (optional)" value="${esc(apifyKey())}">`;
+    // anyone's own free Apify account (asked Oct 2026: visitors make their own, nothing of the owner's is shared)
+    const input = `<label class="sr-only" for="apify-key">Apify API token</label><input ${phone ? 'class="key" ' : ""}id="apify-key" type="password" autocomplete="off" spellcheck="false" placeholder="Paste your Apify API token" value="${esc(apifyKey())}">`;
     const save = phone ? `<button class="btn block" type="button" data-lb="save">Save token</button>` : `<button class="btn" type="button" data-lb="save">Save token</button>`;
-    return title + (phone ? input + save : `<div class="lookup-row">${input}${save}</div>`) +
-      `<p class="status">Compares your ratings with Letterboxd's own averages. An <a href="https://apify.com/solidcode/letterboxd-scraper" target="_blank" rel="noopener">Apify actor</a> reads Letterboxd for you.
-      ${free} Make a free account at <a href="https://console.apify.com/sign-up" target="_blank" rel="noopener">apify.com</a>; your token is under Settings → API &amp; Integrations. It's saved in this browser (and in your locked diary on this site, if it's there).</p>` + note;
+    const steps = apifyKey() && !lbJob.badKey ? "" : `<p class="status">Compare your ratings with Letterboxd members' averages for the same films. Letterboxd has no public way in, so
+      <a href="https://apify.com/solidcode/letterboxd-scraper" target="_blank" rel="noopener">Apify</a> reads its pages for you, with a free account of your own:</p>
+      <ol class="steps lb-steps"><li><a href="https://console.apify.com/sign-up" target="_blank" rel="noopener">Create a free Apify account</a>. No card needed.</li>
+        <li>In Apify, open <a href="https://console.apify.com/settings/integrations" target="_blank" rel="noopener">Settings → API &amp; Integrations</a> and copy your personal API token.</li>
+        <li>Paste it here and press Save token. Then get the averages for your films with one button.</li></ol>`;
+    return title + steps + (phone ? input + save : `<div class="lookup-row">${input}${save}</div>`) +
+      `<p class="status">${free} Your token is saved in this browser only${SITE_ON && SITE ? " (and in your locked diary on this site)" : ""}.</p>` + note;
   }
   const total = lib.films.length, missing = lbMissing(lib), found = lib.films.filter(lbFound).length, gone = lbNotFound(lib).length, few = lbTooFew(lib);
   const askCost = (n) => cost(n * LB_PRICE_PER_FILM * LB_SPARE + 2 * LB_PRICE_PER_RUN);
@@ -206,6 +211,13 @@ function letterboxdBlock(lib, phone) {
     ${few.length === 1 ? "is" : "are"} on Letterboxd but ${few.length === 1 ? "has" : "have"} too few ratings there for an average.</p>` : "";
   return title + body + goneNote + fewNote + `<p class="status">${free} ${link("change", "Change Apify token")}</p>` + note;
 }
+// Under "against the crowd" on both layouts, until this diary has its first Letterboxd averages.
+function lbHint(phone) {
+  if (IN_VIEWER || !MY_LIB || state.mode === "example" || lbJob.running || MY_LIB.films.some(lbFound)) return "";
+  const where = phone ? `<button class="linkish" type="button" data-act="settings">Settings</button>` : `<a class="lb-go" href="#/settings">Settings → Film details</a>`;
+  return `<p class="note">${apifyKey() ? `Compare with Letterboxd members too: get their averages for your films in ${where}.`
+    : `Compare with Letterboxd members too: connect a free Apify account of your own in ${where}, then get their averages for your films.`}</p>`;
+}
 function lbProgressText() {
   const mins = Math.max(0, Math.round((Date.now() - lbJob.started) / 60000));
   return `Apify is reading Letterboxd for you (started ${mins ? `${mins} min ago` : "just now"}). Big libraries take several minutes; you can close this page and the results are picked up when you come back.`;
@@ -214,7 +226,14 @@ function lbAction(act, lib) {
   if (act === "save") {
     const key = ($("#apify-key")?.value || "").trim();
     if (!key) { Object.assign(lbJob, { note: "Paste your Apify token first.", err: true }); renderLookup(); return; }
-    store.set(KEYS.apify, key); editApify = false; lbJob.badKey = false; lbJob.note = ""; renderLookup();
+    // asked of Apify before it's kept, so a token copied wrong is caught now rather than at the first run
+    Object.assign(lbJob, { note: "Checking the token with Apify…", err: false }); renderLookup();
+    fetch("https://api.apify.com/v2/users/me", { headers: { Authorization: "Bearer " + key } }).then((r) => r.status !== 401).catch(() => true).then((ok) => {
+      if (!ok) { Object.assign(lbJob, { note: "Apify didn't accept that token. Copy it again from Settings → API & Integrations in your Apify account.", err: true }); renderLookup(); return; }
+      store.set(KEYS.apify, key); editApify = false; lbJob.badKey = false;
+      Object.assign(lbJob, { note: lib && lib.films.some(lbFound) ? "Token saved." : "Token saved. Now get the Letterboxd averages for your films with the button above.", err: false });
+      renderLookup();
+    });
   } else if (act === "change") { editApify = true; renderLookup(); $("#apify-key")?.focus(); }
   else if (act === "all" || act === "missing" || act === "retry") startLetterboxd(lib, act);
 }

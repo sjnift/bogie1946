@@ -59,4 +59,26 @@ export default async function ({ browser, base }) {
   const gone = await p.evaluate(() => [!!store.get(KEYS.lbRun, null), lbJob.note]);
   assert(!gone[0] && /previous Apify token/.test(gone[1]), `a run of the old token: ${gone}`);
   noErrors(p, "desktop");
+
+  // a visitor connects a free Apify account of their own: the line under "against the crowd" points to Settings, the
+  // steps are there, and a token Apify refuses isn't kept (nothing of the owner's is shared)
+  for (const phone of [false, true]) {
+    const v = await open(browser, base, phone ? "mobile.html" : "desktop.html", { phone });
+    await v.context().route(/api\.apify\.com\/v2\/users\/me/, (r) => r.fulfill({ status: /BAD/.test(r.request().headers().authorization) ? 401 : 200,
+      headers: { "access-control-allow-origin": "*" }, contentType: "application/json", body: JSON.stringify({ data: { id: "u9" } }) }));
+    await seed(v, { profile: [{ Username: "a_visitor" }], watched: films.slice(0, 30).map((f) => ({ Name: f[0], Year: String(f[1]) })), ratings: [], diary: [] });
+    if (phone) await v.evaluate(() => goTo("crowd", { force: true, top: true }));
+    await v.click(phone ? '.note [data-act="settings"]' : ".note .lb-go");
+    await v.waitForSelector("#apify-key");
+    const steps = await v.evaluate(() => document.querySelector(".lb-steps").textContent);
+    assert(/Create a free Apify account/.test(steps) && /API & Integrations/.test(steps), `${phone ? "phone" : "computer"}: the steps: ${steps}`);
+    await v.fill("#apify-key", "apify_api_BAD"); await v.click('[data-lb="save"]');
+    await v.waitForFunction(() => /didn't accept/.test(lbJob.note));
+    assert(!(await v.evaluate(() => store.get(KEYS.apify, ""))), "a token Apify refused was kept");
+    await v.fill("#apify-key", "apify_api_GOOD"); await v.click('[data-lb="save"]');
+    await v.waitForFunction(() => store.get(KEYS.apify, "") === "apify_api_GOOD");
+    await v.waitForSelector('[data-lb="all"]');
+    noErrors(v, phone ? "phone visitor" : "computer visitor");
+    await v.close();
+  }
 }

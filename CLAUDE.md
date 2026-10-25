@@ -476,6 +476,10 @@ standard errors or more from what the rest of the diary gives; every sentence op
   marked not found for good, with no way to retry (the owner had 144 films without averages then). A run that stops at its cap now marks
   nothing; films not found have "Look for them again" (`retry`); films on Letterboxd without an average are listed
   apart. A stored run the current token can't read (one started with the token used before) is set aside ("gone").
+  **Visitors use a free Apify account of their own** (asked 25 Oct 2026; the owner turned down sharing any Apify credit):
+  without a token the box walks them through it (sign up, Settings → API & Integrations, paste, Save token), the token
+  is checked with Apify (`/users/me`) before it's kept, and until a diary has its first averages a line under "against
+  the crowd" on both layouts points to Settings (`lbHint`). Nothing of the owner's Apify account is ever shared.
   Matching is by title and year, then title alone, then the address asked for. Runs survive closing the page.
 - **Letterboxd RSS feed** (daily, see below). Letterboxd itself has no API.
 

@@ -114,7 +114,7 @@ function crowdBlock(C, Y, noTabs) {
       : C.key === "letterboxd" ? "Letterboxd averages come through Apify. Add your Apify token in Settings → Film details."
       : C.key === "imdb" || C.key === "critics" ? "IMDb and critics' scores come from OMDb. Add a free OMDb key in Settings → Film details."
       : "Crowd scores come with TMDB details. Look your films up from Settings → Film details.";
-    return tabs + `<div class="empty">${why}</div>`;
+    return tabs + `<div class="empty">${why}</div>` + lbHint(false);
   }
   const lead = `<p class="lead">${Y ? `On the ${dlink(C.to, plural(C.n, "film"))} you rated in ${esc(Y)}, you gave` : `Across ${dlink(C.to, plural(C.n, "film"))} you rated, you give`} ${Math.abs(C.meanDiff).toFixed(2)}★ ${C.meanDiff >= 0 ? "more" : "less"} than ${esc(C.label)} on average${Y ? "" : followText(C.r)}.</p>`;
   const cap = (p) => `<span class="cap"><span class="stars">${stars(p.you)}</span>
@@ -126,7 +126,7 @@ function crowdBlock(C, Y, noTabs) {
   const gemsTo = gemsAll.length && D.films("Hidden gems", "Films you rated 4½★ or more that few people have rated", gemsAll.map((g) => g.f), { sort: "given", note: (f) => { const g = gemsAll.find((x) => x.f === f); return `${fmtN(g.pop.n)} ${g.pop.src} votes`; } });
   const gems = gemsAll.length ? posterRow("Hidden gems", gemsAll, gemsTo, (g) => posterBtn(g.f, `<span class="cap"><span class="stars">${stars(g.f.rating)}</span><span class="muted">${fmtN(g.pop.n)} ${g.pop.src} votes</span></span>`))
     + `<p class="status">Films you rated 4½★ or more that few people have rated.</p>` : "";
-  return tabs + lead + `<div class="crowd">
+  return lbHint(false) + tabs + lead + `<div class="crowd">
     ${row(`You liked more than ${esc(C.label)}`, C.higherAll || C.higher, "No film you rated ¾★ or more above them.")}
     ${row(`You liked less than ${esc(C.label)}`, C.lowerAll || C.lower, "No film you rated ¾★ or more below them.")}
     ${gems}</div>`;

@@ -144,7 +144,7 @@ function mCrowd(C, Y) {
       : IN_VIEWER ? `Crowd scores come from TMDB and OMDb, which pages inside Claude can't reach. Open <a href="https://sjnift.github.io/bogie1946/" target="_blank" rel="noopener">the web version</a>.`
       : C.key === "tmdb" ? "Crowd scores come with TMDB details. Look your films up in Settings."
       : C.key === "letterboxd" ? "Letterboxd averages need an Apify token, added in Settings." : "IMDb and critics' scores need a free OMDb key, added in Settings.";
-    return toggles + `<div class="empty">${why}</div>`;
+    return toggles + `<div class="empty">${why}</div>` + lbHint(true);
   }
   const cap = (p) => `<span class="pmeta"><span class="stars">${stars(p.you)}</span></span><span class="mdate">${C.short} ${crowdScore(C.key, p.crowd)} · <b class="dv">${signed(p.diff)}★</b></span>`;
   let html = toggles + `<div class="card glow" style="margin-top:12px"><p class="lead" style="margin:0">${Y ? `In ${esc(Y)} you gave` : "You give"} <b class="dv">${Math.abs(C.meanDiff).toFixed(2)}★ ${C.meanDiff >= 0 ? "more" : "less"}</b> than ${esc(C.label)} on average${Y ? "" : followText(C.r)}, across ${dlink(C.to, plural(C.n, "film"))}.</p></div>`;
@@ -152,6 +152,6 @@ function mCrowd(C, Y) {
   html += sh(`Liked less than ${esc(C.short)}`) + (C.lower.length ? mPosters(C.lower, cap) : `<div class="empty">No film you rated ¾★ or more below them.</div>`);
   if (C.gems.length) html += sh("Hidden gems") + `<p class="note" style="margin:-4px 0 12px">Rated 4½★ or more by you, and by few others.</p>` +
     mPosters(C.gems, (g) => `<span class="pmeta"><span class="stars">${stars(g.f.rating)}</span></span><span class="mdate">${fmtN(g.pop.n)} ${g.pop.src} votes</span>`);
-  return html;
+  return lbHint(true) + html;
 }
 </script>
