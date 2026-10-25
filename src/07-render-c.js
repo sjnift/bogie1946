@@ -38,24 +38,22 @@ function yearsBlock(I) {
   const ratingOpts = avgYearsChart(I.years);
   const anyPace = I.years.some((p) => p.pace && p.pace > p.films);
   const legend = anyPace ? `<div class="legend"><span><i style="background:var(--gold)"></i>Watched</span><span><i style="background:var(--lilac)"></i>Rest of this year at your current pace</span></div>` : "";
+  // one row of charts; hours, not in English and rewatches are in the table below (the owner's trim, Oct 2026)
   const charts = `<div class="mults">
     ${mult("Films", "films", (p) => p.films, (p) => `${p.year}: ${plural(p.films, "film")}${p.pace ? `, on pace for about ${fmtN(p.pace)}` : ""}`, (p) => p.pace && p.pace > p.films ? p.pace - p.films : 0, { unit: "films" })}
-    ${mult("Hours", "hours", (p) => Math.round(p.hours), (p) => `${p.year}: ${fmtN(Math.round(p.hours))} hours`, null, { unit: "h" })}
     ${mult("Average rating", "rating", (p) => p.avgRating, (p) => `${p.year}: ${p.avgRating ? starsNum(p.avgRating) : "no ratings"}`, null, ratingOpts)}
     ${mult("Film age when watched (years)", "age", (p) => p.age, (p) => `${p.year}: films were ${p.age != null ? Math.round(p.age) : "—"} years old on average`, null, { unit: "yrs" })}
-    ${mult("Not in English (%)", "nonEnglish", (p) => p.nonEnglish, (p) => `${p.year}: ${p.nonEnglish != null ? p.nonEnglish + "%" : "not enough details"}`, null, { unit: "%" })}
-    ${mult("Rewatches (%)", "rewatches", (p) => pctOf(p.rewatches, p.entries), (p) => `${p.year}: ${pctOf(p.rewatches, p.entries)}% of entries`, null, { unit: "%" })}
   </div>`;
   const top = (p, pair, role) => pair && pair[1] > 1 ? `${dlink(personDrill(state.lib, pair[0], role, p.F), esc(pair[0]))} <span class="muted">${pair[1]}</span>` : "—";
   const ys = [...I.years].reverse(), H = yearsHiLo(ys);
   const rows = ys.map((p, i) => { const cell = (what, v) => v == null || v === "—" ? "—" : dlink(yearDrill(p, what), v);
     return `<tr><td>${cell("entries", p.year)}${p.pace ? ` <span class="muted">(pace ${fmtN(p.pace)})</span>` : ""}</td>
     <td class="n${H.films[i]}">${cell("films", fmtN(p.films))}</td><td class="n${H.hours[i]}">${cell("hours", fmtN(Math.round(p.hours)))}</td><td class="n${H.rating[i]}">${cell("rating", p.avgRating ? p.avgRating.toFixed(2) : null)}</td>
-    <td class="n${H.newShare[i]}">${cell("new", p.newShare != null ? p.newShare + "%" : null)}</td><td class="n${H.nonEnglish[i]}">${cell("nonEnglish", p.nonEnglish != null ? p.nonEnglish + "%" : null)}</td><td class="n${H.countries[i]}">${cell("countries", p.countries || null)}</td>
+    <td class="n${H.newShare[i]}">${cell("new", p.newShare != null ? p.newShare + "%" : null)}</td><td class="n${H.nonEnglish[i]}">${cell("nonEnglish", p.nonEnglish != null ? p.nonEnglish + "%" : null)}</td><td class="n${H.rewatches[i]}">${cell("rewatches", p.entries ? pctOf(p.rewatches, p.entries) + "%" : null)}</td><td class="n${H.countries[i]}">${cell("countries", p.countries || null)}</td>
     <td>${p.topGenre ? dlink(D.films(`${p.topGenre[0]} in ${p.year}`, filmsSub(p.F.filter(hasGenre(p.topGenre[0]))), p.F.filter(hasGenre(p.topGenre[0])), { scope: p.year }), esc(p.topGenre[0])) : "—"}</td>
     <td>${top(p, p.topDirector, "d")}</td><td>${top(p, p.topActor, "c")}</td></tr>`; }).join("");
   return legend + charts + `<div class="tbl-wrap"><table class="data"><thead><tr><th>Year</th><th class="n">Films</th><th class="n">Hours</th><th class="n">Avg ★</th>
-    <th class="n">New releases</th><th class="n">Not English</th><th class="n">Countries</th><th>Top genre</th><th>Top director</th><th>Top actor</th></tr></thead><tbody>${rows}</tbody></table></div><p class="status">${HILO_NOTE}${ys.some((p) => p.pace) ? " A year still under way isn't marked for its counts." : ""} Click any number to see the films or diary entries behind it.</p>`;
+    <th class="n">New releases</th><th class="n">Not English</th><th class="n">Rewatches</th><th class="n">Countries</th><th>Top genre</th><th>Top director</th><th>Top actor</th></tr></thead><tbody>${rows}</tbody></table></div><p class="status">${HILO_NOTE}${ys.some((p) => p.pace) ? " A year still under way isn't marked for its counts." : ""} Click any number to see the films or diary entries behind it.</p>`;
 }
 
 function genreYearsBlock(I) {
@@ -121,13 +119,16 @@ function crowdBlock(C, Y, noTabs) {
   const lead = `<p class="lead">${Y ? `On the ${dlink(C.to, plural(C.n, "film"))} you rated in ${esc(Y)}, you gave` : `Across ${dlink(C.to, plural(C.n, "film"))} you rated, you give`} ${Math.abs(C.meanDiff).toFixed(2)}★ ${C.meanDiff >= 0 ? "more" : "less"} than ${esc(C.label)} on average${Y ? "" : followText(C.r)}.</p>`;
   const cap = (p) => `<span class="cap"><span class="stars">${stars(p.you)}</span>
     <span class="muted">${esc(C.short)} ${crowdScore(C.key, p.crowd)} · <b class="diff">${signed(p.diff)}★</b></span></span>`;
-  const row = (items, empty) => items && items.length ? `<div class="posters">${items.map((p) => posterBtn(p.f, cap(p))).join("")}</div>` : `<div class="empty">${empty}</div>`;
-  const gemsTo = C.gems.length && D.films("Hidden gems", "Films you rated 4½★ or more that few people have rated", C.gems.map((g) => g.f), { sort: "given", note: (f) => { const g = C.gems.find((x) => x.f === f); return `${fmtN(g.pop.n)} ${g.pop.src} votes`; } });
-  const gems = C.gems.length ? `<h3>${dlink(gemsTo, "Hidden gems")}</h3><p class="status">Films you rated 4½★ or more that few people have rated.</p>
-    <div class="posters">${C.gems.map((g) => posterBtn(g.f, `<span class="cap"><span class="stars">${stars(g.f.rating)}</span><span class="muted">${fmtN(g.pop.n)} ${g.pop.src} votes</span></span>`)).join("")}</div>` : "";
+  // a row of posters each, the whole list a click away (the owner's trim, Oct 2026)
+  const listOf = (title, items) => D.films(title, filmsSub(items.map((p) => p.f)), items.map((p) => p.f), { sort: "given", note: (f) => { const p = items.find((x) => x.f === f); return `${C.short} ${crowdScore(C.key, p.crowd)} · ${signed(p.diff)}★`; } });
+  const row = (title, items, empty) => items && items.length ? posterRow(title, items, listOf(title, items), (p) => posterBtn(p.f, cap(p))) : `<h3 class="sub-h">${title}</h3><div class="empty">${empty}</div>`;
+  const gemsAll = C.gemsAll || C.gems;
+  const gemsTo = gemsAll.length && D.films("Hidden gems", "Films you rated 4½★ or more that few people have rated", gemsAll.map((g) => g.f), { sort: "given", note: (f) => { const g = gemsAll.find((x) => x.f === f); return `${fmtN(g.pop.n)} ${g.pop.src} votes`; } });
+  const gems = gemsAll.length ? posterRow("Hidden gems", gemsAll, gemsTo, (g) => posterBtn(g.f, `<span class="cap"><span class="stars">${stars(g.f.rating)}</span><span class="muted">${fmtN(g.pop.n)} ${g.pop.src} votes</span></span>`))
+    + `<p class="status">Films you rated 4½★ or more that few people have rated.</p>` : "";
   return tabs + lead + `<div class="crowd">
-    <h3>You liked more than ${esc(C.label)}</h3>${row(C.higher, "No film you rated ¾★ or more above them.")}
-    <h3>You liked less than ${esc(C.label)}</h3>${row(C.lower, "No film you rated ¾★ or more below them.")}
+    ${row(`You liked more than ${esc(C.label)}`, C.higherAll || C.higher, "No film you rated ¾★ or more above them.")}
+    ${row(`You liked less than ${esc(C.label)}`, C.lowerAll || C.lower, "No film you rated ¾★ or more below them.")}
     ${gems}</div>`;
 }
 

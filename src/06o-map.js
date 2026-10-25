@@ -83,6 +83,13 @@ function worldMapHtml(countries, o) {
   }).join("")}<span class="wk-unit">films</span></div>`;
   const elsewhere = [...W.gone, ...W.off.map((c) => ({ name: c.name, films: c.films, count: c.count }))];
   const gone = elsewhere.length ? `<p class="wgone">Not on today's map: ${elsewhere.map((p) => `${dlink(D.films(p.name, filmsSub(p.films), p.films, { scope: o.scope }), esc(p.name))} <span class="muted">${fmtN(p.count)}</span>`).join(", ")}.</p>` : "";
-  return `<div class="wmap"><svg class="wsvg" viewBox="0 0 ${WORLD.w} ${WORLD.h}" role="group" aria-label="World map of where your films were made">${shapes}${dots}</svg>${key}${gone}</div>`;
+  // on the computer the countries' column is gone from Genre & origin, so the map says who leads, in two lines
+  const toOf = (c) => D.films(c.name, filmsSub(c.films), c.films, { scope: o.scope });
+  const lead = (label, list, value) => list.length ? `<p class="wtops"><span class="k">${label}</span> ${list.slice(0, 6).map((c) => `${dlink(toOf(c), esc(c.name))} <span class="muted">${value(c)}</span>`).join(" · ")}</p>` : "";
+  const tops = o.tops ? lead("Most watched", countries.most, (c) => fmtN(c.count))
+    + lead("Highest rated", countries.best, (c) => c.avg.toFixed(2))
+    + (countries.most.length > 6 ? `<p class="wtops">${dlink(D.names("Countries", `${plural(countries.most.length, "country", "countries")}, most watched first`, countries.most.map((c) => ({ name: c.name, films: c.films, value: fmtN(c.count),
+      note: `${plural(c.count, "film")}${c.avg ? ` · ${c.avg.toFixed(2)} average` : ""}`, to: toOf(c) }))), `All ${fmtN(countries.most.length)} countries ›`)}</p>` : "") : "";
+  return `<div class="wmap"><svg class="wsvg" viewBox="0 0 ${WORLD.w} ${WORLD.h}" role="group" aria-label="World map of where your films were made">${shapes}${dots}</svg>${key}${tops}${gone}</div>`;
 }
 </script>

@@ -63,7 +63,8 @@ Where it lives:
     2026): `hiLo(values)` in `06c-insights.js` gives each row's class (` hi`, ` lo`), with `monthHiLo`, `yearsHiLo`,
     `genresHiLo` for the month, year-by-year and genres-as-you-rate-them tables on both layouts (phone: the `.yrow` and
     `.grow` rows), and the desktop's diary table. Values compare as shown (two "3.49"s tie); a year still under way is
-    left out of counts; an end shared by more than three rows, or a column of fewer than three, isn't marked; a line
+    left out of counts; **only a single clear winner is marked** (the owner's call, 25 Oct 2026): an end shared by two
+    or more rows, or a column of fewer than three, isn't marked; a line
     under each says so (`HILO_NOTE`). Not on heat tables (already shaded) or tables whose rows are different measures
     (a year against the one before, Compare's habits). The `extras` check covers both layouts. A new comparing table
     should use it.
@@ -82,21 +83,20 @@ Where it lives:
     under On this day and Breakdown. **The second and third best follow it with their posters, a little smaller**
     (asked 25 Oct 2026): desktop `.bd-runner`s side by side with six posters each, then "Then the 2000s… and the
     1950s…"; phone Profile `decadeRunnerCard` under the hero card. The `extras` check covers both.
-  - **The desktop main page is a dashboard** (asked Oct 2026: "cluttered with too much data in full view"; a first try
-    that cut cards short and opened them in place was rejected, since opening one brought the old clutter back). Recently
-    watched, On this day and the best decade show in full; so do **People** (Starring, Directed by, Crew, People over the
-    years / New in a year), **Genres & countries** (Genre & origin, Around the world, Genres year by year, Genres as you
-    rate them), **When you watch** (Logged, Month by month, Year by year or Against the year before, Habits) and
-    **Ratings** (Rated, Against the crowd with its tabs, Highest & lowest rated), as full sections like before (the owner
-    asked for these back expanded, 25 Oct 2026: `peopleBlock`, `crewBlock`, `catBlock`, `ratingBlock`, `bestWorstBlock`
-    in `07-render-b.js`; `dashChapters` marks them `full`). The other chapters (Films, Reviews, Watch next) are a grid of cards made for
-    their size (`07-render-d.js`: `dashChapters`, `dcard`): a title (and its switch, if any), a line with the headline
-    numbers (each a link; `cardLines`, `monthsLine`), ONE picture (a chart, a short ranked list, five posters, the month grid)
-    and "See all" opening the rest in the pop-up: a list (`D.names`, `D.films`, `D.groups`) or a whole section
-    (`D.block(title, sub, () => html)`, drill kind `block`, the old section functions like
-    `milestonesBlock`). **Nothing is cut off and nothing opens in place.** A lone card in a chapter is full width and
-    uses it (`wide`: ten Watch next picks). **Highest and lowest rated** are off the top, the last section of Ratings
-    (phone: Stats › Films after Records). The `counts` check also audits every list inside the `block` pop-ups; `xss` opens each of them.
+  - **The desktop main page shows every chapter in full, trimmed** (25 Oct 2026, after a round trip: the owner found
+    the page "cluttered with too much data in full view", a dashboard of cards with "See all" pop-ups replaced it, then
+    they asked for each chapter back in full, and finally for everything in full with the repeats trimmed). Recently
+    watched, On this day and the best decade, then Films (Released, Milestones in one row of seven, Records, Most
+    rewatched), People, Genres & countries, When you watch, Ratings, Reviews and Watch next, all as `section()`s placed by
+    `dashChapters` (`07-render-d.js`). The trims: the crowd's lists and highest/lowest rated show **one row of seven
+    posters each with "See all N ›"** for the rest (`posterRow`, `ROW_N`; `crowdOf` keeps the full `higherAll`,
+    `lowerAll`, `gemsAll`); Logged has no "last 12 months" calendar for all time (Month by month sits below it; a single
+    year keeps "Every day of …"); Year by year has **one row of three charts** (films, average rating, film age) and the
+    table carries hours, not in English and rewatches; **Genre & origin shows genres and languages only**, the countries
+    being on the map, which lists the most watched and highest rated under it (`worldMapHtml(…, { tops: true })`); with no
+    reviews at all, only one empty review box. Don't bring back cards or "open in place". **Highest and lowest rated**
+    are off the top, the last section of Ratings (phone: Stats › Films after Records). The `extras` check covers the
+    layout and every trim.
   - **Insights is a study of the diary, not a repeat of the Stats page** (they found the old one inadequate and
     repetitive, Oct 2026): what stood apart and when, how taste moved, what ratings follow and why, how one film led to
     another, and habits with what they explain. No counts or top lists the Stats page already shows (the `study` check
@@ -179,11 +179,11 @@ The owner asked for this to be checked every time. A film, diary entry, person o
   `03-body.html` (page skeleton), shared files, `07-render-a.js` (state, render(), hero, tiles, the Settings page `renderSettings`, the lookup box and its one-line
   version on the stats page `renderLookupMini`),
   `07-render-b.js` (Stats sections, placed in chapters by `renderSections` with the menu that stays at the top,
-  `#jump`, below the full-width recent / On this day / best decade, the chapters from `07-render-d.js`, in cards but for People and Genres & countries; `foldTies` turns four or more with the same count into one row), `07-render-c.js` (more Stats sections, the numbers from the old Insights page:
+  `#jump`, below the full-width recent / On this day / best decade, the chapters from `07-render-d.js`; `foldTies` turns four or more with the same count into one row; `posterRow` a row of seven posters with "See all"), `07-render-c.js` (more Stats sections, the numbers from the old Insights page:
   year by year, genres year by year, genres as you rate them, people over the years, against the crowd, habits, the
   month table, and for a year against the year before and new in the year; `homeInsights`
-  keeps `computeInsights`/`computeYearInsights` in `HOME_INS` until the data changes; these section functions now fill the
-  pop-ups), `07-render-d.js` (the main page's chapters, mostly cards, see "The desktop main page is a dashboard"),
+  keeps `computeInsights`/`computeYearInsights` in `HOME_INS` until the data changes), `07-render-d.js` (the main page's
+  chapters, every section in full, see "The desktop main page shows every chapter in full, trimmed"),
   `07c-insights.js` (the study),
   `07d-compare.js`, `07e-reviews.js`,
   `07f-drill.js` (pop-up, full page, hash routes, back button), `08-events.js` (import, clicks, init).
@@ -323,7 +323,7 @@ friend replaces the address instead.
   month of every year (a square each, darker for more, opening its diary entries; months before the diary began or not
   yet come are hatched, not counted as empty), a row for a typical year, and each calendar month across the years: films,
   a year, your average rating, and the genre it leans to beyond the rest of the diary ("Leans to", `leanHtml`). For a
-  year: its months against your usual for each in other years. Desktop card `months` in "When you watch"; phone
+  year: its months against your usual for each in other years. Desktop section `months` in "When you watch"; phone
   Stats › Years (`mMonths`). The `counts` check adds up every month.
 - **World map** (asked Oct 2026; `06o-map.js`): where the films were made, the more films the deeper the colour (gold on
   the computer, green on the phone), in five steps spaced for a long tail (`worldSteps`: 1–2, 3–9, 10–49, 50–199, 200+
@@ -333,8 +333,9 @@ friend replaces the address instead.
   `normCountry`: USA, United States of America…) and gather into one place per code, each film once. Countries that
   no longer exist (Soviet Union, Yugoslavia, Czechoslovakia, East Germany…) and names the map doesn't know are listed
   under it ("Not on today's map"), and the countries that came out of them say so on hover. Tiny countries (Hong Kong,
-  Singapore, Malta…) are dots, shown when they have films. Computer: section `world` after Genre & origin; phone: Stats
-  › Breakdown, heading Countries. Follows the year and filters. Shapes: Natural Earth 1:110m, Equal Earth projection,
+  Singapore, Malta…) are dots, shown when they have films. Computer: section `world` after Genre & origin (which no
+  longer has a countries column), with the most watched and highest rated countries in a line each under the key
+  (`tops`); phone: Stats › Breakdown, heading Countries, above the list. Follows the year and filters. Shapes: Natural Earth 1:110m, Equal Earth projection,
   no Antarctica, about 40 KB; to change them, `npm i --no-save d3-geo@3 topojson-client@3 world-atlas@2
   i18n-iso-countries@7 && node tools/make_world.mjs`. The `counts` check proves every country of the list lands in
   exactly one place and two spellings of one country count a film once; `extras` hovers, clicks and opens the key.

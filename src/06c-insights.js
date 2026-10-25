@@ -14,13 +14,13 @@ const pctOf = (n, d) => d ? Math.round(n / d * 100) : 0;
 const starsNum = (x) => `${x.toFixed(1)}★`;
 // In a table that compares its rows, the highest of each column in gold and the lowest in purple (asked Oct 2026): the
 // class for each row's value (" hi", " lo" or ""). Values go in as shown, so two "3.49"s tie; null leaves a row out (a
-// year still under way, in counts). Fewer than three values, all alike, or an end shared by more than three rows: no mark
-// at that end (a column of rewatches with many noughts marks only its highest).
+// year still under way, in counts). Only a single clear winner is marked (the owner's call, Oct 2026): an end shared by
+// two or more rows, fewer than three values, or all alike leave that end unmarked.
 function hiLo(values) {
   const xs = values.filter((v) => v != null && Number.isFinite(v));
   const max = Math.max(...xs), min = Math.min(...xs), ties = (x) => xs.filter((v) => v === x).length;
   if (xs.length < 3 || max === min) return values.map(() => "");
-  const hi = ties(max) <= 3, lo = ties(min) <= 3;
+  const hi = ties(max) === 1, lo = ties(min) === 1;
   return values.map((v) => v == null || !Number.isFinite(v) ? "" : hi && v === max ? " hi" : lo && v === min ? " lo" : "");
 }
 const HILO_NOTE = "Highest in each column in gold, lowest in purple.";
@@ -36,7 +36,7 @@ const monthHiLo = (G, cal) => ({ films: hiLo(cal.map((c) => c.E.length)), year: 
   avg: hiLo(cal.map((c) => c.avg ? +c.avg.toFixed(2) : null)) });
 // each year: counts leave out a year still under way; shares and averages don't
 const yearsHiLo = (ys) => ({ films: hiLo(ys.map((p) => p.pace ? null : p.films)), hours: hiLo(ys.map((p) => p.pace ? null : Math.round(p.hours))),
-  rating: hiLo(ys.map((p) => p.avgRating ? +p.avgRating.toFixed(2) : null)), newShare: hiLo(ys.map((p) => p.newShare)), nonEnglish: hiLo(ys.map((p) => p.nonEnglish)),
+  rating: hiLo(ys.map((p) => p.avgRating ? +p.avgRating.toFixed(2) : null)), newShare: hiLo(ys.map((p) => p.newShare)), nonEnglish: hiLo(ys.map((p) => p.nonEnglish)), rewatches: hiLo(ys.map((p) => p.entries ? pctOf(p.rewatches, p.entries) : null)),
   countries: hiLo(ys.map((p) => p.pace ? null : p.countries || null)) });
 // each genre: films, share, your average, against your average, against the crowd
 const genresHiLo = (gs) => ({ count: hiLo(gs.map((g) => g.count)), share: hiLo(gs.map((g) => g.share)), mine: hiLo(gs.map((g) => +g.mine.toFixed(2))),

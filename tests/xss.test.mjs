@@ -89,10 +89,6 @@ export default async function ({ browser, base }) {
   const d = await open(browser, base, "desktop.html");
   await prepare(d);
   await check(d, "desktop stats");
-  // every whole section the main page's cards open in the pop-up
-  for (const id of await d.$$eval("#sections .dc-more", (x) => x.map((b) => b.dataset.list))) {
-    await d.evaluate((id) => openDrill(LISTS.get(id)), id); await d.waitForTimeout(40); await check(d, `desktop pop-up ${id}`); await d.keyboard.press("Escape"); await d.waitForTimeout(30);
-  }
   await clickAround(d, "#sections, #tiles, .band", "#dlg", "desktop stats");
   await d.click('[data-scope="2024"]'); await d.waitForTimeout(100); await check(d, "desktop 2024");
   await d.click('[data-scope="all"]');

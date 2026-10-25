@@ -48,16 +48,27 @@ function ratingBlock(s) {
   ].map(([k, v]) => `<div class="fact"><span class="k">${k}</span><span class="v">${v}</span></div>`).join("");
   return `<div class="facts">${facts}</div>${colChart(cols, "How many films you gave each rating", "", 162, { unit: "films" })}`;
 }
+// The films watched most often in the period, ties of four or more folded into one row.
+function rewatchedBlock(s) {
+  const views = viewsOf(s), re = s.films.filter((f) => views(f) > 1).sort((a, b) => views(b) - views(a) || (b.rating || 0) - (a.rating || 0));
+  if (!re.length) return "";
+  const reRows = foldTies(re.map((f) => ({ name: `${f.name}${f.year ? ` (${f.year})` : ""}`, f, films: [f], count: views(f), to: D.film(f) })), (p) => p.count, 1,
+    (xs, n) => ({ name: `${fmtN(xs.length)} films seen ${n} times`, to: D.films(`Seen ${n} times`, filmsSub(xs.map((x) => x.f)), xs.map((x) => x.f), { scope: s.scope, sort: "given" }) })).slice(0, 8);
+  return rankRows(reRows, (p) => p.group ? `${p.count} viewings each` : `${p.count} viewings`, (p) => p.count / views(re[0]), 1, (p) => plural(p.count, "viewing"));
+}
 // Your highest-rated films, then the lowest, 2½★ and under, lowest first.
 function bestWorstBlock(s) {
   const views = viewsOf(s);
-  const top = s.films.filter((f) => f.rating).sort((a, b) => b.rating - a.rating || views(b) - views(a) || (b.year || 0) - (a.year || 0)).slice(0, 12);
-  // the lowest rated, 2½★ and under, lowest first
+  const top = s.films.filter((f) => f.rating).sort((a, b) => b.rating - a.rating || views(b) - views(a) || (b.year || 0) - (a.year || 0));
   const low = s.films.filter((f) => f.rating && f.rating <= 2.5).sort((a, b) => a.rating - b.rating || views(b) - views(a) || a.name.localeCompare(b.name));
-  const lowRow = low.length ? `<h3 class="sub-h">${dlink(low.length > 8 && D.films("Lowest rated", filmsSub(low, "2½★ and under"), low, { scope: s.scope, sort: "given" }), "Lowest rated")}</h3>
-    <div class="posters">${low.slice(0, 8).map(posterHtml).join("")}</div>` : "";
-  return `${top.length ? `<h3 class="sub-h">Highest rated</h3><div class="posters">${top.map(posterHtml).join("")}</div>` : `<div class="empty">No rated films in this period.</div>`}${lowRow}`;
+  if (!top.length) return `<div class="empty">No rated films in this period.</div>`;
+  return posterRow("Highest rated", top, D.films("Highest rated", filmsSub(top), top, { scope: s.scope, sort: "given" }), posterHtml)
+    + (low.length ? posterRow("Lowest rated", low, D.films("Lowest rated", filmsSub(low, "2½★ and under"), low, { scope: s.scope, sort: "given" }), posterHtml) : "");
 }
+// A heading, one row of seven posters, and the whole list a click away when there's more (the owner's trim, Oct 2026).
+const ROW_N = 7;
+const posterRow = (title, items, to, draw) => `<h3 class="sub-h row-h"><span>${title}</span>${items.length > ROW_N ? dlink(to, `See all ${fmtN(items.length)} ›`) : ""}</h3>
+  <div class="posters one-row">${items.slice(0, ROW_N).map(draw).join("")}</div>`;
 function peopleBlock(kind, data, s) {
   const t = state.tab[kind];
   const list = t === "most" ? data.most : data.best;
@@ -87,7 +98,7 @@ function catBlock(s) {
       .replace(/class="rank-row"/g, 'class="rank-row cat"').replace(/<span class="r">\d+<\/span>/g, "")}</div>`;
   };
   return tabs("cats", [["most", "Most watched"], ["best", "Highest rated"]], t) +
-    `<div class="cat-grid">${col("Genres", s.genres)}${col("Countries", s.countries)}${col("Languages", s.languages)}</div>`;
+    `<div class="cat-grid two">${col("Genres", s.genres)}${col("Languages", s.languages)}</div>`; // countries: on the map below
 }
 function crewBlock(s) {
   const t = state.tab.crew, best = state.tab.crewSort === "best";
@@ -124,7 +135,8 @@ function diaryBlock(s) {
       <td class="n${hB[i]}">${dlink(c.b && D.entries(`${c.tipLabel}: rewatches`, entriesSub(again), again, { order: "asc" }), c.b)}</td></tr>`; }).join("")}</tbody></table></div><p class="status">${HILO_NOTE}</p></details>`;
   return `<div class="facts">${facts}</div>${colChart(cols, `Diary entries by ${unit}`, legend, 162, { unit: "films" })}${table}
     <div class="facts" style="align-items:end; gap:28px 48px"><div class="fact"><span class="k" style="margin-bottom:8px">By day of the week</span>${weekdays}</div>
-    <div class="fact" style="min-width:0; max-width:100%"><span class="k" style="margin-bottom:8px">${s.scope === "all" ? "Last 12 months of diary" : "Every day of " + s.scope}</span>${heatmap(s)}</div></div>`;
+    ${s.scope === "all" ? "" /* the months are in Month by month, just below (the owner's trim, Oct 2026) */
+      : `<div class="fact" style="min-width:0; max-width:100%"><span class="k" style="margin-bottom:8px">Every day of ${s.scope}</span>${heatmap(s)}</div>`}</div>`;
 }
 // Decades with three or more rated films, best average first.
 const bestDecades = (s) => s.decades.filter((x) => x.ratings.length >= 3).sort((a, b) => b.avg - a.avg || b.count - a.count).slice(0, 5);
@@ -147,8 +159,8 @@ function bestDecadeBlock(s) {
     ${rest.length ? `<p class="bd-next">Then ${joinAnd(rest.map((x) => `${dlink(DR.decade(x), `the ${x.decade}s`)} <span class="muted">${x.avg.toFixed(2)}</span>`))}.</p>` : ""}`;
 }
 const milestoneMarks = (s) => s.scope === "all" ? [50, 100, 250, 500, 750, 1000, 1500, 2000, 2500, 3000, 4000, 5000, 7500, 10000] : [25, 50, 100, 150, 200, 250, 300, 365, 400, 500];
-// `most`: the first, the latest and the marks just before it (the main page's card shows five).
-function milestonesBlock(s, most = 8) {
+// `most`: the first, the latest and the marks just before it, one row of seven.
+function milestonesBlock(s, most = ROW_N) {
   const E = s.entries;
   if (!E.length) return `<div class="empty">Milestones come from diary dates, and there are none in this period.</div>`;
   const hits = milestoneMarks(s).filter((n) => n < E.length).slice(-6).map((n) => [`${ordinal(n)} film`, E[n - 1], n]);
@@ -236,11 +248,11 @@ function renderSections(s) {
     T && T.entries.length ? section("onthisday", T.title, T.sub, onThisDayBlock(T)) : "",
     best ? section("best-decade", "Best decade", "The decade of release you rate highest.", best) : ""].join("");
   // with a filter on, a section or card it leaves with nothing to show is left out, and so is a chapter left empty
-  const trim = (html) => filterOn() ? dropEmpties(html, (root) => { for (const b of root.querySelectorAll(".credit-body")) if (b.children.length === 1 && b.firstElementChild.classList.contains("empty")) b.closest(".credit, .dc").remove(); }) : html;
-  const chapters = dashChapters(s).map(([id, name, parts, full]) => [id, name, trim(parts.filter(Boolean).join("")), !full]).filter(([, , html]) => html.trim());
+  const trim = (html) => filterOn() ? dropEmpties(html, (root) => { for (const b of root.querySelectorAll(".credit-body")) if (b.children.length === 1 && b.firstElementChild.classList.contains("empty")) b.closest(".credit").remove(); }) : html;
+  const chapters = dashChapters(s).map(([id, name, parts]) => [id, name, trim(parts.filter(Boolean).join(""))]).filter(([, , html]) => html.trim());
   const glanceHtml = trim(glance);
-  const all = [glanceHtml.trim() && ["glance", "At a glance", glanceHtml, false], ...chapters].filter(Boolean);
-  $("#sections").innerHTML = all.map(([id, name, html, grid]) => `<div class="ch-mark" id="ch-${id}"><span>${name}</span></div>${grid ? `<div class="dash">${html}</div>` : html}`).join("")
+  const all = [glanceHtml.trim() && ["glance", "At a glance", glanceHtml], ...chapters].filter(Boolean);
+  $("#sections").innerHTML = all.map(([id, name, html]) => `<div class="ch-mark" id="ch-${id}"><span>${name}</span></div>${html}`).join("")
     || `<div class="empty" style="margin-top:24px">No films pass this filter in this period.</div>`;
   // the menu that stays at the top: the chapters, then the filter (what's on, or a button to set one)
   $("#jump").innerHTML = `<div class="jump-in">${all.map(([id, name]) => `<button class="jump-link" type="button" data-jump="ch-${id}">${name}</button>`).join("")}</div>

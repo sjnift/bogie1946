@@ -706,12 +706,14 @@ function crowdOf(crowdKey, films, ratingOf = (f) => f.rating) {
   if (pairs.length >= 3) {
     out.r = pairs.length >= 5 ? pearson(pairs.map((p) => p.you), pairs.map((p) => p.crowd)) : null;
     out.meanDiff = avg(pairs.map((p) => p.diff));
-    out.higher = pairs.filter((p) => p.diff >= 0.75).sort((a, b) => b.diff - a.diff || b.you - a.you).slice(0, 12);
-    out.lower = pairs.filter((p) => p.diff <= -0.75).sort((a, b) => a.diff - b.diff || a.you - b.you).slice(0, 12);
+    out.higherAll = pairs.filter((p) => p.diff >= 0.75).sort((a, b) => b.diff - a.diff || b.you - a.you);
+    out.lowerAll = pairs.filter((p) => p.diff <= -0.75).sort((a, b) => a.diff - b.diff || a.you - b.you);
+    out.higher = out.higherAll.slice(0, 12); out.lower = out.lowerAll.slice(0, 12);
   }
   const popularity = (f) => { const x = LBX[f.key], m = metaOf(f); return x && x.n ? { n: x.n, src: "Letterboxd" } : m && m.iv ? { n: m.iv, src: "IMDb" } : m && m.vc ? { n: m.vc, src: "TMDB" } : null; };
-  out.gems = rated.filter((f) => ratingOf(f) >= 4.5).map((f) => ({ f, pop: popularity(f) }))
-    .filter((x) => x.pop && x.pop.n < { Letterboxd: 5000, IMDb: 25000, TMDB: 1000 }[x.pop.src]).sort((a, b) => ratingOf(b.f) - ratingOf(a.f) || a.pop.n - b.pop.n).slice(0, 12);
+  out.gemsAll = rated.filter((f) => ratingOf(f) >= 4.5).map((f) => ({ f, pop: popularity(f) }))
+    .filter((x) => x.pop && x.pop.n < { Letterboxd: 5000, IMDb: 25000, TMDB: 1000 }[x.pop.src]).sort((a, b) => ratingOf(b.f) - ratingOf(a.f) || a.pop.n - b.pop.n);
+  out.gems = out.gemsAll.slice(0, 12);
   return out;
 }
 

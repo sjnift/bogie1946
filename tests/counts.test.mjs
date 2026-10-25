@@ -23,10 +23,6 @@ function audit() {
     if (d.kind === "groups") for (const g of d.groups) walk(g, w);
   };
   for (const d of LISTS.values()) walk(d, location.hash);
-  // and every list inside the whole sections the main page's cards open in the pop-up
-  if (typeof inPanel === "function") for (const d of [...LISTS.values()].filter((x) => x.kind === "block")) {
-    PANEL = new Map(); inPanel(() => drillBody(d)); for (const x of PANEL.values()) walk(x, `${location.hash} › ${d.title}`);
-  }
   const lib = state.lib;
   once(lib.films, film, "library");
   once(lib.entries, (e) => e, "diary");

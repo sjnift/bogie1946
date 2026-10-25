@@ -210,6 +210,8 @@ img.fade.in { opacity: 1; }
 .pcard:active .avatar { transform: scale(.93); }
 .pcard .nm { color: var(--ink-1); font-size: 12.5px; font-weight: 600; line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .pcard .ct { font-size: 12px; color: var(--ink-2); margin-top: -3px; }
+/* a long name with no spaces breaks inside its own card instead of running into the next one */
+.pcard .nm, .pod .nm { max-width: 100%; overflow-wrap: anywhere; }
 
 /* ---------- profile ---------- */
 .hero { position: relative; margin: calc(-1 * (var(--top) + var(--navbar))) calc(-1 * var(--gutter)) 0; padding: calc(var(--top) + var(--navbar) + 18px) var(--gutter) 6px; text-align: center; isolation: isolate; overflow: hidden; }
