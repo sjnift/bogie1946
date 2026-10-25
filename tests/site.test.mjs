@@ -7,6 +7,18 @@
 import { createHash, webcrypto } from "node:crypto";
 import { gzipSync, gunzipSync } from "node:zlib";
 import { open, seed, assert, noErrors, until, JSZip } from "./lib.mjs";
+// Types into a box and makes sure it took: the page redraws its boxes when GitHub answers a question it asked, and typing
+// at that very instant went into the box being replaced (now and then, on GitHub's slower machines).
+async function typeIn(page, sel, value) {
+  for (let i = 0; i < 5; i++) {
+    await page.fill(sel, value);
+    const ok = await page.evaluate(([sel, v]) => { const el = document.querySelector(sel), box = el && el.closest("[data-sitebox]");
+      return !!el && el.value === v && (!box || SITE_TYPED[`${box.dataset.sitebox}|${el.name}`] === v); }, [sel, value]);
+    if (ok) return;
+    await page.waitForTimeout(200);
+  }
+  throw new Error(`couldn't type into ${sel}`);
+}
 
 const REPO = "sjnift/bogie1946", TOKEN = "github_pat_test", PASS = "popcorn and credits", PASS2 = "second reel of film", PASS3 = "a third reel entirely";
 const rows = { profile: [{ "Date Joined": "2020-01-01", Username: "tester", "Given Name": "Sam", "Email Address": "someone@example.com", Bio: "hi" }],
@@ -125,12 +137,12 @@ export default async function ({ browser, base }) {
   await a.click("#btn-settings");
   await a.click("#site-box details.owner-open > summary"); // folded away until the GitHub key shows it's the owner
   await a.waitForSelector("#site-box #site-newpass-publish");
-  await a.fill("#site-newpass-publish", "short");
+  await typeIn(a, "#site-newpass-publish", "short");
   await a.click('#site-box [data-site="create"]');
   assert(/at least 10/.test(await a.innerText("#site-box")), "a short password wasn't refused");
-  await a.fill("#site-newpass-publish", PASS);
-  await a.fill("#site-repo-publish", REPO);
-  await a.fill("#site-token-publish", TOKEN);
+  await typeIn(a, "#site-newpass-publish", PASS);
+  await typeIn(a, "#site-repo-publish", REPO);
+  await typeIn(a, "#site-token-publish", TOKEN);
   await a.click('#site-box [data-site="create"]');
   await until(a, () => !site.job && site.index && SITEPUB && SITEPUB.at, "the first copy to go up");
   const idx = JSON.parse(gh.file("docs/diary/index.json"));
@@ -182,11 +194,11 @@ export default async function ({ browser, base }) {
   // (forgot the password? with nothing here to put there instead, it says to import first)
   assert(await b.evaluate(() => /Forgot the password/.test(document.querySelector('[data-sitebox="open"]').textContent) && /Import your Letterboxd export/.test(document.querySelector('[data-sitebox="open"] details').textContent)
     && !document.querySelector('[data-site="restart"]')), "the phone with nothing on it didn't explain a forgotten password");
-  await b.fill('[data-sitebox="open"] input[name="pass"]', "not the password");
+  await typeIn(b, '[data-sitebox="open"] input[name="pass"]', "not the password");
   await b.click('[data-sitebox="open"] [data-site="unlock"]');
   await until(b, () => !site.busy && site.err, "the wrong password to be refused");
   assert(/doesn't open it/.test(await b.innerText('[data-sitebox="open"]')) && !(await b.evaluate(() => MY_LIB)), "a wrong password opened something");
-  await b.fill('[data-sitebox="open"] input[name="pass"]', PASS);
+  await typeIn(b, '[data-sitebox="open"] input[name="pass"]', PASS);
   await b.press('[data-sitebox="open"] input[name="pass"]', "Enter");
   await until(b, () => MY_LIB && MY_LIB.films.length === 1 && !site.busy, "the phone to open the diary");
   await b.waitForTimeout(300);
@@ -302,7 +314,10 @@ export default async function ({ browser, base }) {
   await b.evaluate(() => push({ type: "data", title: "Settings", ret: 0 }));
   await b.waitForSelector('[data-sitebox="publish"] [data-site="password"]', { state: "attached" });
   await b.evaluate(() => { for (const d of document.querySelectorAll('[data-sitebox="publish"] details')) d.open = true; });
-  await b.fill('[data-sitebox="publish"] input[name="newpass"]', PASS2);
+  await typeIn(b, '[data-sitebox="publish"] input[name="newpass"]', PASS2);
+  // a redraw between typing and pressing the button (a background update finishing, a note appearing) keeps what was
+  // typed: on GitHub's slower machines one landed there now and then, and the new password went missing (Oct 2026)
+  await b.evaluate(() => { site.note = "Something else happened."; site.noteIn = "publish"; render(); siteRedraw(); site.note = ""; render(); siteRedraw(); });
   await b.evaluate(() => { window.__salt0 = JSON.parse(localStorage.getItem("cr-site-v1") || "{}").salt; });
   await b.click('[data-sitebox="publish"] [data-site="password"]');
   // locking it afresh takes a while; then it either says so or says why not
@@ -316,7 +331,7 @@ export default async function ({ browser, base }) {
   await a.evaluate(() => siteCheck(true));
   await a.waitForSelector('#site-open input[name="pass"]');
   assert(/new password/.test(await a.innerText("#site-open")), "the computer didn't say the password changed");
-  await a.fill('#site-open input[name="pass"]', PASS2);
+  await typeIn(a, '#site-open input[name="pass"]', PASS2);
   await a.click('#site-open [data-site="unlock"]');
   await until(a, () => !site.busy && !document.querySelector('#site-open input') && META["x|2001"] && META["y|2002"], "the computer to open it with the new password");
 
@@ -330,17 +345,17 @@ export default async function ({ browser, base }) {
   await a.evaluate(() => { for (const d of document.querySelectorAll("#site-open details")) d.open = true; });
   const form = () => a.evaluate(() => ({ text: document.querySelector("#site-open").innerText, open: document.querySelector("#site-open details").open,
     typed: document.querySelector('#site-open input[name="newpass"]').value, pub: SITEPUB && SITEPUB.token }));
-  await a.fill('#site-open input[name="newpass"]', "short");
+  await typeIn(a, '#site-open input[name="newpass"]', "short");
   await a.click('#site-open [data-site="restart"]');
   let f = await form();
   assert(/at least 10/.test(f.text) && f.open && f.typed === "short", `a short new password: ${JSON.stringify(f)}`);
-  await a.fill('#site-open input[name="newpass"]', PASS3);
-  await a.fill('#site-open input[name="token"]', "not a real key");
+  await typeIn(a, '#site-open input[name="newpass"]', PASS3);
+  await typeIn(a, '#site-open input[name="token"]', "not a real key");
   await a.click('#site-open [data-site="restart"]');
   await until(a, () => !site.job && site.err, "a wrong key to be refused");
   f = await form();
   assert(/didn't accept the key/.test(f.text) && f.open && f.typed === PASS3 && f.pub === TOKEN && gh.file("docs/diary/index.json").toString() === ixText, `a wrong key: ${JSON.stringify(f)}`);
-  await a.fill('#site-open input[name="token"]', TOKEN);
+  await typeIn(a, '#site-open input[name="token"]', TOKEN);
   await a.click('#site-open [data-site="restart"]');
   await until(a, () => !site.job && !site.busy && /locked with your new password/.test(site.note), "starting over");
   const idx3 = JSON.parse(gh.file("docs/diary/index.json")), ixBefore = JSON.parse(ixText);
@@ -351,7 +366,7 @@ export default async function ({ browser, base }) {
   assert(/Your diary is on the site again/.test(await a.innerText("#site-open")) && !(await a.$('#site-open input')), "the computer didn't say it was done");
   await b.evaluate(() => siteCheck(true));
   await b.waitForSelector('[data-sitebox="publish"] [data-site="restart"]', { state: "attached" }); // the phone's Settings offers it too
-  await b.fill('[data-sitebox="publish"] input[name="pass"]', PASS3);
+  await typeIn(b, '[data-sitebox="publish"] input[name="pass"]', PASS3);
   await b.click('[data-sitebox="publish"] [data-site="unlock"]');
   await until(b, () => !site.busy && SITE && site.index && SITE.salt === site.index.salt && META["x|2001"] && META["y|2002"] && MY_LIB.films.length === 2, "the phone to open it with the new password");
 
@@ -452,9 +467,9 @@ export default async function ({ browser, base }) {
   // (a device without the site's GitHub key may not be the owner's, so this is folded away)
   await c.waitForSelector('[data-sitebox="publish"] details.owner-open > summary');
   await c.click('[data-sitebox="publish"] details.owner-open > summary');
-  await c.fill('[data-sitebox="publish"] input[name="newpass"]', PASS);
-  await c.fill('[data-sitebox="publish"] input[name="repo"]', REPO);
-  await c.fill('[data-sitebox="publish"] input[name="token"]', "wrong");
+  await typeIn(c, '[data-sitebox="publish"] input[name="newpass"]', PASS);
+  await typeIn(c, '[data-sitebox="publish"] input[name="repo"]', REPO);
+  await typeIn(c, '[data-sitebox="publish"] input[name="token"]', "wrong");
   await c.click('[data-sitebox="publish"] [data-site="create"]');
   await until(c, () => !site.job && site.err, "the refusal");
   const r = await c.evaluate(() => ({ pub: SITEPUB, stored: localStorage.getItem("cr-site-pub-v1"), note: site.note }));

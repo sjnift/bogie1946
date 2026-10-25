@@ -487,23 +487,44 @@ function siteBoxInner(kind) {
 // Redraws the boxes whose content changed (so a password being typed isn't wiped by an unrelated redraw). What's
 // typed and which sections are open stay as they were (while it works, and when it didn't), unless it just worked.
 const siteDrawn = new WeakMap();
+// What's typed into the boxes (by box and name) and which of their sections are open (by box and title), kept in memory
+// only (never saved): a redraw of any kind (this one, the phone's patching of its screen, a background update finishing)
+// puts them back, so a password being typed is never lost, nor its section closed, between typing it and pressing the
+// button (both happened now and then, and the `site` check failed for it, Oct 2026).
+let SITE_TYPED = {}, SITE_OPEN = new Set();
+const typedKey = (i) => { const box = i.closest && i.closest("[data-sitebox]"); return box && i.name ? `${box.dataset.sitebox}|${i.name}` : null; };
+const openKey = (d) => { const box = d.closest("[data-sitebox]"), s = d.querySelector("summary"); return box && s ? `${box.dataset.sitebox}|${s.textContent}` : null; };
+document.addEventListener("input", (e) => { const k = typedKey(e.target); if (k) SITE_TYPED[k] = e.target.value; });
+document.addEventListener("toggle", (e) => {
+  const d = e.target, k = d instanceof HTMLDetailsElement && openKey(d);
+  if (k) { if (d.open) SITE_OPEN.add(k); else SITE_OPEN.delete(k); }
+}, true);
+function siteRestore() {
+  for (const d of document.querySelectorAll("[data-sitebox] details")) { const k = openKey(d); if (k && SITE_OPEN.has(k) && !d.open) d.open = true; }
+  for (const i of document.querySelectorAll("[data-sitebox] input[name]")) { const k = typedKey(i); if (k && k in SITE_TYPED && i.value !== SITE_TYPED[k]) i.value = SITE_TYPED[k]; }
+}
 function siteRedraw() {
   // What's typed and which sections are open stay across redraws, except right after what was typed worked
   // (`site.clear`, once).
   const keep = !site.clear;
   site.clear = false;
+  if (!keep) { SITE_TYPED = {}; SITE_OPEN = new Set(); }
   for (const el of document.querySelectorAll("[data-sitebox]")) {
     const html = siteBox(el.dataset.sitebox);
     if (siteDrawn.get(el) !== html || el.innerHTML.trim() === "" !== !html.trim()) {
       const summary = (d) => (d.querySelector("summary") || {}).textContent;
       const open = new Set([...el.querySelectorAll("details[open]")].map(summary));
-      const typed = Object.fromEntries([...el.querySelectorAll("input[name]")].map((i) => [i.name, i.value]));
+      // someone typing in this box when it's redrawn (an answer from GitHub arriving) carries on in the same field
+      const f = el.contains(document.activeElement) && document.activeElement.name ? { name: document.activeElement.name, at: document.activeElement.selectionStart } : null;
       el.innerHTML = html; siteDrawn.set(el, html);
       if (!keep) continue;
       for (const d of el.querySelectorAll("details")) if (open.has(summary(d))) d.open = true;
-      for (const i of el.querySelectorAll("input[name]")) if (typed[i.name] && !i.value) i.value = typed[i.name];
+      siteRestore();
+      const again = f && el.querySelector(`input[name="${f.name}"]`);
+      if (again) { again.focus({ preventScroll: true }); try { again.setSelectionRange(f.at, f.at); } catch {} }
     }
   }
+  siteRestore();
   // the computer's Settings section for it shows only when there's something in it
   const sec = document.getElementById("set-site"), sb = document.getElementById("site-box");
   if (sec) sec.hidden = !SITE_ON || !sb || !sb.innerHTML.trim();
@@ -512,7 +533,8 @@ document.addEventListener("click", (e) => {
   const t = e.target.closest("[data-site]");
   if (!t || t.disabled) return;
   const box = t.closest("[data-sitebox]"), where = box ? box.dataset.sitebox : "publish";
-  const val = (n) => ((box && box.querySelector(`[name="${n}"]`)) || {}).value || "";
+  // what was typed into that field, whatever a redraw has done to the boxes since
+  const val = (n) => { const k = `${where}|${n}`; return k in SITE_TYPED ? SITE_TYPED[k] : ((box && box.querySelector(`[name="${n}"]`)) || {}).value || ""; };
   const a = t.dataset.site;
   if (a !== "remove") { clearTimeout(site.armed); site.armed = null; }
   if (a === "unlock") siteUnlock(val("pass"), where);

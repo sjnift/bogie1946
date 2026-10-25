@@ -474,9 +474,13 @@ app**. `06j-site.js`:
   "Use a new GitHub key", "Take my diary off the site" (deletes `docs/diary/`; nothing goes up again until it's put
   back), and, where the password is asked for, "Forgot the password?" (see "Known limits"). The boxes keep what's
   typed and which sections are open across redraws, unless what was typed was just used and worked (`siteDone(…,
-  clear)`: a new password, a new key, opening the diary). A background update finishing never wipes what's being typed,
-  and the phone's redraw (`patchNode`) leaves a text box's typing alone unless the app changes the box's own value;
-  both once wiped a half-typed password and made the `site` check flaky. At start a device sends whatever the site lacks or has differently (`siteDiffers`).
+  clear)`: a new password, a new key, opening the diary). What's typed and which sections are open are kept in memory by
+  box and name (`SITE_TYPED`, `SITE_OPEN`, never saved) and put back after any redraw (`siteRestore`, also after the
+  phone's screen patching); the button reads what was typed into its field; a redraw keeps the cursor in the field being
+  typed in; the phone's `patchNode` never carries one field's typing into another when the screen shifts. (A redraw
+  when GitHub answered `shareCheck`/`tasteCheck` once swallowed a password typed at that instant and failed the `site`
+  check on GitHub, 25 Oct 2026; the check types with `typeIn`, which confirms the typing took, and forces a redraw
+  between typing and pressing.) At start a device sends whatever the site lacks or has differently (`siteDiffers`).
 - Opening it: any device with nothing imported shows, under the import box, "Are you @user? Open your diary", folded
   (most people there are friends with their own export), which unfolds to the password box; the key
   made from it is kept (`cr-site-v1`), the parts are read from the site (`diary/<part>.bin?v=<when>`) and saved

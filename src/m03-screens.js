@@ -75,11 +75,12 @@ function patchKids(a, b) {
 function patchNode(x, y) {
   if (x.nodeType !== 1) { if (x.nodeValue !== y.nodeValue) x.nodeValue = y.nodeValue; return; }
   if (x.nodeName === "IMG" && x.getAttribute("src") === y.getAttribute("src")) return;
-  const was = x.getAttribute("value") || "";
+  const was = x.getAttribute("value") || "", wasName = x.getAttribute("name");
   for (let i = x.attributes.length - 1; i >= 0; i--) { const n = x.attributes[i].name; if (!y.hasAttribute(n) && !(n === "open" && x.nodeName === "DETAILS")) x.removeAttribute(n); }
   for (const { name, value } of y.attributes) if (x.getAttribute(name) !== value) x.setAttribute(name, value);
-  // a text box keeps what was typed into it, unless the app now wants something else there
-  if (x.nodeName === "INPUT") { const v = y.getAttribute("value") || ""; if (x !== document.activeElement && x.value !== v && was !== v) x.value = v; return; }
+  // a text box keeps what was typed into it, unless the app now wants something else there, or the box now stands for
+  // another field (the screen shifted): then what was typed belongs to that other field, not this one
+  if (x.nodeName === "INPUT") { const v = y.getAttribute("value") || ""; if (wasName !== y.getAttribute("name") || (x !== document.activeElement && x.value !== v && was !== v)) x.value = v; return; }
   patchKids(x, y);
 }
 
@@ -105,6 +106,7 @@ function render(motion) {
   if (empty && !state.stack.length) {
     renderTop(null, true);
     $("#screen").innerHTML = welcomeScreen(); screenKey = "welcome";
+    siteRestore();
     syncHash();
     return;
   }
@@ -123,6 +125,7 @@ function render(motion) {
   const el = $("#screen"), key = d ? `${state.stack.length}:${d.type}:${d.title}` : state.view;
   const fresh = key !== screenKey;
   if (fresh) { el.innerHTML = html; screenKey = key; } else morph(el, html);
+  siteRestore(); // what's typed in the diary-on-the-site boxes survives the redraw
   for (const b of document.querySelectorAll(".tabbar [data-view]")) {
     if (b.dataset.view === tabOf(state.view)) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
   }
