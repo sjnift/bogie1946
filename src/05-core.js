@@ -631,10 +631,16 @@ function walkOn(m, role, place, id) {
   }
   return P.habit.has(cid) && place >= SOURCE_FROM ? "habit" : "";
 }
-// A credit TMDB's own dates make impossible: before the person was born, or before they were 8 behind the camera.
-function badCredit(m, id, role) {
+// A credit TMDB's own dates make impossible: "born", before the person was born, or before they were 8 behind the
+// camera; "died", a role more than LATE_YEARS after they died, below a film's top SELF_FROM billed (TMDB gave it to the
+// wrong person of that name: a Jim Smith who died in 1994 credited as a reporter in Mystic River, 2003, the owner's
+// diary, 26 Oct 2026). A lead in a film released long after (John Huston in The Other Side of the Wind, 2018) counts.
+const LATE_YEARS = 5;
+function badCredit(m, id, role, place) {
   const f = typeof FACTS === "object" && FACTS && FACTS[id], y = Number(m && m.y) || 0;
-  return !!(f && f.b && y && y < f.b + (role === "c" ? 0 : 8));
+  if (!f || !y) return "";
+  if (f.b && y < f.b + (role === "c" || role === "v" ? 0 : 8)) return "born";
+  return (role === "c" || role === "v") && f.d && y > f.d + LATE_YEARS && place != null && place >= SELF_FROM ? "died" : "";
 }
 // A film's people in a role, with their ids: the cast as counted (TMDB's roles that count, 06-lookup), put right by
 // IMDb's cast list where the owner's films were checked there (06d, `castCheck`): `cr` those IMDb says don't count,
@@ -665,7 +671,7 @@ function roleNames(m, role) {
   if (c.lists[role]) return c.lists[role];
   const out = [], have = new Set();
   for (const { name, id, place } of rolePeople(m, role)) {
-    if (id && badCredit(m, id, role)) continue;
+    if (id && badCredit(m, id, role, place)) continue;
     if (place != null && walkOn(m, role, place, id)) continue;
     const cid = (id && P.canon.get(id)) || id, shown = (cid && (P.label.get(cid) || P.nameOf.get(cid))) || name, k = personKey(shown);
     if (!k || have.has(k)) continue;

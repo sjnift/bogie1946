@@ -48,6 +48,7 @@ const FILM_IDS = {
   "glass onion|2022": "tt11564570", // Glass Onion: A Knives Out Mystery
   "nathan for you finding frances|2017": "tt7277634", // the show's finale, a film on Letterboxd
   "the sorrow and the pity|1969": "tt0066904", // Le Chagrin et la Pitié
+  "life and nothing more|1992": 83761, // Kiarostami's Zendegi va digar hich, "And Life Goes On" on TMDB (the owner's diary)
 };
 // Facts TMDB has wrong for a film, by its TMDB id, checked against the film itself (from the film data check).
 const FILM_FIXES = {
@@ -419,7 +420,7 @@ const safeFacts = (o) => Object.fromEntries(Object.entries(o || {}).filter(([k, 
   .map(([k, f]) => [k, { b: Number(f.b) || 0, d: Number(f.d) || 0, im: /^nm\d+$/.test(f.im || "") ? f.im : "", p: imagePath(f.p) || "", t: String(f.t || "").slice(0, 10) }]));
 // What the people check found in a diary: people of one name told apart, credits TMDB's dates make impossible (not
 // counted), roles TMDB gave to another person of that name than IMDb does (owner's checked films), and roles long
-// after a death (counted, but worth a look: posthumous releases are real).
+// long after a death (a role TMDB gave to the wrong person of that name; not counted).
 function peopleCheck(lib) {
   const P = peopleIndex(), shownNs = new Map(), impossible = [], wrong = [], late = [], cameos = [], films = new Map(), roleWord = { c: "acting", v: "voice", d: "directing", w: "writing", p: "camera", m: "music" };
   for (const f of lib.films) {
@@ -433,9 +434,10 @@ function peopleCheck(lib) {
         films.set(p.id, (films.get(p.id) || new Set()).add(f.key));
         const fx = FACTS[p.id], label = P.label.get(P.canon.get(p.id) || p.id);
         if (label) (shownNs.get(label) || shownNs.set(label, { key: personKey(label), name: label, films: [] }).get(label)).films.push(f);
-        if (badCredit(m, p.id, role)) impossible.push({ key: `${f.key}|${p.id}`, name: `${p.name} in ${f.name} (${f.year || "?"})`, films: [f],
+        const bad = badCredit(m, p.id, role, p.place);
+        if (bad === "born") impossible.push({ key: `${f.key}|${p.id}`, name: `${p.name} in ${f.name} (${f.year || "?"})`, films: [f],
           note: `TMDB: born ${fx.b}, ${roleWord[role]} in a film of ${y}` });
-        else if (role === "c" && fx && fx.d && y > fx.d + 5) late.push({ key: `${f.key}|${p.id}`, name: `${p.name} in ${f.name} (${f.year || "?"})`, films: [f], note: `TMDB: died ${fx.d}, film of ${y}` });
+        else if (bad === "died") late.push({ key: `${f.key}|${p.id}`, name: `${p.name} in ${f.name} (${f.year || "?"})`, films: [f], note: `TMDB: died ${fx.d}, film of ${y}; not counted` });
         if (p.moved) wrong.push({ key: `${f.key}|${p.moved}`, name: `${p.name} in ${f.name} (${f.year || "?"})`, films: [f], note: "IMDb has this role as another person of that name" });
       }
     }
@@ -458,7 +460,7 @@ function peopleCheckBlock(lib, phone) {
   lines.push(r.impossible.length ? `${list(r.impossible, "Not counted: impossible by TMDB's dates", "Credited in a film made before they were born (or too young to make it)")} ${r.impossible.length === 1 ? "is" : "are"} impossible by TMDB's own dates (a film made before the person was born), so ${r.impossible.length === 1 ? "it isn't" : "they aren't"} counted.`
     : "No credit is impossible by TMDB's own dates.");
   if (r.wrong.length) lines.push(`${list(r.wrong, "Given to the right person by IMDb", "TMDB gave these roles to another person of the same name")} TMDB gave to the wrong person of that name, by IMDb's cast lists; they're counted for the right one.`);
-  if (r.late.length) lines.push(`${list(r.late, "Worth a look: after a death", "Released more than five years after the person died; still counted")} come more than five years after the person died; they're still counted, as films can come out long after (worth a look).`);
+  if (r.late.length) lines.push(`${list(r.late, "Not counted: long after a death", "Small roles credited more than five years after the person died: TMDB gave them to the wrong person of that name")} ${r.late.length === 1 ? "is a small role" : "are small roles"} credited more than five years after the person died: TMDB gave ${r.late.length === 1 ? "it" : "them"} to the wrong person of that name, so ${r.late.length === 1 ? "it isn't" : "they aren't"} counted (a lead in a film released long after still is).`);
   lines.push(`Dates checked for ${fmtN(r.dated)} of ${plural(r.wanted, "person", "people")}: everyone in two or more of your films, and everyone who shares a name.`);
   return title + lines.map((t) => `<p class="status">${t}</p>`).join("");
 }

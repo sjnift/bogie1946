@@ -462,7 +462,8 @@ standard errors or more from what the rest of the diary gives; every sentence op
   TMDB), and never one TMDB dates more than 2 years *earlier* (A Cop, 1972, had matched a 1947 film).
   `FILM_IDS` pins films TMDB's search can't find by title and year, by TMDB id (A Cop → Un flic 42741, The Ear →
   88953) or by IMDb id, turned into TMDB's through its find endpoint (Glass Onion tt11564570, Nathan for You: Finding
-  Frances tt7277634, The Sorrow and the Pity tt0066904); the details then carry `via` (`fromKnownId`). Find can land on
+  Frances tt7277634, The Sorrow and the Pity tt0066904; Life, and Nothing More… 1992 → 83761, Kiarostami's film that
+  TMDB calls "And Life Goes On", from the owner's export, 26 Oct 2026); the details then carry `via` (`fromKnownId`). Find can land on
   TMDB's **TV side** (`tmdbRefFor` → `{ movie }`, `{ tv }` or `{ tv, se, ep }`; `tmdbFetch`): The Sorrow and the Pity is
   a two-part TV programme there and Finding Frances an episode of Nathan for You, so both stayed "No TMDB match" until
   25 Oct 2026, when only films were taken (the `tmdb` check's stand-in had wrongly answered with films; it now answers
@@ -541,8 +542,10 @@ standard errors or more from what the rest of the diary gives; every sentence op
   namesake's photo comes from `FACTS`. **The people check** (06-lookup: `runFacts` after lookups, `peopleCheck`,
   `peopleCheckBlock` in the Cast & crew box on both layouts, for anyone): TMDB's person page for everyone in two or more
   of the diary's films and everyone who shares a name (`factsWanted`); a credit TMDB's own dates make impossible (a film
-  made before the person was born; behind the camera, before they were 8: `badCredit`) isn't counted and is listed;
-  roles more than five years after a death are listed as worth a look and still counted (posthumous releases are real);
+  made before the person was born; behind the camera, before they were 8: `badCredit` "born") isn't counted and is
+  listed; so is a small role (below a film's top 3) more than `LATE_YEARS` 5 after the person died ("died": TMDB gave it
+  to the wrong person of that name, a Jim Smith who died in 1994 as a reporter in Mystic River, 2003, in the owner's
+  diary, 26 Oct 2026), while a lead in a film released long after (John Huston, The Other Side of the Wind) counts;
   with the IMDb cast check, a role whose IMDb person (`cn`) isn't TMDB's person's IMDb id goes to the TMDB person with
   that IMDb id, if known, else to nobody (`rolePeople`, `moved`), and is listed. Over about 980 real films (the 928
   and the owner's 50 latest) it found dozens of shared names (two Victor Wongs, Zhang Yis, Tsai Chins, Paul Lamberts…),
@@ -816,6 +819,11 @@ day, shared with the owner's own app. The in-app version is the "Check film data
 - The owner's first full data check (1,556 films, Oct 2026) listed 445 differences; the real problems were A Cop
   (wrong match), The Prowler, Breaking the Waves, The Battle of Algiers (TMDB errors) and the 6-country cap.
   The rest were release-date conventions and co-production lists, now shown as "not an error".
+- The owner asked why the actors list differed from the first one (26 Oct 2026). Measured on their export (1,559 films):
+  27 of the top 30 the same; of the first list's credits, 1,243 uncredited, 1,159 voice roles (now under Voices), 132
+  without a character, 66 cameos, 44 additional voices and 34 archive footage no longer count, and 29,333 roles below
+  15th billing do; Highest rated kept 10 of 15 (classic bit players with uncredited parts left; Lee Van Cleef, James
+  Mason, Diane Keaton came in). The same run found the one unmatched film and the Jim Smith credit above.
 - A guest found actor and director counts off (25 Oct 2026): only the top 15 billed counted, and directors stopped at 6
   a film → every credited role, as Letterboxd counts them; then role by role (cameos, extended cameos, special
   appearances, archive footage) and, for the owner, checked on IMDb (26 Oct; see "Counting people like Letterboxd").

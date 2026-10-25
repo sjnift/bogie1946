@@ -19,12 +19,15 @@ const films = [
   ["Twice Kept", 2001, meta(7, 2001, ["Lu Qi"], [31])], ["Kept Again", 2003, meta(8, 2003, ["Lü Qi"], [32])], ["Third Time", 2005, meta(9, 2005, ["Lü Qi"], [32])],
   ...[10, 11, 12, 13].map((id) => [`Star Vehicle ${id}`, 2016 + id, meta(id, 2016 + id, ["Big Star", "Co Star"], [50, 51])]),
   ["Team Up", 2030, walkOn(14, 2030)], ["Team Up Again", 2031, walkOn(15, 2031, { ce: [50] })],
+  // a small role credited long after the person died (TMDB's wrong person of that name); a lead released long after
+  ["Ghost Lead", 1980, meta(17, 1980, ["Old Ghost", "Someone A"], [60, 61])], ["Ghost Bit", 2003, meta(18, 2003, ["Lead X", "Lead Y", "Lead Z", "Old Ghost"], [62, 63, 64, 60])],
   // a cartoon's voices: apart from on-screen acting
   ["A Cartoon", 2012, meta(16, 2012, [], [], undefined, undefined, { vo: ["Big Star", "Voice Pro"], voi: [50, 52] })],
 ];
 const persons = { 104714: { birthday: "1902-07-14", deathday: "1961-06-27", imdb_id: "nm0002116", profile_path: "/old.jpg" },
   925: { birthday: "1949-04-28", deathday: null, imdb_id: "nm0002117", profile_path: "/new.jpg" }, 3: { birthday: "1970-01-01", imdb_id: "nm0000003" },
-  31: { birthday: "1925-01-01", imdb_id: "nm0000031" }, 32: { birthday: "1925-01-01", imdb_id: "nm0000031" } };
+  31: { birthday: "1925-01-01", imdb_id: "nm0000031" }, 32: { birthday: "1925-01-01", imdb_id: "nm0000031" },
+  60: { birthday: "1910-01-01", deathday: "1975-06-01", imdb_id: "nm0000060" } };
 const rows = { profile: [{ Username: "tester" }], watched: films.map(([n, y]) => ({ Name: n, Year: String(y) })), ratings: [], diary: films.map(([n, y], i) => ({ Name: n, Year: String(y), "Watched Date": `2024-0${i + 1}-02`, Rating: "4" })) };
 const metas = Object.fromEntries(films.map(([n, y, m]) => [`${n.toLowerCase()}|${y}`, m]));
 
@@ -42,6 +45,7 @@ const counted = (page) => page.evaluate(() => { const s = computeStats(MY_LIB, m
   return { old: of("Paul Guilfoyle (1902–1961)"), young: of("Paul Guilfoyle (born 1949)"), plain: of("Paul Guilfoyle"), star: of("Young Star"), twice: [of("Lu Qi"), of("Lü Qi")].join(),
     big: of("Big Star"), bigFilms: personDrill(MY_LIB, "Big Star", "c").films.map((f) => f.name).filter((n) => /Team/.test(n)).join(), bigVoice: voice("Big Star"), voicePro: [of("Voice Pro"), voice("Voice Pro")].join(),
     cameos: peopleCheck(MY_LIB).cameos.map((x) => `${x.name}: ${x.note}`).join(" | "),
+    ghost: [of("Old Ghost"), personDrill(MY_LIB, "Old Ghost", "c").films.map((f) => f.name).join(), peopleCheck(MY_LIB).late.map((x) => x.name).join()].join(" / "),
     oldFilms: personDrill(MY_LIB, "Paul Guilfoyle (1902–1961)", "c").films.map((f) => f.name).sort().join(), photos: [PHOTOS["paul guilfoyle 1902 1961"], PHOTOS["paul guilfoyle born 1949"]].join() }; });
 
 export default async function ({ browser, base }) {
@@ -60,8 +64,9 @@ export default async function ({ browser, base }) {
   assert(c.big === 5 && c.bigFilms === "Team Up Again", `a star far down a cast is a cameo, a named extended cameo isn't: ${c.big} ${c.bigFilms}`);
   assert(c.cameos === "Big Star in Team Up (2030): Not counted: a star far down the cast", `the cameo is listed: ${c.cameos}`);
   assert(c.bigVoice === 1 && c.voicePro === "0,1", `voice roles counted apart: ${c.bigVoice} ${c.voicePro}`);
+  assert(c.ghost === "1 / Ghost Lead / Old Ghost in Ghost Bit (2003)", `a small role long after a death isn't counted, a lead is: ${c.ghost}`);
   // only people in two or more films, or who share a name, have their dates asked for
-  assert([...new Set(asked)].sort().join() === "104714,3,31,32,50,51,900,925", `asked TMDB for: ${asked}`);
+  assert([...new Set(asked)].sort().join() === "104714,3,31,32,50,51,60,900,925", `asked TMDB for: ${asked}`);
   // the filmography of each is theirs, by TMDB's id, not the better known of the two
   await p.evaluate(() => filmography("Paul Guilfoyle (1902–1961)", "c"));
   assert(asked.includes("credits 104714") && !asked.includes("credits 925"), `filmography asked for: ${asked}`);
