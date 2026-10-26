@@ -637,8 +637,12 @@ function peopleIndex() {
 const personIdOf = (name) => peopleIndex().idOf.get(personKey(name)) || 0;
 // A cameo worked out over all the films kept here: "star", a star far down a cast (usually billed near the top over
 // enough films, here at STAR_FROM or lower); "habit", someone who mostly turns up in cameos, below the top SOURCE_FROM.
+// A documentary's people, there as themselves, are listed in no order of size (Spielberg, 2017: Leonardo DiCaprio 7th,
+// Tom Cruise 33rd of 54 interviewed; the owner asked why one counted and not the other, 26 Oct 2026), so billing says
+// nothing about a walk-on or a small part there: everyone credited on screen counts.
+const isDocumentary = (m) => (m.g || []).includes("Documentary");
 function walkOn(m, role, place, id) {
-  if (!id || (role !== "c" && role !== "v") || (m.ce || []).includes(id)) return "";
+  if (!id || (role !== "c" && role !== "v") || (m.ce || []).includes(id) || isDocumentary(m)) return "";
   const P = peopleIndex(), cid = P.canon.get(id) || id;
   // far down and in the lower half; or below the top PRINCIPAL and far better known than those around (`so`, at lookup:
   // Brad Pitt's Vanisher in Deadpool 2, 19th of 54 among bit players; not Chris Pratt, 24th of 49 in Infinity War)
@@ -689,7 +693,7 @@ function alphaBilled(m, role) {
   return (a[role] = end);
 }
 function smallPart(m, role, place, id) {
-  if ((role !== "c" && role !== "v") || place == null || (id && (m.ce || []).includes(id))) return "";
+  if ((role !== "c" && role !== "v") || place == null || (id && (m.ce || []).includes(id)) || isDocumentary(m)) return "";
   const n = (m[ROLE_FIELD[role]] || []).length;
   if (place >= PRINCIPAL && n > BIG_CAST && (place >= n / 2 || place >= BIG_CAST) && place >= alphaBilled(m, role)) return "deep";
   return place >= BIT_FROM && id && (m.un || []).includes(id) ? "bit" : "";
@@ -746,7 +750,7 @@ function roleNames(m, role) {
   return (c.lists[role] = out);
 }
 // The people of a film billed in its top LEAD_TOP, by `personKey` (for "Highest rated", `rankPeople`).
-const LEAD_TOP = 5;
+const LEAD_TOP = 8;
 const roleLeads = (m, role) => { roleNames(m, role); const c = m && ROLE_NAMES.get(m); return (c && c.leads && c.leads[role]) || new Set(); };
 const castOf = (m) => roleNames(m, "c");
 // Every cameo of a film, as shown (not counted): from its lookup, and stars far down its cast.
@@ -782,9 +786,10 @@ function inScope(lib, scope) {
 // Highest-rated actors over all time need this many rated films each, so one great film doesn't top the list (the
 // owner's call). In a single year the bar follows that year (asked Oct 2026): the most rated films that still lists
 // CAST_TOP actors, never above CAST_MIN_RATED; a quieter year comes down to 2 (one film each would only rank films).
-// And some of those films must be ones they're billed in the top LEAD_TOP of (asked 26 Oct 2026): CAST_LEAD over all
-// time, one in a year, so a character actor's many good films in small parts don't top the list.
-const CAST_MIN_RATED = 6, CAST_TOP = 10, CAST_LEAD = 3;
+// And some of those films must be ones they're billed in the top LEAD_TOP of (asked 26 Oct 2026, then eased the same
+// day from 3 in the top 5): CAST_LEAD over all time, one in a year, so a character actor's many good films in small
+// parts don't top the list.
+const CAST_MIN_RATED = 6, CAST_TOP = 10, CAST_LEAD = 2;
 function castBar(rated) {
   for (let t = CAST_MIN_RATED; t > 2; t--) if (rated.filter((p) => p.ratings.length >= t).length >= CAST_TOP) return t;
   return 2;

@@ -83,9 +83,9 @@ Where it lives:
   - Highest-rated actors over **all time** need **6 rated films** each (`CAST_MIN_RATED`, `s.castMinRated`). In a
     **single year the bar follows the year** (asked Oct 2026, "dynamic, not static"): the most rated films that still
     lists 10 actors (`castBar`, `CAST_TOP`), from 6 down to 2, never 1 (one film each only ranks films); the line under
-    Starring / the phone's People says the bar (`castBarText`). **And 3 of those rated films billed in the top 5**
-    (asked 26 Oct 2026, so a character actor's many good films in small parts don't top the list: `CAST_LEAD`,
-    `LEAD_TOP`, `roleLeads`, `p.lead` in `rankPeople`; one in a year). Every other kind of person keeps `minRated` (2,
+    Starring / the phone's People says the bar (`castBarText`). **And 2 of those rated films billed in the top 8**
+    (asked 26 Oct 2026, first as 3 in the top 5, eased the same day; so a character actor's many good films in small
+    parts don't top the list: `CAST_LEAD`, `LEAD_TOP`, `roleLeads`, `p.lead` in `rankPeople`; one in a year). Every other kind of person keeps `minRated` (2,
     or 3 for 150+ films). The `reviews` check covers both.
   - The best-rated decade is featured prominently with its films' posters (asked again Oct 2026): the desktop's "Best
     decade" in full right under On this day (`bestDecadeBlock`: its head above eight large posters), the phone's Profile
@@ -561,8 +561,11 @@ standard errors or more from what the rest of the diary gives; every sentence op
   counted: …", people met in other films first, `countedIn`) and the people check (how many, and those by people counted
   in `SMALL_KNOWN` 3 or more films). `TMDB_DETAILS_V` 11 (12 for `cl`) read every film again by its id. The `tmdb`
   check (bit parts, stand-outs and the series found at lookup) and the `people` check (deep, bit, star walk-on, a lead
-  back in a series, alphabetical billing) cover it. Asked whether ensembles were looked after (Dianne Wiest, 16th of
-  90 in Radio Days): yes, its alphabetical run counts.
+  back in a series, alphabetical billing, a documentary) cover it. Asked whether ensembles were looked after (Dianne
+  Wiest, 16th of 90 in Radio Days): yes, its alphabetical run counts. **A documentary** (TMDB genre, `isDocumentary`)
+  has none of these rules nor `walkOn`'s: its people, there as themselves, are listed in no order of size (the owner
+  asked why Spielberg, 2017, counted Leonardo DiCaprio, 7th of 54 interviewed, and not Tom Cruise, 33rd), so everyone it
+  credits on screen counts (archive footage still doesn't).
 - **People are TMDB's people, by id** (26 Oct 2026: the owner found Paul Guilfoyle, born 1949, credited with 1940s
   films; those were Paul Guilfoyle, 1902–1961. TMDB keeps them apart (ids 925 and 104714); the site had matched people
   by name, so it merged them, with one face for both. "How can I trust the cast data at all? I would like a complete
@@ -861,7 +864,7 @@ day, shared with the owner's own app. The in-app version is the "Check film data
   Mason, Diane Keaton came in). The same run found the one unmatched film and the Jim Smith credit above.
 - The owner found minor parts still counted (26 Oct 2026: Pitt in Deadpool 2, DiCaprio in Poison Ivy, Dafoe in The French
   Dispatch, Jackson in A Shock to the System) → small parts (above), measured on their export: 21,850 of 49,728 credits are small parts (1,341 of them bit
-  parts, Pitt a star walk-on), the top 30 actors stay the top 30, and Highest rated now asks for 3 rated films in the top 5.
+  parts, Pitt a star walk-on), the top 30 actors stay the top 30, and Highest rated now asks for 2 rated films in the top 8 (first 3 in the top 5).
 - A guest found actor and director counts off (25 Oct 2026): only the top 15 billed counted, and directors stopped at 6
   a film → every credited role, as Letterboxd counts them; then role by role (cameos, extended cameos, special
   appearances, archive footage) and, for the owner, checked on IMDb (26 Oct; see "Counting people like Letterboxd").

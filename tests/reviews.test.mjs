@@ -30,17 +30,17 @@ export default async function ({ browser, base }) {
     noErrors(p, file);
   }
   const d = await open(browser, base, "desktop.html");
-  // six rated films over all time, three of them billed in the top 5; in a year, the most rated films that still lists
-  // ten actors (2 at least, 6 at most), one of them billed in the top 5
+  // six rated films over all time, two of them billed in the top 8; in a year, the most rated films that still lists
+  // ten actors (2 at least, 6 at most), one of them billed in the top 8
   const cast = await d.evaluate(() => {
     const s = computeStats(state.lib, metaOf, "all");
     const fair = (y) => { const all = rankPeople(y.films, metaOf, "c", 1, 1).best, n = (t) => all.filter((p) => p.ratings.length >= t).length, t = y.castMinRated;
       return y.cast.best.length === n(t) && y.cast.best.every((p) => p.ratings.length >= t && p.lead >= 1) && t <= 6 && (t === 6 || n(t + 1) < 10) && (n(t) >= 10 || t <= 2); };
     const years = [...new Set(state.lib.entries.map((e) => e.date.slice(0, 4)))].map((yr) => computeStats(state.lib, metaOf, yr));
-    const lead = rankPeople(state.lib.films, metaOf, "c", 6).best.filter((p) => p.lead < 3).length; // left out for small parts
-    return [s.castMinRated, s.cast.best.every((p) => p.ratings.length >= 6 && p.lead >= 3), years.length > 0, years.every(fair), years.some((y) => y.cast.best.length > 0),
-      s.cast.best.length + lead === rankPeople(state.lib.films, metaOf, "c", 6).best.length, /3 of them billed in the top 5/.test(castBarText(s))]; });
-  assert(cast.join() === "6,true,true,true,true,true,true", `highest-rated actors: six rated films over all time, three billed near the top, a bar that follows each year: ${cast}`);
+    const lead = rankPeople(state.lib.films, metaOf, "c", 6).best.filter((p) => p.lead < 2).length; // left out for small parts
+    return [s.castMinRated, s.cast.best.every((p) => p.ratings.length >= 6 && p.lead >= 2), years.length > 0, years.every(fair), years.some((y) => y.cast.best.length > 0),
+      s.cast.best.length + lead === rankPeople(state.lib.films, metaOf, "c", 6).best.length, /2 of them billed in the top 8/.test(castBarText(s))]; });
+  assert(cast.join() === "6,true,true,true,true,true,true", `highest-rated actors: six rated films over all time, two billed in the top 8, a bar that follows each year: ${cast}`);
   // the bar for a year: the most rated films that still lists ten actors, from 6 down to 2
   const bars = await d.evaluate(() => { const ppl = (counts) => counts.map((n) => ({ ratings: Array(n).fill(4) }));
     return [castBar(ppl(Array(11).fill(9))), castBar(ppl([...Array(10).fill(5), 2])), castBar(ppl([...Array(5).fill(4), ...Array(7).fill(3)])), castBar(ppl([2, 2, 1])), castBar([])]; });
