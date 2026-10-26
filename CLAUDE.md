@@ -253,7 +253,7 @@ The owner asked for this to be checked every time. A film, diary entry, person o
   `pin` (matched by hand), `cq/ca/cr/cp/cn/can` the cast checked on IMDb (`ir` is IMDb's rating, not the cast),
   `ci/di/wi/pi/mi` the TMDB person ids beside `c/d/w/p/m` (see "People are TMDB's people, by id"), `vo/voi` voice roles,
   `x/xi/xw` credited cameos with why, `ce` named extended appearances (see "Cameos and voices"), `un` bit parts and
-  `so` people far better known than those billed around them, by id (see "Small parts").
+  `so` people far better known than those billed around them, by id, `cl` the film's series on TMDB (see "Small parts").
 - `FACTS[tmdbPersonId]`: `{ b, d, im, p, t }` birth and death years, IMDb id, photo, when (`cr-people-v1`, this device
   only, in backups; asked again after `FACTS_DAYS`). `metaOf(f)` reads it (example films use `EXAMPLE_META`).
 - `LBX[filmKey]`: Letterboxd averages `{ r, n, slug }`; `{ tries: 1, v: 2 }` not found by the scraper; `{ tries: 1, v: 2, few: true,
@@ -481,9 +481,9 @@ standard errors or more from what the rest of the diary gives; every sentence op
   `FILM_FIXES` (by TMDB id, with a `why`) corrects facts TMDB has wrong (The Prowler 1951 is American; Breaking
   the Waves is in English; The Battle of Algiers in French). A film's language is TMDB's original language unless
   it's spoken in exactly one other (`spokenIn`). Every TMDB country is kept (it used to stop at 6, which made
-  lists differ from Letterboxd's). `TMDB_MATCH_VERSION` (11) re-looks-up films when matching changes; from 6 on, a
+  lists differ from Letterboxd's). `TMDB_MATCH_VERSION` (12) re-looks-up films when matching changes; from 6 on, a
   film whose match is unchanged keeps its details without a second request, unless what's kept of a film has changed
-  since (`TMDB_DETAILS_V`, 11: bit parts and stand-outs for small parts): then it's read again by its id alone, one request,
+  since (`TMDB_DETAILS_V`, 12: the film's series, after 11's bit parts and stand-outs for small parts): then it's read again by its id alone, one request,
   no search (`rereadRef`; films matched by hand too, keeping their pin). Watchlist films are looked up too.
 - **Counting people like Letterboxd** (a guest found actor and director counts off, 25 Oct 2026; then the owner asked
   for it "finely treading the line with credited, not credited and cameo and sometimes extended cameos", and for their
@@ -543,7 +543,13 @@ standard errors or more from what the rest of the diary gives; every sentence op
   "Cop #2"; not "The Kid", "Mr. Chow" or "Police Inspector"; worked out at lookup into `un`, not in a film whose top 5
   are mostly so, 12 Angry Men); and a star walk-on (`walkOn` "star", widened): below the top 15 in the upper half and
   `STAND_OUT` 4 times as well known on TMDB (its popularity, at lookup into `so`) as the five billed either side, when a
-  star at the time (Pitt's Vanisher, 19th of 54; not Chris Pratt, 24th of 49 in Infinity War). Ensembles keep their
+  star at the time (Pitt's Vanisher, 19th of 54; not Chris Pratt, 24th of 49 in Infinity War); and a lead back in a
+  small part (`walkOn` "returning", asked the same day: Dafoe's Norman Osborn, 2nd in Spider-Man, 13th and 17th in
+  Spider-Man 2 and 3): billed below the top `RETURN_FROM` 10 of a film in a TMDB series (`belongs_to_collection`, kept as
+  `cl`) and in the top `RETURN_LEAD` 3 of an earlier film of it in the diary; on the owner's films it took only walk-ons
+  (Peggy Carter in The Winter Soldier, O-Ren in Kill Bill: Vol. 2, Zod in Batman v Superman, Blofeld in No Time to
+  Die, the earlier Moral Tales' heroines in Love in the Afternoon's dream); the top 5 would have taken real parts
+  (Stellan Skarsgård in Dune: Part Two, Marisa Tomei in No Way Home). Ensembles keep their
   cast: Gosford Park's downstairs (Helen Mirren 20th of 59) and Do the Right Thing's block are in the upper half; a film
   billed alphabetically from the top (Nashville, Radio Days: `alphaBilled`) counts that run in full; a cast of 30 or
   fewer counts every named part, since TMDB's order there is sometimes wrong (Peter Sellers 20th of 20 in Lolita). A
@@ -553,8 +559,10 @@ standard errors or more from what the rest of the diary gives; every sentence op
   (`cast_id`) and diary-based star counts (both too noisy). The IMDb cast check adds a role only when it isn't a small
   part by IMDb's own billing. `smallPartsOf(m)` lists a film's, `smallWhy` says why: the film card ("Small parts, not
   counted: …", people met in other films first, `countedIn`) and the people check (how many, and those by people counted
-  in `SMALL_KNOWN` 3 or more films). `TMDB_DETAILS_V` 11 read every film again by its id. The `tmdb` check (bit parts and
-  stand-outs found at lookup) and the `people` check (deep, bit, star walk-on, alphabetical billing) cover it.
+  in `SMALL_KNOWN` 3 or more films). `TMDB_DETAILS_V` 11 (12 for `cl`) read every film again by its id. The `tmdb`
+  check (bit parts, stand-outs and the series found at lookup) and the `people` check (deep, bit, star walk-on, a lead
+  back in a series, alphabetical billing) cover it. Asked whether ensembles were looked after (Dianne Wiest, 16th of
+  90 in Radio Days): yes, its alphabetical run counts.
 - **People are TMDB's people, by id** (26 Oct 2026: the owner found Paul Guilfoyle, born 1949, credited with 1940s
   films; those were Paul Guilfoyle, 1902–1961. TMDB keeps them apart (ids 925 and 104714); the site had matched people
   by name, so it merged them, with one face for both. "How can I trust the cast data at all? I would like a complete

@@ -76,7 +76,7 @@ export default async function ({ browser, base }) {
         5002: { release_date: "2000-01-01" },
         // small parts, worked out at lookup: bit parts below the top 8 ("Guy at Bar", "Cop #2"; not "The Kid", nor one
         // in the top 8), and a star billed among people far less known on TMDB (`so`); kept by id
-        5004: { release_date: "2002-01-01", credits: { crew: [{ name: "Huge Director", job: "Director" }], cast: hugeCast() } },
+        5004: { release_date: "2002-01-01", belongs_to_collection: { id: 77, name: "Huge Collection" }, credits: { crew: [{ name: "Huge Director", job: "Director" }], cast: hugeCast() } },
       }[id] || {};
       return json({ ...movie(id, "x", "1990-01-01", "Someone", ["Someone Else"]), ...details });
     }
@@ -124,7 +124,7 @@ export default async function ({ browser, base }) {
     { "cr-meta-v1": { "the ear|1970": { src: "tmdb", v: 3, id: 35002, d: ["Don Chaffey"], c: ["Victoria Vetri"], w: [], p: [], m: [], g: ["Adventure"], k: ["UK"], l: "English", r: 100 },
       "brick|2005": { src: "tmdb", v: 6, id: 9270, d: ["Rian Johnson"], c: ["Joseph Gordon-Levitt"], w: [], p: [], m: [], g: ["Crime"], k: ["USA"], l: "English", r: 110 },
       // details as they're kept now, so not looked up; and a film matched by hand before the whole cast was kept
-      "kept film|2003": { src: "tmdb", v: 11, id: 5003, d: ["Someone"], c: ["Familiar Face"], w: [], p: [], m: [], g: ["Drama"], k: ["USA"], l: "English", r: 90 },
+      "kept film|2003": { src: "tmdb", v: 12, id: 5003, d: ["Someone"], c: ["Familiar Face"], w: [], p: [], m: [], g: ["Drama"], k: ["USA"], l: "English", r: 90 },
       "pinned film|2000": { src: "tmdb", v: 6, id: 5002, pin: true, d: ["Old Name"], c: [], w: [], p: [], m: [], g: ["Drama"], k: ["USA"], l: "English", r: 90 },
       // films missed before matching learned half-titles: looked up again
       "wake up dead man|2025": { src: "tmdb", miss: true, v: 6 }, "the sorrow and the pity|1969": { src: "tmdb", miss: true, v: 6 },
@@ -147,9 +147,9 @@ export default async function ({ browser, base }) {
   assert(cast.photos === "/l1.jpg,-,/ff.jpg", `photos kept for the top billed and people met before, not every one-off player: ${cast.photos}`);
   assert(cast.pin === "true,true,Someone" && !searched.includes("Pinned Film") && looked.includes("5002"), `a film matched by hand, read again at its place: ${cast.pin}`);
   const huge = await q.evaluate(() => { const m = META["huge cast|2002"], ids = (a) => (a || []).map((id) => m.c[m.ci.indexOf(id)]).join();
-    return [ids(m.un), ids(m.so), castOf(m).length, castOf(m).includes("Huge Player 5"), castOf(m).includes("Huge Player 11"), smallPartsOf(m).filter((x) => x.why === "bit").map((x) => x.name).join(),
+    return [m.cl, ids(m.un), ids(m.so), castOf(m).length, castOf(m).includes("Huge Player 5"), castOf(m).includes("Huge Player 11"), smallPartsOf(m).filter((x) => x.why === "bit").map((x) => x.name).join(),
       smallPartsOf(m).filter((x) => x.why === "deep").length].join(" | "); });
-  assert(huge === "Huge Player 9,Huge Player 10 | Famous Walk-on | 20 | true | true | Huge Player 9,Huge Player 10 | 22", `small parts found at lookup: ${huge}`);
+  assert(huge === "77 | Huge Player 9,Huge Player 10 | Famous Walk-on | 20 | true | true | Huge Player 9,Huge Player 10 | 22", `small parts found at lookup: ${huge}`);
   assert(cast.korean === 1 && cast.face === 2, `people counted: a name in Korean ${cast.korean}, someone in two films ${cast.face}`);
   const more = await q.evaluate(() => ({ cop: META["a cop|1972"].id, waves: [META["breaking the waves|1996"].l, META["breaking the waves|1996"].k.length], prowler: META["the prowler|1951"].k.join(), why: META["the prowler|1951"].why }));
   assert(more.cop === 42741, `A Cop (1972) should be Melville's Un flic, not a 1947 film: ${more.cop}`);

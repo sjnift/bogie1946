@@ -466,7 +466,7 @@ function sortCast(list, { crewJobs = new Map(), documentary = false, animation =
   return { live, voice, cameos, extended, bits, standout };
 }
 // What a cameo's reason reads as.
-const cameoWhy = (w) => w === "self" ? "playing themselves" : w === "star" ? "a star far down the cast" : w === "habit" ? "mostly turns up in cameos" : /^source:/.test(w) ? `wrote the ${w.slice(7).toLowerCase()} it's based on` : "labelled a cameo";
+const cameoWhy = (w) => w === "self" ? "playing themselves" : w === "star" ? "a star far down the cast" : w === "habit" ? "mostly turns up in cameos" : w === "returning" ? "a lead earlier in the series, back in a small part" : /^source:/.test(w) ? `wrote the ${w.slice(7).toLowerCase()} it's based on` : "labelled a cameo";
 // A film's people in a role with their TMDB person ids, kept in step (`ci` beside `c`, `di` beside `d`…): each
 // person once, by id where TMDB gave one, since two people can share a name (see `peopleIndex`).
 // Where each role is kept in a film's details: voices in `vo` (`v` is the details' version), ids beside each.
@@ -508,6 +508,7 @@ function cleanMeta(m) {
     pin: m.pin || undefined, // matched by hand, so lookups leave it alone
     ir: Number(m.ir) || null, iv: Number(m.iv) || null, mc: Number(m.mc) || null, rt: Number(m.rt) || null, om: m.om || null, // IMDb, Metacritic, Rotten Tomatoes
     y: parseInt(m.y, 10) || null, // TMDB's release year
+    ...(Number(m.cl) ? { cl: Number(m.cl) } : {}), // the series it's part of on TMDB (`walkOn`, "returning")
     iy: parseInt(m.iy, 10) || null, ik: Array.isArray(m.ik) ? m.ik : undefined, il: Array.isArray(m.il) ? m.il : undefined, inf: m.inf || undefined, // IMDb's year, countries, languages
     t: m.t || undefined, // when it was looked up: of two equally good copies on two devices, the newer is kept
     // the owner's cast checked on IMDb (06d, `castCheck`): when, added, taken off, and whether IMDb's list was partial
@@ -647,8 +648,17 @@ function walkOn(m, role, place, id) {
     const md = then.length >= STAR_FILMS ? then[Math.floor((then.length - 1) / 2)] : null;
     if (md != null && (md < STAR_TOP || (deep && md < STAR_NEAR && place >= STAR_DEEP * (md + 1)))) return "star";
   }
+  // a lead of an earlier film of the same series (TMDB's collection, `cl`) back far down the cast: Willem Dafoe's
+  // Norman Osborn, 2nd in Spider-Man, 13th and 17th in Spider-Man 2 and 3 (asked 26 Oct 2026)
+  const y = Number(m.y) || 0;
+  if (m.cl && y && place >= RETURN_FROM && (P.usual[role].get(cid) || []).some((x) => x.m !== m && x.m.cl === m.cl && x.y && x.y < y && x.i < RETURN_LEAD)) return "returning";
   return P.habit.has(cid) && place >= SOURCE_FROM ? "habit" : "";
 }
+// "returning": billed below the top RETURN_FROM here, in the top RETURN_LEAD of an earlier film of the series. On the
+// owner's films (26 Oct 2026) it took only walk-ons: Dafoe in Spider-Man 2 and 3, Peggy Carter in The Winter Soldier,
+// O-Ren in Kill Bill: Vol. 2, Zod in Batman v Superman, Blofeld in No Time to Die, the earlier Moral Tales' heroines in
+// Love in the Afternoon's dream; the top 5 would also have taken real parts (Stellan Skarsgård in Dune: Part Two).
+const RETURN_FROM = 10, RETURN_LEAD = 3;
 /* ---------- small parts ----------
    Asked 26 Oct 2026, the owner: Brad Pitt in Deadpool 2, Leonardo DiCaprio in Poison Ivy, Willem Dafoe in The French
    Dispatch, Samuel L. Jackson in A Shock to the System, "not undercounted support parts but really minor, sometimes not

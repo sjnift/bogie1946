@@ -4,7 +4,7 @@
 // isn't counted; the people check says so on both layouts.
 import { open, seed, assert, noErrors } from "./lib.mjs";
 
-const meta = (id, y, c, ci, d = ["A Director"], di = [900], more = {}) => ({ src: "tmdb", v: 11, id, y, d, di, c, ci, w: [], p: [], m: [], g: ["Crime"], k: ["USA"], l: "English", r: 90, ...more });
+const meta = (id, y, c, ci, d = ["A Director"], di = [900], more = {}) => ({ src: "tmdb", v: 12, id, y, d, di, c, ci, w: [], p: [], m: [], g: ["Crime"], k: ["USA"], l: "English", r: 90, ...more });
 // a star at the top of four films, then far down a big cast (a cameo), and far down another as a named extended cameo
 const crowd = (n, id) => Array.from({ length: n }, (_, i) => `Extra Player ${id}-${i}`), crowdIds = (n, base) => Array.from({ length: n }, (_, i) => base + i);
 const pad = (i) => String(i).padStart(2, "0"), ensemble = (name, base) => [Array.from({ length: 32 }, (_, i) => (i === 20 ? "Ensemble A20" : name(i))), Array.from({ length: 32 }, (_, i) => (i === 20 ? 70 : base + i))];
@@ -29,6 +29,8 @@ const films = [
   ["Stand Out", 2030, meta(19, 2030, [...crowd(16, 19), "Big Star", ...crowd(17, 19).map((x) => x + "c")], [...crowdIds(16, 19000), 50, ...crowdIds(17, 19500)], undefined, undefined, { so: [50], un: [19003, 19010] })],
   // the same player 21st of 32 in a cast billed alphabetically (counts) and in one that isn't (doesn't)
   ["In Order", 2010, meta(20, 2010, ...ensemble((i) => `Pat A${pad(i)}`, 20000))], ["Not In Order", 2011, meta(21, 2011, ...ensemble((i) => `Lee Z${pad(31 - i)}`, 21000))],
+  // a series (TMDB's collection): its first film's lead back 11th in the second (a walk-on), 10th in the third (counts)
+  ...[[22, 2000, 0], [23, 2002, 10], [24, 2004, 9]].map(([id, y, at]) => [`Series Part ${id - 21}`, y, meta(id, y, crowd(12, id).map((x, i) => (i === at ? "Series Hero" : x)), crowdIds(12, id * 1000).map((x, i) => (i === at ? 80 : x)), undefined, undefined, { cl: 900 })]),
 ];
 const persons = { 104714: { birthday: "1902-07-14", deathday: "1961-06-27", imdb_id: "nm0002116", profile_path: "/old.jpg" },
   925: { birthday: "1949-04-28", deathday: null, imdb_id: "nm0002117", profile_path: "/new.jpg" }, 3: { birthday: "1970-01-01", imdb_id: "nm0000003" },
@@ -55,6 +57,7 @@ const counted = (page) => page.evaluate(() => { const s = computeStats(MY_LIB, m
       return [counted.includes("Extra Player 19-3"), counted.includes("Extra Player 19-10"), sp.find((x) => x.name === "Extra Player 19-10").why, sp.find((x) => x.name === "Extra Player 19-0c").why,
         counted.includes("Extra Player 19-15"), counted.includes("Extra Player 19-0c"), smallWhy(sp.find((x) => x.name === "Extra Player 19-0c"))].join(); })(),
     ensemble: [of("Ensemble A20"), personDrill(MY_LIB, "Ensemble A20", "c").films.map((f) => f.name).join()].join(),
+    series: personDrill(MY_LIB, "Series Hero", "c").films.map((f) => f.name).sort().join(),
     ghost: [of("Old Ghost"), personDrill(MY_LIB, "Old Ghost", "c").films.map((f) => f.name).join(), peopleCheck(MY_LIB).late.map((x) => x.name).join()].join(" / "),
     oldFilms: personDrill(MY_LIB, "Paul Guilfoyle (1902–1961)", "c").films.map((f) => f.name).sort().join(), photos: [PHOTOS["paul guilfoyle 1902 1961"], PHOTOS["paul guilfoyle born 1949"]].join() }; });
 
@@ -72,13 +75,14 @@ export default async function ({ browser, base }) {
   assert(c.star === 1, `a credit before the person was born isn't counted: ${c.star}`);
   assert(c.twice === "3,0", `one person TMDB keeps twice is counted once, under one name: ${c.twice}`);
   assert(c.big === 5 && c.bigFilms === "Team Up Again", `a star far down a cast is a cameo, a named extended cameo isn't: ${c.big} ${c.bigFilms}`);
-  assert(c.cameos === "Big Star in Stand Out (2030): Not counted: a star far down the cast | Big Star in Team Up (2030): Not counted: a star far down the cast", `the cameos are listed: ${c.cameos}`);
+  assert(c.cameos === "Big Star in Stand Out (2030): Not counted: a star far down the cast | Big Star in Team Up (2030): Not counted: a star far down the cast | Series Hero in Series Part 2 (2002): Not counted: a lead earlier in the series, back in a small part", `the cameos are listed: ${c.cameos}`);
+  assert(c.series === "Series Part 1,Series Part 3", `a lead back far down a later film of the series is a walk-on: ${c.series}`);
   assert(c.small === "true,false,bit,deep,true,false,billed 18th of 34", `small parts: ${c.small}`);
   assert(c.ensemble === "1,In Order", `a cast billed alphabetically counts in full: ${c.ensemble}`);
   assert(c.bigVoice === 1 && c.voicePro === "0,1", `voice roles counted apart: ${c.bigVoice} ${c.voicePro}`);
   assert(c.ghost === "1 / Ghost Lead / Old Ghost in Ghost Bit (2003)", `a small role long after a death isn't counted, a lead is: ${c.ghost}`);
   // only people in two or more films, or who share a name, have their dates asked for
-  assert([...new Set(asked)].sort().join() === "104714,3,31,32,50,51,60,70,900,925", `asked TMDB for: ${asked}`);
+  assert([...new Set(asked)].sort().join() === "104714,3,31,32,50,51,60,70,80,900,925", `asked TMDB for: ${asked}`);
   // the filmography of each is theirs, by TMDB's id, not the better known of the two
   await p.evaluate(() => filmography("Paul Guilfoyle (1902–1961)", "c"));
   assert(asked.includes("credits 104714") && !asked.includes("credits 925"), `filmography asked for: ${asked}`);

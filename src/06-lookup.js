@@ -100,9 +100,10 @@ async function tmdbGet(path, params, key, signal) {
 // 9: each person's TMDB id beside their name (`ci`, `di`…), so two people of one name stay two (05-core, `peopleIndex`).
 // 10: cameos sorted out of the cast with why, and voice roles apart (05-core, `sortCast`).
 // 11: bit parts and people far better known than those billed around them, for small parts (05-core, `smallPart`).
-const TMDB_MATCH_VERSION = 11;
+// 12: the series a film is part of on TMDB (`cl`), for a lead back in a small part (05-core, `walkOn`).
+const TMDB_MATCH_VERSION = 12;
 // The last version that changed what's kept of a film: older details are read again, even when the match is the same.
-const TMDB_DETAILS_V = 11;
+const TMDB_DETAILS_V = 12;
 // Bump when matching finds films it used to miss, so only those are looked up again.
 // 7: a title that is half of the other ("Glass Onion: A Knives Out Mystery" for Glass Onion).
 // 8: a pinned film TMDB keeps on its TV side (The Sorrow and the Pity, Nathan for You: Finding Frances).
@@ -237,7 +238,7 @@ async function tmdbDetails(id, key, signal) {
   const parts = castParts(((d.credits && d.credits.cast) || []).slice().sort((a, b) => a.order - b.order), (c) => c.character, crew, d.genres), cast = [...parts.s.live, ...parts.s.voice];
   keepPhotos(cast, crew.filter((c) => c.job === "Director"));
   return cleanMeta({
-    src: "tmdb", v: TMDB_MATCH_VERSION, id: d.id, poster: d.poster_path, y: parseInt((d.release_date || "").slice(0, 4), 10),
+    src: "tmdb", v: TMDB_MATCH_VERSION, id: d.id, poster: d.poster_path, y: parseInt((d.release_date || "").slice(0, 4), 10), cl: d.belongs_to_collection && d.belongs_to_collection.id,
     ...credits("d", crew.filter((c) => c.job === "Director")), ...parts.kept,
     ...credits("w", crew.filter((c) => ["Screenplay", "Writer", "Story"].includes(c.job))),
     ...credits("p", crew.filter((c) => c.job === "Director of Photography")),
