@@ -6,10 +6,10 @@ import { open, seed, assert, noErrors } from "./lib.mjs";
 const movie = (id, title, date, dir, cast) => ({ id, title, release_date: date, poster_path: null, genres: [{ name: "Crime" }], production_countries: [{ name: "United States of America" }],
   original_language: "en", runtime: 110, vote_average: 7.5, vote_count: 9000, imdb_id: "tt0393109", credits: { cast: cast.map((name, order) => ({ name, order, character: `Role ${order + 1}` })), crew: [{ name: dir, job: "Director" }] } });
 
-// 44 credited parts with names of their own, but a waiter in the top 8, then a guy at a bar, a cop and "The Kid", and a
-// famous walk-on 19th among unknowns
+// 44 credited parts with names of their own, but a waiter in the top 8, someone playing themselves 7th (a part: only
+// below the top 10 is that a cameo), then a guy at a bar, a cop and "The Kid", and a famous walk-on 19th among unknowns
 const hugeCast = () => Array.from({ length: 44 }, (_, i) => ({ id: 6000 + i, order: i, popularity: 1, name: `Huge Player ${i + 1}`, character: `Zorblax Quentimer${i}`,
-  ...({ 4: { character: "Waiter #2" }, 8: { character: "Guy at Bar" }, 9: { character: "Cop #2" }, 10: { character: "The Kid" }, 18: { name: "Famous Walk-on", popularity: 12 } })[i] }));
+  ...({ 4: { character: "Waiter #2" }, 6: { character: "Huge Player 7" }, 8: { character: "Guy at Bar" }, 9: { character: "Cop #2" }, 10: { character: "The Kid" }, 18: { name: "Famous Walk-on", popularity: 12 } })[i] }));
 
 export default async function ({ browser, base }) {
   const p = await open(browser, base, "desktop.html");
@@ -124,7 +124,7 @@ export default async function ({ browser, base }) {
     { "cr-meta-v1": { "the ear|1970": { src: "tmdb", v: 3, id: 35002, d: ["Don Chaffey"], c: ["Victoria Vetri"], w: [], p: [], m: [], g: ["Adventure"], k: ["UK"], l: "English", r: 100 },
       "brick|2005": { src: "tmdb", v: 6, id: 9270, d: ["Rian Johnson"], c: ["Joseph Gordon-Levitt"], w: [], p: [], m: [], g: ["Crime"], k: ["USA"], l: "English", r: 110 },
       // details as they're kept now, so not looked up; and a film matched by hand before the whole cast was kept
-      "kept film|2003": { src: "tmdb", v: 12, id: 5003, d: ["Someone"], c: ["Familiar Face"], w: [], p: [], m: [], g: ["Drama"], k: ["USA"], l: "English", r: 90 },
+      "kept film|2003": { src: "tmdb", v: 13, id: 5003, d: ["Someone"], c: ["Familiar Face"], w: [], p: [], m: [], g: ["Drama"], k: ["USA"], l: "English", r: 90 },
       "pinned film|2000": { src: "tmdb", v: 6, id: 5002, pin: true, d: ["Old Name"], c: [], w: [], p: [], m: [], g: ["Drama"], k: ["USA"], l: "English", r: 90 },
       // films missed before matching learned half-titles: looked up again
       "wake up dead man|2025": { src: "tmdb", miss: true, v: 6 }, "the sorrow and the pity|1969": { src: "tmdb", miss: true, v: 6 },
@@ -147,7 +147,7 @@ export default async function ({ browser, base }) {
   assert(cast.photos === "/l1.jpg,-,/ff.jpg", `photos kept for the top billed and people met before, not every one-off player: ${cast.photos}`);
   assert(cast.pin === "true,true,Someone" && !searched.includes("Pinned Film") && looked.includes("5002"), `a film matched by hand, read again at its place: ${cast.pin}`);
   const huge = await q.evaluate(() => { const m = META["huge cast|2002"], ids = (a) => (a || []).map((id) => m.c[m.ci.indexOf(id)]).join();
-    return [m.cl, ids(m.un), ids(m.so), castOf(m).length, castOf(m).includes("Huge Player 5"), castOf(m).includes("Huge Player 11"), smallPartsOf(m).filter((x) => x.why === "bit").map((x) => x.name).join(),
+    return [m.cl, ids(m.un), ids(m.so), castOf(m).length + (castOf(m).includes("Huge Player 7") ? "" : " (no self)"), castOf(m).includes("Huge Player 5"), castOf(m).includes("Huge Player 11"), smallPartsOf(m).filter((x) => x.why === "bit").map((x) => x.name).join(),
       smallPartsOf(m).filter((x) => x.why === "deep").length].join(" | "); });
   assert(huge === "77 | Huge Player 9,Huge Player 10 | Famous Walk-on | 20 | true | true | Huge Player 9,Huge Player 10 | 22", `small parts found at lookup: ${huge}`);
   assert(cast.korean === 1 && cast.face === 2, `people counted: a name in Korean ${cast.korean}, someone in two films ${cast.face}`);

@@ -211,4 +211,34 @@ function bitPart(character) {
     return BIT_PEOPLE.has(head) || (numbered && BIT_ROLES.has(head));
   });
 }
+/* ---------- parts reviewed by hand ----------
+   TMDB has no screen time, so the rules for small parts and walk-ons (05-core, `smallPart`, `walkOn`) read a part
+   from its billing and credit, and some real parts look like walk-ons there. On 26 Oct 2026 the owner named some
+   ("Kevin Spacey in Se7en, Ben Gazzara in The Big Lebowski, Philip Baker Hall in The Truman Show: not cameos but
+   genuine acting parts"; Margot Robbie in Asteroid City, "a small part but an important one"; Zendaya in The
+   Odyssey; Mike Tyson in The Hangover), and every part their 1,559 films left out by those rules that a well-known
+   actor plays (205: billed far down, a star among unknowns, playing themselves) was then read through by hand, with
+   what's known of each film. These are the real parts found, by TMDB film id and TMDB person id (1 counts). They
+   count for anyone whose diary has the film; anyone can change a film's on its card (`po`, "Change who counts"). */
+const PART_FIXES = {};
+for (const [film, person] of [
+  [807, 1979], // Kevin Spacey, John Doe, Se7en: billed last by his own wish
+  [115, 856], [115, 16431], // Ben Gazzara (Jackie Treehorn), Sam Elliott (The Stranger), The Big Lebowski
+  [37165, 4492], // Philip Baker Hall, the network executive, The Truman Show
+  [747188, 234352], // Margot Robbie, The Actress, Asteroid City
+  [1368337, 505710], // Zendaya, Athena, The Odyssey
+  [45243, 80757], // Mike Tyson, The Hangover Part II (playing himself, as in the first)
+  [599, 8636], // Cecil B. DeMille, Sunset Boulevard (himself, in a real scene)
+  [769, 2231], // Samuel L. Jackson, Stacks Edwards, GoodFellas
+  [49051, 65], // Ian Holm, Old Bilbo, The Hobbit: An Unexpected Journey (the prologue and close)
+  [45269, 29545], // Claire Bloom, Queen Mary, The King's Speech
+  [299534, 12052], // Gwyneth Paltrow, Pepper Potts, Avengers: Endgame
+  [466272, 6856], // Kurt Russell, Randy and the narrator, Once Upon a Time… in Hollywood
+  [2757, 1248], // Brian Cox, Robert McKee, Adaptation.
+  [542178, 23626], [542178, 819], // Liev Schreiber (the talk show host), Edward Norton (the chauffeur), The French Dispatch
+  [615777, 2219], // Tobey Maguire, James McKay, Babylon
+  [872585, 64], // Gary Oldman, Harry Truman, Oppenheimer
+  [8333, 10555], // Tony Roberts, the deputy mayor, The Taking of Pelham One Two Three
+  [86838, 5048], // Harry Dean Stanton, the Quaker, Seven Psychopaths
+]) (PART_FIXES[film] || (PART_FIXES[film] = {}))[person] = 1;
 </script>

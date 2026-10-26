@@ -16,6 +16,8 @@ const D = {
   plain: (title, sub, items, o) => ({ kind: "plain", title, sub, items, ...o }),
   groups: (title, sub, groups, o) => ({ kind: "groups", title, sub, groups: groups.filter(Boolean), ...o }),
   film: (f, o) => ({ kind: "film", film: f, title: f.name, sub: f.year ? String(f.year) : "", ...o }),
+  // who counts in a film, each with a switch (the film card's "Change who counts")
+  parts: (f) => ({ kind: "parts", film: f, title: `Who counts in ${f.name}`, sub: f.year ? String(f.year) : "" }),
 };
 const dl = (d) => `data-list="${drill(d)}"`;
 // a number or name that opens its drill; a whole sentence that does
@@ -23,7 +25,7 @@ const dlink = (d, html) => d ? `<button class="dlink" type="button" ${dl(d)}>${h
 const dline = (d, html) => d ? `<button class="dline" type="button" ${dl(d)}>${html}<span class="go" aria-hidden="true">&nbsp;›</span></button>` : html;
 
 const PANEL_CAP = 25;
-const drillSize = (d) => d.kind === "film" ? 1 : d.kind === "search" || d.kind === "share" || d.kind === "story" || d.kind === "filters" ? 0 : d.kind === "groups" ? d.groups.reduce((s, g) => s + drillSize(g), 0)
+const drillSize = (d) => d.kind === "film" ? 1 : d.kind === "search" || d.kind === "share" || d.kind === "story" || d.kind === "filters" || d.kind === "parts" ? 0 : d.kind === "groups" ? d.groups.reduce((s, g) => s + drillSize(g), 0)
   : (d.films || d.entries || d.reviews || d.items || []).length;
 
 /* ----- sub-lines ----- */
@@ -180,6 +182,7 @@ function drillBody(d, cap = Infinity) {
   if (d.kind === "share") return { html: shareBodyHtml(d), hidden: 0 };
   if (d.kind === "story") return { html: storyBodyHtml(d), hidden: 0 };
   if (d.kind === "filters") return { html: filtersBodyHtml(), hidden: 0 };
+  if (d.kind === "parts") return { html: `<div class="ppanel" data-pkey="${esc(d.film.key)}">${partsInner(d.film.key)}</div>`, hidden: 0 };
   if (d.kind === "groups") {
     let html = "", hidden = 0;
     for (const g of d.groups) {
@@ -237,7 +240,8 @@ function filmCardHtml(d) {
       return met.includes(p) ? Object.defineProperty(it, "to", { get: () => personDrill(lib, p.name, p.role), enumerable: true }) : it; }));
   const smallLine = !small.length ? "" : `<p class="dr-s fc-cameos">Small parts, not counted: ${named.map((p) => esc(p.name)).join(", ")}${
     !named.length ? dlink(smallList(), plural(small.length, "part")) : rest ? ` and ${dlink(smallList(), `${fmtN(rest)} more`)}` : ` (${dlink(smallList(), "why")})`}.</p>`;
-  const cast = m ? chips("Cast", "c") + chips("Voices", "v") + (cameos.length ? `<p class="dr-s fc-cameos">Cameos, not counted: ${cameos.slice(0, 8).map((c) => `${esc(c.name)} (${esc(cameoWhy(c.why))})`).join(", ")}${cameos.length > 8 ? ` and ${cameos.length - 8} more` : ""}.</p>` : "") + smallLine : "";
+  const whoCounts = m && fixHtml(f) && (m.c || m.vo || m.x) ? `<p class="dr-s fc-who"><button class="linkish" type="button" ${dl(D.parts(f))}>Change who counts</button></p>` : "";
+  const cast = m ? chips("Cast", "c") + chips("Voices", "v") + (cameos.length ? `<p class="dr-s fc-cameos">Cameos, not counted: ${cameos.slice(0, 8).map((c) => `${esc(c.name)} (${esc(cameoWhy(c.why))})`).join(", ")}${cameos.length > 8 ? ` and ${cameos.length - 8} more` : ""}.</p>` : "") + smallLine + whoCounts : "";
   const tm = META[f.key];
   const links = [`<a href="${esc(lbUrl(f))}" target="_blank" rel="noopener">Letterboxd ↗</a>`,
     tmdbHref(tm) && !IN_VIEWER ? `<a href="${tmdbHref(tm)}" target="_blank" rel="noopener">TMDB ↗</a>` : "",
@@ -273,4 +277,50 @@ async function runFix(key, repaint) {
     const again = document.getElementById("fix-input"); if (again) { again.value = text; again.focus(); }
   }
 }
+/* ----- who counts in a film, changed by hand (asked 26 Oct 2026: the rules can't see screen time) ----- */
+// Every part of a film: on screen, voices and cameos found at lookup, with whether it counts and why.
+function partRows(m) {
+  const P = peopleIndex(), rows = [], seen = new Set();
+  const shown = (name, id) => (id && (P.label.get(P.canon.get(id) || id) || P.nameOf.get(P.canon.get(id) || id))) || name;
+  for (const role of ["c", "v"]) for (const { name, id, place } of rolePeople(m, role)) {
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    const bad = badCredit(m, id, role, place), walk = place != null && walkOn(m, role, place, id), small = place != null && !walk && smallPart(m, role, place, id);
+    const why = bad ? "impossible by TMDB's dates" : walk ? cameoWhy(walk) : small ? smallWhy({ why: small, place: place + 1, of: (m[ROLE_FIELD[role]] || []).length }) : "";
+    rows.push({ name: shown(name, id), id, role, bad: !!bad, rule: !why, why });
+  }
+  (m.x || []).forEach((name, i) => { const id = Number((m.xi || [])[i]) || 0;
+    if (id && !seen.has(id)) { seen.add(id); rows.push({ name: shown(name, id), id, role: "c", bad: false, rule: false, why: cameoWhy((m.xw || [])[i] || "cameo") }); } });
+  for (const r of rows) { const fix = r.bad ? undefined : partFix(m, r.id); r.counts = fix != null ? fix === 1 : r.rule; r.own = !!(m.po && m.po[r.id] != null); r.reviewed = !r.own && fix != null; }
+  return rows;
+}
+function partsInner(key) {
+  const m = META[key];
+  if (!m || m.miss) return `<p class="dr-s">No cast &amp; crew details yet.</p>`;
+  const rows = partRows(m), on = rows.filter((r) => r.counts), off = rows.filter((r) => !r.counts);
+  const note = (r) => r.counts ? (r.own ? "Counts: set by you" : r.reviewed ? "Counts: a real part, reviewed by hand" : "Counts") : r.own ? "Left out by you" : `Not counted: ${r.why}`;
+  const row = (r) => `<div class="drill-row plain part-row"><span class="dr-main"><span class="dr-t">${esc(r.name)}${r.role === "v" ? ` <span class="dr-y">voice</span>` : ""}</span><span class="dr-s">${esc(note(r))}</span></span>${r.bad ? ""
+    : `<button class="dr-r linkish" type="button" data-part="${esc(key)}" data-pid="${Number(r.id)}" data-pv="${r.counts ? 0 : 1}">${r.counts ? "Don't count" : "Count"}</button>`}</div>`;
+  const group = (t, list) => `<section class="drill-group"><h4><span>${t}</span><span class="num">${fmtN(list.length)}</span></h4>${list.map(row).join("") || `<div class="empty">Nobody.</div>`}</section>`;
+  return `<p class="dr-s">Who counts follows each part's billing and credit; switch anyone and every stat follows.</p>${group("Counted", on)}${group("Not counted", off)}`;
+}
+// A switch: back to the rules when it agrees with them, else kept as this diary's own choice (`po`, 05-core `partFix`).
+function setPart(key, id, v) {
+  const m = META[key];
+  if (!m || !id) return;
+  const po = { ...(m.po || {}) };
+  delete po[id];
+  const byRule = partRows({ ...m, po }).find((r) => r.id === id);
+  if (!byRule || byRule.counts !== (v === 1)) po[id] = v;
+  const next = { ...m, t: new Date().toISOString() };
+  if (Object.keys(po).length) next.po = po; else delete next.po;
+  META[key] = next;
+  saveMeta(); SEARCH_INDEX = null; DATA_REV++;
+  for (const el of document.querySelectorAll(".ppanel")) if (el.dataset.pkey === key) el.innerHTML = partsInner(key);
+  requestAnimationFrame(() => render());
+}
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-part]");
+  if (b) setPart(b.dataset.part, Number(b.dataset.pid), Number(b.dataset.pv));
+});
 </script>

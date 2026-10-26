@@ -4,7 +4,7 @@
 // isn't counted; the people check says so on both layouts.
 import { open, seed, assert, noErrors } from "./lib.mjs";
 
-const meta = (id, y, c, ci, d = ["A Director"], di = [900], more = {}) => ({ src: "tmdb", v: 12, id, y, d, di, c, ci, w: [], p: [], m: [], g: ["Crime"], k: ["USA"], l: "English", r: 90, ...more });
+const meta = (id, y, c, ci, d = ["A Director"], di = [900], more = {}) => ({ src: "tmdb", v: 13, id, y, d, di, c, ci, w: [], p: [], m: [], g: ["Crime"], k: ["USA"], l: "English", r: 90, ...more });
 // a star at the top of four films, then far down a big cast (a cameo), and far down another as a named extended cameo
 const crowd = (n, id) => Array.from({ length: n }, (_, i) => `Extra Player ${id}-${i}`), crowdIds = (n, base) => Array.from({ length: n }, (_, i) => base + i);
 const pad = (i) => String(i).padStart(2, "0"), ensemble = (name, base) => [Array.from({ length: 32 }, (_, i) => (i === 20 ? "Ensemble A20" : name(i))), Array.from({ length: 32 }, (_, i) => (i === 20 ? 70 : base + i))];
@@ -32,6 +32,8 @@ const films = [
   // a documentary: a star interviewed 33rd of 40 counts, as does everyone it lists (no order of size there)
   ["Star Doc", 2028, meta(25, 2028, [...crowd(32, 25), "Big Star", ...crowd(7, 25).map((x) => x + "d")], [...crowdIds(32, 25000), 50, ...crowdIds(7, 25500)], undefined, undefined, { g: ["Documentary"] })],
   // a series (TMDB's collection): its first film's lead back 11th in the second (a walk-on), 10th in the third (counts)
+  // a real part reviewed by hand (05b-parts, PART_FIXES: TMDB's Se7en, 807, and Kevin Spacey, 1979), billed 39th of 40
+  ["Se7en", 1995, meta(807, 1995, [...crowd(38, 807), "Kevin Spacey", "Last Player"], [...crowdIds(38, 807000), 1979, 807999])],
   ...[[22, 2000, 0], [23, 2002, 10], [24, 2004, 9]].map(([id, y, at]) => [`Series Part ${id - 21}`, y, meta(id, y, crowd(12, id).map((x, i) => (i === at ? "Series Hero" : x)), crowdIds(12, id * 1000).map((x, i) => (i === at ? 80 : x)), undefined, undefined, { cl: 900 })]),
 ];
 const persons = { 104714: { birthday: "1902-07-14", deathday: "1961-06-27", imdb_id: "nm0002116", profile_path: "/old.jpg" },
@@ -50,6 +52,17 @@ async function standIn(p, asked) {
     json({ results: [] });
   });
 }
+// On a film's card, "Change who counts": a bit player at the foot of the bill switched on and back off (back to the
+// rules), then the reviewed part switched off. Each step: counted? and the choices kept with the film.
+async function switchParts(page, openCard, within) {
+  await page.evaluate(openCard);
+  await page.click(`${within} .fc-who .linkish`);
+  await page.waitForSelector(`${within} .ppanel`);
+  const step = () => page.evaluate(() => { const m = META["se7en|1995"], c = castOf(m); return `${c.includes("Last Player") ? 1 : 0},${c.includes("Kevin Spacey") ? 1 : 0},${Object.values(m.po || {}).join("")}`; });
+  const out = [await step()];
+  for (const pid of [807999, 807999, 1979]) { await page.click(`${within} [data-part][data-pid="${pid}"]`); out.push(await step()); }
+  return out.join("|");
+}
 const counted = (page) => page.evaluate(() => { const s = computeStats(MY_LIB, metaOf, "all"), of = (n) => (s.cast.most.find((x) => x.name === n) || {}).count || 0;
   const voice = (n) => (s.voice.most.find((x) => x.name === n) || {}).count || 0;
   return { old: of("Paul Guilfoyle (1902–1961)"), young: of("Paul Guilfoyle (born 1949)"), plain: of("Paul Guilfoyle"), star: of("Young Star"), twice: [of("Lu Qi"), of("Lü Qi")].join(),
@@ -60,6 +73,7 @@ const counted = (page) => page.evaluate(() => { const s = computeStats(MY_LIB, m
         counted.includes("Extra Player 19-15"), counted.includes("Extra Player 19-0c"), smallWhy(sp.find((x) => x.name === "Extra Player 19-0c"))].join(); })(),
     ensemble: [of("Ensemble A20"), personDrill(MY_LIB, "Ensemble A20", "c").films.map((f) => f.name).join()].join(),
     series: personDrill(MY_LIB, "Series Hero", "c").films.map((f) => f.name).sort().join(), doc: castOf(META["star doc|2028"]).length,
+    spacey: [of("Kevin Spacey"), of("Last Player"), smallPartsOf(META["se7en|1995"]).some((x) => x.name === "Kevin Spacey")].join(),
     ghost: [of("Old Ghost"), personDrill(MY_LIB, "Old Ghost", "c").films.map((f) => f.name).join(), peopleCheck(MY_LIB).late.map((x) => x.name).join()].join(" / "),
     oldFilms: personDrill(MY_LIB, "Paul Guilfoyle (1902–1961)", "c").films.map((f) => f.name).sort().join(), photos: [PHOTOS["paul guilfoyle 1902 1961"], PHOTOS["paul guilfoyle born 1949"]].join() }; });
 
@@ -81,6 +95,7 @@ export default async function ({ browser, base }) {
   assert(c.series === "Series Part 1,Series Part 3", `a lead back far down a later film of the series is a walk-on: ${c.series}`);
   assert(c.small === "true,false,bit,deep,true,false,billed 18th of 34", `small parts: ${c.small}`);
   assert(c.ensemble === "1,In Order", `a cast billed alphabetically counts in full: ${c.ensemble}`);
+  assert(c.spacey === "1,0,false", `a part reviewed by hand counts, the rest of the bill still doesn't: ${c.spacey}`);
   assert(c.bigVoice === 1 && c.voicePro === "0,1", `voice roles counted apart: ${c.bigVoice} ${c.voicePro}`);
   assert(c.ghost === "1 / Ghost Lead / Old Ghost in Ghost Bit (2003)", `a small role long after a death isn't counted, a lead is: ${c.ghost}`);
   // only people in two or more films, or who share a name, have their dates asked for
@@ -88,6 +103,10 @@ export default async function ({ browser, base }) {
   // the filmography of each is theirs, by TMDB's id, not the better known of the two
   await p.evaluate(() => filmography("Paul Guilfoyle (1902–1961)", "c"));
   assert(asked.includes("credits 104714") && !asked.includes("credits 925"), `filmography asked for: ${asked}`);
+  // anyone can change who counts on a film's card: a switch the rules agree with goes back to them
+  const switched = await switchParts(p, () => openDrill(D.film(MY_LIB.films.find((f) => f.name === "Se7en"))), "#dlg");
+  assert(switched === "0,1,|1,1,1|0,1,|0,0,0", `who counts, changed on the card: ${switched}`);
+  await p.keyboard.press("Escape");
   await p.click("#btn-settings");
   await p.waitForFunction(() => /people check/i.test($("#lookup").innerText), null, { timeout: 5000 });
   const box = (await p.innerText("#lookup")).replace(/\s+/g, " ");
@@ -100,7 +119,10 @@ export default async function ({ browser, base }) {
   await seed(m, rows, { "cr-meta-v1": metas, "cr-tmdb-key": "k123" });
   await m.waitForFunction(() => !factsJob.running && FACTS[925], null, { timeout: 8000 });
   const mc = await counted(m);
-  assert(mc.old === 2 && mc.young === 2 && mc.plain === 0 && mc.star === 1, `phone: ${JSON.stringify(mc)}`);
+  assert(mc.old === 2 && mc.young === 2 && mc.plain === 0 && mc.star === 1 && mc.spacey === "1,0,false", `phone: ${JSON.stringify(mc)}`);
+  const mswitched = await switchParts(m, () => openSheet(D.film(MY_LIB.films.find((f) => f.name === "Se7en"))), "#sheet");
+  assert(mswitched === "0,1,|1,1,1|0,1,|0,0,0", `phone: who counts, changed on the card: ${mswitched}`);
+  await m.evaluate(() => closeSheet());
   await m.click("#nav-right [data-act=\"settings\"]");
   await m.waitForFunction(() => /People check/i.test(document.body.innerText) && /2 people in your diary share a name/.test(document.body.innerText), null, { timeout: 5000 });
   noErrors(m, "phone");

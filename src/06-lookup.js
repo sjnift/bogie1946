@@ -101,9 +101,10 @@ async function tmdbGet(path, params, key, signal) {
 // 10: cameos sorted out of the cast with why, and voice roles apart (05-core, `sortCast`).
 // 11: bit parts and people far better known than those billed around them, for small parts (05-core, `smallPart`).
 // 12: the series a film is part of on TMDB (`cl`), for a lead back in a small part (05-core, `walkOn`).
-const TMDB_MATCH_VERSION = 12;
+// 13: someone playing themselves is a cameo only below the top 10, or not at all where the film's cast plays itself.
+const TMDB_MATCH_VERSION = 13;
 // The last version that changed what's kept of a film: older details are read again, even when the match is the same.
-const TMDB_DETAILS_V = 12;
+const TMDB_DETAILS_V = 13;
 // Bump when matching finds films it used to miss, so only those are looked up again.
 // 7: a title that is half of the other ("Glass Onion: A Knives Out Mystery" for Glass Onion).
 // 8: a pinned film TMDB keeps on its TV side (The Sorrow and the Pity, Nathan for You: Finding Frances).
@@ -189,7 +190,7 @@ function castParts(list, roleOf, crew, genres) {
 }
 // What the people pages say of it (inside Claude, film details come from Claude, with each film's main cast).
 const castRuleText = () => (IN_VIEWER ? "Counts each film's main cast."
-  : "Each film's principal and supporting cast counts; voice roles are under Voices. Small parts don't (below the top 15 of a big cast, in its lower half or past the 30th, and parts like \"Guy at bar\" or \"Cop #2\" below the top 8), nor cameos: uncredited or labelled ones, people playing themselves, the author of the source in a walk-on, a star far down the cast. People who share a name are counted apart." + (castChecked() ? ` Checked against IMDb for ${plural(castChecked(), "film")}.` : ""));
+  : "Each film's principal and supporting cast counts; voice roles are under Voices. Small parts don't (below the top 15 of a big cast, in its lower half or past the 30th, and parts like \"Guy at bar\" or \"Cop #2\" below the top 8), nor cameos: uncredited or labelled ones, people playing themselves in a walk-on, the author of the source, a star far down the cast. A film's card can change who counts. People who share a name are counted apart." + (castChecked() ? ` Checked against IMDb for ${plural(castChecked(), "film")}.` : ""));
 // Photos kept from a film's credits: its directors, its top billed, and anyone already met in another film, so a
 // supporting actor whose films add up has a face, without photos of thousands of one-off players. `CAST_SEEN` is
 // everyone in the films looked up so far (worked out again at the start of each run of lookups).
@@ -331,6 +332,8 @@ async function runTmdb(lib, key) {
           if (prev && prev.om && prev.im === m.im) for (const k of IMDB_FIELDS) m[k] = prev[k];
           // and what IMDb's cast list said of it (06d, `castCheck`)
           if (prev && prev.cq && prev.im === m.im) for (const k of CAST_CHECK_FIELDS) if (prev[k] !== undefined) m[k] = prev[k];
+          // and who counts in it by hand (the film card's "Change who counts"), for the same film
+          if (prev && prev.po && (prev.id || 0) === (m.id || 0) && (prev.tv || 0) === (m.tv || 0)) m.po = prev.po;
           META[f.key] = m;
         }
       } catch (e) {

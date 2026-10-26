@@ -413,8 +413,11 @@ const GENRES = ["Action", "Adventure", "Animation", "Comedy", "Crime", "Document
       - "source": someone who also wrote what the film is based on (comic book, characters, novel, play…), billed
         below the top SOURCE_FROM: Stan Lee in Marvel films, Stephen King in his adaptations;
       - "self": someone playing themselves (Self, Himself, their own name) in a film that isn't a documentary, billed
-        below the top SELF_FROM: Stan Lee as "Stan Lee", a star in a song; unless its leads play themselves too (This Is
-        the End: two or more of its top three);
+        below the top SELF_CAMEO_FROM: Stan Lee as "Stan Lee", the celebrities of The Player, a newsreader on a screen;
+        unless the film's own cast plays themselves (This Is the End: two or more of its top three; Life, and Nothing
+        More…: half its top ten). Until 26 Oct 2026 it was below the top 3, which took real parts: the owner named Mike
+        Tyson in The Hangover (10th), Bill Murray in Zombieland (6th), Kevin Garnett in Uncut Gems (4th), Babe Ruth in
+        Speedy (4th) and the villagers of Life, and Nothing More…;
       - and, worked out over every film kept here (`peopleIndex`, `walkOn`): "star", a star at the time far down a
         cast: billed STAR_FROM or lower and in the lower half, where over their other films within STAR_YEARS either
         side (STAR_FILMS or more) they were billed near the top (a median place under STAR_TOP, or up to STAR_NEAR and
@@ -425,7 +428,7 @@ const GENRES = ["Action", "Adventure", "Animation", "Comedy", "Crime", "Document
    Never a cameo: the top SELF_FROM billed, and an extended cameo or special appearance that names its character
    ("Tiger (Extended Cameo)": a credited part of some length, kept in `ce`). A documentary's "Self" is its subject. */
 const SOURCE_JOBS = new Set(["Characters", "Comic Book", "Novel", "Book", "Short Story", "Graphic Novel", "Author", "Play", "Theatre Play", "Musical", "Original Concept", "Creator"]);
-const SOURCE_FROM = 5, SELF_FROM = 3, CAMEO_HABIT = 3;
+const SOURCE_FROM = 5, SELF_FROM = 3, SELF_CAMEO_FROM = 10, CAMEO_HABIT = 3;
 const STAR_FROM = 20, STAR_YEARS = 5, STAR_FILMS = 3, STAR_TOP = 3, STAR_NEAR = 5, STAR_DEEP = 8;
 const BACKGROUND_VOICES = /^\s*(?:additional|various|other|background|incidental|miscellaneous|extra)\s+voices?\b|\bloop\s*group\b|\bADR\b|\bwalla\b/i;
 const VOICE = /\bvoices?\b/i;
@@ -437,7 +440,8 @@ function sortCast(list, { crewJobs = new Map(), documentary = false, animation =
   const live = [], voice = [], cameos = [], extended = [];
   const tagged = list.some((c) => VOICE.test(c.character || ""));
   // a film whose leads play themselves (This Is the End): its other selves are its cast, not cameos
-  const selfFilm = list.filter((c) => !roleSkip(c.character)).slice(0, 3).filter((c) => playsSelf(c.name, c.character || "")).length >= 2;
+  const billed = list.filter((c) => !roleSkip(c.character)), selves = (n) => billed.slice(0, n).filter((c) => playsSelf(c.name, c.character || "")).length;
+  const selfFilm = selves(3) >= 2 || selves(10) >= 5;
   for (const c of list) {
     const ch = String(c.character || "");
     const why = roleSkip(ch);
@@ -447,7 +451,7 @@ function sortCast(list, { crewJobs = new Map(), documentary = false, animation =
     if (NAMED_APPEARANCE.test(ch)) { extended.push(c.id); into.push(c); continue; }
     const job = [...(crewJobs.get(c.id) || [])].find((j) => SOURCE_JOBS.has(j));
     if (job && place >= SOURCE_FROM) { cameos.push({ ...c, why: `source:${job}` }); continue; }
-    if (!documentary && !selfFilm && place >= SELF_FROM && playsSelf(c.name, ch)) { cameos.push({ ...c, why: "self" }); continue; }
+    if (!documentary && !selfFilm && place >= SELF_CAMEO_FROM && playsSelf(c.name, ch)) { cameos.push({ ...c, why: "self" }); continue; }
     into.push(c);
   }
   // small parts that need TMDB's characters and popularity, found here and kept by id (`smallPart`, `walkOn`): bit
@@ -466,7 +470,7 @@ function sortCast(list, { crewJobs = new Map(), documentary = false, animation =
   return { live, voice, cameos, extended, bits, standout };
 }
 // What a cameo's reason reads as.
-const cameoWhy = (w) => w === "self" ? "playing themselves" : w === "star" ? "a star far down the cast" : w === "habit" ? "mostly turns up in cameos" : w === "returning" ? "a lead earlier in the series, back in a small part" : /^source:/.test(w) ? `wrote the ${w.slice(7).toLowerCase()} it's based on` : "labelled a cameo";
+const cameoWhy = (w) => w === "self" ? "playing themselves" : w === "star" ? "a star far down the cast" : w === "habit" ? "mostly turns up in cameos" : w === "returning" ? "a lead earlier in the series, back in a small part" : w === "hand" ? "left out by you" : /^source:/.test(w) ? `wrote the ${w.slice(7).toLowerCase()} it's based on` : "labelled a cameo";
 // A film's people in a role with their TMDB person ids, kept in step (`ci` beside `c`, `di` beside `d`…): each
 // person once, by id where TMDB gave one, since two people can share a name (see `peopleIndex`).
 // Where each role is kept in a film's details: voices in `vo` (`v` is the details' version), ids beside each.
@@ -509,6 +513,7 @@ function cleanMeta(m) {
     ir: Number(m.ir) || null, iv: Number(m.iv) || null, mc: Number(m.mc) || null, rt: Number(m.rt) || null, om: m.om || null, // IMDb, Metacritic, Rotten Tomatoes
     y: parseInt(m.y, 10) || null, // TMDB's release year
     ...(Number(m.cl) ? { cl: Number(m.cl) } : {}), // the series it's part of on TMDB (`walkOn`, "returning")
+    ...handParts(m.po), // who counts in it, set by hand on the film card (`partFix`)
     iy: parseInt(m.iy, 10) || null, ik: Array.isArray(m.ik) ? m.ik : undefined, il: Array.isArray(m.il) ? m.il : undefined, inf: m.inf || undefined, // IMDb's year, countries, languages
     t: m.t || undefined, // when it was looked up: of two equally good copies on two devices, the newer is kept
     // the owner's cast checked on IMDb (06d, `castCheck`): when, added, taken off, and whether IMDb's list was partial
@@ -681,6 +686,17 @@ const RETURN_FROM = 10, RETURN_LEAD = 3;
    On the owner's 1,559 films (26 Oct 2026): 21,850 of 49,728 credits are small parts, 1,341 of them bit parts; the
    top 30 actors stay the top 30, and all four of their examples are out. */
 const PRINCIPAL = 15, BIG_CAST = 30, BIT_FROM = 8, STAND_OUT = 4;
+// Whether a person counts in a film by hand: 1 counts, 0 doesn't, undefined leaves it to the rules. Set on the film
+// card (`po`, by TMDB person id, this diary's own) or reviewed for the owner's films (`PART_FIXES`, 05b-parts).
+function partFix(m, id) {
+  if (!m || !id) return undefined;
+  const own = m.po && m.po[id];
+  if (own === 0 || own === 1) return own;
+  const fix = Number(m.id) && !m.tv && PART_FIXES[m.id];
+  return fix && fix[id] != null ? fix[id] : undefined;
+}
+// What's kept of `po`: person ids to 0 or 1, at most 300.
+const handParts = (po) => { const out = {}; for (const [k, v] of Object.entries(po && typeof po === "object" ? po : {}).slice(0, 300)) if (/^\d{1,9}$/.test(k) && (v === 0 || v === 1)) out[k] = v; return Object.keys(out).length ? { po: out } : {}; };
 // Where a film's alphabetical billing ends: a run of 10 or more surnames in order from the first or second billed.
 const ALPHA = new WeakMap();
 function alphaBilled(m, role) {
@@ -737,14 +753,20 @@ function roleNames(m, role) {
   if (!c || c.P !== P) ROLE_NAMES.set(m, (c = { P, lists: {} }));
   if (c.lists[role]) return c.lists[role];
   const out = [], have = new Set(), lead = new Set();
-  for (const { name, id, place } of rolePeople(m, role)) {
-    if (id && badCredit(m, id, role, place)) continue;
-    if (place != null && (walkOn(m, role, place, id) || smallPart(m, role, place, id))) continue;
+  const add = (name, id, place) => {
     const cid = (id && P.canon.get(id)) || id, shown = (cid && (P.label.get(cid) || P.nameOf.get(cid))) || name, k = personKey(shown);
-    if (!k || have.has(k)) continue;
+    if (!k || have.has(k)) return;
     have.add(k); out.push(shown);
     if (place != null && place < LEAD_TOP) lead.add(k);
+  };
+  for (const { name, id, place } of rolePeople(m, role)) {
+    if (id && badCredit(m, id, role, place)) continue;
+    const fix = partFix(m, id);
+    if (fix === 0 || (fix !== 1 && place != null && (walkOn(m, role, place, id) || smallPart(m, role, place, id)))) continue;
+    add(name, id, place);
   }
+  // a cameo found at lookup that counts by hand (Mike Tyson in The Hangover Part II)
+  if (role === "c") (m.x || []).forEach((name, i) => { const id = Number((m.xi || [])[i]) || 0; if (id && partFix(m, id) === 1) add(name, id, null); });
   c.leads = c.leads || {};
   c.leads[role] = lead;
   return (c.lists[role] = out);
@@ -753,12 +775,13 @@ function roleNames(m, role) {
 const LEAD_TOP = 8;
 const roleLeads = (m, role) => { roleNames(m, role); const c = m && ROLE_NAMES.get(m); return (c && c.leads && c.leads[role]) || new Set(); };
 const castOf = (m) => roleNames(m, "c");
-// Every cameo of a film, as shown (not counted): from its lookup, and stars far down its cast.
+// Every cameo of a film, as shown (not counted): from its lookup, stars far down its cast, and parts left out by hand.
 function cameosOf(m) {
   if (!m) return [];
-  const P = peopleIndex(), out = (m.x || []).map((name, k) => ({ name: P.label.get(P.canon.get((m.xi || [])[k]) || (m.xi || [])[k]) || name, why: (m.xw || [])[k] || "cameo" }));
-  for (const role of ["c", "v"]) (m[ROLE_FIELD[role]] || []).forEach((name, i) => { const id = Number((m[ROLE_IDS[role]] || [])[i]) || 0;
-    const w = walkOn(m, role, i, id); if (w) out.push({ name: P.label.get(P.canon.get(id) || id) || name, why: w }); });
+  const P = peopleIndex(), out = (m.x || []).map((name, k) => ({ name: P.label.get(P.canon.get((m.xi || [])[k]) || (m.xi || [])[k]) || name, id: Number((m.xi || [])[k]) || 0, why: (m.xw || [])[k] || "cameo" }))
+    .filter((c) => partFix(m, c.id) !== 1);
+  for (const role of ["c", "v"]) (m[ROLE_FIELD[role]] || []).forEach((name, i) => { const id = Number((m[ROLE_IDS[role]] || [])[i]) || 0, fix = partFix(m, id);
+    const w = fix === 0 ? "hand" : fix === 1 ? "" : walkOn(m, role, i, id); if (w) out.push({ name: P.label.get(P.canon.get(id) || id) || name, id, why: w }); });
   return out;
 }
 // A film's small parts, as shown (not counted), in billing order: { name, why, place, of }.
@@ -768,7 +791,7 @@ function smallPartsOf(m) {
   for (const role of ["c", "v"]) {
     const of = (m[ROLE_FIELD[role]] || []).length;
     for (const { name, id, place } of rolePeople(m, role)) {
-      if (place == null || (id && badCredit(m, id, role, place)) || walkOn(m, role, place, id)) continue;
+      if (place == null || (id && badCredit(m, id, role, place)) || partFix(m, id) != null || walkOn(m, role, place, id)) continue;
       const why = smallPart(m, role, place, id);
       if (why) out.push({ name: P.label.get(P.canon.get(id) || id) || P.nameOf.get(P.canon.get(id) || id) || name, why, place: place + 1, of, role });
     }

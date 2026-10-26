@@ -253,7 +253,8 @@ The owner asked for this to be checked every time. A film, diary entry, person o
   `pin` (matched by hand), `cq/ca/cr/cp/cn/can` the cast checked on IMDb (`ir` is IMDb's rating, not the cast),
   `ci/di/wi/pi/mi` the TMDB person ids beside `c/d/w/p/m` (see "People are TMDB's people, by id"), `vo/voi` voice roles,
   `x/xi/xw` credited cameos with why, `ce` named extended appearances (see "Cameos and voices"), `un` bit parts and
-  `so` people far better known than those billed around them, by id, `cl` the film's series on TMDB (see "Small parts").
+  `so` people far better known than those billed around them, by id, `cl` the film's series on TMDB (see "Small parts"),
+  `po` who counts set by hand on the film card (see "Who counts, by hand").
 - `FACTS[tmdbPersonId]`: `{ b, d, im, p, t }` birth and death years, IMDb id, photo, when (`cr-people-v1`, this device
   only, in backups; asked again after `FACTS_DAYS`). `metaOf(f)` reads it (example films use `EXAMPLE_META`).
 - `LBX[filmKey]`: Letterboxd averages `{ r, n, slug }`; `{ tries: 1, v: 2 }` not found by the scraper; `{ tries: 1, v: 2, few: true,
@@ -481,9 +482,9 @@ standard errors or more from what the rest of the diary gives; every sentence op
   `FILM_FIXES` (by TMDB id, with a `why`) corrects facts TMDB has wrong (The Prowler 1951 is American; Breaking
   the Waves is in English; The Battle of Algiers in French). A film's language is TMDB's original language unless
   it's spoken in exactly one other (`spokenIn`). Every TMDB country is kept (it used to stop at 6, which made
-  lists differ from Letterboxd's). `TMDB_MATCH_VERSION` (12) re-looks-up films when matching changes; from 6 on, a
+  lists differ from Letterboxd's). `TMDB_MATCH_VERSION` (13) re-looks-up films when matching changes; from 6 on, a
   film whose match is unchanged keeps its details without a second request, unless what's kept of a film has changed
-  since (`TMDB_DETAILS_V`, 12: the film's series, after 11's bit parts and stand-outs for small parts): then it's read again by its id alone, one request,
+  since (`TMDB_DETAILS_V`, 13: playing themselves a cameo only below the top 10; 12 the film's series; 11 bit parts): then it's read again by its id alone, one request,
   no search (`rereadRef`; films matched by hand too, keeping their pin). Watchlist films are looked up too.
 - **Counting people like Letterboxd** (a guest found actor and director counts off, 25 Oct 2026; then the owner asked
   for it "finely treading the line with credited, not credited and cameo and sometimes extended cameos", and for their
@@ -514,8 +515,10 @@ standard errors or more from what the rest of the diary gives; every sentence op
   Animation film TMDB tags none in) go to `vo`/`voi` (role "v"; `v` is the details' version, so voices never sit in
   `v`); credited cameos go to `x`/`xi`/`xw` with why: "source" (also in the crew as the source's author: Characters,
   Comic Book, Novel, Book, Play… (`SOURCE_JOBS`), billed below the top `SOURCE_FROM` 5: Stan Lee in Marvel films,
-  Stephen King), "self" (Self/Himself/their own name in a film that isn't a Documentary, below the top `SELF_FROM` 3,
-  unless two of the top three play themselves too: This Is the End). Worked out over all films kept (`walkOn`, from
+  Stephen King), "self" (Self/Himself/their own name in a film that isn't a Documentary, below the top `SELF_CAMEO_FROM`
+  10, unless the film's cast plays itself: two of the top three (This Is the End) or half the top ten (Life, and Nothing
+  More…); it was the top 3 until the owner named real parts it took, 26 Oct 2026: Mike Tyson in The Hangover, Bill
+  Murray in Zombieland, Kevin Garnett in Uncut Gems, Babe Ruth in Speedy; `TMDB_DETAILS_V` 13 read every film again). Worked out over all films kept (`walkOn`, from
   `peopleIndex`'s `usual` and `habit`): "star" (a star at the time far down a cast: billed `STAR_FROM` 20th or lower
   and in the lower half, where over their other films within `STAR_YEARS` 5 either side, `STAR_FILMS` 3 or more, their
   median place is under `STAR_TOP` 3, or under `STAR_NEAR` 5 and `STAR_DEEP` 8 times lower here: Samuel L. Jackson's
@@ -566,6 +569,23 @@ standard errors or more from what the rest of the diary gives; every sentence op
   has none of these rules nor `walkOn`'s: its people, there as themselves, are listed in no order of size (the owner
   asked why Spielberg, 2017, counted Leonardo DiCaprio, 7th of 54 interviewed, and not Tom Cruise, 33rd), so everyone it
   credits on screen counts (archive footage still doesn't).
+- **Who counts, by hand** (26 Oct 2026: the owner named real parts the rules left out, "Kevin Spacey in Se7en, Ben
+  Gazzara in The Big Lebowski, Philip Baker Hall in The Truman Show … not cameos but a genuine acting part", Margot
+  Robbie in Asteroid City, "a small part but an important one", Zendaya in The Odyssey, and asked to review the whole
+  zip's cast). TMDB has no screen time, so billing can't tell Spacey's John Doe (57th of 58, billed last by his wish)
+  from Jackson's one-shot Nick Fury in Endgame (54th of 103). Two layers over the rules, read by `partFix(m, id)`
+  (05-core) wherever a person is counted or listed (`roleNames`, `cameosOf`, `smallPartsOf`): 1 counts, 0 doesn't,
+  even a cameo found at lookup (`x`), never a credit TMDB's dates make impossible. (1) `PART_FIXES` (05b-parts), by
+  TMDB film id and person id: every part the owner's 1,559 films left out that a well-known actor plays (205: billed
+  far down, a star among unknowns, themselves below the top 10) was read through by hand with what's known of each
+  film; 20 real parts were found (Spacey, Gazzara, Hall, Robbie, Zendaya, Tyson in The Hangover Part II, Sam Elliott's
+  Stranger, Brian Cox's McKee, Oldman's Truman, Paltrow in Endgame, Kurt Russell in Once Upon a Time… in Hollywood,
+  Jackson's Stacks Edwards…); the rest stayed out (Endgame's walk-ons, Jackson's Rufus, the Hobbit's Frodo, the Weasley
+  twins…). They count for anyone with the film. (2) The film card's **"Change who counts"** (own diary, both layouts;
+  `D.parts` → `partsInner`, every part counted or not with why and a switch; `setPart` keeps a choice in the film's
+  `po`, or drops it when it agrees with the rules), kept through rereads (`runTmdb`, same film), backups and the diary
+  on the site (`handParts` in `cleanMeta`; the film's `t` moves so the change wins). The `people` check covers both
+  layouts, a reviewed part and switching on and back.
 - **People are TMDB's people, by id** (26 Oct 2026: the owner found Paul Guilfoyle, born 1949, credited with 1940s
   films; those were Paul Guilfoyle, 1902–1961. TMDB keeps them apart (ids 925 and 104714); the site had matched people
   by name, so it merged them, with one face for both. "How can I trust the cast data at all? I would like a complete
@@ -804,7 +824,7 @@ shows the latest ~50, so it accumulates), commits, and asks Pages to rebuild. Th
 service cut off unless a check stands in for it, service worker off unless asked, reduced motion, pages opened
 with `?example` (pass `example: false` for an empty browser; a check's own `goto` must add `?example` too),
 `phoneTour()` which opens every phone tab, every Stats view for all time and for a year, and every Insights/Compare section), `run.mjs`, and checks:
-`apify`, `imdbcast` (the owner's cast checked on IMDb), `people` (people by TMDB id, the people check, cameos, voices and small parts), `check` (film data check), `counts` (double counting, also with filters on), `reviews` (missing review text spotted; six-film actors), `welcome` (no example diary; import saved at once), `extras` (year picture, On this day, Watch next, PWA), `feed`, `import`,
+`apify`, `imdbcast` (the owner's cast checked on IMDb), `people` (people by TMDB id, the people check, cameos, voices, small parts and who counts by hand), `check` (film data check), `counts` (double counting, also with filters on), `reviews` (missing review text spotted; six-film actors), `welcome` (no example diary; import saved at once), `extras` (year picture, On this day, Watch next, PWA), `feed`, `import`,
 `links` (every link opens something), `pages` (nothing broken shows, no sideways scroll on the phone),
 `routes`, `storage` (IndexedDB move, backup and restore), `site` (the diary on the site: a stand-in GitHub and site),
 `tmdb` (fixing a match, filmography, search), `extras` also covers the story and every kind and shape of picture, `xss` (nothing from outside can run code, about a minute), `study` (a
@@ -865,6 +885,10 @@ day, shared with the owner's own app. The in-app version is the "Check film data
 - The owner found minor parts still counted (26 Oct 2026: Pitt in Deadpool 2, DiCaprio in Poison Ivy, Dafoe in The French
   Dispatch, Jackson in A Shock to the System) → small parts (above), measured on their export: 21,850 of 49,728 credits are small parts (1,341 of them bit
   parts, Pitt a star walk-on), the top 30 actors stay the top 30, and Highest rated now asks for 2 rated films in the top 8 (first 3 in the top 5).
+- The owner then named real parts left out (26 Oct 2026: Spacey in Se7en, Gazzara, Philip Baker Hall, Tyson, Bill Murray,
+  Garnett, Babe Ruth, Zendaya, Robbie, the Kiarostami villagers) and asked for the whole zip reviewed → playing themselves
+  only a cameo below the top 10, the 205 doubtful parts of well-known actors read by hand (`PART_FIXES`), and "Change
+  who counts" on every film card (see "Who counts, by hand").
 - A guest found actor and director counts off (25 Oct 2026): only the top 15 billed counted, and directors stopped at 6
   a film → every credited role, as Letterboxd counts them; then role by role (cameos, extended cameos, special
   appearances, archive footage) and, for the owner, checked on IMDb (26 Oct; see "Counting people like Letterboxd").

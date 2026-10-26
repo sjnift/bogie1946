@@ -29,7 +29,7 @@ const rows = (user, given) => ({
   watchlist: [{ Name: nasty("Wanted"), Year: "2020", "Letterboxd URI": P.url }, { Name: "Le Samouraï", Year: "1967" }],
 });
 // film details as another device (or TMDB, which anyone can edit) could send them: nothing cleaned
-const meta = (i) => ({ src: "tmdb", v: 12, id: 1000 + i, poster: `/p${i}.jpg${P.quote}`, y: 1990 + i, d: [nasty("Director")], c: [nasty("Actor"), `${P.single} Star`], w: [nasty("Writer")],
+const meta = (i) => ({ src: "tmdb", v: 13, id: 1000 + i, poster: `/p${i}.jpg${P.quote}`, y: 1990 + i, d: [nasty("Director")], c: [nasty("Actor"), `${P.single} Star`], w: [nasty("Writer")],
   p: [nasty("Shooter")], m: [nasty("Composer")], g: ["Drama", nasty("Genre")], k: [nasty("Country"), "France"], l: nasty("Language"), r: 100 + i, va: 7.1, vc: 900,
   im: `tt${P.quote}`, ir: 7.5, iv: 1000, mc: 70, rt: 90, om: "2026-10-01", why: nasty("why"), via: P.quote,
   cq: nasty("2026-10-26"), ca: [nasty("Added"), `${P.single} Extra`], cr: [`${P.single} Star`] }); // the cast as IMDb put it right (06d)
