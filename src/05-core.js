@@ -470,7 +470,7 @@ function sortCast(list, { crewJobs = new Map(), documentary = false, animation =
   return { live, voice, cameos, extended, bits, standout };
 }
 // What a cameo's reason reads as.
-const cameoWhy = (w) => w === "self" ? "playing themselves" : w === "star" ? "a star far down the cast" : w === "habit" ? "mostly turns up in cameos" : w === "returning" ? "a lead earlier in the series, back in a small part" : w === "hand" ? "left out by you" : /^source:/.test(w) ? `wrote the ${w.slice(7).toLowerCase()} it's based on` : "labelled a cameo";
+const cameoWhy = (w) => w === "self" ? "playing themselves" : w === "star" ? "a star far down the cast" : w === "habit" ? "mostly turns up in cameos" : w === "returning" ? "a lead earlier in the series, back in a small part" : w === "hand" ? "left out by you" : w === "reviewed" ? "a walk-on, reviewed by hand" : /^source:/.test(w) ? `wrote the ${w.slice(7).toLowerCase()} it's based on` : "labelled a cameo";
 // A film's people in a role with their TMDB person ids, kept in step (`ci` beside `c`, `di` beside `d`…): each
 // person once, by id where TMDB gave one, since two people can share a name (see `peopleIndex`).
 // Where each role is kept in a film's details: voices in `vo` (`v` is the details' version), ids beside each.
@@ -674,18 +674,21 @@ const RETURN_FROM = 10, RETURN_LEAD = 3;
    even on the screen for a minute. Should these parts really count?" Letterboxd counts every credited role; here a
    film's principal and supporting cast count, its small parts don't. TMDB has no screen time, so a small part is read
    from where it's billed and how it's credited, role by role (`smallPart`):
-   - "deep": billed below the top PRINCIPAL of a cast of more than BIG_CAST, in its lower half or from the BIG_CAST+1st
-     on (Dafoe, 33rd of 300; Jackson, 32nd of 46). Gosford Park's downstairs (Helen Mirren 20th of 59, Emily Watson
-     22nd) and Do the Right Thing's block (Jackson's Love Daddy, 16th of 42) are in the upper half, and count. A film
-     that bills its cast alphabetically from the top (Nashville, Radio Days: `alphaBilled`) counts that run in full.
+   - "deep": billed below the top PRINCIPAL of a cast of more than BIG_CAST, in its last quarter (`DEEP_FROM`). It was
+     the lower half, or from the 31st on, until the owner found real parts it left out (26 Oct 2026: Jon Bernthal,
+     34th of 62, and Lupita Nyong'o, 47th, in The Odyssey); the walk-ons that came back with the change (Jackson's
+     Ulysses, 32nd of 46 in A Shock to the System, Dafoe's Abacus, 33rd of 300 in The French Dispatch, Endgame's
+     funeral) are kept out by hand (`PART_FIXES`). Gosford Park's downstairs (Helen Mirren 20th of 59) and Do the Right
+     Thing's block (Jackson's Love Daddy, 16th of 42) count. A film that bills its cast alphabetically from the top
+     (Nashville, Radio Days: `alphaBilled`) counts that run in full.
      A cast of BIG_CAST or fewer counts down to its last credited part: TMDB's order there is sometimes wrong (Peter
      Sellers 20th of 20 in Lolita, John Vernon last in Charley Varrick).
    - "bit": below the top BIT_FROM, credited only as one of the people there (`bitPart`, 05b-parts, worked out at
      lookup into `un`): "Guy" (DiCaprio, 9th of 24), "Man in Black Suit", "Wedding Guest", "Cop #2".
    And a star walk-on is a cameo (`walkOn`, "star"; Pitt). An extended cameo that names its character (`ce`) counts.
-   On the owner's 1,559 films (26 Oct 2026): 21,850 of 49,728 credits are small parts, 1,341 of them bit parts; the
-   top 30 actors stay the top 30, and all four of their examples are out. */
-const PRINCIPAL = 15, BIG_CAST = 30, BIT_FROM = 8, STAND_OUT = 4;
+   On the owner's 1,559 films (26 Oct 2026, with the lower half): 21,850 of 49,728 credits were small parts, 1,341 of
+   them bit parts; the last quarter brought back about 11,600. */
+const PRINCIPAL = 15, BIG_CAST = 30, DEEP_FROM = 0.75, BIT_FROM = 8, STAND_OUT = 4;
 // Whether a person counts in a film by hand: 1 counts, 0 doesn't, undefined leaves it to the rules. Set on the film
 // card (`po`, by TMDB person id, this diary's own) or reviewed for the owner's films (`PART_FIXES`, 05b-parts).
 function partFix(m, id) {
@@ -711,7 +714,7 @@ function alphaBilled(m, role) {
 function smallPart(m, role, place, id) {
   if ((role !== "c" && role !== "v") || place == null || (id && (m.ce || []).includes(id)) || isDocumentary(m)) return "";
   const n = (m[ROLE_FIELD[role]] || []).length;
-  if (place >= PRINCIPAL && n > BIG_CAST && (place >= n / 2 || place >= BIG_CAST) && place >= alphaBilled(m, role)) return "deep";
+  if (place >= PRINCIPAL && n > BIG_CAST && place >= n * DEEP_FROM && place >= alphaBilled(m, role)) return "deep";
   return place >= BIT_FROM && id && (m.un || []).includes(id) ? "bit" : "";
 }
 // A credit TMDB's own dates make impossible: "born", before the person was born, or before they were 8 behind the
@@ -781,7 +784,7 @@ function cameosOf(m) {
   const P = peopleIndex(), out = (m.x || []).map((name, k) => ({ name: P.label.get(P.canon.get((m.xi || [])[k]) || (m.xi || [])[k]) || name, id: Number((m.xi || [])[k]) || 0, why: (m.xw || [])[k] || "cameo" }))
     .filter((c) => partFix(m, c.id) !== 1);
   for (const role of ["c", "v"]) (m[ROLE_FIELD[role]] || []).forEach((name, i) => { const id = Number((m[ROLE_IDS[role]] || [])[i]) || 0, fix = partFix(m, id);
-    const w = fix === 0 ? "hand" : fix === 1 ? "" : walkOn(m, role, i, id); if (w) out.push({ name: P.label.get(P.canon.get(id) || id) || name, id, why: w }); });
+    const w = fix === 0 ? (m.po && m.po[id] === 0 ? "hand" : "reviewed") : fix === 1 ? "" : walkOn(m, role, i, id); if (w) out.push({ name: P.label.get(P.canon.get(id) || id) || name, id, why: w }); });
   return out;
 }
 // A film's small parts, as shown (not counted), in billing order: { name, why, place, of }.

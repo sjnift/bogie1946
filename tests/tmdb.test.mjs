@@ -149,7 +149,7 @@ export default async function ({ browser, base }) {
   const huge = await q.evaluate(() => { const m = META["huge cast|2002"], ids = (a) => (a || []).map((id) => m.c[m.ci.indexOf(id)]).join();
     return [m.cl, ids(m.un), ids(m.so), castOf(m).length + (castOf(m).includes("Huge Player 7") ? "" : " (no self)"), castOf(m).includes("Huge Player 5"), castOf(m).includes("Huge Player 11"), smallPartsOf(m).filter((x) => x.why === "bit").map((x) => x.name).join(),
       smallPartsOf(m).filter((x) => x.why === "deep").length].join(" | "); });
-  assert(huge === "77 | Huge Player 9,Huge Player 10 | Famous Walk-on | 20 | true | true | Huge Player 9,Huge Player 10 | 22", `small parts found at lookup: ${huge}`);
+  assert(huge === "77 | Huge Player 9,Huge Player 10 | Famous Walk-on | 31 | true | true | Huge Player 9,Huge Player 10 | 11", `small parts found at lookup: ${huge}`);
   assert(cast.korean === 1 && cast.face === 2, `people counted: a name in Korean ${cast.korean}, someone in two films ${cast.face}`);
   const more = await q.evaluate(() => ({ cop: META["a cop|1972"].id, waves: [META["breaking the waves|1996"].l, META["breaking the waves|1996"].k.length], prowler: META["the prowler|1951"].k.join(), why: META["the prowler|1951"].why }));
   assert(more.cop === 42741, `A Cop (1972) should be Melville's Un flic, not a 1947 film: ${more.cop}`);

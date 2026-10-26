@@ -7,7 +7,7 @@ import { open, seed, assert, noErrors } from "./lib.mjs";
 const meta = (id, y, c, ci, d = ["A Director"], di = [900], more = {}) => ({ src: "tmdb", v: 13, id, y, d, di, c, ci, w: [], p: [], m: [], g: ["Crime"], k: ["USA"], l: "English", r: 90, ...more });
 // a star at the top of four films, then far down a big cast (a cameo), and far down another as a named extended cameo
 const crowd = (n, id) => Array.from({ length: n }, (_, i) => `Extra Player ${id}-${i}`), crowdIds = (n, base) => Array.from({ length: n }, (_, i) => base + i);
-const pad = (i) => String(i).padStart(2, "0"), ensemble = (name, base) => [Array.from({ length: 32 }, (_, i) => (i === 20 ? "Ensemble A20" : name(i))), Array.from({ length: 32 }, (_, i) => (i === 20 ? 70 : base + i))];
+const pad = (i) => String(i).padStart(2, "0"), ensemble = (name, base) => [Array.from({ length: 32 }, (_, i) => (i === 26 ? "Ensemble A26" : name(i))), Array.from({ length: 32 }, (_, i) => (i === 26 ? 70 : base + i))];
 const walkOn = (id, y, more) => meta(id, y, [...crowd(25, id), "Big Star", ...crowd(5, id).map((x) => x + "b")], [...crowdIds(25, id * 1000), 50, ...crowdIds(5, id * 1000 + 500)], undefined, undefined, more);
 const films = [
   ["Old Noir", 1946, meta(1, 1946, ["Paul Guilfoyle", "Lead A"], [104714, 1])],
@@ -24,16 +24,19 @@ const films = [
   ["Ghost Lead", 1980, meta(17, 1980, ["Old Ghost", "Someone A"], [60, 61])], ["Ghost Bit", 2003, meta(18, 2003, ["Lead X", "Lead Y", "Lead Z", "Old Ghost"], [62, 63, 64, 60])],
   // a cartoon's voices: apart from on-screen acting
   ["A Cartoon", 2012, meta(16, 2012, [], [], undefined, undefined, { vo: ["Big Star", "Voice Pro"], voi: [50, 52] })],
-  // small parts: a star billed 17th of 34 among people far less known (TMDB's popularity, `so`) is a walk-on; the lower
-  // half of a big cast doesn't count, nor a bit part below the top 8 (`un`), but one in the top 8 does
+  // small parts: a star billed 17th of 34 among people far less known (TMDB's popularity, `so`) is a walk-on; the last
+  // quarter of a big cast doesn't count (its third quarter does), nor a bit part below the top 8 (`un`), but one in the top 8 does
   ["Stand Out", 2030, meta(19, 2030, [...crowd(16, 19), "Big Star", ...crowd(17, 19).map((x) => x + "c")], [...crowdIds(16, 19000), 50, ...crowdIds(17, 19500)], undefined, undefined, { so: [50], un: [19003, 19010] })],
-  // the same player 21st of 32 in a cast billed alphabetically (counts) and in one that isn't (doesn't)
+  // the same player 27th of 32 in a cast billed alphabetically (counts) and in one that isn't (doesn't)
   ["In Order", 2010, meta(20, 2010, ...ensemble((i) => `Pat A${pad(i)}`, 20000))], ["Not In Order", 2011, meta(21, 2011, ...ensemble((i) => `Lee Z${pad(31 - i)}`, 21000))],
   // a documentary: a star interviewed 33rd of 40 counts, as does everyone it lists (no order of size there)
   ["Star Doc", 2028, meta(25, 2028, [...crowd(32, 25), "Big Star", ...crowd(7, 25).map((x) => x + "d")], [...crowdIds(32, 25000), 50, ...crowdIds(7, 25500)], undefined, undefined, { g: ["Documentary"] })],
   // a series (TMDB's collection): its first film's lead back 11th in the second (a walk-on), 10th in the third (counts)
   // a real part reviewed by hand (05b-parts, PART_FIXES: TMDB's Se7en, 807, and Kevin Spacey, 1979), billed 39th of 40
   ["Se7en", 1995, meta(807, 1995, [...crowd(38, 807), "Kevin Spacey", "Last Player"], [...crowdIds(38, 807000), 1979, 807999])],
+  // a walk-on in a big cast's third quarter (counts by the rules) left out on review (PART_FIXES: TMDB's A Shock to the
+  // System, 20876, and Samuel L. Jackson, 2231), billed 32nd of 46
+  ["A Shock to the System", 1990, meta(20876, 1990, [...crowd(31, 20876), "Samuel L. Jackson", ...crowd(14, 20876).map((x) => x + "s")], [...crowdIds(31, 20876000), 2231, ...crowdIds(14, 20876500)])],
   ...[[22, 2000, 0], [23, 2002, 10], [24, 2004, 9]].map(([id, y, at]) => [`Series Part ${id - 21}`, y, meta(id, y, crowd(12, id).map((x, i) => (i === at ? "Series Hero" : x)), crowdIds(12, id * 1000).map((x, i) => (i === at ? 80 : x)), undefined, undefined, { cl: 900 })]),
 ];
 const persons = { 104714: { birthday: "1902-07-14", deathday: "1961-06-27", imdb_id: "nm0002116", profile_path: "/old.jpg" },
@@ -69,11 +72,13 @@ const counted = (page) => page.evaluate(() => { const s = computeStats(MY_LIB, m
     big: of("Big Star"), bigFilms: personDrill(MY_LIB, "Big Star", "c").films.map((f) => f.name).filter((n) => /Team/.test(n)).join(), bigVoice: voice("Big Star"), voicePro: [of("Voice Pro"), voice("Voice Pro")].join(),
     cameos: peopleCheck(MY_LIB).cameos.map((x) => `${x.name}: ${x.note}`).sort().join(" | "),
     small: (() => { const m = META["stand out|2030"], sp = smallPartsOf(m), counted = castOf(m);
-      return [counted.includes("Extra Player 19-3"), counted.includes("Extra Player 19-10"), sp.find((x) => x.name === "Extra Player 19-10").why, sp.find((x) => x.name === "Extra Player 19-0c").why,
-        counted.includes("Extra Player 19-15"), counted.includes("Extra Player 19-0c"), smallWhy(sp.find((x) => x.name === "Extra Player 19-0c"))].join(); })(),
-    ensemble: [of("Ensemble A20"), personDrill(MY_LIB, "Ensemble A20", "c").films.map((f) => f.name).join()].join(),
+      return [counted.includes("Extra Player 19-3"), counted.includes("Extra Player 19-10"), sp.find((x) => x.name === "Extra Player 19-10").why, sp.find((x) => x.name === "Extra Player 19-9c").why,
+        counted.includes("Extra Player 19-15"), counted.includes("Extra Player 19-0c"), counted.includes("Extra Player 19-9c"), smallWhy(sp.find((x) => x.name === "Extra Player 19-9c"))].join(); })(),
+    ensemble: [of("Ensemble A26"), personDrill(MY_LIB, "Ensemble A26", "c").films.map((f) => f.name).join()].join(),
     series: personDrill(MY_LIB, "Series Hero", "c").films.map((f) => f.name).sort().join(), doc: castOf(META["star doc|2028"]).length,
     spacey: [of("Kevin Spacey"), of("Last Player"), smallPartsOf(META["se7en|1995"]).some((x) => x.name === "Kevin Spacey")].join(),
+    shock: [of("Samuel L. Jackson"), of("Extra Player 20876-30"), of("Extra Player 20876-0s"), (cameosOf(META["a shock to the system|1990"]).find((x) => x.id === 2231) || {}).why,
+      partsInner("a shock to the system|1990").includes("Not counted: a walk-on, reviewed by hand")].join(),
     ghost: [of("Old Ghost"), personDrill(MY_LIB, "Old Ghost", "c").films.map((f) => f.name).join(), peopleCheck(MY_LIB).late.map((x) => x.name).join()].join(" / "),
     oldFilms: personDrill(MY_LIB, "Paul Guilfoyle (1902–1961)", "c").films.map((f) => f.name).sort().join(), photos: [PHOTOS["paul guilfoyle 1902 1961"], PHOTOS["paul guilfoyle born 1949"]].join() }; });
 
@@ -91,11 +96,12 @@ export default async function ({ browser, base }) {
   assert(c.star === 1, `a credit before the person was born isn't counted: ${c.star}`);
   assert(c.twice === "3,0", `one person TMDB keeps twice is counted once, under one name: ${c.twice}`);
   assert(c.big === 6 && c.bigFilms === "Team Up Again" && c.doc === 40, `a star far down a cast is a cameo, a named extended cameo isn't: ${c.big} ${c.bigFilms}`);
-  assert(c.cameos === "Big Star in Stand Out (2030): Not counted: a star far down the cast | Big Star in Team Up (2030): Not counted: a star far down the cast | Series Hero in Series Part 2 (2002): Not counted: a lead earlier in the series, back in a small part", `the cameos are listed: ${c.cameos}`);
+  assert(c.cameos === "Big Star in Stand Out (2030): Not counted: a star far down the cast | Big Star in Team Up (2030): Not counted: a star far down the cast | Samuel L. Jackson in A Shock to the System (1990): Not counted: a walk-on, reviewed by hand | Series Hero in Series Part 2 (2002): Not counted: a lead earlier in the series, back in a small part", `the cameos are listed: ${c.cameos}`);
   assert(c.series === "Series Part 1,Series Part 3", `a lead back far down a later film of the series is a walk-on: ${c.series}`);
-  assert(c.small === "true,false,bit,deep,true,false,billed 18th of 34", `small parts: ${c.small}`);
+  assert(c.small === "true,false,bit,deep,true,true,false,billed 27th of 34", `small parts: ${c.small}`);
   assert(c.ensemble === "1,In Order", `a cast billed alphabetically counts in full: ${c.ensemble}`);
   assert(c.spacey === "1,0,false", `a part reviewed by hand counts, the rest of the bill still doesn't: ${c.spacey}`);
+  assert(c.shock === "0,1,1,reviewed,true", `a walk-on reviewed by hand doesn't count, the third quarter of a big cast does: ${c.shock}`);
   assert(c.bigVoice === 1 && c.voicePro === "0,1", `voice roles counted apart: ${c.bigVoice} ${c.voicePro}`);
   assert(c.ghost === "1 / Ghost Lead / Old Ghost in Ghost Bit (2003)", `a small role long after a death isn't counted, a lead is: ${c.ghost}`);
   // only people in two or more films, or who share a name, have their dates asked for

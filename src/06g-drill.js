@@ -298,7 +298,7 @@ function partsInner(key) {
   const m = META[key];
   if (!m || m.miss) return `<p class="dr-s">No cast &amp; crew details yet.</p>`;
   const rows = partRows(m), on = rows.filter((r) => r.counts), off = rows.filter((r) => !r.counts);
-  const note = (r) => r.counts ? (r.own ? "Counts: set by you" : r.reviewed ? "Counts: a real part, reviewed by hand" : "Counts") : r.own ? "Left out by you" : `Not counted: ${r.why}`;
+  const note = (r) => r.counts ? (r.own ? "Counts: set by you" : r.reviewed ? "Counts: a real part, reviewed by hand" : "Counts") : r.own ? "Left out by you" : r.reviewed ? "Not counted: a walk-on, reviewed by hand" : `Not counted: ${r.why}`;
   const row = (r) => `<div class="drill-row plain part-row"><span class="dr-main"><span class="dr-t">${esc(r.name)}${r.role === "v" ? ` <span class="dr-y">voice</span>` : ""}</span><span class="dr-s">${esc(note(r))}</span></span>${r.bad ? ""
     : `<button class="dr-r linkish" type="button" data-part="${esc(key)}" data-pid="${Number(r.id)}" data-pv="${r.counts ? 0 : 1}">${r.counts ? "Don't count" : "Count"}</button>`}</div>`;
   const group = (t, list) => `<section class="drill-group"><h4><span>${t}</span><span class="num">${fmtN(list.length)}</span></h4>${list.map(row).join("") || `<div class="empty">Nobody.</div>`}</section>`;

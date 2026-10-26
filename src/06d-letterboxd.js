@@ -437,7 +437,7 @@ function castCheckOf(m, cast, spelling) {
   for (const n of m.c || []) { tmdb.set(personKey(n), n); tmdb.set(nameOrderKey(n), n); }
   const add = [], off = [], cn = {}, can = {};
   // a role IMDb credits goes on only when it isn't a small part by IMDb's own billing (05-core, `smallPart`)
-  const small = (i, roles) => (i >= PRINCIPAL && cast.length > BIG_CAST && (i >= cast.length / 2 || i >= BIG_CAST)) || (i >= BIT_FROM && roles.every((r) => bitPart(r)));
+  const small = (i, roles) => (i >= PRINCIPAL && cast.length > BIG_CAST && i >= cast.length * DEEP_FROM) || (i >= BIT_FROM && roles.every((r) => bitPart(r)));
   for (const [i, [nm, name, role]] of cast.entries()) {
     const roles = String(role || "").split(" / ").map((r) => r.trim());
     const why = roles.map((r) => roleSkip(r)), counts = why.some((w) => !w);

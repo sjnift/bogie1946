@@ -540,8 +540,9 @@ standard errors or more from what the rest of the diary gives; every sentence op
   sometimes not even on the screen for a minute. Should these parts really count?"). Here the site **parts from
   Letterboxd**, which counts every credited role, by the owner's wish: a film's principal and supporting cast count, its
   small parts don't. TMDB has no screen time, so `smallPart` (05-core) reads it from billing and credit, role by role,
-  on screen and in voices: "deep", below the top `PRINCIPAL` 15 of a cast of more than `BIG_CAST` 30, in its lower half
-  or from the 31st (Dafoe 33rd of 300, Jackson 32nd of 46); "bit", below the top `BIT_FROM` 8 and credited only as one
+  on screen and in voices: "deep", below the top `PRINCIPAL` 15 of a cast of more than `BIG_CAST` 30, in its last
+  quarter (`DEEP_FROM` 0.75; asked the same day, after it was the lower half or from the 31st and left out Jon Bernthal,
+  34th of 62, and Lupita Nyong'o, 47th, in The Odyssey; Samantha Morton, 58th, counts by hand); "bit", below the top `BIT_FROM` 8 and credited only as one
   of the people there (`bitPart` in 05b-parts: "Guy" (DiCaprio, 9th of 24), "Man in Black Suit", "Wedding Guest",
   "Cop #2"; not "The Kid", "Mr. Chow" or "Police Inspector"; worked out at lookup into `un`, not in a film whose top 5
   are mostly so, 12 Angry Men); and a star walk-on (`walkOn` "star", widened): below the top 15 in the upper half and
@@ -581,7 +582,10 @@ standard errors or more from what the rest of the diary gives; every sentence op
   film; 20 real parts were found (Spacey, Gazzara, Hall, Robbie, Zendaya, Tyson in The Hangover Part II, Sam Elliott's
   Stranger, Brian Cox's McKee, Oldman's Truman, Paltrow in Endgame, Kurt Russell in Once Upon a Time… in Hollywood,
   Jackson's Stacks Edwards…); the rest stayed out (Endgame's walk-ons, Jackson's Rufus, the Hobbit's Frodo, the Weasley
-  twins…). They count for anyone with the film. (2) The film card's **"Change who counts"** (own diary, both layouts;
+  twins…). Then The Odyssey's Bernthal, Nyong'o and Morton (1), and, as 0, the walk-ons the last-quarter rule let back
+  in (Jackson in A Shock to the System and Dafoe in The French Dispatch, the owner's own examples; Jackson's Rufus,
+  Frodo, Endgame's funeral, Cillian Murphy in The Dark Knight Rises, Martin Freeman in Hot Fuzz, Goldblum in Annie
+  Hall…; shown as "a walk-on, reviewed by hand"). They count, or don't, for anyone with the film. (2) The film card's **"Change who counts"** (own diary, both layouts;
   `D.parts` → `partsInner`, every part counted or not with why and a switch; `setPart` keeps a choice in the film's
   `po`, or drops it when it agrees with the rules), kept through rereads (`runTmdb`, same film), backups and the diary
   on the site (`handParts` in `cleanMeta`; the film's `t` moves so the change wins). The `people` check covers both
@@ -889,6 +893,9 @@ day, shared with the owner's own app. The in-app version is the "Check film data
   Garnett, Babe Ruth, Zendaya, Robbie, the Kiarostami villagers) and asked for the whole zip reviewed → playing themselves
   only a cameo below the top 10, the 205 doubtful parts of well-known actors read by hand (`PART_FIXES`), and "Change
   who counts" on every film card (see "Who counts, by hand").
+- The owner asked for the big-cast cut-off to move from the lower half to the last quarter (26 Oct 2026: Jon Bernthal,
+  Samantha Morton and Lupita Nyong'o in The Odyssey had real parts) → `DEEP_FROM`, measured on their export: about
+  11,600 parts came back; the clear walk-ons among them were pinned out by hand, Morton (58th of 62) pinned in.
 - A guest found actor and director counts off (25 Oct 2026): only the top 15 billed counted, and directors stopped at 6
   a film → every credited role, as Letterboxd counts them; then role by role (cameos, extended cameos, special
   appearances, archive footage) and, for the owner, checked on IMDb (26 Oct; see "Counting people like Letterboxd").

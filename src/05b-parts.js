@@ -218,10 +218,11 @@ function bitPart(character) {
    genuine acting parts"; Margot Robbie in Asteroid City, "a small part but an important one"; Zendaya in The
    Odyssey; Mike Tyson in The Hangover), and every part their 1,559 films left out by those rules that a well-known
    actor plays (205: billed far down, a star among unknowns, playing themselves) was then read through by hand, with
-   what's known of each film. These are the real parts found, by TMDB film id and TMDB person id (1 counts). They
-   count for anyone whose diary has the film; anyone can change a film's on its card (`po`, "Change who counts"). */
+   what's known of each film. These are the real parts found, by TMDB film id and TMDB person id (1 counts), then
+   the walk-ons that the last-quarter rule for big casts let back in (0 doesn't). They count, or don't, for anyone
+   whose diary has the film; anyone can change a film's on its card (`po`, "Change who counts"). */
 const PART_FIXES = {};
-for (const [film, person] of [
+for (const [film, person, v = 1] of [
   [807, 1979], // Kevin Spacey, John Doe, Se7en: billed last by his own wish
   [115, 856], [115, 16431], // Ben Gazzara (Jackie Treehorn), Sam Elliott (The Stranger), The Big Lebowski
   [37165, 4492], // Philip Baker Hall, the network executive, The Truman Show
@@ -240,5 +241,20 @@ for (const [film, person] of [
   [872585, 64], // Gary Oldman, Harry Truman, Oppenheimer
   [8333, 10555], // Tony Roberts, the deputy mayor, The Taking of Pelham One Two Three
   [86838, 5048], // Harry Dean Stanton, the Quaker, Seven Psychopaths
-]) (PART_FIXES[film] || (PART_FIXES[film] = {}))[person] = 1;
+  // The Odyssey's big cast (62): the owner named these three as real parts (26 Oct 2026); Morton is 58th
+  [1368337, 19498], [1368337, 1267329], [1368337, 2206], // Jon Bernthal (Menelaus), Lupita Nyong'o, Samantha Morton (Circe)
+  // walk-ons in a big cast's third quarter, which counts since 26 Oct 2026 (0: left out)
+  [20876, 2231, 0], // Samuel L. Jackson, Ulysses, A Shock to the System (the owner's example of a really minor part)
+  [542178, 5293, 0], // Willem Dafoe, Albert "the Abacus", The French Dispatch (likewise)
+  [393, 2231, 0], // Samuel L. Jackson, Rufus, Kill Bill: Vol. 2
+  [49051, 109, 0], // Elijah Wood, Frodo, The Hobbit: An Unexpected Journey
+  [299534, 39459, 0], [299534, 524, 0], [299534, 3141, 0], [299534, 3392, 0], [299534, 71189, 0], // Avengers: Endgame's
+  // walk-ons: Hayley Atwell (Peggy Carter), Natalie Portman (Jane Foster), Marisa Tomei (Aunt May), Michael Douglas
+  // (Hank Pym), Cobie Smulders (Maria Hill)
+  [49026, 2037, 0], // Cillian Murphy, Scarecrow, The Dark Knight Rises
+  [24428, 5048, 0], // Harry Dean Stanton, the security guard, The Avengers
+  [4638, 7060, 0], // Martin Freeman, the Met sergeant, Hot Fuzz
+  [703, 4785, 0], // Jeff Goldblum, the party guest, Annie Hall
+  [466272, 147, 0], // Michael Madsen, Sheriff Hackett, Once Upon a Time… in Hollywood
+]) (PART_FIXES[film] || (PART_FIXES[film] = {}))[person] = v;
 </script>
