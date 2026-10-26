@@ -395,9 +395,52 @@ function factsWanted(lib) {
   for (const [id, n] of count) if (n >= 2) want.add(id);
   return [...want].filter((id) => !FACTS[id] || now - Date.parse(FACTS[id].t || 0) > FACTS_DAYS * 864e5);
 }
+/* Careers (asked 26 Oct 2026): a star far down a cast is a walk-on (05-core, `walkOn`, `starPlace`), and the diary
+   alone can't tell who was a star when: it has seen too few of some stars' films. So the people check also reads the
+   whole TMDB film record of everyone billed where a star would be a walk-on (in the lower half of a cast from the
+   STAR_FROMth, or standing out from those billed around them, `so`) and in two or more of the diary's films or
+   standing out (one request each: the person page with their film credits). Kept is only `st`, the years they were
+   usually billed in the top STAR_NEAR (median place over their films of STAR_YEARS either side, CAREER_FILMS or more,
+   each with STAR_VOTES votes on TMDB, so a lead in films hardly anyone saw doesn't make a star), and `cs`. */
+const CAREER_V = 1, CAREER_FILMS = STAR_FILMS + 1; // one more than the diary asks: the film itself is in the record
+function careerRuns(cast, today) {
+  const year = (s) => parseInt(String(s || "").slice(0, 4), 10) || 0;
+  const c = (Array.isArray(cast) ? cast : []).filter((x) => x && /^\d{4}-/.test(x.release_date || "") && x.release_date <= today && Number.isFinite(x.order) && (Number(x.vote_count) || 0) >= STAR_VOTES
+    && !roleSkip(String(x.character || "")) && !VOICE.test(String(x.character || "")) && !SELF_ROLE.test(String(x.character || "")) && !(x.genre_ids || []).includes(99))
+    .map((x) => [year(x.release_date), Number(x.order)]);
+  const runs = [];
+  if (!c.length) return runs;
+  const ys = c.map((x) => x[0]), lo = Math.min(...ys), hi = Math.max(...ys);
+  for (let y = lo - STAR_YEARS; y <= hi + STAR_YEARS; y++) {
+    const w = c.filter((x) => Math.abs(x[0] - y) <= STAR_YEARS).map((x) => x[1]).sort((a, b) => a - b);
+    const md = w.length >= CAREER_FILMS ? w[(w.length - 1) >> 1] : null;
+    if (md == null || md >= STAR_NEAR) continue;
+    const last = runs[runs.length - 1];
+    if (last && last[1] === y - 1 && last[2] === md) last[1] = y; else runs.push([y, y, md]);
+  }
+  return runs;
+}
+function careerWanted(lib) {
+  const want = new Set(), films = new Map(), now = Date.now();
+  for (const f of lib.films) {
+    const m = META[f.key];
+    if (!m || m.miss) continue;
+    for (const id of new Set(m.ci || [])) if (id) films.set(Number(id), (films.get(Number(id)) || 0) + 1);
+  }
+  for (const f of lib.films) {
+    const m = META[f.key];
+    if (!m || m.miss || isDocumentary(m)) continue;
+    const n = (m.c || []).length, so = new Set(m.so || []);
+    (m.ci || []).forEach((id, i) => {
+      id = Number(id);
+      if (id && partFix(m, id) == null && ((i >= STAR_FROM && i >= n / 2 && films.get(id) >= 2) || (i >= PRINCIPAL && so.has(id)))) want.add(id);
+    });
+  }
+  return [...want].filter((id) => { const x = FACTS[id]; return !x || x.cs !== CAREER_V || now - Date.parse(x.t || 0) > FACTS_DAYS * 864e5; });
+}
 async function runFacts(lib, key) {
   if (factsJob.running || !key || IN_VIEWER || !lib) return;
-  const queue = factsWanted(lib);
+  const careers = new Set(careerWanted(lib)), queue = [...new Set([...factsWanted(lib), ...careers])];
   if (!queue.length) return;
   Object.assign(factsJob, { running: true, done: 0, total: queue.length });
   renderLookup();
@@ -407,8 +450,10 @@ async function runFacts(lib, key) {
     while (queue.length && !stop) {
       const id = queue.shift();
       try {
-        const d = await tmdbGet(`/person/${Number(id)}`, {}, key);
-        FACTS[id] = d ? { b: year(d.birthday), d: year(d.deathday), im: /^nm\d+$/.test(d.imdb_id || "") ? d.imdb_id : "", p: imagePath(d.profile_path) || "", t: today } : { t: today };
+        const career = careers.has(id), old = FACTS[id] || {};
+        const d = await tmdbGet(`/person/${Number(id)}`, career ? { append_to_response: "movie_credits" } : {}, key);
+        const st = career ? (d && d.movie_credits ? careerRuns(d.movie_credits.cast, today) : []) : old.st, cs = career ? CAREER_V : old.cs;
+        FACTS[id] = { ...(d ? { b: year(d.birthday), d: year(d.deathday), im: /^nm\d+$/.test(d.imdb_id || "") ? d.imdb_id : "", p: imagePath(d.profile_path) || "" } : {}), t: today, ...(cs ? { cs } : {}), ...(st && st.length ? { st } : {}) };
       } catch (e) { if (e && (e.code === "auth" || e instanceof TypeError)) { stop = true; return; } }
       factsJob.done++;
       if (++since >= 250) { since = 0; store.set(KEYS.facts, FACTS); META_REV++; }
@@ -422,7 +467,9 @@ async function runFacts(lib, key) {
   scheduleRender();
 }
 const safeFacts = (o) => Object.fromEntries(Object.entries(o || {}).filter(([k, f]) => /^\d{1,9}$/.test(k) && f && typeof f === "object")
-  .map(([k, f]) => [k, { b: Number(f.b) || 0, d: Number(f.d) || 0, im: /^nm\d+$/.test(f.im || "") ? f.im : "", p: imagePath(f.p) || "", t: String(f.t || "").slice(0, 10) }]));
+  .map(([k, f]) => [k, { b: Number(f.b) || 0, d: Number(f.d) || 0, im: /^nm\d+$/.test(f.im || "") ? f.im : "", p: imagePath(f.p) || "", t: String(f.t || "").slice(0, 10),
+    ...(f.cs === CAREER_V ? { cs: CAREER_V } : {}),
+    ...(Array.isArray(f.st) ? { st: f.st.filter((r) => Array.isArray(r) && r.length === 3 && r.every((v) => Number.isInteger(v)) && r[0] <= r[1] && r[2] >= 0 && r[2] < STAR_NEAR).slice(0, 80) } : {}) }]));
 // What the people check found in a diary: people of one name told apart, credits TMDB's dates make impossible (not
 // counted), roles TMDB gave to another person of that name than IMDb does (owner's checked films), and roles long
 // long after a death (a role TMDB gave to the wrong person of that name; not counted).
@@ -455,15 +502,52 @@ function peopleCheck(lib) {
   return { namesakes: [...shownNs.values()].sort((a, b) => a.name.localeCompare(b.name)), impossible, wrong, late, cameos, small: small.length, smallKnown: known, dated: wanted.filter((id) => FACTS[id]).length, wanted: wanted.length };
 }
 const SMALL_KNOWN = 3;
-function factsProgressText() { return `Checking people's dates on TMDB: ${fmtN(factsJob.done)} of ${fmtN(factsJob.total)}.`; }
+/* Parts to check (asked 26 Oct 2026: "not overlook small but vital parts", without counting vain cameos): credits can't
+   tell Kevin Spacey's John Doe in Se7en from Samuel L. Jackson's Nick Fury at Endgame's funeral (a famous name, a
+   named part, far down a big cast; on the owner's films about 9 in 10 such were walk-ons), so the rules leave those
+   out and list them here, in films first logged from PARTS_FROM on (the owner's earlier films were read through by
+   hand, `PART_FIXES`), to count or leave out with a tap (kept in the film's `po`): stars far down a cast (`walkOn`
+   "star") and, in the last quarter of a big cast, people counted in SMALL_KNOWN or more of the diary's other films. */
+const PARTS_FROM = "2026-10-26";
+function partsToCheck(lib) {
+  if (IN_VIEWER || !lib) return [];
+  const P = peopleIndex(), out = [];
+  for (const f of lib.films) {
+    const first = f.entries.reduce((a, e) => { const d = e.logged || e.date; return !a || d < a ? d : a; }, "");
+    const m = first >= PARTS_FROM && META[f.key];
+    if (!m || m.miss) continue;
+    for (const role of ["c", "v"]) {
+      const of = (m[ROLE_FIELD[role]] || []).length;
+      for (const { name, id, place } of rolePeople(m, role)) {
+        if (!id || place == null || partFix(m, id) != null || badCredit(m, id, role, place)) continue;
+        const cid = P.canon.get(id) || id, shown = P.label.get(cid) || P.nameOf.get(cid) || name, w = walkOn(m, role, place, id);
+        const known = !w && smallPart(m, role, place, id) === "deep" ? countedIn(lib, role).get(personKey(shown)) || 0 : 0;
+        if (w !== "star" && known < SMALL_KNOWN) continue;
+        const md = w === "star" ? starPlace(m, role, cid) : null;
+        out.push({ key: f.key, film: f, id, role, name: shown, why: `billed ${ordinal(place + 1)} of ${of}${role === "v" ? " (voice)" : ""}, ${md != null ? `usually ${ordinal(md + 1)}-billed in those years` : `counted in ${fmtN(known)} of your other films`}` });
+      }
+    }
+  }
+  return out;
+}
+function partsCheckBlock(lib, phone) {
+  if (IN_VIEWER || !lib || !lib.films.some((f) => META[f.key] && META[f.key].ci)) return "";
+  const list = partsToCheck(lib), title = phone ? `<p class="title" style="margin-top:6px">Parts to check</p>` : `<h3 class="sub-h">Parts to check</h3>`;
+  if (!list.length) return title + `<p class="status">Nothing to check. When a film you log has a famous name far down a big cast, it's left out as a walk-on and listed here, so you can count it if it's a real part.</p>`;
+  const row = (r) => `<li class="ptc-row"><span><b>${esc(r.name)}</b> in ${dlink(D.film(r.film), esc(r.film.name))}<small>${esc(r.why)}</small></span><span class="ptc-acts">`
+    + `<button class="btn small" type="button" data-part="${esc(r.key)}" data-pid="${Number(r.id)}" data-pv="1" data-pkeep="1">Count</button>`
+    + `<button class="btn small" type="button" data-part="${esc(r.key)}" data-pid="${Number(r.id)}" data-pv="0" data-pkeep="1">Leave out</button></span></li>`;
+  return title + `<p class="status">Famous names far down a big cast, in films you've logged since 26 Oct 2026. Most are walk-ons, so they're left out; count the ones that are real parts.</p><ul class="ptc">${list.map(row).join("")}</ul>`;
+}
+function factsProgressText() { return `Checking people's dates and careers on TMDB: ${fmtN(factsJob.done)} of ${fmtN(factsJob.total)}.`; }
 // In the Cast & crew box on both layouts, for any diary with cast and crew from TMDB.
 function peopleCheckBlock(lib, phone) {
   if (IN_VIEWER || !lib || !lib.films.some((f) => META[f.key] && META[f.key].ci)) return "";
-  const title = phone ? `<p class="title" style="margin-top:6px">People check</p>` : `<h3 class="sub-h">People check</h3>`;
+  const title = partsCheckBlock(lib, phone) + (phone ? `<p class="title" style="margin-top:6px">People check</p>` : `<h3 class="sub-h">People check</h3>`);
   if (factsJob.running) return title + `<p class="status" id="facts-progress" role="status">${factsProgressText()}</p>`;
   const r = peopleCheck(lib), list = (items, t, s) => dlink(D.names(t, s, items), plural(items.length, "credit"));
   const lines = [`Everyone in your films is TMDB's person, told apart by TMDB's own id, so two people who share a name are never counted as one, and each credit is checked against that person's dates on TMDB.`];
-  lines.push(r.cameos.length ? `${dlink(D.names("Cameos, not counted", "Labelled cameos, people playing themselves, authors in a walk-on, stars far down the cast", r.cameos), plural(r.cameos.length, "cameo"))} in your films ${r.cameos.length === 1 ? "isn't" : "aren't"} counted: labelled cameos, people playing themselves, the author of the source in a walk-on, and stars far down the cast (an extended cameo that names its character still counts).` : "No cameos found in your films.");
+  lines.push(r.cameos.length ? `${dlink(D.names("Cameos, not counted", "Labelled cameos, people playing themselves, authors in a walk-on, stars far down the cast", r.cameos), plural(r.cameos.length, "cameo"))} in your films ${r.cameos.length === 1 ? "isn't" : "aren't"} counted: labelled cameos, people playing themselves, the author of the source in a walk-on, and stars far down the cast, judged by their whole career on TMDB (an extended cameo that names its character still counts).` : "No cameos found in your films.");
   if (r.small) lines.push(`${plural(r.small, "small part")} in your films ${r.small === 1 ? "isn't" : "aren't"} counted either: the last quarter of a cast of more than ${BIG_CAST} (below its top ${PRINCIPAL}), and bit parts ("Guy at bar", "Cop #2") below the top ${BIT_FROM}.${r.smallKnown.length ? ` ${dlink(D.names("Small parts, not counted", `Of people counted in ${SMALL_KNOWN} or more of your films`, r.smallKnown), plural(r.smallKnown.length, "of them", "of them").replace(/^1 of them/, "One"))} ${r.smallKnown.length === 1 ? "is" : "are"} by people counted in ${SMALL_KNOWN} or more of your other films.` : ""}`);
   if (r.namesakes.length) lines.push(`${dlink(D.names("People who share a name", "Each counted apart, with their own films", r.namesakes), plural(r.namesakes.length, "person", "people"))} in your diary share a name with someone else there, so each is shown with their years, like ${esc(r.namesakes[0].name)}.`);
   else lines.push("No two people in your diary share a name.");

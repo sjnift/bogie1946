@@ -243,6 +243,12 @@ for (const [film, person, v = 1] of [
   [86838, 5048], // Harry Dean Stanton, the Quaker, Seven Psychopaths
   // The Odyssey's big cast (62): the owner named these three as real parts (26 Oct 2026); Morton is 58th
   [1368337, 19498], [1368337, 1267329], [1368337, 2206], // Jon Bernthal (Menelaus), Lupita Nyong'o, Samantha Morton (Circe)
+  // real parts of stars far down a cast, by their whole career (26 Oct 2026: of 54 parts that check took out on the
+  // owner's films, these were real; the rest, like Schwarzenegger in Around the World in 80 Days, walk-ons)
+  [155, 64856], // Michael Jai White, Gambol, The Dark Knight
+  [115, 11207], // David Thewlis, Knox Harrington, The Big Lebowski
+  [9289, 30551], [9289, 67676], [9289, 10459], // The Longest Day's all-star cast: Jeffrey Hunter, Kenneth More, Curd Jürgens
+  [695, 3223], // Robert Downey Jr., Bill Bush, Short Cuts (a storyline of Altman's ensemble)
   // walk-ons in a big cast's third quarter, which counts since 26 Oct 2026 (0: left out)
   [20876, 2231, 0], // Samuel L. Jackson, Ulysses, A Shock to the System (the owner's example of a really minor part)
   [542178, 5293, 0], // Willem Dafoe, Albert "the Abacus", The French Dispatch (likewise)

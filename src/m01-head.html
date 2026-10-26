@@ -586,7 +586,7 @@ details.owner-open:not([open]) { background: none; box-shadow: none; padding: 4p
   text-decoration-color: color-mix(in srgb, var(--ink-2) 45%, transparent); -webkit-tap-highlight-color: transparent; }
 .mtable .dlink, .crow .dlink, .yrow .dlink, .gshare .dlink { text-decoration: none; }
 .dlink:active { color: var(--green); }
-.status .dlink, .lead .dlink, .tline .dlink, .legend .dlink, .fc-dir .dlink, .mrev .t .dlink, .note .dlink, .wgone .dlink { text-decoration: none; color: var(--ink); font-weight: 650; }
+.status .dlink, .ptc .dlink, .lead .dlink, .tline .dlink, .legend .dlink, .fc-dir .dlink, .mrev .t .dlink, .note .dlink, .wgone .dlink { text-decoration: none; color: var(--ink); font-weight: 650; }
 .fc-tags, .fc-chips { display: flex; flex-wrap: wrap; gap: 7px; }
 .fc-tags { margin-top: 8px !important; }
 .fc-tags .dlink, .fc-chips .dlink { text-decoration: none; background: var(--surface-2); color: var(--ink-1); border-radius: 999px; padding: 5px 12px; font-size: 13px; line-height: 1.35; }
@@ -802,4 +802,8 @@ body.nodata .hero .avatar svg { width: 40px; height: 40px; color: var(--green); 
 .storyrow { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-top: 12px; }
 .storyrow .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
 .storyrow svg, .st-nav svg { width: 18px; height: 18px; }
+.ptc { list-style: none; margin: 6px 0 2px; padding: 0; }
+.ptc-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; padding: 10px 0; border-top: 1px solid var(--line); font-size: 14.5px; color: var(--ink-1); }
+.ptc-row small { display: block; color: var(--ink-2); font-size: 12.5px; margin-top: 2px; }
+.ptc-acts { display: flex; gap: 6px; flex: none; }
 </style>

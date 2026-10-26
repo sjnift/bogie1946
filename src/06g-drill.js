@@ -305,13 +305,14 @@ function partsInner(key) {
   return `<p class="dr-s">Who counts follows each part's billing and credit; switch anyone and every stat follows.</p>${group("Counted", on)}${group("Not counted", off)}`;
 }
 // A switch: back to the rules when it agrees with them, else kept as this diary's own choice (`po`, 05-core `partFix`).
-function setPart(key, id, v) {
+// `keep`: kept even when the rules agree (a part checked from Settings' "Parts to check", so it leaves the list).
+function setPart(key, id, v, keep) {
   const m = META[key];
   if (!m || !id) return;
   const po = { ...(m.po || {}) };
   delete po[id];
   const byRule = partRows({ ...m, po }).find((r) => r.id === id);
-  if (!byRule || byRule.counts !== (v === 1)) po[id] = v;
+  if (keep || !byRule || byRule.counts !== (v === 1)) po[id] = v;
   const next = { ...m, t: new Date().toISOString() };
   if (Object.keys(po).length) next.po = po; else delete next.po;
   META[key] = next;
@@ -321,6 +322,6 @@ function setPart(key, id, v) {
 }
 document.addEventListener("click", (e) => {
   const b = e.target.closest("[data-part]");
-  if (b) setPart(b.dataset.part, Number(b.dataset.pid), Number(b.dataset.pv));
+  if (b) setPart(b.dataset.part, Number(b.dataset.pid), Number(b.dataset.pv), !!b.dataset.pkeep);
 });
 </script>

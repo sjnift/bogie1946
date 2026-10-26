@@ -37,20 +37,27 @@ const films = [
   // a walk-on in a big cast's third quarter (counts by the rules) left out on review (PART_FIXES: TMDB's A Shock to the
   // System, 20876, and Samuel L. Jackson, 2231), billed 32nd of 46
   ["A Shock to the System", 1990, meta(20876, 1990, [...crowd(31, 20876), "Samuel L. Jackson", ...crowd(14, 20876).map((x) => x + "s")], [...crowdIds(31, 20876000), 2231, ...crowdIds(14, 20876500)])],
+  // a star by their whole career on TMDB (person 90's film record, read by the people check), billed 25th of 40 here:
+  // a walk-on, though the diary has them in just one other film; logged on 27 Oct 2026, so it's a part to check
+  ["Career Walk-on", 2020, meta(26, 2020, [...crowd(24, 26), "Career Star", ...crowd(15, 26).map((x) => x + "w")], [...crowdIds(24, 26000), 90, ...crowdIds(15, 26500)])],
+  ["Career Lead", 2021, meta(27, 2021, ["Career Star", ...crowd(5, 27)], [90, ...crowdIds(5, 27000)])],
   ...[[22, 2000, 0], [23, 2002, 10], [24, 2004, 9]].map(([id, y, at]) => [`Series Part ${id - 21}`, y, meta(id, y, crowd(12, id).map((x, i) => (i === at ? "Series Hero" : x)), crowdIds(12, id * 1000).map((x, i) => (i === at ? 80 : x)), undefined, undefined, { cl: 900 })]),
 ];
 const persons = { 104714: { birthday: "1902-07-14", deathday: "1961-06-27", imdb_id: "nm0002116", profile_path: "/old.jpg" },
   925: { birthday: "1949-04-28", deathday: null, imdb_id: "nm0002117", profile_path: "/new.jpg" }, 3: { birthday: "1970-01-01", imdb_id: "nm0000003" },
   31: { birthday: "1925-01-01", imdb_id: "nm0000031" }, 32: { birthday: "1925-01-01", imdb_id: "nm0000031" },
-  60: { birthday: "1910-01-01", deathday: "1975-06-01", imdb_id: "nm0000060" } };
-const rows = { profile: [{ Username: "tester" }], watched: films.map(([n, y]) => ({ Name: n, Year: String(y) })), ratings: [], diary: films.map(([n, y], i) => ({ Name: n, Year: String(y), "Watched Date": `2024-0${i + 1}-02`, Rating: "4" })) };
+  60: { birthday: "1910-01-01", deathday: "1975-06-01", imdb_id: "nm0000060" },
+  90: { birthday: "1980-01-01", imdb_id: "nm0000090", movie_credits: { cast: [2016, 2018, 2019, 2022, 2023].map((y, i) => ({ id: 9000 + i, release_date: `${y}-05-01`, order: i === 4 ? 30 : 0, character: "Hero", vote_count: 900, genre_ids: [28] }))
+    .concat([{ id: 9100, release_date: "2019-01-01", order: 0, character: "Hero", vote_count: 3, genre_ids: [28] }, { id: 9101, release_date: "2031-01-01", order: 0, character: "Hero", vote_count: 900 }]) } } };
+const rows = { profile: [{ Username: "tester" }], watched: films.map(([n, y]) => ({ Name: n, Year: String(y) })), ratings: [], diary: films.map(([n, y], i) => ({ Name: n, Year: String(y), "Watched Date": `2024-0${i + 1}-02`, Rating: "4" }))
+  .concat([{ Name: "Career Walk-on", Year: "2020", "Watched Date": "2026-10-27", Date: "2026-10-27", Rating: "3" }]) };
 const metas = Object.fromEntries(films.map(([n, y, m]) => [`${n.toLowerCase()}|${y}`, m]));
 
 async function standIn(p, asked) {
   await p.context().route(/api\.themoviedb\.org/, (r) => {
     const u = new URL(r.request().url()), json = (o, status = 200) => r.fulfill({ status, contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: JSON.stringify(o) });
     const m = u.pathname.match(/^\/3\/person\/(\d+)$/);
-    if (m) { asked.push(+m[1]); return persons[m[1]] ? json({ id: +m[1], ...persons[m[1]] }) : json({}, 404); }
+    if (m) { asked.push(+m[1]); if (u.searchParams.get("append_to_response") === "movie_credits") asked.push(`career ${m[1]}`); return persons[m[1]] ? json({ id: +m[1], ...persons[m[1]] }) : json({}, 404); }
     if (/\/3\/person\/\d+\/movie_credits/.test(u.pathname)) { asked.push(`credits ${u.pathname.split("/")[3]}`); return json({ cast: [], crew: [] }); }
     json({ results: [] });
   });
@@ -77,6 +84,7 @@ const counted = (page) => page.evaluate(() => { const s = computeStats(MY_LIB, m
     ensemble: [of("Ensemble A26"), personDrill(MY_LIB, "Ensemble A26", "c").films.map((f) => f.name).join()].join(),
     series: personDrill(MY_LIB, "Series Hero", "c").films.map((f) => f.name).sort().join(), doc: castOf(META["star doc|2028"]).length,
     spacey: [of("Kevin Spacey"), of("Last Player"), smallPartsOf(META["se7en|1995"]).some((x) => x.name === "Kevin Spacey")].join(),
+    career: [of("Career Star"), (cameosOf(META["career walk-on|2020"]).find((x) => x.id === 90) || {}).why, partsToCheck(MY_LIB).map((x) => `${x.name} in ${x.film.name}: ${x.why}`).join(" | ")].join(" / "),
     shock: [of("Samuel L. Jackson"), of("Extra Player 20876-30"), of("Extra Player 20876-0s"), (cameosOf(META["a shock to the system|1990"]).find((x) => x.id === 2231) || {}).why,
       partsInner("a shock to the system|1990").includes("Not counted: a walk-on, reviewed by hand")].join(),
     ghost: [of("Old Ghost"), personDrill(MY_LIB, "Old Ghost", "c").films.map((f) => f.name).join(), peopleCheck(MY_LIB).late.map((x) => x.name).join()].join(" / "),
@@ -89,6 +97,8 @@ export default async function ({ browser, base }) {
   // before TMDB's dates come, the two are told apart by their films' years
   const early = await p.evaluate(() => { const keep = FACTS; FACTS = {}; META_REV++; const l = [...peopleIndex().label.values()].sort(); FACTS = keep; META_REV++; return l.join(" | "); });
   assert(early === "Lu Qi (film of 2001) | Lü Qi (films 2003–2005) | Paul Guilfoyle (films 1946–1948) | Paul Guilfoyle (films 1987–1999)", `namesakes before their dates: ${early}`);
+  const before = await p.evaluate(() => { const keep = FACTS; FACTS = {}; META_REV++; const c = castOf(META["career walk-on|2020"]).includes("Career Star"); FACTS = keep; META_REV++; return c; });
+  assert(before === true, "without the career, the diary alone counts the part");
   await p.waitForFunction(() => !factsJob.running && FACTS[925] && FACTS[104714] && FACTS[3], null, { timeout: 8000 });
   const c = await counted(p);
   assert(c.old === 2 && c.young === 2 && c.plain === 0, `two people of one name counted apart: ${JSON.stringify(c)}`);
@@ -96,16 +106,19 @@ export default async function ({ browser, base }) {
   assert(c.star === 1, `a credit before the person was born isn't counted: ${c.star}`);
   assert(c.twice === "3,0", `one person TMDB keeps twice is counted once, under one name: ${c.twice}`);
   assert(c.big === 6 && c.bigFilms === "Team Up Again" && c.doc === 40, `a star far down a cast is a cameo, a named extended cameo isn't: ${c.big} ${c.bigFilms}`);
-  assert(c.cameos === "Big Star in Stand Out (2030): Not counted: a star far down the cast | Big Star in Team Up (2030): Not counted: a star far down the cast | Samuel L. Jackson in A Shock to the System (1990): Not counted: a walk-on, reviewed by hand | Series Hero in Series Part 2 (2002): Not counted: a lead earlier in the series, back in a small part", `the cameos are listed: ${c.cameos}`);
+  assert(c.cameos === "Big Star in Stand Out (2030): Not counted: a star far down the cast | Big Star in Team Up (2030): Not counted: a star far down the cast | Career Star in Career Walk-on (2020): Not counted: a star far down the cast | Samuel L. Jackson in A Shock to the System (1990): Not counted: a walk-on, reviewed by hand | Series Hero in Series Part 2 (2002): Not counted: a lead earlier in the series, back in a small part", `the cameos are listed: ${c.cameos}`);
   assert(c.series === "Series Part 1,Series Part 3", `a lead back far down a later film of the series is a walk-on: ${c.series}`);
   assert(c.small === "true,false,bit,deep,true,true,false,billed 27th of 34", `small parts: ${c.small}`);
   assert(c.ensemble === "1,In Order", `a cast billed alphabetically counts in full: ${c.ensemble}`);
   assert(c.spacey === "1,0,false", `a part reviewed by hand counts, the rest of the bill still doesn't: ${c.spacey}`);
+  assert(c.career === "1 / star / Career Star in Career Walk-on: billed 25th of 40, usually 1st-billed in those years", `a star by their career on TMDB, far down a cast, is a walk-on and a part to check: ${c.career}`);
+  // careers: people in two or more films billed where a star would be a walk-on (90, 70), or standing out there (50)
+  assert(asked.filter((x) => /career/.test(x)).sort().join() === "career 50,career 70,career 90", `careers read: ${asked.filter((x) => /career/.test(x))}`);
   assert(c.shock === "0,1,1,reviewed,true", `a walk-on reviewed by hand doesn't count, the third quarter of a big cast does: ${c.shock}`);
   assert(c.bigVoice === 1 && c.voicePro === "0,1", `voice roles counted apart: ${c.bigVoice} ${c.voicePro}`);
   assert(c.ghost === "1 / Ghost Lead / Old Ghost in Ghost Bit (2003)", `a small role long after a death isn't counted, a lead is: ${c.ghost}`);
   // only people in two or more films, or who share a name, have their dates asked for
-  assert([...new Set(asked)].sort().join() === "104714,3,31,32,50,51,60,70,80,900,925", `asked TMDB for: ${asked}`);
+  assert([...new Set(asked.filter((x) => typeof x === "number"))].sort().join() === "104714,3,31,32,50,51,60,70,80,90,900,925", `asked TMDB for: ${asked}`);
   // the filmography of each is theirs, by TMDB's id, not the better known of the two
   await p.evaluate(() => filmography("Paul Guilfoyle (1902–1961)", "c"));
   assert(asked.includes("credits 104714") && !asked.includes("credits 925"), `filmography asked for: ${asked}`);
@@ -113,9 +126,16 @@ export default async function ({ browser, base }) {
   const switched = await switchParts(p, () => openDrill(D.film(MY_LIB.films.find((f) => f.name === "Se7en"))), "#dlg");
   assert(switched === "0,1,|1,1,1|0,1,|0,0,0", `who counts, changed on the card: ${switched}`);
   await p.keyboard.press("Escape");
+  // a part to check: one line on the stats page, then in Settings; counting it takes it off the list and keeps the choice
+  await p.waitForFunction(() => /1 part to check/.test($("#lookup-mini").innerText), null, { timeout: 5000 });
   await p.click("#btn-settings");
   await p.waitForFunction(() => /people check/i.test($("#lookup").innerText), null, { timeout: 5000 });
   const box = (await p.innerText("#lookup")).replace(/\s+/g, " ");
+  assert(/Parts to check/i.test(box) && /Career Star in Career Walk-on billed 25th of 40, usually 1st-billed in those years/.test(box), `the parts to check: ${box.slice(box.search(/Parts to check/i), box.search(/Parts to check/i) + 300)}`);
+  await p.click('#lookup [data-pkeep][data-pv="1"]');
+  await p.waitForFunction(() => /Nothing to check/.test($("#lookup").innerText), null, { timeout: 5000 });
+  const kept = await p.evaluate(() => [JSON.stringify(META["career walk-on|2020"].po), castOf(META["career walk-on|2020"]).includes("Career Star")].join());
+  assert(kept === '{"90":1},true', `counted from the list: ${kept}`);
   assert(/small parts in your films aren't counted either/.test(box) && /2 people in your diary share a name/.test(box) && /1 credit is impossible by TMDB's own dates/.test(box) && /Dates checked for \d+ of \d+ people/.test(box), `the people check: ${box.slice(box.search(/people check/i), box.search(/people check/i) + 600)}`);
   noErrors(p, "desktop");
 
@@ -129,8 +149,14 @@ export default async function ({ browser, base }) {
   const mswitched = await switchParts(m, () => openSheet(D.film(MY_LIB.films.find((f) => f.name === "Se7en"))), "#sheet");
   assert(mswitched === "0,1,|1,1,1|0,1,|0,0,0", `phone: who counts, changed on the card: ${mswitched}`);
   await m.evaluate(() => closeSheet());
+  await m.waitForFunction(() => /1 part to check/.test(document.body.innerText), null, { timeout: 5000 });
   await m.click("#nav-right [data-act=\"settings\"]");
   await m.waitForFunction(() => /People check/i.test(document.body.innerText) && /2 people in your diary share a name/.test(document.body.innerText), null, { timeout: 5000 });
+  assert(/Career Star in Career Walk-on/.test(await m.innerText("body")), "phone: the part to check in Settings");
+  await m.click('[data-pkeep][data-pv="0"]');
+  await m.waitForFunction(() => /Nothing to check/.test(document.body.innerText), null, { timeout: 5000 });
+  const mkept = await m.evaluate(() => [JSON.stringify(META["career walk-on|2020"].po), castOf(META["career walk-on|2020"]).includes("Career Star")].join());
+  assert(mkept === '{"90":0},false', `phone: left out from the list: ${mkept}`);
   noErrors(m, "phone");
   await p.close(); await m.close();
 }

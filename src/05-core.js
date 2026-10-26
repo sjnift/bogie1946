@@ -429,7 +429,7 @@ const GENRES = ["Action", "Adventure", "Animation", "Comedy", "Crime", "Document
    ("Tiger (Extended Cameo)": a credited part of some length, kept in `ce`). A documentary's "Self" is its subject. */
 const SOURCE_JOBS = new Set(["Characters", "Comic Book", "Novel", "Book", "Short Story", "Graphic Novel", "Author", "Play", "Theatre Play", "Musical", "Original Concept", "Creator"]);
 const SOURCE_FROM = 5, SELF_FROM = 3, SELF_CAMEO_FROM = 10, CAMEO_HABIT = 3;
-const STAR_FROM = 20, STAR_YEARS = 5, STAR_FILMS = 3, STAR_TOP = 3, STAR_NEAR = 5, STAR_DEEP = 8;
+const STAR_FROM = 20, STAR_YEARS = 5, STAR_FILMS = 3, STAR_TOP = 3, STAR_NEAR = 5, STAR_DEEP = 8, STAR_VOTES = 50;
 const BACKGROUND_VOICES = /^\s*(?:additional|various|other|background|incidental|miscellaneous|extra)\s+voices?\b|\bloop\s*group\b|\bADR\b|\bwalla\b/i;
 const VOICE = /\bvoices?\b/i;
 const SELF_ROLE = /^\s*(?:self|him\s*self|her\s*self|them\s*selves|themself)\b/i;
@@ -646,15 +646,28 @@ const personIdOf = (name) => peopleIndex().idOf.get(personKey(name)) || 0;
 // Tom Cruise 33rd of 54 interviewed; the owner asked why one counted and not the other, 26 Oct 2026), so billing says
 // nothing about a walk-on or a small part there: everyone credited on screen counts.
 const isDocumentary = (m) => (m.g || []).includes("Documentary");
+// Where a person was usually billed in the years around a film (their median place, from 0), or null when they weren't
+// a star then: over their other films kept here within STAR_YEARS either side (STAR_FILMS or more), and over their whole
+// career on TMDB (`FACTS[id].st`, from the people check: runs of [from, to, median] for the years they were billed in
+// the top STAR_NEAR, `careerRuns` in 06-lookup), whichever puts them higher. The diary alone missed stars it has seen
+// little of (Schwarzenegger's cameo in Around the World in 80 Days; asked 26 Oct 2026). Voices go by the diary alone.
+function starPlace(m, role, cid) {
+  const P = peopleIndex(), y = Number(m.y) || 0;
+  const then = (P.usual[role].get(cid) || []).filter((x) => x.m !== m && y && x.y && Math.abs(x.y - y) <= STAR_YEARS).map((x) => x.i).sort((a, b) => a - b);
+  let md = then.length >= STAR_FILMS ? then[Math.floor((then.length - 1) / 2)] : null;
+  const f = role === "c" && y && typeof FACTS === "object" && FACTS && FACTS[cid];
+  if (f && Array.isArray(f.st)) for (const [a, b, c] of f.st) if (y >= a && y <= b && (md == null || c < md)) md = c;
+  return md;
+}
 function walkOn(m, role, place, id) {
   if (!id || (role !== "c" && role !== "v") || (m.ce || []).includes(id) || isDocumentary(m)) return "";
   const P = peopleIndex(), cid = P.canon.get(id) || id;
   // far down and in the lower half; or below the top PRINCIPAL and far better known than those around (`so`, at lookup:
   // Brad Pitt's Vanisher in Deadpool 2, 19th of 54 among bit players; not Chris Pratt, 24th of 49 in Infinity War)
-  const deep = place >= STAR_FROM && place >= (m[ROLE_FIELD[role]] || []).length / 2, standsOut = place >= PRINCIPAL && (m.so || []).includes(id);
+  // (a run billed alphabetically from the top says nothing of size: Nashville, Radio Days)
+  const deep = place >= STAR_FROM && place >= (m[ROLE_FIELD[role]] || []).length / 2 && place >= alphaBilled(m, role), standsOut = place >= PRINCIPAL && (m.so || []).includes(id);
   if (deep || standsOut) {
-    const y = Number(m.y) || 0, then = (P.usual[role].get(cid) || []).filter((x) => x.m !== m && y && x.y && Math.abs(x.y - y) <= STAR_YEARS).map((x) => x.i).sort((a, b) => a - b);
-    const md = then.length >= STAR_FILMS ? then[Math.floor((then.length - 1) / 2)] : null;
+    const md = starPlace(m, role, cid);
     if (md != null && (md < STAR_TOP || (deep && md < STAR_NEAR && place >= STAR_DEEP * (md + 1)))) return "star";
   }
   // a lead of an earlier film of the same series (TMDB's collection, `cl`) back far down the cast: Willem Dafoe's

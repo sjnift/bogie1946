@@ -385,10 +385,10 @@ dialog::backdrop { background: rgba(10, 6, 12, .6); }
   text-decoration-color: color-mix(in srgb, var(--gold) 40%, transparent); transition: color .15s, text-decoration-color .15s; }
 .dlink:hover { color: var(--gold-ink); text-decoration-color: var(--gold-ink); }
 .sub .dlink, .lead .dlink, .status .dlink, .hint .dlink, .tile .foot .dlink, .lookup p .dlink, .legend .dlink, .decade .lbl .dlink, .trend-lines .dlink,
-  .wtops .dlink, .wgone .dlink, .row-h .dlink {
+  .wtops .dlink, .wgone .dlink, .row-h .dlink, .ptc .dlink {
   color: var(--gold-ink); text-decoration-color: transparent; }
 .sub .dlink:hover, .lead .dlink:hover, .status .dlink:hover, .hint .dlink:hover, .tile .foot .dlink:hover, .lookup p .dlink:hover, .legend .dlink:hover,
-  .decade .lbl .dlink:hover, .trend-lines .dlink:hover, .wtops .dlink:hover, .wgone .dlink:hover, .row-h .dlink:hover { text-decoration-color: currentColor; }
+  .decade .lbl .dlink:hover, .trend-lines .dlink:hover, .wtops .dlink:hover, .wgone .dlink:hover, .row-h .dlink:hover, .ptc .dlink:hover { text-decoration-color: currentColor; }
 .rv-title .dlink, .crowd h3 .dlink, .match .score .dlink, .plain-list .dlink { text-decoration: none; }
 .fact .v .dlink, table.data .dlink { text-decoration: none; }
 .fact .v .dlink::after { content: "›"; margin-left: 6px; color: var(--gold-ink); font-weight: 400; }
@@ -714,4 +714,8 @@ body.empty #settings, body.empty .foot-settings { display: none !important; }
 .fp-more { color: var(--gold-ink); border-style: dashed; }
 .fp-none { margin: 0; font-size: 13px; color: var(--muted); }
 .fp-foot { display: flex; justify-content: flex-end; gap: 8px; position: sticky; bottom: -16px; background: var(--surface); padding: 10px 0 2px; }
+.ptc { list-style: none; margin: 6px 0 4px; padding: 0; }
+.ptc-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 14px; }
+.ptc-row small { display: block; color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+.ptc-acts { display: flex; gap: 6px; flex: none; }
 </style>

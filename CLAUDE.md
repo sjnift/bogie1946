@@ -129,7 +129,8 @@ Where it lives:
   - **The main page is only stats.** Admin things (the export, lookups and their keys and small print, the diary on
     the site and its GitHub key, backups, deleting data, the disclaimers) live in Settings: the desktop's Settings
     page (`#/settings`) and the phone's Settings screen (gear). The desktop main page shows at most one line
-    (`#lookup-mini`) while films are looked up or still lack cast and crew, linking to Settings.
+    (`#lookup-mini`) while films are looked up or still lack cast and crew, or while parts wait to be checked, linking
+    to Settings (the phone's Profile shows a banner for the same).
   - **Friends use the site too** (Oct 2026: "personal record keeping and sharing with my friends so that they can
     analyse their own Letterboxd data"). A first visit leads with importing your own export: two steps and a button,
     no taglines ("free", "nothing to sign up for": removed at the owner's request, 25 Oct 2026); the
@@ -255,8 +256,9 @@ The owner asked for this to be checked every time. A film, diary entry, person o
   `x/xi/xw` credited cameos with why, `ce` named extended appearances (see "Cameos and voices"), `un` bit parts and
   `so` people far better known than those billed around them, by id, `cl` the film's series on TMDB (see "Small parts"),
   `po` who counts set by hand on the film card (see "Who counts, by hand").
-- `FACTS[tmdbPersonId]`: `{ b, d, im, p, t }` birth and death years, IMDb id, photo, when (`cr-people-v1`, this device
-  only, in backups; asked again after `FACTS_DAYS`). `metaOf(f)` reads it (example films use `EXAMPLE_META`).
+- `FACTS[tmdbPersonId]`: `{ b, d, im, p, t, cs, st }` birth and death years, IMDb id, photo, when, and for people billed
+  where a star would be a walk-on their career (`cs` read, `st` runs of years they were usually top-billed; see "Who
+  counts, by hand") (`cr-people-v1`, this device only, in backups; asked again after `FACTS_DAYS`). `metaOf(f)` reads it (example films use `EXAMPLE_META`).
 - `LBX[filmKey]`: Letterboxd averages `{ r, n, slug }`; `{ tries: 1, v: 2 }` not found by the scraper; `{ tries: 1, v: 2, few: true,
   slug }` came back from it without an average; after the film's own page is read, `few: 2` (the page shows no average:
   `lbTooFew`) or `{ tries: 2, v: 2 }` (no page at any address its title gives: `lbNotFound`). `lbRemaining` is the rest.
@@ -590,6 +592,22 @@ standard errors or more from what the rest of the diary gives; every sentence op
   `po`, or drops it when it agrees with the rules), kept through rereads (`runTmdb`, same film), backups and the diary
   on the site (`handParts` in `cleanMeta`; the film's `t` moves so the change wins). The `people` check covers both
   layouts, a reviewed part and switching on and back.
+  **Careers and parts to check** (26 Oct 2026: the owner asked for rules that don't overlook "small but vital parts" nor
+  count "vain cameos"; offered the two below, they said yes). Credits can't tell Spacey's John Doe from Jackson's Fury at
+  Endgame's funeral (a famous name, a named part, far down a big cast); about 9 in 10 such parts on the owner's films
+  were walk-ons. (1) The star rule (`walkOn` "star", `starPlace`) judges a star by their whole TMDB career too, not only
+  the diary's films: the people check (`runFacts`) reads the person page with `movie_credits` for everyone in two or
+  more films billed where a star would be a walk-on, or standing out (`careerWanted`), and keeps `st` (`careerRuns`:
+  median billing over films of `STAR_YEARS` either side, `CAREER_FILMS` 4 or more, each with `STAR_VOTES` 50+ votes, no
+  documentaries, voices, selves or unreleased films); the higher of the two places wins, so it only adds walk-ons.
+  The star rule also leaves an alphabetical run alone (`alphaBilled`). On the owner's films it read 4,936 careers (768
+  people with star years) and took out 54 more parts; read by hand, 6 were real and are pinned in `PART_FIXES` (Gambol
+  in The Dark Knight, Thewlis's Knox Harrington, Robert Downey Jr. in Short Cuts, three of The Longest Day's stars). (2) **Parts to check** (`partsToCheck`,
+  `partsCheckBlock` above the people check in Settings, both layouts; a line in `#lookup-mini`, a banner on the phone's
+  Profile): in films first logged from `PARTS_FROM` (26 Oct 2026; the earlier ones were read by hand), stars far down
+  a cast and well-known faces (counted in `SMALL_KNOWN` 3+ other films) in a big cast's last quarter, each with Count /
+  Leave out (`setPart(…, keep)`: the choice is kept even when it agrees with the rules, so the part leaves the list).
+  The `people` check covers both (a career from the stand-in TMDB, the list, both buttons, both layouts).
 - **People are TMDB's people, by id** (26 Oct 2026: the owner found Paul Guilfoyle, born 1949, credited with 1940s
   films; those were Paul Guilfoyle, 1902–1961. TMDB keeps them apart (ids 925 and 104714); the site had matched people
   by name, so it merged them, with one face for both. "How can I trust the cast data at all? I would like a complete

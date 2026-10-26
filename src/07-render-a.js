@@ -159,6 +159,7 @@ function renderLookupMini() {
     const without = state.lib.films.filter((f) => !metaOf(f) && (!todo || todo.has(f))).length;
     if (job.running) html = `<span id="lookup-mini-progress">${progressText()}</span> <button class="linkish" type="button" data-goto="settings">See it in Settings</button>`;
     else if (without && (IN_VIEWER || !tmdbKey())) html = `${plural(without, "film")} ${without === 1 ? "has" : "have"} no cast and crew yet. <button class="linkish" type="button" data-goto="settings">Fill them in from Settings</button>`;
+    else if (MY_LIB && partsToCheck(MY_LIB).length) { const n = partsToCheck(MY_LIB).length; html = `${plural(n, "part")} to check: ${n === 1 ? "a famous name" : "famous names"} far down a big cast, left out as ${n === 1 ? "a walk-on" : "walk-ons"}. <button class="linkish" type="button" data-goto="settings">Check in Settings</button>`; }
   }
   if (el.innerHTML !== html) el.innerHTML = html;
   el.hidden = !html;
