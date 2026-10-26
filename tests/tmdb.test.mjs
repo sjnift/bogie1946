@@ -6,6 +6,11 @@ import { open, seed, assert, noErrors } from "./lib.mjs";
 const movie = (id, title, date, dir, cast) => ({ id, title, release_date: date, poster_path: null, genres: [{ name: "Crime" }], production_countries: [{ name: "United States of America" }],
   original_language: "en", runtime: 110, vote_average: 7.5, vote_count: 9000, imdb_id: "tt0393109", credits: { cast: cast.map((name, order) => ({ name, order, character: `Role ${order + 1}` })), crew: [{ name: dir, job: "Director" }] } });
 
+// 44 credited parts with names of their own, but a waiter in the top 8, then a guy at a bar, a cop and "The Kid", and a
+// famous walk-on 19th among unknowns
+const hugeCast = () => Array.from({ length: 44 }, (_, i) => ({ id: 6000 + i, order: i, popularity: 1, name: `Huge Player ${i + 1}`, character: `Zorblax Quentimer${i}`,
+  ...({ 4: { character: "Waiter #2" }, 8: { character: "Guy at Bar" }, 9: { character: "Cop #2" }, 10: { character: "The Kid" }, 18: { name: "Famous Walk-on", popularity: 12 } })[i] }));
+
 export default async function ({ browser, base }) {
   const p = await open(browser, base, "desktop.html");
   await p.context().route(/api\.themoviedb\.org/, (r) => {
@@ -69,6 +74,9 @@ export default async function ({ browser, base }) {
           { id: 7624, name: "Creator Man", order: 27, character: "Bus Driver" }, { id: 77, name: "Famous Guy", order: 28, character: "Famous Guy" },
           { id: 78, name: "Robot Voice", order: 29, character: "Robot (voice)" }] } },
         5002: { release_date: "2000-01-01" },
+        // small parts, worked out at lookup: bit parts below the top 8 ("Guy at Bar", "Cop #2"; not "The Kid", nor one
+        // in the top 8), and a star billed among people far less known on TMDB (`so`); kept by id
+        5004: { release_date: "2002-01-01", credits: { crew: [{ name: "Huge Director", job: "Director" }], cast: hugeCast() } },
       }[id] || {};
       return json({ ...movie(id, "x", "1990-01-01", "Someone", ["Someone Else"]), ...details });
     }
@@ -94,6 +102,7 @@ export default async function ({ browser, base }) {
     const query = u.searchParams.get("query"), year = u.searchParams.get("year");
     if (u.pathname === "/3/search/movie") searched.push(query);
     if (query === "Big Cast") return json({ results: [hit(5001, "Big Cast", "2001-01-01", 500)] });
+    if (query === "Huge Cast") return json({ results: [hit(5004, "Huge Cast", "2002-01-01", 500)] });
     // TMDB's title is longer than Letterboxd's, or is one half of it; "Alien" (1979) must not become "Alien: Resurrection"
     if (query === "Wake Up Dead Man") return json({ results: [hit(812583, "Wake Up Dead Man: A Knives Out Mystery", "2025-11-26", 3000)] });
     if (query === "Special Title") return json({ results: year === "2019" ? [hit(1004, "Special Title", "2019-05-01", 40)] : [] });
@@ -111,11 +120,11 @@ export default async function ({ browser, base }) {
     { Name: "A Cop", Year: "1972" }, { Name: "Breaking the Waves", Year: "1996" }, { Name: "The Prowler", Year: "1951" },
     { Name: "Glass Onion", Year: "2022" }, { Name: "Nathan for You: Finding Frances", Year: "2017" }, { Name: "The Sorrow and the Pity", Year: "1969" },
     { Name: "Wake Up Dead Man", Year: "2025" }, { Name: "Show Name: Special Title", Year: "2019" }, { Name: "Alien", Year: "1979" },
-    { Name: "Big Cast", Year: "2001" }, { Name: "Kept Film", Year: "2003" }, { Name: "Pinned Film", Year: "2000" }], diary: [], ratings: [] },
+    { Name: "Big Cast", Year: "2001" }, { Name: "Huge Cast", Year: "2002" }, { Name: "Kept Film", Year: "2003" }, { Name: "Pinned Film", Year: "2000" }], diary: [], ratings: [] },
     { "cr-meta-v1": { "the ear|1970": { src: "tmdb", v: 3, id: 35002, d: ["Don Chaffey"], c: ["Victoria Vetri"], w: [], p: [], m: [], g: ["Adventure"], k: ["UK"], l: "English", r: 100 },
       "brick|2005": { src: "tmdb", v: 6, id: 9270, d: ["Rian Johnson"], c: ["Joseph Gordon-Levitt"], w: [], p: [], m: [], g: ["Crime"], k: ["USA"], l: "English", r: 110 },
       // details as they're kept now, so not looked up; and a film matched by hand before the whole cast was kept
-      "kept film|2003": { src: "tmdb", v: 10, id: 5003, d: ["Someone"], c: ["Familiar Face"], w: [], p: [], m: [], g: ["Drama"], k: ["USA"], l: "English", r: 90 },
+      "kept film|2003": { src: "tmdb", v: 11, id: 5003, d: ["Someone"], c: ["Familiar Face"], w: [], p: [], m: [], g: ["Drama"], k: ["USA"], l: "English", r: 90 },
       "pinned film|2000": { src: "tmdb", v: 6, id: 5002, pin: true, d: ["Old Name"], c: [], w: [], p: [], m: [], g: ["Drama"], k: ["USA"], l: "English", r: 90 },
       // films missed before matching learned half-titles: looked up again
       "wake up dead man|2025": { src: "tmdb", miss: true, v: 6 }, "the sorrow and the pity|1969": { src: "tmdb", miss: true, v: 6 },
@@ -137,6 +146,10 @@ export default async function ({ browser, base }) {
   assert(cast.v === "Robot Voice" && cast.x === "Song Guest: cameo, Cameo Star: cameo, Creator Man: source:Comic Book, Famous Guy: self", `voices and cameos: ${cast.v} | ${cast.x}`);
   assert(cast.photos === "/l1.jpg,-,/ff.jpg", `photos kept for the top billed and people met before, not every one-off player: ${cast.photos}`);
   assert(cast.pin === "true,true,Someone" && !searched.includes("Pinned Film") && looked.includes("5002"), `a film matched by hand, read again at its place: ${cast.pin}`);
+  const huge = await q.evaluate(() => { const m = META["huge cast|2002"], ids = (a) => (a || []).map((id) => m.c[m.ci.indexOf(id)]).join();
+    return [ids(m.un), ids(m.so), castOf(m).length, castOf(m).includes("Huge Player 5"), castOf(m).includes("Huge Player 11"), smallPartsOf(m).filter((x) => x.why === "bit").map((x) => x.name).join(),
+      smallPartsOf(m).filter((x) => x.why === "deep").length].join(" | "); });
+  assert(huge === "Huge Player 9,Huge Player 10 | Famous Walk-on | 20 | true | true | Huge Player 9,Huge Player 10 | 22", `small parts found at lookup: ${huge}`);
   assert(cast.korean === 1 && cast.face === 2, `people counted: a name in Korean ${cast.korean}, someone in two films ${cast.face}`);
   const more = await q.evaluate(() => ({ cop: META["a cop|1972"].id, waves: [META["breaking the waves|1996"].l, META["breaking the waves|1996"].k.length], prowler: META["the prowler|1951"].k.join(), why: META["the prowler|1951"].why }));
   assert(more.cop === 42741, `A Cop (1972) should be Melville's Un flic, not a 1947 film: ${more.cop}`);

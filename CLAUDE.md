@@ -83,8 +83,10 @@ Where it lives:
   - Highest-rated actors over **all time** need **6 rated films** each (`CAST_MIN_RATED`, `s.castMinRated`). In a
     **single year the bar follows the year** (asked Oct 2026, "dynamic, not static"): the most rated films that still
     lists 10 actors (`castBar`, `CAST_TOP`), from 6 down to 2, never 1 (one film each only ranks films); the line under
-    Starring / the phone's People says the bar (`castBarText`). Every other kind of person keeps `minRated` (2, or 3
-    for 150+ films). The `reviews` check covers both.
+    Starring / the phone's People says the bar (`castBarText`). **And 3 of those rated films billed in the top 5**
+    (asked 26 Oct 2026, so a character actor's many good films in small parts don't top the list: `CAST_LEAD`,
+    `LEAD_TOP`, `roleLeads`, `p.lead` in `rankPeople`; one in a year). Every other kind of person keeps `minRated` (2,
+    or 3 for 150+ films). The `reviews` check covers both.
   - The best-rated decade is featured prominently with its films' posters (asked again Oct 2026): the desktop's "Best
     decade" in full right under On this day (`bestDecadeBlock`: its head above eight large posters), the phone's Profile
     under On this day and Breakdown. **The second and third best follow it with their posters, a little smaller**
@@ -208,7 +210,8 @@ The owner asked for this to be checked every time. A film, diary entry, person o
   `m07-compare.js`, `m08-reviews.js`, `m09-drill.js` (bottom sheet with swipe-to-close, drill screens),
   `m10-route.js` (hash routes, back button), `m05-events.js` (import, taps, init).
 - Shared, in order: `04-example.js` (the example diary and example friends), `05-core.js` (helpers, storage,
-  reading the export, `buildLibrary`, `reviewParts`, `cleanMeta`, `computeStats`), `06-lookup.js` (TMDB,
+  reading the export, `buildLibrary`, `reviewParts`, `cleanMeta`, `computeStats`), `05b-parts.js` (the words a bit
+  part is credited with, `bitPart`; see "Small parts"), `06-lookup.js` (TMDB,
   OMDb, Claude lookups, `fixMatch`), `06b-charts.js` (column chart, timeline, calendar heatmap),
   `06d-letterboxd.js` (Letterboxd averages through Apify), `06c-insights.js` (`CROWDS`, `crowdDrill`, `defaultCrowd`,
   and `computeInsights`/`computeYearInsights`, the numbers behind the Stats page's moved sections and the year picture), `06e-compare.js` (friends, `tasteProfile`, `comparePair`,
@@ -249,7 +252,8 @@ The owner asked for this to be checked every time. A film, diary entry, person o
   `poster`, `id`, `va/vc` TMDB score, `im` IMDb id, `ir/iv/mc/rt` IMDb, Metacritic, Rotten Tomatoes,
   `pin` (matched by hand), `cq/ca/cr/cp/cn/can` the cast checked on IMDb (`ir` is IMDb's rating, not the cast),
   `ci/di/wi/pi/mi` the TMDB person ids beside `c/d/w/p/m` (see "People are TMDB's people, by id"), `vo/voi` voice roles,
-  `x/xi/xw` credited cameos with why, `ce` named extended appearances (see "Cameos and voices").
+  `x/xi/xw` credited cameos with why, `ce` named extended appearances (see "Cameos and voices"), `un` bit parts and
+  `so` people far better known than those billed around them, by id (see "Small parts").
 - `FACTS[tmdbPersonId]`: `{ b, d, im, p, t }` birth and death years, IMDb id, photo, when (`cr-people-v1`, this device
   only, in backups; asked again after `FACTS_DAYS`). `metaOf(f)` reads it (example films use `EXAMPLE_META`).
 - `LBX[filmKey]`: Letterboxd averages `{ r, n, slug }`; `{ tries: 1, v: 2 }` not found by the scraper; `{ tries: 1, v: 2, few: true,
@@ -477,9 +481,9 @@ standard errors or more from what the rest of the diary gives; every sentence op
   `FILM_FIXES` (by TMDB id, with a `why`) corrects facts TMDB has wrong (The Prowler 1951 is American; Breaking
   the Waves is in English; The Battle of Algiers in French). A film's language is TMDB's original language unless
   it's spoken in exactly one other (`spokenIn`). Every TMDB country is kept (it used to stop at 6, which made
-  lists differ from Letterboxd's). `TMDB_MATCH_VERSION` (8) re-looks-up films when matching changes; from 6 on, a
+  lists differ from Letterboxd's). `TMDB_MATCH_VERSION` (11) re-looks-up films when matching changes; from 6 on, a
   film whose match is unchanged keeps its details without a second request, unless what's kept of a film has changed
-  since (`TMDB_DETAILS_V`, 8: the whole credited cast, role by role): then it's read again by its id alone, one request,
+  since (`TMDB_DETAILS_V`, 11: bit parts and stand-outs for small parts): then it's read again by its id alone, one request,
   no search (`rereadRef`; films matched by hand too, keeping their pin). Watchlist films are looked up too.
 - **Counting people like Letterboxd** (a guest found actor and director counts off, 25 Oct 2026; then the owner asked
   for it "finely treading the line with credited, not credited and cameo and sometimes extended cameos", and for their
@@ -528,6 +532,29 @@ standard errors or more from what the rest of the diary gives; every sentence op
   Bill Murray in Zombieland, Stephen King out; the Pixar and Ghibli casts under Voices with John Ratzenberger on top;
   the additional-voices crowd (Laraine Newman, Sherry Lynn…) gone from both. The `tmdb` check (source, self, labels,
   additional voices, a voice role) and `people` check (star, extended cameo kept, voices apart) cover it.
+- **Small parts** (26 Oct 2026, the owner: Brad Pitt in Deadpool 2, Leonardo DiCaprio in Poison Ivy, Willem Dafoe in
+  The French Dispatch, Samuel L. Jackson in A Shock to the System, "not undercounted support parts but really minor,
+  sometimes not even on the screen for a minute. Should these parts really count?"). Here the site **parts from
+  Letterboxd**, which counts every credited role, by the owner's wish: a film's principal and supporting cast count, its
+  small parts don't. TMDB has no screen time, so `smallPart` (05-core) reads it from billing and credit, role by role,
+  on screen and in voices: "deep", below the top `PRINCIPAL` 15 of a cast of more than `BIG_CAST` 30, in its lower half
+  or from the 31st (Dafoe 33rd of 300, Jackson 32nd of 46); "bit", below the top `BIT_FROM` 8 and credited only as one
+  of the people there (`bitPart` in 05b-parts: "Guy" (DiCaprio, 9th of 24), "Man in Black Suit", "Wedding Guest",
+  "Cop #2"; not "The Kid", "Mr. Chow" or "Police Inspector"; worked out at lookup into `un`, not in a film whose top 5
+  are mostly so, 12 Angry Men); and a star walk-on (`walkOn` "star", widened): below the top 15 in the upper half and
+  `STAND_OUT` 4 times as well known on TMDB (its popularity, at lookup into `so`) as the five billed either side, when a
+  star at the time (Pitt's Vanisher, 19th of 54; not Chris Pratt, 24th of 49 in Infinity War). Ensembles keep their
+  cast: Gosford Park's downstairs (Helen Mirren 20th of 59) and Do the Right Thing's block are in the upper half; a film
+  billed alphabetically from the top (Nashville, Radio Days: `alphaBilled`) counts that run in full; a cast of 30 or
+  fewer counts every named part, since TMDB's order there is sometimes wrong (Peter Sellers 20th of 20 in Lolita). A
+  named extended cameo (`ce`) always counts. Tried first and dropped on the owner's films: a plain top 15 (cut Helen
+  Mirren, Clive Owen, Sellers, Michael Redgrave in Dead of Night), "unnamed" parts from the 6th (cut Irrfan Khan's
+  Police Inspector in Slumdog Millionaire, Rafe Spall's Writer in Life of Pi, Ken Jeong's Mr. Chow), TMDB's entry order
+  (`cast_id`) and diary-based star counts (both too noisy). The IMDb cast check adds a role only when it isn't a small
+  part by IMDb's own billing. `smallPartsOf(m)` lists a film's, `smallWhy` says why: the film card ("Small parts, not
+  counted: …", people met in other films first, `countedIn`) and the people check (how many, and those by people counted
+  in `SMALL_KNOWN` 3 or more films). `TMDB_DETAILS_V` 11 read every film again by its id. The `tmdb` check (bit parts and
+  stand-outs found at lookup) and the `people` check (deep, bit, star walk-on, alphabetical billing) cover it.
 - **People are TMDB's people, by id** (26 Oct 2026: the owner found Paul Guilfoyle, born 1949, credited with 1940s
   films; those were Paul Guilfoyle, 1902–1961. TMDB keeps them apart (ids 925 and 104714); the site had matched people
   by name, so it merged them, with one face for both. "How can I trust the cast data at all? I would like a complete
@@ -766,7 +793,7 @@ shows the latest ~50, so it accumulates), commits, and asks Pages to rebuild. Th
 service cut off unless a check stands in for it, service worker off unless asked, reduced motion, pages opened
 with `?example` (pass `example: false` for an empty browser; a check's own `goto` must add `?example` too),
 `phoneTour()` which opens every phone tab, every Stats view for all time and for a year, and every Insights/Compare section), `run.mjs`, and checks:
-`apify`, `imdbcast` (the owner's cast checked on IMDb), `people` (people by TMDB id, the people check, cameos and voices), `check` (film data check), `counts` (double counting, also with filters on), `reviews` (missing review text spotted; six-film actors), `welcome` (no example diary; import saved at once), `extras` (year picture, On this day, Watch next, PWA), `feed`, `import`,
+`apify`, `imdbcast` (the owner's cast checked on IMDb), `people` (people by TMDB id, the people check, cameos, voices and small parts), `check` (film data check), `counts` (double counting, also with filters on), `reviews` (missing review text spotted; six-film actors), `welcome` (no example diary; import saved at once), `extras` (year picture, On this day, Watch next, PWA), `feed`, `import`,
 `links` (every link opens something), `pages` (nothing broken shows, no sideways scroll on the phone),
 `routes`, `storage` (IndexedDB move, backup and restore), `site` (the diary on the site: a stand-in GitHub and site),
 `tmdb` (fixing a match, filmography, search), `extras` also covers the story and every kind and shape of picture, `xss` (nothing from outside can run code, about a minute), `study` (a
@@ -824,6 +851,9 @@ day, shared with the owner's own app. The in-app version is the "Check film data
   without a character, 66 cameos, 44 additional voices and 34 archive footage no longer count, and 29,333 roles below
   15th billing do; Highest rated kept 10 of 15 (classic bit players with uncredited parts left; Lee Van Cleef, James
   Mason, Diane Keaton came in). The same run found the one unmatched film and the Jim Smith credit above.
+- The owner found minor parts still counted (26 Oct 2026: Pitt in Deadpool 2, DiCaprio in Poison Ivy, Dafoe in The French
+  Dispatch, Jackson in A Shock to the System) → small parts (above), measured on their export: 21,850 of 49,728 credits are small parts (1,341 of them bit
+  parts, Pitt a star walk-on), the top 30 actors stay the top 30, and Highest rated now asks for 3 rated films in the top 5.
 - A guest found actor and director counts off (25 Oct 2026): only the top 15 billed counted, and directors stopped at 6
   a film → every credited role, as Letterboxd counts them; then role by role (cameos, extended cameos, special
   appearances, archive footage) and, for the owner, checked on IMDb (26 Oct; see "Counting people like Letterboxd").

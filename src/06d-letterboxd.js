@@ -436,7 +436,9 @@ function castCheckOf(m, cast, spelling) {
   const tmdb = new Map(), idOf = new Map((m.c || []).map((n, i) => [n, Number((m.ci || [])[i]) || 0]));
   for (const n of m.c || []) { tmdb.set(personKey(n), n); tmdb.set(nameOrderKey(n), n); }
   const add = [], off = [], cn = {}, can = {};
-  for (const [nm, name, role] of cast) {
+  // a role IMDb credits goes on only when it isn't a small part by IMDb's own billing (05-core, `smallPart`)
+  const small = (i, roles) => (i >= PRINCIPAL && cast.length > BIG_CAST && (i >= cast.length / 2 || i >= BIG_CAST)) || (i >= BIT_FROM && roles.every((r) => bitPart(r)));
+  for (const [i, [nm, name, role]] of cast.entries()) {
     const roles = String(role || "").split(" / ").map((r) => r.trim());
     const why = roles.map((r) => roleSkip(r)), counts = why.some((w) => !w);
     const known = tmdb.get(personKey(name)) || tmdb.get(nameOrderKey(name));
@@ -444,7 +446,7 @@ function castCheckOf(m, cast, spelling) {
     if (known && idOf.get(known)) cn[idOf.get(known)] = nm;
     // taken off only on IMDb's word that the role isn't one (no character on IMDb is IMDb not knowing)
     if (known && !counts && why.every((w) => w && w !== "no character")) off.push(known);
-    else if (!known && counts && !roles.some((r) => VOICE.test(r) || BACKGROUND_VOICES.test(r) || playsSelf(name, r))) { const n = spelling.get(nameOrderKey(name)) || name; add.push(n); can[n] = nm; }
+    else if (!known && counts && !small(i, roles) && !roles.some((r) => VOICE.test(r) || BACKGROUND_VOICES.test(r) || playsSelf(name, r))) { const n = spelling.get(nameOrderKey(name)) || name; add.push(n); can[n] = nm; }
   }
   return { ca: [...new Set(add)], cr: [...new Set(off)], cn, can };
 }

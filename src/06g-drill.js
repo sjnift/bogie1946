@@ -83,6 +83,18 @@ function personDrill(lib, name, role, among = lib.films) {
   const ratings = films.filter((f) => f.rating).map((f) => f.rating);
   return DR.person({ key: k, name, films, ratings, count: films.length, avg: avg(ratings) }, { lib });
 }
+// How many films of a library count each person in a role, by `personKey` (kept until the library or the people change).
+const COUNTED = new WeakMap();
+function countedIn(lib, role) {
+  const P = peopleIndex();
+  let c = COUNTED.get(lib.films);
+  if (!c || c.P !== P) COUNTED.set(lib.films, (c = { P }));
+  if (!c[role]) {
+    c[role] = new Map();
+    for (const f of lib.films) { const m = metaOf(f); if (m) for (const n of roleNames(m, role)) { const k = personKey(n); c[role].set(k, (c[role].get(k) || 0) + 1); } }
+  }
+  return c[role];
+}
 // Every film in a library with one genre, country or language.
 function catDrill(lib, v, field) {
   const films = lib.films.filter((f) => { const m = metaOf(f); return m && (field === "l" ? m.l === v : (m[field] || []).includes(v)); });
@@ -216,8 +228,16 @@ function filmCardHtml(d) {
   }
   const crowd = crowdBits(f, m);
   const chips = (title, role) => roleNames(m, role).length ? `<section class="fc-sec"><h4>${title}</h4><div class="fc-chips">${roleNames(m, role).slice(0, 12).map((n) => dlink(personDrill(lib, n, role), esc(n))).join("")}</div></section>` : "";
-  const cameos = m ? cameosOf(m) : [];
-  const cast = m ? chips("Cast", "c") + chips("Voices", "v") + (cameos.length ? `<p class="dr-s fc-cameos">Cameos, not counted: ${cameos.slice(0, 8).map((c) => `${esc(c.name)} (${esc(cameoWhy(c.why))})`).join(", ")}${cameos.length > 8 ? ` and ${cameos.length - 8} more` : ""}.</p>` : "") : "";
+  const cameos = m ? cameosOf(m) : [], small = m ? smallPartsOf(m) : [];
+  // small parts: up to six people counted in other films of the diary by name, then a link to them all (each opens
+  // their counted films; worked out only for the rows shown)
+  const met = small.filter((p) => countedIn(lib, p.role).get(personKey(p.name))), named = met.slice(0, 6), rest = small.length - named.length;
+  const smallList = () => D.names("Small parts, not counted", `${f.name}: billed below the principal cast, or a bit part`,
+    small.map((p) => { const it = { key: personKey(p.name), name: p.name, films: [f], note: smallWhy(p) };
+      return met.includes(p) ? Object.defineProperty(it, "to", { get: () => personDrill(lib, p.name, p.role), enumerable: true }) : it; }));
+  const smallLine = !small.length ? "" : `<p class="dr-s fc-cameos">Small parts, not counted: ${named.map((p) => esc(p.name)).join(", ")}${
+    !named.length ? dlink(smallList(), plural(small.length, "part")) : rest ? ` and ${dlink(smallList(), `${fmtN(rest)} more`)}` : ` (${dlink(smallList(), "why")})`}.</p>`;
+  const cast = m ? chips("Cast", "c") + chips("Voices", "v") + (cameos.length ? `<p class="dr-s fc-cameos">Cameos, not counted: ${cameos.slice(0, 8).map((c) => `${esc(c.name)} (${esc(cameoWhy(c.why))})`).join(", ")}${cameos.length > 8 ? ` and ${cameos.length - 8} more` : ""}.</p>` : "") + smallLine : "";
   const tm = META[f.key];
   const links = [`<a href="${esc(lbUrl(f))}" target="_blank" rel="noopener">Letterboxd ↗</a>`,
     tmdbHref(tm) && !IN_VIEWER ? `<a href="${tmdbHref(tm)}" target="_blank" rel="noopener">TMDB ↗</a>` : "",

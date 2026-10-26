@@ -7,7 +7,7 @@ import { open, seed, assert, noErrors } from "./lib.mjs";
 
 // each person's TMDB id, the same in every film
 const PID = { "Humphrey Bogart": 101, "Peter Lorre": 102, "Bess Flowers": 103, "Lead Player": 201, "Archive Man": 202, "Quiet One": 301, "Song Kang-ho": 401 };
-const meta = (id, c, d = ["Some Director"]) => ({ src: "tmdb", v: 10, id, y: 1940 + id, im: `tt${String(id).padStart(7, "0")}`, d, c, ci: c.map((n) => PID[n]), w: [], p: [], m: [], g: ["Drama"], k: ["USA"], l: "English", r: 100 });
+const meta = (id, c, d = ["Some Director"]) => ({ src: "tmdb", v: 11, id, y: 1940 + id, im: `tt${String(id).padStart(7, "0")}`, d, c, ci: c.map((n) => PID[n]), w: [], p: [], m: [], g: ["Drama"], k: ["USA"], l: "English", r: 100 });
 // TMDB's dates for two people: Night Cafe's Peter Lorre (TMDB 102) has another IMDb id than the one IMDb's page gives
 // for the role, which is TMDB 777's: TMDB gave the role to the wrong person of that name
 const today = new Date().toISOString().slice(0, 10);

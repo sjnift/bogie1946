@@ -450,7 +450,20 @@ function sortCast(list, { crewJobs = new Map(), documentary = false, animation =
     if (!documentary && !selfFilm && place >= SELF_FROM && playsSelf(c.name, ch)) { cameos.push({ ...c, why: "self" }); continue; }
     into.push(c);
   }
-  return { live, voice, cameos, extended };
+  // small parts that need TMDB's characters and popularity, found here and kept by id (`smallPart`, `walkOn`): bit
+  // parts below the top BIT_FROM (not in a film whose top 5 are mostly credited so: 12 Angry Men's jurors), and people
+  // below the top PRINCIPAL, in the upper half, STAND_OUT times as well known on TMDB as those billed around them
+  const bits = [], standout = [], median = (a) => { a = [...a].sort((x, y) => x - y); return a.length ? (a[(a.length - 1) >> 1] + a[a.length >> 1]) / 2 : 0; };
+  for (const into of [live, voice]) {
+    if (into.slice(0, 5).filter((c) => bitPart(c.character)).length < 3) into.forEach((c, i) => { if (i >= BIT_FROM && c.id && bitPart(c.character)) bits.push(c.id); });
+    const pop = into.map((c) => Number(c.popularity) || 0);
+    into.forEach((c, i) => {
+      if (i < PRINCIPAL || i >= into.length / 2 || !c.id) return;
+      const near = median([...pop.slice(Math.max(0, i - 5), i), ...pop.slice(i + 1, i + 6)]);
+      if (pop[i] >= 2 && pop[i] >= STAND_OUT * near) standout.push(c.id);
+    });
+  }
+  return { live, voice, cameos, extended, bits, standout };
 }
 // What a cameo's reason reads as.
 const cameoWhy = (w) => w === "self" ? "playing themselves" : w === "star" ? "a star far down the cast" : w === "habit" ? "mostly turns up in cameos" : /^source:/.test(w) ? `wrote the ${w.slice(7).toLowerCase()} it's based on` : "labelled a cameo";
@@ -486,6 +499,8 @@ function cleanMeta(m) {
     ...(Number(m.tv) ? { tv: Number(m.tv), ...(Number(m.ep) && m.se != null ? { se: Number(m.se) || 0, ep: Number(m.ep) } : {}) } : {}), // on TMDB's TV side (06-lookup)
     ...metaPeople(m, "d", 40), ...metaPeople(m, "c", 300), ...metaPeople(m, "v", 300), ...metaPeople(m, "w", 20), ...metaPeople(m, "p", 10), ...metaPeople(m, "m", 10),
     ...cameoList(m), ...(Array.isArray(m.ce) && m.ce.length ? { ce: m.ce.map(Number).filter(Boolean).slice(0, 40) } : {}),
+    ...(Array.isArray(m.un) && m.un.length ? { un: m.un.map(Number).filter(Boolean).slice(0, 300) } : {}), // bit parts (`smallPart`)
+    ...(Array.isArray(m.so) && m.so.length ? { so: m.so.map(Number).filter(Boolean).slice(0, 40) } : {}), // well known among unknowns (`walkOn`)
     g: list((m.g || []).map(genre).filter((g) => GENRES.includes(g)), 6),
     k: list((m.k || []).map(country), 20), l: language(m.l), why: m.why || undefined, r: Math.round(Number(m.r)) || null,
     va: Number(m.va) || null, vc: Number(m.vc) || null, // TMDB audience score out of 10, and how many votes
@@ -624,12 +639,50 @@ const personIdOf = (name) => peopleIndex().idOf.get(personKey(name)) || 0;
 function walkOn(m, role, place, id) {
   if (!id || (role !== "c" && role !== "v") || (m.ce || []).includes(id)) return "";
   const P = peopleIndex(), cid = P.canon.get(id) || id;
-  if (place >= STAR_FROM && place >= (m[ROLE_FIELD[role]] || []).length / 2) {
+  // far down and in the lower half; or below the top PRINCIPAL and far better known than those around (`so`, at lookup:
+  // Brad Pitt's Vanisher in Deadpool 2, 19th of 54 among bit players; not Chris Pratt, 24th of 49 in Infinity War)
+  const deep = place >= STAR_FROM && place >= (m[ROLE_FIELD[role]] || []).length / 2, standsOut = place >= PRINCIPAL && (m.so || []).includes(id);
+  if (deep || standsOut) {
     const y = Number(m.y) || 0, then = (P.usual[role].get(cid) || []).filter((x) => x.m !== m && y && x.y && Math.abs(x.y - y) <= STAR_YEARS).map((x) => x.i).sort((a, b) => a - b);
     const md = then.length >= STAR_FILMS ? then[Math.floor((then.length - 1) / 2)] : null;
-    if (md != null && (md < STAR_TOP || (md < STAR_NEAR && place >= STAR_DEEP * (md + 1)))) return "star";
+    if (md != null && (md < STAR_TOP || (deep && md < STAR_NEAR && place >= STAR_DEEP * (md + 1)))) return "star";
   }
   return P.habit.has(cid) && place >= SOURCE_FROM ? "habit" : "";
+}
+/* ---------- small parts ----------
+   Asked 26 Oct 2026, the owner: Brad Pitt in Deadpool 2, Leonardo DiCaprio in Poison Ivy, Willem Dafoe in The French
+   Dispatch, Samuel L. Jackson in A Shock to the System, "not undercounted support parts but really minor, sometimes not
+   even on the screen for a minute. Should these parts really count?" Letterboxd counts every credited role; here a
+   film's principal and supporting cast count, its small parts don't. TMDB has no screen time, so a small part is read
+   from where it's billed and how it's credited, role by role (`smallPart`):
+   - "deep": billed below the top PRINCIPAL of a cast of more than BIG_CAST, in its lower half or from the BIG_CAST+1st
+     on (Dafoe, 33rd of 300; Jackson, 32nd of 46). Gosford Park's downstairs (Helen Mirren 20th of 59, Emily Watson
+     22nd) and Do the Right Thing's block (Jackson's Love Daddy, 16th of 42) are in the upper half, and count. A film
+     that bills its cast alphabetically from the top (Nashville, Radio Days: `alphaBilled`) counts that run in full.
+     A cast of BIG_CAST or fewer counts down to its last credited part: TMDB's order there is sometimes wrong (Peter
+     Sellers 20th of 20 in Lolita, John Vernon last in Charley Varrick).
+   - "bit": below the top BIT_FROM, credited only as one of the people there (`bitPart`, 05b-parts, worked out at
+     lookup into `un`): "Guy" (DiCaprio, 9th of 24), "Man in Black Suit", "Wedding Guest", "Cop #2".
+   And a star walk-on is a cameo (`walkOn`, "star"; Pitt). An extended cameo that names its character (`ce`) counts.
+   On the owner's 1,559 films (26 Oct 2026): 21,850 of 49,728 credits are small parts, 1,341 of them bit parts; the
+   top 30 actors stay the top 30, and all four of their examples are out. */
+const PRINCIPAL = 15, BIG_CAST = 30, BIT_FROM = 8, STAND_OUT = 4;
+// Where a film's alphabetical billing ends: a run of 10 or more surnames in order from the first or second billed.
+const ALPHA = new WeakMap();
+function alphaBilled(m, role) {
+  let a = ALPHA.get(m);
+  if (!a) ALPHA.set(m, (a = {}));
+  if (a[role] != null) return a[role];
+  const names = m[ROLE_FIELD[role]] || [], last = (n) => (String(n).normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/\s+(?:jr\.?|sr\.?|ii|iii)$/i, "").trim().split(/\s+/).pop() || "").toLowerCase();
+  let end = 0;
+  for (const s of [0, 1]) { let e = s + 1; while (e < names.length && last(names[e]) >= last(names[e - 1])) e++; if (e - s >= 10) end = Math.max(end, e); }
+  return (a[role] = end);
+}
+function smallPart(m, role, place, id) {
+  if ((role !== "c" && role !== "v") || place == null || (id && (m.ce || []).includes(id))) return "";
+  const n = (m[ROLE_FIELD[role]] || []).length;
+  if (place >= PRINCIPAL && n > BIG_CAST && (place >= n / 2 || place >= BIG_CAST) && place >= alphaBilled(m, role)) return "deep";
+  return place >= BIT_FROM && id && (m.un || []).includes(id) ? "bit" : "";
 }
 // A credit TMDB's own dates make impossible: "born", before the person was born, or before they were 8 behind the
 // camera; "died", a role more than LATE_YEARS after they died, below a film's top SELF_FROM billed (TMDB gave it to the
@@ -669,16 +722,22 @@ function roleNames(m, role) {
   let c = ROLE_NAMES.get(m);
   if (!c || c.P !== P) ROLE_NAMES.set(m, (c = { P, lists: {} }));
   if (c.lists[role]) return c.lists[role];
-  const out = [], have = new Set();
+  const out = [], have = new Set(), lead = new Set();
   for (const { name, id, place } of rolePeople(m, role)) {
     if (id && badCredit(m, id, role, place)) continue;
-    if (place != null && walkOn(m, role, place, id)) continue;
+    if (place != null && (walkOn(m, role, place, id) || smallPart(m, role, place, id))) continue;
     const cid = (id && P.canon.get(id)) || id, shown = (cid && (P.label.get(cid) || P.nameOf.get(cid))) || name, k = personKey(shown);
     if (!k || have.has(k)) continue;
     have.add(k); out.push(shown);
+    if (place != null && place < LEAD_TOP) lead.add(k);
   }
+  c.leads = c.leads || {};
+  c.leads[role] = lead;
   return (c.lists[role] = out);
 }
+// The people of a film billed in its top LEAD_TOP, by `personKey` (for "Highest rated", `rankPeople`).
+const LEAD_TOP = 5;
+const roleLeads = (m, role) => { roleNames(m, role); const c = m && ROLE_NAMES.get(m); return (c && c.leads && c.leads[role]) || new Set(); };
 const castOf = (m) => roleNames(m, "c");
 // Every cameo of a film, as shown (not counted): from its lookup, and stars far down its cast.
 function cameosOf(m) {
@@ -688,6 +747,21 @@ function cameosOf(m) {
     const w = walkOn(m, role, i, id); if (w) out.push({ name: P.label.get(P.canon.get(id) || id) || name, why: w }); });
   return out;
 }
+// A film's small parts, as shown (not counted), in billing order: { name, why, place, of }.
+function smallPartsOf(m) {
+  if (!m) return [];
+  const P = peopleIndex(), out = [];
+  for (const role of ["c", "v"]) {
+    const of = (m[ROLE_FIELD[role]] || []).length;
+    for (const { name, id, place } of rolePeople(m, role)) {
+      if (place == null || (id && badCredit(m, id, role, place)) || walkOn(m, role, place, id)) continue;
+      const why = smallPart(m, role, place, id);
+      if (why) out.push({ name: P.label.get(P.canon.get(id) || id) || P.nameOf.get(P.canon.get(id) || id) || name, why, place: place + 1, of, role });
+    }
+  }
+  return out;
+}
+const smallWhy = (p) => p.why === "bit" ? `a bit part, billed ${ordinal(p.place)}` : `billed ${ordinal(p.place)} of ${fmtN(p.of)}`;
 
 function inScope(lib, scope) {
   if (scope === "all") return { films: lib.films, entries: lib.entries };
@@ -698,31 +772,33 @@ function inScope(lib, scope) {
 // Highest-rated actors over all time need this many rated films each, so one great film doesn't top the list (the
 // owner's call). In a single year the bar follows that year (asked Oct 2026): the most rated films that still lists
 // CAST_TOP actors, never above CAST_MIN_RATED; a quieter year comes down to 2 (one film each would only rank films).
-const CAST_MIN_RATED = 6, CAST_TOP = 10;
+// And some of those films must be ones they're billed in the top LEAD_TOP of (asked 26 Oct 2026): CAST_LEAD over all
+// time, one in a year, so a character actor's many good films in small parts don't top the list.
+const CAST_MIN_RATED = 6, CAST_TOP = 10, CAST_LEAD = 3;
 function castBar(rated) {
   for (let t = CAST_MIN_RATED; t > 2; t--) if (rated.filter((p) => p.ratings.length >= t).length >= CAST_TOP) return t;
   return 2;
 }
-function rankPeople(films, metaOf, role, minRated) {
+function rankPeople(films, metaOf, role, minRated, leadMin = 0) {
   const map = new Map();
   for (const f of films) {
     const m = metaOf(f);
     if (!m || !Array.isArray(m[ROLE_FIELD[role]])) continue;
-    const names = roleNames(m, role);
+    const names = roleNames(m, role), leads = roleLeads(m, role);
     const seen = new Set();
     for (const name of names) {
       const k = personKey(name);
       if (!k || seen.has(k)) continue;
       seen.add(k);
       let p = map.get(k);
-      if (!p) { p = { key: k, name, films: [], ratings: [] }; map.set(k, p); }
+      if (!p) { p = { key: k, name, films: [], ratings: [], lead: 0 }; map.set(k, p); }
       p.films.push(f);
-      if (f.rating) p.ratings.push(f.rating);
+      if (f.rating) { p.ratings.push(f.rating); if (leads.has(k)) p.lead++; }
     }
   }
   const all = [...map.values()].map((p) => ({ ...p, count: p.films.length, avg: avg(p.ratings) }));
   const most = [...all].sort((a, b) => b.count - a.count || (b.avg || 0) - (a.avg || 0) || a.name.localeCompare(b.name));
-  const best = all.filter((p) => p.ratings.length >= minRated)
+  const best = all.filter((p) => p.ratings.length >= minRated && p.lead >= leadMin)
     .sort((a, b) => b.avg - a.avg || b.ratings.length - a.ratings.length || a.name.localeCompare(b.name));
   return { most, best, total: all.length };
 }
@@ -788,7 +864,7 @@ function computeStats(lib, metaOf, scope) {
     .sort((a, b) => a.decade - b.decade);
 
   const minRated = films.length >= 150 ? 3 : 2;
-  const cast = rankPeople(films, metaOf, "c", scope === "all" ? CAST_MIN_RATED : 1);
+  const cast = rankPeople(films, metaOf, "c", scope === "all" ? CAST_MIN_RATED : 1, scope === "all" ? CAST_LEAD : 1);
   const castMinRated = scope === "all" ? CAST_MIN_RATED : castBar(cast.best);
   if (scope !== "all") cast.best = cast.best.filter((p) => p.ratings.length >= castMinRated);
   return {
