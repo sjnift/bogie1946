@@ -2,6 +2,19 @@
  "user": "bogie1946",
  "items": [
   {
+   "guid": "letterboxd-watch-1558474754",
+   "title": "Coraline",
+   "year": 2009,
+   "watched": "2026-10-27",
+   "logged": "2026-10-27",
+   "rating": 3.5,
+   "rewatch": false,
+   "liked": false,
+   "tmdb": 14836,
+   "review": "",
+   "link": "https://letterboxd.com/bogie1946/film/coraline/"
+  },
+  {
    "guid": "letterboxd-watch-1546963235",
    "title": "The Damned",
    "year": 1962,
