@@ -19,7 +19,7 @@ const audit = () => {
     for (const q of quizQuestions(lib, Y)) {
       kinds.add(q.kind);
       const keys = q.opts.map((o) => `${o.label}|${o.sub || ""}`);
-      if (q.opts.length < 2 || q.opts.length > 4 || new Set(keys).size !== keys.length) bad.push(`${Y} ${q.kind}: answers ${keys.join(" / ")}`);
+      if (q.opts.length !== 4 || new Set(keys).size !== keys.length) bad.push(`${Y} ${q.kind}: answers ${keys.join(" / ")}`);
       if (!(q.ans >= 0 && q.ans < q.opts.length)) bad.push(`${Y} ${q.kind}: right answer ${q.ans}`);
       const v = value(q.kind, s, Y);
       if (v) { const vs = q.opts.map(v), top = Math.max(...vs); if (vs[q.ans] !== top || vs.filter((x) => x === top).length !== 1) bad.push(`${Y} ${q.kind}: ${q.q} ${keys.join(" / ")} → ${vs.join(",")}, right ${q.ans}`); }

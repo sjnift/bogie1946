@@ -367,6 +367,12 @@ friend replaces the address instead.
   a year, your average rating, and the genre it leans to beyond the rest of the diary ("Leans to", `leanHtml`). For a
   year: its months against your usual for each in other years. Desktop section `months` in "When you watch"; phone
   Stats › Years (`mMonths`). The `counts` check adds up every month.
+- **By year of release** (asked 31 Oct 2026: "a year wise graph with the number of films released in each year I've
+  watched like letterboxd"; `releaseYearsChart` in `06b-charts.js`, `s.relYears`): every release year from the first to
+  the last as a column (years with none left empty), films or your average rating, each opening its films, a label every
+  ten years (twenty on the phone past 70 years; `colChart`'s `cls` "relyears" packs the columns). Desktop: the Released
+  section's switch "Films by year / Rating by year / By decade" (`state.tab.released`, films first); phone: Stats ›
+  Breakdown "By year of release" with a Films / Your rating switch (`state.relMode`), above the decades.
 - **Seasons** (asked 31 Oct 2026: "watched films and data relative to season, e.g. winter, summer, autumn and monsoon
   for India … over all and year wise too, with any insight about … bias to any genre during a particular season";
   `seasonData` in `06c-insights.js`): India's seasons in the months the owner set the same day (first the IMD's four,
@@ -414,7 +420,7 @@ friend replaces the address instead.
 - **The quiz** (asked 31 Oct 2026: "an interactive quiz on the website and app … derived from their watching habits and
   diary data"; `06q-quiz.js`): `D.quiz(scope)`, a drill of kind `quiz` (so the pop-up or the sheet, like the story),
   from the desktop hero's links ("take the quiz") and the phone Profile's story row ("Take the quiz on …"); it follows
-  the year chips, on the whole diary (`shareLib`). Ten questions a round (`QUIZ_N`), each from one of `QUIZ_KINDS`
+  the year chips, on the whole diary (`shareLib`). Ten questions a round (`QUIZ_N`), always four answers each (asked the same day), each from one of `QUIZ_KINDS`
   (highest and lowest rated of four, what you rated a film, watched first, the film of a date, most watched director
   and actor, who directed a film, an actor in a film, the longest, the oldest, the most rewatched, entries in a year or
   month, busiest weekday, top genre and country, best decade, five-star count, one still on the watchlist, top studio,

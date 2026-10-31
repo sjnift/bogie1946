@@ -770,4 +770,9 @@ body.empty #settings, body.empty .foot-settings { display: none !important; }
 .qz-list { margin: 6px 0 10px; padding: 0; list-style: none; display: grid; gap: 6px; font-size: 14px; color: var(--ink-2); }
 .qz-list li { display: flex; gap: 10px; align-items: baseline; }
 .qz-list b { color: var(--ink); font-weight: 600; }
+
+.chart.relyears .cols, .axis.relyears { gap: 1px; }
+.chart.relyears .col .seg { max-width: none; }
+.chart.relyears .col .seg:last-child { border-radius: 2px 2px 0 0; }
+.chart.relyears .col:hover .seg { filter: brightness(1.25); }
 </style>

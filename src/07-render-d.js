@@ -16,7 +16,12 @@ function dashChapters(s) {
   }
   const re = s.films.filter((f) => views(f) > 1).sort((a, b) => views(b) - views(a) || (b.rating || 0) - (a.rating || 0));
   const filmsFull = [
-    section("released", "Released", L.released || "Films by decade of release.", s.decades.length ? colChart(decCols, "Films by decade of release", "", 162, { unit: "films" }) : `<div class="empty">No release years in this period.</div>`),
+    section("released", "Released", L.released || "Films by year of release.", (() => {
+      const rel = state.tab.released || "films";
+      return tabs("released", [["films", "Films by year"], ["rating", "Rating by year"], ["decades", "By decade"]], rel) + (rel === "decades"
+        ? (s.decades.length ? colChart(decCols, "Films by decade of release", "", 162, { unit: "films" }) : `<div class="empty">No release years in this period.</div>`)
+        : releaseYearsChart(s, rel, 162, 10));
+    })()),
     section("milestones", "Milestones", "Counted through your diary in date order.", milestonesBlock(s)),
     recordsBlock(s) ? section("records", "Records", "The longest, shortest, oldest and newest films.", recordsBlock(s)) : "",
     re.length ? section("rewatched", "Most rewatched", `${L.rewatched} ${dlink(re.length > 8 && D.films("Most rewatched", filmsSub(re), re, { scope, sort: "given", note: (f) => plural(views(f), "viewing") }), `All ${fmtN(re.length)} rewatched films`)}`, rewatchedBlock(s)) : ""];

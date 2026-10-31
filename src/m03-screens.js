@@ -2,7 +2,7 @@
 /* ---------- app state ---------- */
 const state = {
   mode: "example", lib: null, scope: "all", view: "profile", statsView: "films", stack: [], wn: "any", backupKeys: false,
-  role: "c", sort: "most", catSort: "most", bestBy: "decade", peopleLimit: 50, diaryLimit: 40, crowd: null, insTab: "overview", yearTab: "overview", trend: "films",
+  role: "c", sort: "most", catSort: "most", bestBy: "decade", relMode: "films", peopleLimit: 50, diaryLimit: 40, crowd: null, insTab: "overview", yearTab: "overview", trend: "films",
   reviewQuery: "", reviewLimit: 30, cmp: null, cmpTab: "overview", cmpError: "", unfriend: null, drillLimit: 200,
 };
 let MY_LIB = null, EXAMPLE_LIB = null, STATS = null, YEARS = [], BASE_LIB = null, YEARS_OF = null;

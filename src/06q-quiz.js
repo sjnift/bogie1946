@@ -2,7 +2,7 @@
 /* ---------- the quiz (asked 31 Oct 2026: "an interactive quiz on the website and app for the user, derived from their
    watching habits and diary data") ----------
    Ten questions a round, each made from the diary by one of QUIZ_KINDS (each kind at most once a round, in a random
-   order), with four answers (two to four for a few), exactly one right: every kind picks its answers so that no two
+   order), always with four answers (asked 31 Oct 2026), exactly one right: every kind picks its answers so that no two
    tie on what's asked. The numbers come from `computeStats`, as on the Stats page, so the quiz never counts anything
    differently. Like the story it opens in the pop-up (computer) or the sheet (phone), so Back and Close work; it follows
    the year chips (a year's quiz asks about that year), always on the whole diary, whatever filters are on. After each
@@ -149,7 +149,7 @@ function quizQuestions(lib, Y) {
   for (const k of qPick(Object.keys(QUIZ_KINDS), Object.keys(QUIZ_KINDS).length)) {
     let q = null;
     try { q = QUIZ_KINDS[k](c); } catch { q = null; }
-    if (q && q.opts.length >= 2 && new Set(q.opts.map((o) => `${o.label}|${o.sub || ""}`)).size === q.opts.length) out.push({ ...q, kind: k });
+    if (q && q.opts.length === 4 && new Set(q.opts.map((o) => `${o.label}|${o.sub || ""}`)).size === q.opts.length) out.push({ ...q, kind: k });
     if (out.length === QUIZ_N) break;
   }
   return out;

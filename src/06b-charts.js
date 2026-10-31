@@ -41,8 +41,24 @@ function colChart(cols, aria, legend, H = 162, opts = true) {
       : `<div class="col" data-tip="${esc(c.tip)}">${segs.join("")}${val}</div>`;
   }).join("");
   const axis = cols.map((c) => `<span${c.minor ? ' class="minor"' : ""}>${c.label || ""}</span>`).join("");
-  return `${legend || ""}<div class="chart${grid ? "" : " bare"}${o.values ? " valued" : ""}${grid && o.unit ? " unit" : ""}">${grid ? `<div class="gridline" style="bottom:${(tick / max * H).toFixed(1)}px"><span>${fmtN(tick)}${o.unit ? (o.unit === "%" ? "%" : ` ${o.unit}`) : ""}</span></div>` : ""}
-    <div class="cols" style="height:${H + 8}px" role="img" aria-label="${esc(aria)}">${bars}</div></div><div class="axis" aria-hidden="true">${axis}</div>`;
+  return `${legend || ""}<div class="chart${o.cls ? ` ${o.cls}` : ""}${grid ? "" : " bare"}${o.values ? " valued" : ""}${grid && o.unit ? " unit" : ""}">${grid ? `<div class="gridline" style="bottom:${(tick / max * H).toFixed(1)}px"><span>${fmtN(tick)}${o.unit ? (o.unit === "%" ? "%" : ` ${o.unit}`) : ""}</span></div>` : ""}
+    <div class="cols" style="height:${H + 8}px" role="img" aria-label="${esc(aria)}">${bars}</div></div><div class="axis${o.cls ? ` ${o.cls}` : ""}" aria-hidden="true">${axis}</div>`;
+}
+// Every release year from the first to the last as a column, like Letterboxd's (asked 31 Oct 2026: "a year wise graph
+// with the number of films released in each year I've watched"): how many films (`mode` "films") or your average
+// rating ("rating"), years with none left empty; a label every `every` years; each column opens its films.
+function releaseYearsChart(s, mode, H, every) {
+  const ys = s.relYears || [];
+  if (!ys.length) return `<div class="empty">No release years in this period.</div>`;
+  const by = new Map(ys.map((x) => [x.year, x])), lo = ys[0].year, hi = ys[ys.length - 1].year, cols = [];
+  const step = every || (hi - lo > 70 ? 20 : 10);
+  for (let y = lo; y <= hi; y++) {
+    const x = by.get(y), rated = x && x.ratings.length;
+    cols.push({ a: mode === "rating" ? (rated ? x.avg : 0) : x ? x.count : 0, b: 0, year: y, label: y % step === 0 ? String(y) : "", minor: y % step !== 0,
+      tip: `${y}: ${x ? plural(x.count, "film") : "no films"}${rated ? ` · ${x.avg.toFixed(2)} average from ${plural(x.ratings.length, "rating")}` : ""}`, to: x ? DR.relYear(x) : null });
+  }
+  const label = mode === "rating" ? "Your average rating by year of release" : "Films by year of release";
+  return colChart(cols, label, "", H, mode === "rating" ? { cls: "relyears", values: () => "", base: valuesBase(ys.map((x) => x.ratings.length ? x.avg : null), 0.5) } : { cls: "relyears", unit: "films" });
 }
 // Where columns of averages start, so their differences show: half a step below the lowest.
 const valuesBase = (vals, step) => { const v = vals.filter((x) => x != null && x > 0); return v.length ? Math.max(0, Math.floor(Math.min(...v) / step) * step - step) : 0; };
