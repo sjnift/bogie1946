@@ -228,6 +228,7 @@ The owner asked for this to be checked every time. A film, diary entry, person o
   `06k-study.js` (Insights: `computeStudy`, `computeYearStudy`, and the pieces both layouts draw, `driftCols`,
   `chapterStrip`; see "Insights, the study"; also `crowdOf`, the Stats page's against-the-crowd numbers),
   `06p-studios.js` (the studios pie in Insights: `STUDIOS`, `filmStudio`, `studioData`, `pieSvg`, `studiosHtml`),
+  `06q-quiz.js` (the quiz: `D.quiz`, `QUIZ_KINDS`, `quizQuestions`, `quizBodyHtml`),
   `06l-filter.js` (filters: `FILTER`, `filteredLib`, `D.filters` and its panel `filtersInner`, `filterStripHtml`,
   `dropEmpties`; see "Filters"), `06m-story.js` (the
   story: `D.story`, `storyBodyHtml`, `fillStory`, `storyFindings`), `06n-world.js` (the world map's country shapes and
@@ -410,6 +411,19 @@ friend replaces the address instead.
   490 studios, Warner Bros. 160, 20th Century Fox 113, Paramount 111, Columbia 90, Universal 87, MGM 51, United
   Artists 44: the rest about three in five, so their pie is the top 7. The `counts` check proves each film is in one slice, the slices add up, and the 10% rule both ways; `study` and `xss`
   cover the section.
+- **The quiz** (asked 31 Oct 2026: "an interactive quiz on the website and app … derived from their watching habits and
+  diary data"; `06q-quiz.js`): `D.quiz(scope)`, a drill of kind `quiz` (so the pop-up or the sheet, like the story),
+  from the desktop hero's links ("take the quiz") and the phone Profile's story row ("Take the quiz on …"); it follows
+  the year chips, on the whole diary (`shareLib`). Ten questions a round (`QUIZ_N`), each from one of `QUIZ_KINDS`
+  (highest and lowest rated of four, what you rated a film, watched first, the film of a date, most watched director
+  and actor, who directed a film, an actor in a film, the longest, the oldest, the most rewatched, entries in a year or
+  month, busiest weekday, top genre and country, best decade, five-star count, one still on the watchlist, top studio,
+  busiest season, the first film); answers from `computeStats` and the other sections' own data, one right answer
+  that alone beats the other three (`qExtreme`), numbers near the right one (`qNumbers`). After each answer: right or
+  not, why with the numbers, and its films; then the score, a line on it (`QUIZ_VERDICTS`), every question with its
+  answer, and Play again. State lives on the drill (`QUIZZES` by `qid`), redrawn in place (`quizRedraw`). The `quiz`
+  check audits 25 rounds per scope (one right answer among distinct ones, right by the diary's numbers) and plays a
+  round on both layouts.
 - **Insights**: a study of the diary (below), findings only: all years (in short, chapters, through the year, how taste has moved, what
   ratings follow, one film to the next, habits) and each year against the rest of the diary (in short, what set it
   apart, its months, ratings, threads, habits, the year picture).
@@ -883,7 +897,7 @@ with `?example` (pass `example: false` for an empty browser; a check's own `goto
 `apify`, `imdbcast` (the owner's cast checked on IMDb), `people` (people by TMDB id, the people check, cameos, voices, small parts and who counts by hand), `check` (film data check), `counts` (double counting, also with filters on), `reviews` (missing review text spotted; six-film actors), `welcome` (no example diary; import saved at once), `extras` (year picture, On this day, Watch next, PWA), `feed`, `import`,
 `links` (every link opens something), `pages` (nothing broken shows, no sideways scroll on the phone),
 `routes`, `storage` (IndexedDB move, backup and restore), `site` (the diary on the site: a stand-in GitHub and site),
-`tmdb` (fixing a match, filmography, search), `extras` also covers the story and every kind and shape of picture, `xss` (nothing from outside can run code, about a minute), `study` (a
+`tmdb` (fixing a match, filmography, search), `quiz` (the quiz's answers and a round on both layouts), `extras` also covers the story and every kind and shape of picture, `xss` (nothing from outside can run code, about a minute), `study` (a
 five-year diary with patterns planted in it: the study finds them on both layouts and for a year, repeats nothing from
 the Stats page, and every list it opens holds each film once). `lib.mjs`
 also cuts off api.github.com and jsdelivr, answers `diary/` with "not found", and counts anything the security policy

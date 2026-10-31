@@ -320,7 +320,8 @@ function profileScreen(s) {
     <button class="btn block" type="button" data-iostip>Got it</button></div>` : "";
   const when = s.scope === "all" ? "all time" : s.scope;
   const storyRow = BASE_LIB && BASE_LIB.entries.length ? `<div class="storyrow"><button class="btn green" type="button" ${dl(D.story(s.scope))}>${ICON.next}Play ${esc(when)} as a story</button>
-    <button class="btn" type="button" ${dl(D.share(s.scope))}>${ICON.share}<span class="sr-only">Share ${esc(when)} as a picture</span></button></div>` : "";
+    <button class="btn" type="button" ${dl(D.share(s.scope))}>${ICON.share}<span class="sr-only">Share ${esc(when)} as a picture</span></button>
+    <button class="btn quizbtn" type="button" ${dl(D.quiz(s.scope))}>${ICON.sparkle}Take the quiz on ${esc(when)}</button></div>` : "";
   // the best-rated decade, featured, then the second and third (the owner's call, Oct 2026)
   const fav = favouriteCards(s, 3), decade = fav ? `<div style="margin-top:22px">${fav}</div>` : "";
   return hero + scopeBar() + onSite + notice + note + iosTip + reimport + fill + tiles + storyRow + recentRow + otd + decade + ratings + people;

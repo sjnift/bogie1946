@@ -103,7 +103,7 @@ function renderHero(s, years) {
   if (dir && dir.count > 1) line += ` ${dlink(DR.person(dir), esc(dir.name))} directed the most, with ${dir.count}.`;
   if (!s.withMeta && s.films.length) line += " Look up cast and crew below to see who you watch most.";
   // the year (or all time) as a story and a picture, always of the whole diary
-  if (state.page === "stats" && state.lib.entries.length) line += ` <span class="hero-acts">${dlink(D.story(state.scope), `▶ Play ${state.scope === "all" ? "all time" : state.scope} as a story`)} · ${dlink(D.share(state.scope), "share it as a picture")}</span>`;
+  if (state.page === "stats" && state.lib.entries.length) line += ` <span class="hero-acts">${dlink(D.story(state.scope), `▶ Play ${state.scope === "all" ? "all time" : state.scope} as a story`)} · ${dlink(D.share(state.scope), "share it as a picture")} · ${dlink(D.quiz(state.scope), "take the quiz")}</span>`;
   $("#hero-sub").innerHTML = line;
   $("#scopes").innerHTML = ["all", ...years].map((y) =>
     `<button class="chip" type="button" data-scope="${y}" aria-pressed="${y === state.scope}">${y === "all" ? "All time" : y}</button>`).join("");

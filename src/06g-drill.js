@@ -25,7 +25,7 @@ const dlink = (d, html) => d ? `<button class="dlink" type="button" ${dl(d)}>${h
 const dline = (d, html) => d ? `<button class="dline" type="button" ${dl(d)}>${html}<span class="go" aria-hidden="true">&nbsp;›</span></button>` : html;
 
 const PANEL_CAP = 25;
-const drillSize = (d) => d.kind === "film" ? 1 : d.kind === "search" || d.kind === "share" || d.kind === "story" || d.kind === "filters" || d.kind === "parts" ? 0 : d.kind === "groups" ? d.groups.reduce((s, g) => s + drillSize(g), 0)
+const drillSize = (d) => d.kind === "film" ? 1 : d.kind === "search" || d.kind === "share" || d.kind === "story" || d.kind === "quiz" || d.kind === "filters" || d.kind === "parts" ? 0 : d.kind === "groups" ? d.groups.reduce((s, g) => s + drillSize(g), 0)
   : (d.films || d.entries || d.reviews || d.items || []).length;
 
 /* ----- sub-lines ----- */
@@ -182,6 +182,7 @@ function drillBody(d, cap = Infinity) {
   if (d.kind === "search") return { html: searchBodyHtml(d), hidden: 0 };
   if (d.kind === "share") return { html: shareBodyHtml(d), hidden: 0 };
   if (d.kind === "story") return { html: storyBodyHtml(d), hidden: 0 };
+  if (d.kind === "quiz") return { html: quizBodyHtml(d), hidden: 0 };
   if (d.kind === "filters") return { html: filtersBodyHtml(), hidden: 0 };
   if (d.kind === "parts") return { html: `<div class="ppanel" data-pkey="${esc(d.film.key)}">${partsInner(d.film.key)}</div>`, hidden: 0 };
   if (d.kind === "groups") {
