@@ -368,9 +368,9 @@ friend replaces the address instead.
   Stats › Years (`mMonths`). The `counts` check adds up every month.
 - **Seasons** (asked 31 Oct 2026: "watched films and data relative to season, e.g. winter, summer, autumn and monsoon
   for India … over all and year wise too, with any insight about … bias to any genre during a particular season";
-  `seasonData` in `06c-insights.js`): India's seasons, the IMD's four with spring added the same day at the owner's
-  request (`SEASONS`: winter Dec–Jan, spring Feb–Mar, summer Apr–May, monsoon Jun–Sep, autumn Oct–Nov; a year's winter
-  is its own Jan and Dec, so each entry is in one season of its year). Each season: films (entries), "a month" (entries over the days it was in the diary, as seasons differ in
+  `seasonData` in `06c-insights.js`): India's seasons in the months the owner set the same day (first the IMD's four,
+  then spring added, then their own months: `SEASONS`: winter Nov–Jan, spring Feb–Mar, summer Apr–Jun, monsoon Jul–Aug,
+  autumn Sep–Oct; a year's winter is its own Jan, Nov and Dec, so each entry is in one season of its year). Each season: films (entries), "a month" (entries over the days it was in the diary, as seasons differ in
   length), share, your average, "Leans to" (as Month by month); the clear biases first (a genre a season has more or
   less of than the rest of the year: z ≥ `STUDY_Z` 3 over all time with `SEASON_MIN` 5 films in 2+ years, z ≥
   `SEASON_Z_YEAR` 2.5 in a year), and, over all time, each year season by season (`seasonYearsHiLo`, the year under
