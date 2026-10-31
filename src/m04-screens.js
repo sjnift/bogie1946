@@ -136,7 +136,7 @@ function genresScreen(s) {
       cols.push({ a: x ? x.count : 0, b: 0, label: `’${String(d).slice(2)}`, tip: `${d}s: ${plural(x ? x.count : 0, "film")}${x && x.avg ? ` · ${x.avg.toFixed(2)} average` : ""}`, to: x && DR.decade(x) });
     }
     const rel = state.relMode === "rating" ? "rating" : "films";
-    html += sh("By year of release") + segBar("relmode", [["films", "Films"], ["rating", "Your rating"]], rel, "small") + `<div class="card">${releaseYearsChart(s, rel, 110)}</div>` +
+    html += sh("By year of release") + segBar("relmode", [["films", "Films"], ["rating", "Your rating"]], rel, "small") + `<div class="card">${releaseYearsChart(s, rel, 130)}</div>` +
       (ranked.length ? sh("Decades, best rated first") + `<div class="group">${ranked.map(decadeRow).join("")}</div>` : "") +
       sh("Films by decade of release") + `<div class="card">${colChart(cols, "Films by decade of release", "", 100, { unit: "films" })}</div>`;
   }

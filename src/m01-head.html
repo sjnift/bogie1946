@@ -343,7 +343,9 @@ img.fade.in { opacity: 1; }
 .chart { position: relative; margin-right: 28px; margin-top: 10px; }
 .cols { position: relative; z-index: 1; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); align-items: end; gap: 2px; border-bottom: 1px solid var(--line-2); padding-top: 8px; }
 .col { height: 100%; display: flex; flex-direction: column-reverse; align-items: center; min-width: 0; }
-.col .seg { width: 100%; max-width: 26px; border-radius: 0; }
+/* a bar, not the segmented switch that shares the name: none of its padding, margin or ring (they made every bar at least
+   6px wide and tall and cut the tallest 12px short; with a century of release years they piled on top of each other) */
+.col .seg { display: block; width: 100%; max-width: 26px; padding: 0; margin: 0; box-shadow: none; border-radius: 0; }
 .col .seg + .seg { margin-bottom: 2px; }
 .col .seg.a { background: var(--green-mark); }
 .col .seg.b { background: var(--blue-mark); }
@@ -863,9 +865,21 @@ body.nodata .hero .avatar svg { width: 40px; height: 40px; color: var(--green); 
 .qz-list li { display: flex; gap: 10px; align-items: baseline; }
 .qz-list b { color: var(--ink); font-weight: 650; }
 
-.chart.relyears .cols, .axis.relyears { gap: 1px; }
-.chart.relyears .col .seg { max-width: none; }
-.chart.relyears .col .seg:last-child { border-radius: 1px 1px 0 0; }
-.axis.relyears span { overflow: visible; }
-.axis.relyears span.minor { visibility: hidden; }
+/* films by year of release (releaseYearsChart): one stretched SVG, a bar a year; the gridline's number in a gutter on
+   the left, so the bars have the card's whole width */
+.ry-plot { position: relative; isolation: isolate; margin: 12px 0 0 24px; border-bottom: 1px solid var(--line-2); }
+.ry-plot svg { position: relative; z-index: 1; display: block; width: 100%; height: 100%; overflow: visible; }
+.ry .hit { fill: transparent; }
+.ry .bar { fill: var(--green-mark); }
+.ry .bar.few { opacity: .42; }
+.ry .yr:active .bar { fill: var(--green); }
+.ry-line { position: absolute; left: -24px; right: 0; border-top: 1px dashed var(--line-2); pointer-events: none; }
+.ry-line.avg { left: 0; z-index: 2; border-top-color: rgba(255, 255, 255, .55); }
+.ry-line span { position: absolute; left: 0; top: -8px; font-size: 11.5px; line-height: 16px; color: var(--muted); white-space: nowrap; }
+.ry-line em { display: none; }
+.ry-axis { position: relative; height: 24px; margin-left: 24px; }
+.ry-axis i { position: absolute; top: 0; width: 1px; height: 4px; background: var(--line-2); }
+.ry-axis span { position: absolute; top: 7px; transform: translateX(-50%); font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+.ry-axis span.l { transform: translateX(-2px); } .ry-axis span.r { transform: translateX(calc(-100% + 2px)); }
+.ry-note { margin: 6px 0 0; font-size: 12.5px; color: var(--muted); line-height: 1.4; }
 </style>

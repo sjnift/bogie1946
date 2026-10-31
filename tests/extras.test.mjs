@@ -91,6 +91,38 @@ export default async function ({ browser, base }) {
       const just = (got, want, once) => once ? got.length === 1 && got[0] === want : got.length === 0;
       assert(ph.n >= 3 && just(ph.hi, ph.max, ph.maxOnce) && just(ph.lo, ph.min, ph.minOnce), `phone years, gold and purple: ${JSON.stringify(ph)}`);
     }
+    // films by year of release (asked 31 Oct 2026; then "all the bars are overlapping on each other"): a bar a year, all
+    // the same width and each inside its own slot, also for a century in a phone's width; a year opens its films; the
+    // rating view has the dashed average line
+    await p.goto(`${base}${file}?example${phone ? "#/genres" : "#/"}`); await p.waitForFunction(() => typeof state === "object" && state.lib);
+    await p.waitForSelector(".ry svg");
+    const ry = await p.evaluate(() => {
+      const measure = (root) => {
+        const gs = [...root.querySelectorAll(".yr")], bars = [];
+        let inside = true;
+        for (const g of gs) { const b = g.querySelector(".bar"), h = g.querySelector(".hit").getBoundingClientRect(); if (!b) continue; const r = b.getBoundingClientRect(); bars.push(r); if (r.left < h.left - 0.01 || r.right > h.right + 0.01) inside = false; }
+        const ws = bars.map((r) => r.width), apart = bars.every((r, i) => !i || bars[i - 1].right <= r.left + 0.01);
+        return { n: gs.length, bars: bars.length, spread: Math.max(...ws) - Math.min(...ws), w: Math.min(...ws), inside, apart, tall: bars.map((r) => r.height) };
+      };
+      const s = computeStats(state.lib, metaOf, "all"), ys = s.relYears, span = ys[ys.length - 1].year - ys[0].year + 1;
+      const real = measure(document.querySelector(".ry")), max = Math.max(...ys.map((x) => x.count));
+      const box = document.createElement("div"); box.style.width = "300px";
+      box.innerHTML = releaseYearsChart({ relYears: Array.from({ length: 107 }, (_, i) => ({ year: 1920 + i, films: [], ratings: [3], count: 1 + (i % 7), avg: 3 })) }, "films", 130);
+      document.body.append(box); const century = measure(box); box.remove();
+      return { span, real, century, top: ys.findIndex((x) => x.count === max), max, tallest: Math.max(...real.tall), mean: (() => { const a = ys.flatMap((x) => x.ratings); return (a.reduce((x, y) => x + y, 0) / a.length).toFixed(2); })() };
+    });
+    const ok = (m, n) => m.n === n && m.inside && m.apart && m.spread < 0.05 && m.w > 1;
+    assert(ok(ry.real, ry.span) && ry.real.bars > 5 && ok(ry.century, 107), `${file} films by year of release: ${JSON.stringify({ ...ry, real: { ...ry.real, tall: 0 }, century: { ...ry.century, tall: 0 } })}`);
+    const topYear = await p.evaluate((i) => { const g = [...document.querySelectorAll(".ry .yr")].filter((x) => x.querySelector(".bar"))[i]; return g.dataset.tip; }, ry.top);
+    await p.locator(".ry .yr[data-list]").nth(ry.top).click();
+    await p.waitForSelector(`${panel}[open], ${panel}.open`, { timeout: 3000 }).catch(() => {});
+    const relOpen = await p.evaluate((panel) => { const d = document.querySelector(panel); const h = d && d.querySelector("h2, h3"); return h ? h.textContent : null; }, panel);
+    assert(relOpen === `Released in ${topYear.slice(0, 4)}`, `${file} a year of release opened ${relOpen} (wanted ${topYear})`);
+    await close();
+    await p.click(phone ? '[data-relmode="rating"]' : '[data-tab="released"][data-val="rating"]'); await p.waitForTimeout(200);
+    const rt = await p.evaluate(() => ({ line: !!document.querySelector(".ry.rating .ry-line.avg"), note: (document.querySelector(".ry.rating .ry-note") || {}).textContent || "" }));
+    assert(rt.line && rt.note.includes(`your average rating, ${ry.mean}`), `${file} rating by year of release: ${JSON.stringify(rt)} (average ${ry.mean})`);
+    await p.click(phone ? '[data-relmode="films"]' : '[data-tab="released"][data-val="films"]'); await p.waitForTimeout(150);
     noErrors(p, file);
   }
   // phone pictures: a poster that has loaded fades in (it once stayed invisible: the page listened for "load" on the

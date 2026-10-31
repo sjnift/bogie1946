@@ -44,21 +44,47 @@ function colChart(cols, aria, legend, H = 162, opts = true) {
   return `${legend || ""}<div class="chart${o.cls ? ` ${o.cls}` : ""}${grid ? "" : " bare"}${o.values ? " valued" : ""}${grid && o.unit ? " unit" : ""}">${grid ? `<div class="gridline" style="bottom:${(tick / max * H).toFixed(1)}px"><span>${fmtN(tick)}${o.unit ? (o.unit === "%" ? "%" : ` ${o.unit}`) : ""}</span></div>` : ""}
     <div class="cols" style="height:${H + 8}px" role="img" aria-label="${esc(aria)}">${bars}</div></div><div class="axis${o.cls ? ` ${o.cls}` : ""}" aria-hidden="true">${axis}</div>`;
 }
-// Every release year from the first to the last as a column, like Letterboxd's (asked 31 Oct 2026: "a year wise graph
-// with the number of films released in each year I've watched"): how many films (`mode` "films") or your average
-// rating ("rating"), years with none left empty; a label every `every` years; each column opens its films.
+// Every release year from the first to the last, like Letterboxd's (asked 31 Oct 2026: "a year wise graph with the
+// number of films released in each year I've watched"): how many films (`mode` "films") or your average rating
+// ("rating"), years with none left empty; a label every `every` years and a tick every ten; each year opens its films.
+// One stretched SVG, not a column of boxes (the owner, the same day: "all the bars are overlapping on each other"): a
+// century of years is under 2px a year on a phone, which boxes round to 1px or 2px, so bars came out uneven (and the
+// phone's bars took the padding of the switch that shares their class name, 6px each, and piled up); SVG bars share the
+// width evenly. A year's whole slot is its target, so a thin bar is easy to tap. In "rating" a dashed line marks your
+// average and years with fewer than RY_FEW ratings are paler. The phone puts the gridline's number in a gutter on the left.
+const RY_FEW = 3;
 function releaseYearsChart(s, mode, H, every) {
   const ys = s.relYears || [];
   if (!ys.length) return `<div class="empty">No release years in this period.</div>`;
-  const by = new Map(ys.map((x) => [x.year, x])), lo = ys[0].year, hi = ys[ys.length - 1].year, cols = [];
-  const step = every || (hi - lo > 70 ? 20 : 10);
-  for (let y = lo; y <= hi; y++) {
-    const x = by.get(y), rated = x && x.ratings.length;
-    cols.push({ a: mode === "rating" ? (rated ? x.avg : 0) : x ? x.count : 0, b: 0, year: y, label: y % step === 0 ? String(y) : "", minor: y % step !== 0,
-      tip: `${y}: ${x ? plural(x.count, "film") : "no films"}${rated ? ` · ${x.avg.toFixed(2)} average from ${plural(x.ratings.length, "rating")}` : ""}`, to: x ? DR.relYear(x) : null });
+  const rating = mode === "rating", rated = ys.filter((x) => x.ratings.length);
+  if (rating && !rated.length) return `<div class="empty">None of these films is rated yet.</div>`;
+  const by = new Map(ys.map((x) => [x.year, x])), lo = ys[0].year, hi = ys[ys.length - 1].year, n = hi - lo + 1;
+  const step = every || (n > 70 ? 20 : 10);
+  const all = rated.flatMap((x) => x.ratings), mean = all.length ? all.reduce((a, b) => a + b, 0) / all.length : 0;
+  const base = rating ? valuesBase(rated.map((x) => x.avg), 0.5) : 0;
+  const top = rating ? Math.max(...rated.map((x) => x.avg)) : Math.max(...ys.map((x) => x.count));
+  const pct = (v) => rating ? (v - base) / Math.max(1e-9, top - base) * 92 : v / top * 100;
+  // a dozen slots at least, so a few years aren't drawn as a few huge bars
+  const slots = Math.max(n, 12), off = (slots - n) / 2, pad = 0.14, few = rating && rated.some((x) => x.ratings.length < RY_FEW), bars = [];
+  for (let i = 0; i < n; i++) {
+    const y = lo + i, x = by.get(y), r = x ? x.ratings.length : 0, v = rating ? (r ? x.avg : 0) : x ? x.count : 0;
+    const tip = `${y}: ${x ? plural(x.count, "film") : "no films"}${r ? ` · ${x.avg.toFixed(2)} average from ${plural(r, "rating")}` : ""}`;
+    const h = v ? Math.max(pct(v), 0.8) : 0;
+    bars.push(`<g class="yr" ${x ? dl(DR.relYear(x)) : ""} data-tip="${esc(tip)}"><rect class="hit" x="${(off + i).toFixed(2)}" y="0" width="1" height="100"/>${h ? `<rect class="bar${rating && r < RY_FEW ? " few" : ""}" x="${(off + i + pad).toFixed(2)}" y="${(100 - h).toFixed(2)}" width="${(1 - 2 * pad).toFixed(2)}" height="${h.toFixed(2)}"/>` : ""}</g>`);
   }
-  const label = mode === "rating" ? "Your average rating by year of release" : "Films by year of release";
-  return colChart(cols, label, "", H, mode === "rating" ? { cls: "relyears", values: () => "", base: valuesBase(ys.map((x) => x.ratings.length ? x.avg : null), 0.5) } : { cls: "relyears", unit: "films" });
+  const tick = niceTick(top);
+  const line = rating ? `<div class="ry-line avg" style="bottom:${pct(mean).toFixed(2)}%"></div>`
+    : `<div class="ry-line" style="bottom:${pct(tick).toFixed(2)}%"><span>${fmtN(tick)}<em> films</em></span></div>`;
+  const ax = [];
+  for (let y = Math.ceil(lo / 10) * 10; y <= hi; y += 10) {
+    const at = (off + y - lo + 0.5) / slots * 100;
+    ax.push(`<i style="left:${at.toFixed(2)}%"></i>`);
+    if (y % step === 0) ax.push(`<span${at < 4 ? ' class="l"' : at > 96 ? ' class="r"' : ""} style="left:${at.toFixed(2)}%">${y}</span>`);
+  }
+  const label = rating ? "Your average rating by year of release" : "Films by year of release";
+  return `<div class="ry${rating ? " rating" : ""}"><div class="ry-plot" style="height:${H}px">${line}<svg viewBox="0 0 ${slots} 100" preserveAspectRatio="none" role="img" aria-label="${label}">${bars.join("")}</svg></div>`
+    + `<div class="ry-axis" aria-hidden="true">${ax.join("")}</div>`
+    + (rating ? `<p class="ry-note">The dashed line is your average rating, ${mean.toFixed(2)}.${few ? ` Paler years have fewer than ${RY_FEW} ratings.` : ""}</p>` : "") + `</div>`;
 }
 // Where columns of averages start, so their differences show: half a step below the lowest.
 const valuesBase = (vals, step) => { const v = vals.filter((x) => x != null && x > 0); return v.length ? Math.max(0, Math.floor(Math.min(...v) / step) * step - step) : 0; };

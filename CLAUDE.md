@@ -304,7 +304,9 @@ The owner asked for this to be checked every time. A film, diary entry, person o
   scroll (`data-auto`). Each tab remembers its scroll (`SCROLL`); tapping the current tab scrolls to the top.
 - Motion respects reduced motion; the checks run with reduced motion, so sheets close at once there.
 - Don't give an element both a phone class and a name used by the layout (a weekday bar called `.top` once
-  became fixed to the top of the screen, because `.top` is the header).
+  became fixed to the top of the screen, because `.top` is the header). Likewise a chart's bars are `.seg`, the
+  segmented switch's name: until 31 Oct 2026 every phone bar took the switch's padding, margin and ring (6px wide and
+  tall at least, the tallest cut 12px short), so `.col .seg` resets them.
 
 ### Drill-downs (what a click opens)
 
@@ -369,8 +371,14 @@ friend replaces the address instead.
   Stats › Years (`mMonths`). The `counts` check adds up every month.
 - **By year of release** (asked 31 Oct 2026: "a year wise graph with the number of films released in each year I've
   watched like letterboxd"; `releaseYearsChart` in `06b-charts.js`, `s.relYears`): every release year from the first to
-  the last as a column (years with none left empty), films or your average rating, each opening its films, a label every
-  ten years (twenty on the phone past 70 years; `colChart`'s `cls` "relyears" packs the columns). Desktop: the Released
+  the last as a bar (years with none left empty), films or your average rating, each opening its films, a label every
+  ten years (twenty on the phone past 70 years) and a tick every ten. **One stretched SVG** (`.ry`; the owner, the same
+  day: "all the bars are overlapping on each other"): the owner's 107 years are under 2px a year on a phone, which boxes
+  round to 1px or 2px, and the phone's bars had taken the switch's padding (6px each); SVG bars share the width evenly,
+  each year's whole slot is its target, at least a dozen slots so a few years aren't huge bars. Rating: a dashed line
+  at your average, years with fewer than `RY_FEW` 3 ratings paler, a line under it saying both. The phone puts the
+  gridline's number in a gutter on the left so the bars get the card's width. The `extras` check measures a century in
+  300px on both layouts (equal bars, each inside its slot), opens a year and the rating view. Desktop: the Released
   section's switch "Films by year / Rating by year / By decade" (`state.tab.released`, films first); phone: Stats ›
   Breakdown "By year of release" with a Films / Your rating switch (`state.relMode`), above the decades.
 - **Seasons** (asked 31 Oct 2026: "watched films and data relative to season, e.g. winter, summer, autumn and monsoon
