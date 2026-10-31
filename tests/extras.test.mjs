@@ -75,6 +75,11 @@ export default async function ({ browser, base }) {
         runs: [...document.querySelectorAll(".decade-run")].map((c) => [c.querySelector(".dr-dec").textContent, c.querySelectorAll(".pitem").length]),
         sizes: [".decade-hero .pitem", ".decade-run .pitem"].map((sel) => Math.round(document.querySelector(sel).getBoundingClientRect().width)) }));
       assert(dec.want === 2 && dec.runs.length === 2 && dec.runs.every(([t, n]) => /^The \d{4}s$/.test(t) && n >= 3) && dec.sizes[1] < dec.sizes[0], `phone second and third best decades: ${JSON.stringify(dec)}`);
+      await p.click('[data-bestby="year"]'); await p.waitForTimeout(200);
+      const yrs = await p.evaluate(() => ({ want: favourites(computeStats(state.lib, metaOf, "all"), "year").items.slice(0, 3).map((x) => x.name).join(),
+        got: [...document.querySelectorAll(".decade-hero .dh-dec, .decade-run .dr-dec")].map((e) => e.textContent).join(), k: document.querySelector(".decade-hero .dh-k").textContent }));
+      assert(yrs.got === yrs.want && /^\d{4},\d{4},\d{4}$/.test(yrs.got) && /year/.test(yrs.k), `phone favourite years: ${JSON.stringify(yrs)}`);
+      await p.click('[data-bestby="decade"]'); await p.waitForTimeout(200);
       await p.evaluate(() => { state.scope = "all"; goTo("years", { force: true, top: true }); }); await p.waitForTimeout(200);
       const ph = await p.evaluate(() => {
         const cells = [...document.querySelectorAll(".yrow")].filter((r) => /^\d{4}$/.test(r.querySelector(".y").textContent.trim()))
@@ -152,6 +157,14 @@ export default async function ({ browser, base }) {
     && lay.crew.map((c) => c[0]).join() === "Written by,Shot by,Music by" && lay.crew.every((c) => c[1] >= 1 && c[1] <= 5), `the trims: ${JSON.stringify(lay)}`);
   assert(lay.decades >= 3 && lay.runners.length === 2 && lay.runners.every((n) => n >= 3 && n <= 6) && lay.sizes[1] < lay.sizes[0],
     `second and third best decades: ${JSON.stringify({ decades: lay.decades, runners: lay.runners, sizes: lay.sizes })}`);
+  // favourite years beside them (asked 31 Oct 2026): the switch shows the top release years the same way, then goes back
+  await d.click('#best-decade [data-tab="bestby"][data-val="year"]'); await d.waitForTimeout(150);
+  const yrs = await d.evaluate(() => { const F = favourites(computeStats(state.lib, metaOf, "all"), "year");
+    return { want: F.items.slice(0, 3).map((x) => x.name).join(), got: [...document.querySelectorAll("#best-decade .bd-title, #best-decade .bd-rtitle")].map((e) => e.textContent.trim()).join(),
+      head: $("#best-decade h2").textContent, bar: F.bar, every: F.items.every((x) => x.ratings.length >= F.bar) }; });
+  assert(yrs.got === yrs.want && /^\d{4},\d{4},\d{4}$/.test(yrs.got) && yrs.head === "Best years" && yrs.every, `favourite years on the computer: ${JSON.stringify(yrs)}`);
+  await d.click('#best-decade [data-tab="bestby"][data-val="decade"]'); await d.waitForTimeout(150);
+  assert(/^The \d{4}s$/.test(await d.textContent("#best-decade .bd-title")), "back to decades on the computer");
   // under the faces: actors down to the 21st, directors down to their first row of ties, the same number of rows (and the
   // same height) on Most watched and Highest rated; Show more brings the rest
   const peopleRows = () => d.evaluate(() => Object.fromEntries(["starring", "directed"].map((id) => [id, { r: [...document.querySelectorAll(`#${id} .people-rows .rank-row`)].map((x) => x.querySelector(".r").textContent),

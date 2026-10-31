@@ -31,6 +31,26 @@ function hiLo(values) {
   const hi = ties(max) === 1, lo = ties(min) === 1;
   return values.map((v) => v == null || !Number.isFinite(v) ? "" : hi && v === max ? " hi" : lo && v === min ? " lo" : "");
 }
+/* ----- favourites: the release decades and years you rate highest (best decade, asked Oct 2026; years beside it, asked
+   31 Oct 2026: "like favourite decades add an option for favourite years too … top 3 years") -----
+   Both layouts feature the best with its posters and the second and third a little smaller, with a switch between
+   decades and years (desktop `state.tab.bestby`, phone `state.bestBy`). A decade needs 3 rated films; a year needs
+   the most of YEAR_BAR (10 down to 3) that still leaves YEAR_ENOUGH years to rank, so a handful of films never tops the
+   list (the owner's films: 1942, 3.59★ over 11; 1979, 3.58★ over 19; 1965, 3.55★ over 10). Each item: its name, its
+   title with the accent, the drill it opens, its average, ratings, best films (`top`) and films. */
+const YEAR_BAR = [10, 3], YEAR_ENOUGH = 5;
+function favourites(s, by) {
+  if (by === "year") {
+    let bar = YEAR_BAR[0];
+    while (bar > YEAR_BAR[1] && s.relYears.filter((x) => x.ratings.length >= bar).length < YEAR_ENOUGH) bar--;
+    const items = s.relYears.filter((x) => x.ratings.length >= bar).sort((a, b) => b.avg - a.avg || b.count - a.count)
+      .map((x) => ({ key: x.year, name: String(x.year), title: `<span class="accent">${x.year}</span>`, short: String(x.year), to: DR.relYear(x), avg: x.avg, ratings: x.ratings, top: x.top, count: x.count }));
+    return { by, bar, items, what: "year" };
+  }
+  const items = s.decades.filter((x) => x.ratings.length >= 3).sort((a, b) => b.avg - a.avg || b.count - a.count)
+    .map((x) => ({ key: x.decade, name: `The ${x.decade}s`, title: `The <span class="accent">${x.decade}s</span>`, short: `the ${x.decade}s`, to: DR.decade(x), avg: x.avg, ratings: x.ratings, top: x.top, count: x.count }));
+  return { by: "decade", bar: 3, items, what: "decade" };
+}
 const HILO_NOTE = "Highest in each column in gold, lowest in purple.";
 // Average rating by year as columns: only the best year's number (gold) and the worst's (purple) are written over them,
 // the rest show on hover or tap, so a long run of years doesn't crowd (the owner found every number congested, Oct 2026).

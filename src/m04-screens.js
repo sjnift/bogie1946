@@ -87,21 +87,30 @@ function filmsScreen(s) {
 /* ---------- Stats › Breakdown: the best decade, genres, countries, languages, decades ---------- */
 // Decades with three or more rated films, best average first.
 const rankedDecades = (s) => s.decades.filter((x) => x.ratings.length >= 3).sort((a, b) => b.avg - a.avg || b.count - a.count);
-// The best-rated decade, up front, with its best films' posters.
-function bestDecadeCard(x, scope) {
+// The best-rated decade (or year), up front, with its best films' posters: an item of `favourites` (06c-insights).
+function bestDecadeCard(x, scope, what = "decade") {
   const pics = showImages ? x.top.filter((f) => metaOf(f) && metaOf(f).poster).slice(0, 3) : [];
   return `<section class="card decade-hero"><div class="dh-bg" aria-hidden="true">${pics.map((f) => `<img src="${IMG}${esc(metaOf(f).poster)}" alt="" decoding="async">`).join("")}</div>
-    <p class="dh-k">Best-rated decade${scope === "all" ? "" : ` · watched in ${esc(scope)}`}</p>
-    <button class="dh-title" type="button" ${dl(DR.decade(x))}><span class="dh-dec">The ${x.decade}s</span>
+    <p class="dh-k">Best-rated ${what}${scope === "all" ? "" : ` · watched in ${esc(scope)}`}</p>
+    <button class="dh-title" type="button" ${dl(x.to)}><span class="dh-dec">${esc(x.name)}</span>
       <span class="dh-sub"><span class="stars">★</span> ${x.avg.toFixed(2)} average from ${plural(x.ratings.length, "rated film")}${CHEV}</span></button>
     <div class="scroller">${x.top.map((f) => posterItem(f)).join("")}</div></section>`;
 }
 // The second and third best, under it on Profile, a little smaller (the owner's call, Oct 2026).
 function decadeRunnerCard(x, i, scope) {
   return `<section class="card decade-run"><p class="dh-k">${i ? "Third" : "Second"} best${scope === "all" ? "" : ` · watched in ${esc(scope)}`}</p>
-    <button class="dh-title" type="button" ${dl(DR.decade(x))}><span class="dr-dec">The ${x.decade}s</span>
+    <button class="dh-title" type="button" ${dl(x.to)}><span class="dr-dec">${esc(x.name)}</span>
       <span class="dh-sub"><span class="stars">★</span> ${x.avg.toFixed(2)} average from ${plural(x.ratings.length, "rated film")}${CHEV}</span></button>
     <div class="scroller">${x.top.map((f) => posterItem(f)).join("")}</div></section>`;
+}
+// The switch between decades and years over them, and the cards (Profile: the best three; Breakdown: the best).
+function favouriteCards(s, n) {
+  if (!rankedDecades(s).length) return "";
+  const F = favourites(s, state.bestBy === "year" ? "year" : "decade");
+  const sw = segBar("bestby", [["decade", "Decades"], ["year", "Years"]], F.by, "small");
+  if (!F.items.length) return sw + `<div class="empty">No release year has ${F.bar} or more rated films yet.</div>`;
+  const note = F.by === "year" ? `<p class="status" style="margin:8px 2px 12px">Years with ${F.bar} or more rated films.</p>` : "";
+  return sw + note + bestDecadeCard(F.items[0], s.scope, F.what) + F.items.slice(1, n).map((x, i) => decadeRunnerCard(x, i, s.scope)).join("");
 }
 // A decade in the ranking: its average and its three best posters.
 const decadeRow = (x, i) => `<button class="drank" type="button" data-k="d${x.decade}" ${dl(DR.decade(x))}><span class="rk">${i + 1}</span>
@@ -109,7 +118,7 @@ const decadeRow = (x, i) => `<button class="drank" type="button" data-k="d${x.de
   <span class="mposters" aria-hidden="true">${x.top.slice(0, 3).map(poster).join("")}</span>${CHEV}</button>`;
 function genresScreen(s) {
   const ranked = rankedDecades(s);
-  let html = statsHead() + (ranked.length ? bestDecadeCard(ranked[0], s.scope) : "") + segBar("catsort", [["most", "Most watched"], ["best", "Highest rated"]], state.catSort, "small");
+  let html = statsHead() + favouriteCards(s, 1) + segBar("catsort", [["most", "Most watched"], ["best", "Highest rated"]], state.catSort, "small");
   const best = state.catSort === "best";
   if (s.withMeta) {
     for (const [label, data, field] of [["Genres", s.genres, "genres"], ["Countries", s.countries, "countries"], ["Languages", s.languages, "languages"]]) {

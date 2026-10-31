@@ -916,6 +916,16 @@ function computeStats(lib, metaOf, scope) {
   const decades = [...dec.values()].map((x) => ({ ...x, count: x.films.length, avg: avg(x.ratings),
     top: [...x.films].filter((f) => f.rating).sort((a, b) => b.rating - a.rating || b.entries.length - a.entries.length).slice(0, 8) }))
     .sort((a, b) => a.decade - b.decade);
+  // release years, the same way (favourite years, beside the best decade: asked 31 Oct 2026)
+  const ry = new Map();
+  for (const f of films) {
+    if (!f.year) continue;
+    let x = ry.get(f.year); if (!x) { x = { year: f.year, films: [], ratings: [] }; ry.set(f.year, x); }
+    x.films.push(f); if (f.rating) x.ratings.push(f.rating);
+  }
+  const relYears = [...ry.values()].map((x) => ({ ...x, count: x.films.length, avg: avg(x.ratings),
+    top: [...x.films].filter((f) => f.rating).sort((a, b) => b.rating - a.rating || b.entries.length - a.entries.length).slice(0, 8) }))
+    .sort((a, b) => a.year - b.year);
 
   const minRated = films.length >= 150 ? 3 : 2;
   const cast = rankPeople(films, metaOf, "c", scope === "all" ? CAST_MIN_RATED : 1, scope === "all" ? CAST_LEAD : 1);
@@ -929,7 +939,7 @@ function computeStats(lib, metaOf, scope) {
     reviews: scope === "all" ? films.reduce((s, f) => s + f.reviews, 0) : entries.filter((e) => e.review).length,
     likes: films.filter((f) => f.liked).length,
     byDay, byMonth, weekday, busiestMonth, busiestDay, streak: longestStreak(entries),
-    decades,
+    decades, relYears,
     cast, voice: rankPeople(films, metaOf, "v", minRated), directors: rankPeople(films, metaOf, "d", minRated),
     writers: rankPeople(films, metaOf, "w", minRated), dop: rankPeople(films, metaOf, "p", minRated), music: rankPeople(films, metaOf, "m", minRated),
     genres: rankCategory(films, metaOf, "g"), countries: rankCategory(films, metaOf, "k"), languages: rankCategory(films, metaOf, "l"),

@@ -72,6 +72,7 @@ const DR = {
   },
   rating: (films, r) => { const fs = films.filter((f) => f.rating === r); return D.films(`Rated ${stars(r)}`, plural(fs.length, "film"), fs, { sort: "watched" }); },
   decade: (x) => D.films(`The ${x.decade}s`, filmsSub(x.films), x.films, { sort: "old" }),
+  relYear: (x) => D.films(`Released in ${x.year}`, filmsSub(x.films), x.films),
   film: (f, o) => D.film(f, o),
   person: (p, o) => D.films(p.name, personSub(p), p.films, { person: p, ...o }),
 };

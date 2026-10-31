@@ -2,7 +2,7 @@
 /* ---------- app state ---------- */
 const state = {
   mode: "example", lib: null, scope: "all", view: "profile", statsView: "films", stack: [], wn: "any", backupKeys: false,
-  role: "c", sort: "most", catSort: "most", peopleLimit: 50, diaryLimit: 40, crowd: null, insTab: "overview", yearTab: "overview", trend: "films",
+  role: "c", sort: "most", catSort: "most", bestBy: "decade", peopleLimit: 50, diaryLimit: 40, crowd: null, insTab: "overview", yearTab: "overview", trend: "films",
   reviewQuery: "", reviewLimit: 30, cmp: null, cmpTab: "overview", cmpError: "", unfriend: null, drillLimit: 200,
 };
 let MY_LIB = null, EXAMPLE_LIB = null, STATS = null, YEARS = [], BASE_LIB = null, YEARS_OF = null;
@@ -322,7 +322,7 @@ function profileScreen(s) {
   const storyRow = BASE_LIB && BASE_LIB.entries.length ? `<div class="storyrow"><button class="btn green" type="button" ${dl(D.story(s.scope))}>${ICON.next}Play ${esc(when)} as a story</button>
     <button class="btn" type="button" ${dl(D.share(s.scope))}>${ICON.share}<span class="sr-only">Share ${esc(when)} as a picture</span></button></div>` : "";
   // the best-rated decade, featured, then the second and third (the owner's call, Oct 2026)
-  const ranked = rankedDecades(s), decade = ranked.length ? `<div style="margin-top:22px">${bestDecadeCard(ranked[0], s.scope)}${ranked.slice(1, 3).map((x, i) => decadeRunnerCard(x, i, s.scope)).join("")}</div>` : "";
+  const fav = favouriteCards(s, 3), decade = fav ? `<div style="margin-top:22px">${fav}</div>` : "";
   return hero + scopeBar() + onSite + notice + note + iosTip + reimport + fill + tiles + storyRow + recentRow + otd + decade + ratings + people;
 }
 

@@ -142,9 +142,9 @@ function bind() {
     else if (t.dataset.wn) { state.wn = t.dataset.wn; render(); }
   });
   // sections, chips and toggles redraw the screen in place; tabs and screens move
-  const SETS = { instab: "insTab", ytab: "yearTab", cmptab: "cmpTab", trend: "trend", crowdsel: "crowd", sort: "sort", catsort: "catSort" };
+  const SETS = { instab: "insTab", ytab: "yearTab", cmptab: "cmpTab", trend: "trend", crowdsel: "crowd", sort: "sort", catsort: "catSort", bestby: "bestBy" };
   document.addEventListener("click", (e) => {
-    const t = e.target.closest("[data-instab],[data-ytab],[data-cmptab],[data-trend],[data-cmp],[data-unfriend],[data-lb],[data-crowdsel],[data-act],[data-view],[data-scope],[data-list],[data-role],[data-sort],[data-catsort]");
+    const t = e.target.closest("[data-instab],[data-ytab],[data-cmptab],[data-trend],[data-cmp],[data-unfriend],[data-lb],[data-crowdsel],[data-act],[data-view],[data-scope],[data-list],[data-role],[data-sort],[data-catsort],[data-bestby]");
     if (!t || t.disabled) return;
     if (t.dataset.list) $("#tip").hidden = true;
     const set = Object.keys(SETS).find((k) => t.dataset[k] != null);

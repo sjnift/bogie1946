@@ -91,7 +91,12 @@ Where it lives:
     decade" in full right under On this day (`bestDecadeBlock`: its head above eight large posters), the phone's Profile
     under On this day and Breakdown. **The second and third best follow it with their posters, a little smaller**
     (asked 25 Oct 2026): desktop `.bd-runner`s side by side with six posters each, then "Then the 2000s… and the
-    1950s…"; phone Profile `decadeRunnerCard` under the hero card. The `extras` check covers both.
+    1950s…"; phone Profile `decadeRunnerCard` under the hero card. **Favourite years beside it** (asked 31 Oct 2026:
+    "like favourite decades add an option for favourite years too … top 3 years"): a Decades / Years switch over it
+    (desktop `state.tab.bestby`, section title "Best years"; phone `state.bestBy`, a `segBar` on Profile and Stats ›
+    Breakdown) shows the top 3 release years the same way; `favourites(s, by)` in `06c-insights.js` ranks both (a year
+    needs the most of `YEAR_BAR` 10 down to 3 rated films that still leaves `YEAR_ENOUGH` 5 years, said under the
+    switch; the owner's: 1942, 1979, 1965), `s.relYears` in `computeStats`, `DR.relYear`. The `extras` check covers both.
   - **The desktop main page shows every chapter in full, trimmed** (25 Oct 2026, after a round trip: the owner found
     the page "cluttered with too much data in full view", a dashboard of cards with "See all" pop-ups replaced it, then
     they asked for each chapter back in full, and finally for everything in full with the repeats trimmed). Recently

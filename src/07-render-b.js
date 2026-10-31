@@ -156,24 +156,26 @@ function diaryBlock(s) {
       : `<div class="fact" style="min-width:0; max-width:100%"><span class="k" style="margin-bottom:8px">Every day of ${s.scope}</span>${heatmap(s)}</div>`}</div>`;
 }
 // Decades with three or more rated films, best average first.
-const bestDecades = (s) => s.decades.filter((x) => x.ratings.length >= 3).sort((a, b) => b.avg - a.avg || b.count - a.count).slice(0, 5);
-// The best-rated decade, featured near the top of the page with its best films, and the second and third best below it
-// with theirs, a little smaller (the owner's call, Oct 2026).
+const bestDecades = (s) => favourites(s, "decade").items.slice(0, 5);
+// The best-rated decade (or year: the switch over it), featured near the top of the page with its best films, and the
+// second and third best below it with theirs, a little smaller (the owner's call, Oct 2026; years asked 31 Oct 2026).
 function bestDecadeBlock(s) {
-  const [top, ...next] = bestDecades(s);
-  if (!top) return "";
+  const F = favourites(s, state.tab.bestby === "year" ? "year" : "decade"), [top, ...next] = F.items;
+  if (!favourites(s, "decade").items.length) return "";
+  const sw = tabs("bestby", [["decade", "Decades"], ["year", "Years"]], F.by);
+  if (!top) return sw + `<div class="empty">No release year has ${F.bar} or more rated films yet.</div>`;
   const when = s.scope === "all" ? "" : ` · watched in ${esc(s.scope)}`;
   const runner = (x, i) => `<div class="bd-runner"><div class="bd-rhead"><span class="eyebrow">${i ? "Third" : "Second"} best${when}</span>
-      <h3 class="bd-rtitle">${dlink(DR.decade(x), `The <span class="accent">${x.decade}s</span>`)}</h3>
+      <h3 class="bd-rtitle">${dlink(x.to, x.title)}</h3>
       <p class="muted"><span class="stars">★</span> ${x.avg.toFixed(2)} average from ${plural(x.ratings.length, "rated film")}</p></div>
     <div class="posters">${x.top.slice(0, 6).map(posterHtml).join("")}</div></div>`;
   const rest = next.slice(2, 4);
-  return `<div class="best-decade"><div class="bd-head"><span class="eyebrow">Your best decade${when}</span>
-      <h3 class="bd-title">${dlink(DR.decade(top), `The <span class="accent">${top.decade}s</span>`)}</h3>
+  return sw + `<div class="best-decade"><div class="bd-head"><span class="eyebrow">Your best ${F.what}${when}</span>
+      <h3 class="bd-title">${dlink(top.to, top.title)}</h3>
       <p class="muted"><span class="stars">★</span> ${top.avg.toFixed(2)} average from ${plural(top.ratings.length, "rated film")}</p></div>
     <div class="posters">${top.top.slice(0, 8).map(posterHtml).join("")}</div></div>
     ${next.length ? `<div class="bd-runners">${next.slice(0, 2).map(runner).join("")}</div>` : ""}
-    ${rest.length ? `<p class="bd-next">Then ${joinAnd(rest.map((x) => `${dlink(DR.decade(x), `the ${x.decade}s`)} <span class="muted">${x.avg.toFixed(2)}</span>`))}.</p>` : ""}`;
+    ${rest.length ? `<p class="bd-next">Then ${joinAnd(rest.map((x) => `${dlink(x.to, esc(x.short))} <span class="muted">${x.avg.toFixed(2)}</span>`))}.</p>` : ""}`;
 }
 const milestoneMarks = (s) => s.scope === "all" ? [50, 100, 250, 500, 750, 1000, 1500, 2000, 2500, 3000, 4000, 5000, 7500, 10000] : [25, 50, 100, 150, 200, 250, 300, 365, 400, 500];
 // `most`: the first, the latest and the marks just before it, one row of seven.
@@ -262,7 +264,8 @@ function renderSections(s) {
     s.entries.length ? section("recent", s.scope === "all" ? "Recently watched" : `Last watched in ${s.scope}`,
       s.entries.length > RECENT_N ? dlink(DR.diary(s), `All ${fmtN(s.entries.length)} diary entries`) : "Your latest diary entries.", recentBlock(s)) : "",
     T && T.entries.length ? section("onthisday", T.title, T.sub, onThisDayBlock(T)) : "",
-    best ? section("best-decade", "Best decade", "The decade of release you rate highest.", best) : ""].join("");
+    best ? (state.tab.bestby === "year" ? section("best-decade", "Best years", `The years of release you rate highest, of those with ${favourites(s, "year").bar} or more rated films.`, best)
+      : section("best-decade", "Best decade", "The decade of release you rate highest.", best)) : ""].join("");
   // with a filter on, a section or card it leaves with nothing to show is left out, and so is a chapter left empty
   const trim = (html) => filterOn() ? dropEmpties(html, (root) => { for (const b of root.querySelectorAll(".credit-body")) if (b.children.length === 1 && b.firstElementChild.classList.contains("empty")) b.closest(".credit").remove(); }) : html;
   const chapters = dashChapters(s).map(([id, name, parts]) => [id, name, trim(parts.filter(Boolean).join(""))]).filter(([, , html]) => html.trim());
