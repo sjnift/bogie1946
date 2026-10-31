@@ -28,6 +28,24 @@ function monthTableHtml(G) {
   return `<div class="scroll"><table class="data"><thead><tr><th>Month</th><th class="n">Films</th><th class="n">${G.Y ? "Usual" : "A year"}</th><th class="n">Your average</th><th>Leans to</th></tr></thead><tbody>${rows}</tbody></table></div>
     <p class="status">${G.Y ? "“Usual” is the same month in your other years. " : ""}“Leans to” is the genre that month has most more of than the rest of ${G.Y ? "the year" : "your diary"}. ${HILO_NOTE} Click any number to see the films.</p>`;
 }
+// Seasons (06c-insights, `seasonData`): the clear biases first, then each season, then (all time) each year by season.
+function seasonsBlock(SD) {
+  if (!SD) return `<div class="empty">Seasons come from diary dates, and there are none in this period.</div>`;
+  const Y = SD.Y, H = seasonHiLo(SD), title = (x) => `${x.name}${Y ? ` ${Y}` : ", every year"}`;
+  const finds = SD.finds.length ? `<ul class="trend-lines">${SD.finds.map((f) => `<li><span class="mk" aria-hidden="true">${f.more ? "▲" : "▼"}</span><span>${dline(f.to, esc(f.text))}</span></li>`).join("")}</ul>`
+    : `<p class="lead">No season pulls a genre clearly${Y ? ` in ${esc(Y)}` : ""}: you watch much the same mix all year.</p>`;
+  const rows = SD.seasons.map((x, i) => `<tr><td>${esc(x.name)} <span class="muted">${x.when}</span></td><td class="n">${x.E.length ? dlink(seasonEnts(title(x), x.E), fmtN(x.E.length)) : "0"}</td>
+    <td class="n${H.pace[i]}">${x.days ? x.pace.toFixed(1) : "—"}</td><td class="n">${pctOf(x.E.length, SD.total)}%</td>
+    <td class="n${H.avg[i]}">${x.avg ? dlink(seasonEnts(`Rated, ${title(x)}`, x.rated), x.avg.toFixed(2)) : "—"}</td><td>${seasonLeanHtml(x, Y)}</td></tr>`).join("");
+  const table = `<div class="scroll"><table class="data"><thead><tr><th>Season</th><th class="n">Films</th><th class="n">A month</th><th class="n">Share</th><th class="n">Your average</th><th>Leans to</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  let years = "";
+  if (SD.years.length > 1) {
+    const ys = [...SD.years].reverse(), HY = seasonYearsHiLo(ys);
+    years = `<h3 class="sub-h">Each year, season by season</h3><div class="scroll"><table class="data"><thead><tr><th>Year</th>${SEASONS.map((x) => `<th class="n">${x.name}</th>`).join("")}<th class="n">All</th></tr></thead><tbody>${ys.map((y, r) =>
+      `<tr><td>${y.year}${y.live ? ` <span class="muted">so far</span>` : ""}</td>${y.by.map((es, i) => `<td class="n${HY[i][r]}">${es.length ? dlink(seasonEnts(`${SEASONS[i].name} ${y.year}`, es), fmtN(es.length)) : "0"}</td>`).join("")}<td class="n">${dlink(seasonEnts(`Diary of ${y.year}`, y.E), fmtN(y.E.length))}</td></tr>`).join("")}</tbody></table></div>`;
+  }
+  return finds + table + years + `<p class="status">${SEASON_NOTE} “A month” is how many you log in a month of that season; “Leans to” is the genre it has most more of than the rest of ${Y ? "the year" : "your diary"}. ${HILO_NOTE} Click any number to see the films.</p>`;
+}
 function yearsBlock(I) {
   if (I.years.length < 2) return needYears("Year-by-year trends");
   const mult = (title, what, value, tip, extra, opts = {}) => {

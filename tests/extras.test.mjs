@@ -150,7 +150,7 @@ export default async function ({ browser, base }) {
   assert(at("best-decade") > at("recent") && at("best-decade") < at("ch-films") && at("top") > at("ch-ratings") && at("top") > at("rated"), `main page order: ${lay.ids.join(" ")}`);
   assert(lay.cards === 0 && lay.films.join() === "released,milestones,records,rewatched" && lay.people.join() === "starring,directed,crew,people-years"
     && lay.origin.join() === "origin,world,genre-years,genre-rates" && lay.faces >= 5 && lay.cats === 2
-    && lay.when.join() === "logged,months,years,habits" && lay.ratings.join() === "rated,crowd,top" && lay.reviews.join() === "reviews,review-stats" && lay.next.join() === "next",
+    && lay.when.join() === "logged,months,seasons,years,habits" && lay.ratings.join() === "rated,crowd,top" && lay.reviews.join() === "reviews,review-stats" && lay.next.join() === "next",
     `every chapter in full: ${JSON.stringify(lay)}`);
   assert(lay.crowdRows.length >= 2 && lay.crowdRows.every((n) => n >= 1 && n <= 7) && lay.topRows.length >= 1 && lay.topRows.every((n) => n >= 1 && n <= 7) && lay.seeAll >= 1
     && !lay.calendar && lay.charts === 3 && lay.rewatchCol && lay.mapTops.join() === "Most watched,Highest rated"

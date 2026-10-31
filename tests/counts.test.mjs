@@ -53,6 +53,15 @@ function audit() {
       const want = new Set(s.countries.most.filter((c) => p.names.includes(c.name)).flatMap((c) => c.films));
       if (p.count !== p.films.length || p.count !== want.size) bad.push(`${w}: ${p.name} on the map has ${p.count} films, its names ${want.size}`);
     }
+    // seasons: every diary entry of the period in exactly one season, and (all time) in one season of its own year
+    const SD = seasonData(state.lib, metaOf, s.scope === "all" ? null : s.scope);
+    if (SD) {
+      const inSeasons = SD.seasons.flatMap((x) => x.E);
+      once(inSeasons, (e) => e, `${w} seasons`);
+      if (inSeasons.length !== s.entries.length) bad.push(`${w}: the seasons hold ${inSeasons.length} entries, the period ${s.entries.length}`);
+      for (const y of SD.years) { const by = y.by.flat(); once(by, (e) => e, `${w} seasons ${y.year}`); if (by.length !== y.E.length) bad.push(`${w}: ${y.year}'s seasons hold ${by.length} of ${y.E.length}`); }
+      for (const x of SD.seasons) once(x.films, film, `${w} ${x.name} films`);
+    }
     // the studios pie (Insights): each film in exactly one slice, the slices adding up to the films with a studio, and
     // every film with details in a slice, without a studio on TMDB, or still to be read for one
     const St = studioData(s.films, metaOf, 3), sliced = St.slices.flatMap((x) => x.films);

@@ -366,6 +366,17 @@ friend replaces the address instead.
   a year, your average rating, and the genre it leans to beyond the rest of the diary ("Leans to", `leanHtml`). For a
   year: its months against your usual for each in other years. Desktop section `months` in "When you watch"; phone
   Stats › Years (`mMonths`). The `counts` check adds up every month.
+- **Seasons** (asked 31 Oct 2026: "watched films and data relative to season, e.g. winter, summer, autumn and monsoon
+  for India … over all and year wise too, with any insight about … bias to any genre during a particular season";
+  `seasonData` in `06c-insights.js`): India's seasons as the IMD has them (`SEASONS`: winter Dec–Feb, summer Mar–May,
+  monsoon Jun–Sep, autumn Oct–Nov; a year's winter is its own Jan, Feb and Dec, so each entry is in one season of its
+  year). Each season: films (entries), "a month" (entries over the days it was in the diary, as seasons differ in
+  length), share, your average, "Leans to" (as Month by month); the clear biases first (a genre a season has more or
+  less of than the rest of the year: z ≥ `STUDY_Z` 3 over all time with `SEASON_MIN` 5 films in 2+ years, z ≥
+  `SEASON_Z_YEAR` 2.5 in a year), and, over all time, each year season by season (`seasonYearsHiLo`, the year under
+  way unmarked). Stats page on both layouts (numbers and their leans, like Month by month): desktop section `seasons` in
+  When you watch after Month by month (`seasonsBlock`), phone Stats › Years after Month by month (`mSeasons`); follows
+  the year chips and filters. The `counts` check puts every entry in exactly one season and one season of its year.
 - **World map** (asked Oct 2026; `06o-map.js`): where the films were made, the more films the deeper the colour (gold on
   the computer, green on the phone), in five steps spaced for a long tail (`worldSteps`: 1–2, 3–9, 10–49, 50–199, 200+
   for a 700-film top). Hover (a tap on the phone) shows the country, its films and share, your average, what it's mostly

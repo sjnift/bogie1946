@@ -519,4 +519,72 @@ function monthsLine(G) {
   return vs && vs.E.length > vs.usual ? `${dlink(monthEnts(`${vs.name} ${G.Y}`, vs.E), `${vs.name} ${esc(G.Y)}`)} ran furthest ahead of your usual: ${plural(vs.E.length, "film")}, against ${fix(vs.usual)} in a typical ${vs.name}.`
     : `Each month of ${esc(G.Y)}, against your usual for it.`;
 }
+
+/* ----- seasons (asked 31 Oct 2026: "watched films and data relative to season, e.g. winter, summer, autumn and monsoon
+   for India … over all and year wise too, with any insight about a particular bias to any genre during a season") -----
+   India's four seasons, as the India Meteorological Department reckons them. A year's winter is its own January,
+   February and December, so every diary entry falls in exactly one season of its own year (the `counts` check adds
+   them up). Each season: its entries, films, how many a month (by the days it was in the diary, since monsoon is four
+   months and autumn two), its share, your average, and the genre it leans to (as Month by month's "Leans to"). Then
+   the clear biases: a genre a season has more (or less) of than the rest of the year, at STUDY_Z standard errors over
+   all time (SEASON_Z_YEAR in a single year), with SEASON_MIN films, and over all time in two or more years, so a
+   single binge isn't a bias. Stats page, When you watch (desktop `seasons`, phone Stats › Years). */
+const SEASONS = [
+  { k: "winter", name: "Winter", when: "Dec–Feb", span: "December to February", months: [12, 1, 2] },
+  { k: "summer", name: "Summer", when: "Mar–May", span: "March to May", months: [3, 4, 5] },
+  { k: "monsoon", name: "Monsoon", when: "Jun–Sep", span: "June to September", months: [6, 7, 8, 9] },
+  { k: "autumn", name: "Autumn", when: "Oct–Nov", span: "October and November", months: [10, 11] },
+];
+const SEASON_MIN = 5, SEASON_Z_YEAR = 2.5;
+const seasonOf = (date) => { const m = +String(date).slice(5, 7); return SEASONS.find((x) => x.months.includes(m)); };
+// `Y`: one year, or null for the whole diary.
+function seasonData(lib, metaOf, Y) {
+  const all = lib.entries, E = Y ? all.filter((e) => e.date.startsWith(Y)) : all;
+  if (!E.length) return null;
+  // the days of each season while the diary ran (from its first entry to its last), for a fair "a month"
+  const lo = Y && `${Y}-01-01` > all[0].date ? `${Y}-01-01` : all[0].date, hiD = all[all.length - 1].date, hi = Y && `${Y}-12-31` < hiD ? `${Y}-12-31` : hiD;
+  const days = new Map(SEASONS.map((x) => [x.k, 0]));
+  for (let t = Date.parse(lo), end = Date.parse(hi); t <= end; t += 864e5) bump(days, seasonOf(new Date(t).toISOString()).k);
+  const by = new Map(SEASONS.map((x) => [x.k, []]));
+  for (const e of E) by.get(seasonOf(e.date).k).push(e);
+  const filmsOf = (es) => [...new Set(es.map((e) => e.film))], known = (fs) => fs.filter((f) => { const m = metaOf(f); return m && (m.g || []).length; });
+  const gCount = (fs) => { const m = new Map(); for (const f of fs) for (const g of new Set(metaOf(f).g)) bump(m, g); return m; };
+  const finds = [], where = Y ? `the rest of ${Y}` : "the rest of the year";
+  const seasons = SEASONS.map((S) => {
+    const es = by.get(S.k), films = filmsOf(es), rated = es.filter((e) => e.rating || e.film.rating), d = days.get(S.k);
+    const inS = known(films), out = known(filmsOf(E.filter((e) => seasonOf(e.date) !== S))), n = inS.length, m = out.length;
+    const gi = gCount(inS), go = m ? gCount(out) : new Map();
+    let lean = null;
+    for (const g of new Set([...gi.keys(), ...go.keys()])) {
+      const x = gi.get(g) || 0, y = go.get(g) || 0;
+      if (!n || !m) continue;
+      const a = x / n, b = y / m, p = (x + y) / (n + m), se = Math.sqrt(p * (1 - p) * (1 / n + 1 / m)), z = se ? (a - b) / se : 0;
+      const gFilms = inS.filter((f) => metaOf(f).g.includes(g));
+      if (x >= (Y ? 3 : 5) && b > 0 && a / b >= 1.25 && a - b >= 0.05 && (!lean || a / b > lean.share / lean.rest)) lean = { x: g, share: a, rest: b, films: gFilms };
+      // a clear bias: far from the rest of the year, enough films, and (over all time) in more than one year
+      const years = new Set(es.filter((e) => metaOf(e.film) && (metaOf(e.film).g || []).includes(g)).map((e) => e.date.slice(0, 4))).size;
+      const more = z >= (Y ? SEASON_Z_YEAR : STUDY_Z) && x >= SEASON_MIN && a / b >= 1.3 && (Y || years >= 2);
+      const less = z <= -(Y ? SEASON_Z_YEAR : STUDY_Z) && b * n >= SEASON_MIN && a / b <= 0.6;
+      if (more || less) finds.push({ S, g, more, z, a, b, n, years, films: gFilms,
+        text: more ? `${S.name} leans to ${g}: ${pc(a)}% of your ${S.name.toLowerCase()} films (${S.when}${Y ? ` ${Y}` : ""}), against ${pc(b)}% in ${where}${Y ? "" : `, over ${plural(years, "year")}`}.`
+          : `Less ${g} in ${S.name.toLowerCase()}: ${pc(a)}% of your ${S.name.toLowerCase()} films (${S.when}${Y ? ` ${Y}` : ""}), against ${pc(b)}% in ${where}.`,
+        to: gFilms.length ? D.films(`${g}, ${S.name.toLowerCase()}${Y ? ` ${Y}` : ""}`, filmsSub(gFilms, `${pc(a)}% of ${plural(n, "film")} with details`), gFilms, { scope: Y || "all" }) : null });
+    }
+    return { ...S, E: es, films, days: d, pace: d ? es.length / d * 30.44 : null, share: es.length / E.length, rated, avg: avg(rated.map((e) => e.rating || e.film.rating)), lean };
+  });
+  finds.sort((a, b) => Math.abs(b.z) - Math.abs(a.z));
+  // the whole diary: each year by season (a year still under way isn't marked highest or lowest)
+  const thisYear = new Date().toISOString().slice(0, 4);
+  const years = Y ? [] : diaryYears(lib).map((y) => { const ye = all.filter((e) => e.date.startsWith(y));
+    return { year: y, live: y === thisYear, E: ye, by: SEASONS.map((S) => ye.filter((e) => seasonOf(e.date) === S)) }; });
+  return { Y, seasons, finds: finds.slice(0, 5), years, total: E.length };
+}
+const seasonEnts = (title, es) => es.length ? D.entries(title, entriesSub(es), es, { order: "asc" }) : null;
+// each season: how many a month and your average (counts follow the seasons' lengths, so they aren't marked)
+const seasonHiLo = (SD) => ({ pace: hiLo(SD.seasons.map((x) => x.days && x.E.length ? +x.pace.toFixed(1) : null)), avg: hiLo(SD.seasons.map((x) => x.avg ? +x.avg.toFixed(2) : null)) });
+// each year by season: the counts, leaving out a year still under way
+const seasonYearsHiLo = (ys) => SEASONS.map((_, i) => hiLo(ys.map((y) => y.live ? null : y.by[i].length)));
+// "Horror 21% · 8% otherwise": a season's lean, as a link to its films
+const seasonLeanHtml = (x, Y) => x.lean ? `${dlink(D.films(`${x.lean.x}, ${x.name.toLowerCase()}${Y ? ` ${Y}` : ""}`, filmsSub(x.lean.films), x.lean.films, { scope: Y || "all" }), esc(x.lean.x))} <span class="muted">${pc(x.lean.share)}% · ${pc(x.lean.rest)}% otherwise</span>` : "—";
+const SEASON_NOTE = "Seasons as India has them: winter December to February, summer March to May, monsoon June to September, autumn October and November.";
 </script>

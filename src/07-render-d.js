@@ -47,6 +47,7 @@ function dashChapters(s) {
     section("logged", "Logged", all ? "Diary entries over time, by day and by date." : `Diary entries in ${esc(s.scope)}, week by week.`, diaryBlock(s)),
     section("months", "Month by month", G && G.Y ? `Each month of ${esc(G.Y)} against your usual for it.` : "Every month of every year, darker for more.",
       G ? `${mLine ? `<p class="lead">${mLine}</p>` : ""}${monthGridHtml(G)}${monthTableHtml(G)}` : monthTableHtml(G)),
+    section("seasons", "Seasons", all ? "Your diary through India's seasons, and the genres each one leans to." : `${esc(s.scope)} through India's seasons, against the rest of the year.`, seasonsBlock(seasonData(lib, metaOf, all ? null : s.scope))),
     all ? section("years", "Year by year", "By the year you watched, from diary dates.", yearsBlock(I)) : "",
     all ? "" : section("vsprev", `Against ${prevY}`, `${esc(s.scope)} next to the year before.`, vsPrevBlock(R, prevY)),
     section("habits", "Habits", all ? "When and how you watch." : `When and how you watched in ${esc(s.scope)}.`, habitsBlock(hab, "Habits come from diary dates."))];

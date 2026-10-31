@@ -10,9 +10,29 @@ function yearsScreen(s) {
   const head = statsHead();
   if (!s.entries.length) return head + `<div class="empty">No diary entries in this period.</div>`;
   const G = memo(`months|${s.scope}`, () => monthGrid(state.lib, metaOf, s.scope === "all" ? null : s.scope));
-  if (s.scope !== "all") return head + mVsPrev(yearInsights(s.scope)) + mMonths(G) + mNewIn(yearInsights(s.scope));
+  const SD = memo(`seasons|${s.scope}`, () => seasonData(state.lib, metaOf, s.scope === "all" ? null : s.scope));
+  if (s.scope !== "all") return head + mVsPrev(yearInsights(s.scope)) + mMonths(G) + mSeasons(SD) + mNewIn(yearInsights(s.scope));
   const I = allInsights();
-  return head + mYears(I) + mMonths(G) + (s.withMeta ? mGenreYears(I) + mPeopleYears(I) : needMeta());
+  return head + mYears(I) + mMonths(G) + mSeasons(SD) + (s.withMeta ? mGenreYears(I) + mPeopleYears(I) : needMeta());
+}
+// Seasons (06c-insights, `seasonData`): the clear biases, each season, then (all time) each year by season.
+function mSeasons(SD) {
+  if (!SD) return "";
+  const Y = SD.Y, H = seasonHiLo(SD), title = (x) => `${x.name}${Y ? ` ${Y}` : ", every year"}`;
+  const cell = (v, label, h = "") => `<span class="c${h}"><b>${v}</b><small>${label}</small></span>`;
+  const finds = SD.finds.length ? mLines(SD.finds.map((f) => ({ ...f, dir: f.more ? "up" : "down" })), (f) => f.more ? "▲" : "▼")
+    : `<p class="lead" style="margin:-4px 0 12px">No season pulls a genre clearly${Y ? ` in ${esc(Y)}` : ""}: you watch much the same mix all year.</p>`;
+  const rows = SD.seasons.map((x, i) => `<div class="yrow sz"><span class="y">${esc(x.name)}<small>${x.when}</small></span>${cell(x.E.length ? dlink(seasonEnts(title(x), x.E), fmtN(x.E.length)) : "0", "films")}
+    ${cell(x.days ? x.pace.toFixed(1) : "—", "a month", H.pace[i])}${cell(x.avg ? dlink(seasonEnts(`Rated, ${title(x)}`, x.rated), x.avg.toFixed(2)) : "—", "average", H.avg[i])}
+    ${x.lean ? `<span class="x">Leans to ${seasonLeanHtml(x, Y)}</span>` : ""}</div>`).join("");
+  let years = "";
+  if (SD.years.length > 1) {
+    const ys = [...SD.years].reverse(), HY = seasonYearsHiLo(ys);
+    years = sh("Seasons, year by year") + `<div class="group">${ys.map((y, r) => `<div class="yrow y4"><span class="y">${y.year}</span>${y.by.map((es, i) =>
+      cell(es.length ? dlink(seasonEnts(`${SEASONS[i].name} ${y.year}`, es), fmtN(es.length)) : "0", SEASONS[i].name.toLowerCase(), HY[i][r])).join("")}</div>`).join("")}</div>`;
+  }
+  return sh("Seasons") + finds + `<div class="group">${rows}</div>` + years
+    + `<p class="note">${SEASON_NOTE} “A month” is how many you log in a month of that season. ${HILO_NOTE} Tap any number to see the films.</p>`;
 }
 // Month by month: the grid of every month, then each calendar month across the years (or, for a year, against usual).
 function mMonths(G) {
