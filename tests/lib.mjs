@@ -81,7 +81,7 @@ export async function phoneTour(m, each) {
       await m.click('[data-role="asof"]'); await m.waitForTimeout(60);
       const day = await m.$eval("[data-asof-day]", (b) => b.dataset.asofDay).catch(() => null);
       if (day) { await m.click(`[data-asof-day="${day}"]`); await m.waitForTimeout(60); }
-      for (const k of ["d", "m", "w"]) if (await m.$(`[data-asof-kind="${k}"]`)) { await m.click(`[data-asof-kind="${k}"]`); await m.waitForTimeout(40); await each(`people back in time ${k}`); }
+      for (const k of ["d", "m", "w", "a"]) if (await m.$(`[data-asof-kind="${k}"]`)) { await m.click(`[data-asof-kind="${k}"]`); await m.waitForTimeout(40); await each(`people back in time ${k}`); }
       await m.click('[data-role="c"]'); await m.waitForTimeout(60);
     }
   }

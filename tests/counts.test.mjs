@@ -70,31 +70,41 @@ function audit() {
     if (sliced.length !== St.pieTotal || St.total + St.none.length + St.later.length !== withMeta || (St.topOnly ? St.slices.some((x, i) => x !== St.slices[i] || x.name !== St.all[i].name) : sliced.length !== St.total))
       bad.push(`${w}: the studios pie has ${sliced.length} films (${St.total} with a studio, ${St.none.length} none, ${St.later.length} later, top only ${St.topOnly}) of ${withMeta}`);
   }
-  // back in time (most watched as of a date): every film placed once (dated or not); on the latest day each person's
-  // count is Most watched's over the dated films, actors and actresses never overlap and together are the cast TMDB
-  // lists as men or women; on each year's last day every person's films are their own, seen by then, each once
+  // back in time (most watched as of a date): every film placed once (dated or not); on the latest day each list is
+  // Most watched itself over the dated films (same people, counts and order), actors and actresses never overlap and
+  // together are the cast TMDB lists as men or women; on each year's last day every person's films are their own, seen
+  // by then, each once, nobody goes down, the shown top ten is the full list's, and shared ranks are right
   const B = asofBase(lib), dated = B.films.map((x) => x.f);
   once([...dated, ...B.undated], film, "back in time: films placed");
   if (dated.length + B.undated.length !== lib.films.length) bad.push(`back in time: ${dated.length} dated and ${B.undated.length} undated of ${lib.films.length}`);
   if (B.films.length) {
-    const C = asofCount(lib, B.last), counts = (L) => new Map(L.map((p) => [p.name, p.count]));
-    const d = counts(rankPeople(dated, metaOf, "d", 1).most), cast = counts(rankPeople(dated, metaOf, "c", 1).most);
-    const same = (a, b, what) => { if (a.size !== b.size || [...a].some(([k, v]) => b.get(k) !== v)) bad.push(`back in time, latest: ${what} ${a.size} people against ${b.size}`); };
-    same(counts(C.lists.d), d, "directors");
-    const men = counts(C.lists.m), women = counts(C.lists.w), sexed = new Map();
+    const C = asofCount(lib, B.last), line = (L) => L.map((p) => `${p.name} ${p.count}`).join(", ");
+    const same = (a, b, what) => { if (line(a) !== line(b)) bad.push(`back in time, latest: ${what} differ: ${line(a).slice(0, 120)} | ${line(b).slice(0, 120)}`); };
+    same(C.lists.d, rankPeople(dated, metaOf, "d", 1).most, "directors");
+    same(C.lists.a, rankPeople(dated, metaOf, "c", 1).most, "everyone");
+    if (!B.undated.length) { const s = computeStats(lib, metaOf, "all"); same(C.lists.d, s.directors.most, "directors against Most watched"); same(C.lists.a, s.cast.most, "everyone against Starring"); }
+    const counts = (L) => new Map(L.map((p) => [p.name, p.count])), cast = counts(C.lists.a), men = counts(C.lists.m), women = counts(C.lists.w), sexed = new Map();
     for (const f of dated) { const m = metaOf(f); if (!m) continue; const g = roleGender(m, "c"); for (const n of roleNames(m, "c")) { const x = g.get(personKey(n)); if (x === 1 || x === 2) sexed.set(n, cast.get(n)); } }
     for (const n of men.keys()) if (women.has(n)) bad.push(`back in time: ${n} is both an actor and an actress`);
-    same(new Map([...men, ...women]), sexed, "actors and actresses");
-    if (!B.undated.length) same(counts(C.lists.d), counts(computeStats(lib, metaOf, "all").directors.most), "directors against Most watched");
+    const both = new Map([...men, ...women]);
+    if (both.size !== sexed.size || [...both].some(([k, v]) => sexed.get(k) !== v)) bad.push(`back in time: actors and actresses ${both.size}, the cast listed as men or women ${sexed.size}`);
     let prev = null;
     for (const y of [...new Set(B.films.map((x) => x.since.slice(0, 4)))]) {
-      const day = `${y}-12-31`, A = asofCount(lib, day), seen = new Set(B.films.filter((x) => x.since <= day).map((x) => film(x.f)));
+      const day = `${y}-12-31`, A = asofCount(lib, day), T = asofCount(lib, day, ASOF_N), seen = new Set(B.films.filter((x) => x.since <= day).map((x) => film(x.f)));
       if (A.films !== seen.size) bad.push(`back in time ${day}: ${A.films} films, not ${seen.size}`);
-      for (const [k] of ASOF_KINDS) for (const p of A.lists[k]) {
-        once(p.films, film, `back in time ${day} ${k} ${p.name}`);
-        if (p.count !== p.films.length || p.films.some((f) => !seen.has(film(f)))) bad.push(`back in time ${day}: ${p.name} has ${p.count} for ${p.films.length} films`);
-        const before = prev && prev.lists[k].find((q) => q.key === p.key);
-        if (before && before.count > p.count) bad.push(`back in time ${day}: ${p.name} went down`);
+      for (const [k] of ASOF_KINDS) {
+        const L = A.lists[k];
+        if (line(T.lists[k].slice(0, ASOF_N)) !== line(L.slice(0, ASOF_N))) bad.push(`back in time ${day} ${k}: the top ten differs from the full list`);
+        L.forEach((p, i) => {
+          if (p.rank !== 1 + L.filter((q) => q.count > p.count).length || p.tied !== (L.filter((q) => q.count === p.count).length > 1)) bad.push(`back in time ${day} ${k}: ${p.name} ranked ${p.rank}${p.tied ? "=" : ""}`);
+          if (i && (L[i - 1].count < p.count)) bad.push(`back in time ${day} ${k}: out of order at ${p.name}`);
+        });
+        for (const p of L) {
+          once(p.films, film, `back in time ${day} ${k} ${p.name}`);
+          if (p.count !== p.films.length || p.films.some((f) => !seen.has(film(f)))) bad.push(`back in time ${day}: ${p.name} has ${p.count} for ${p.films.length} films`);
+          const before = prev && prev.lists[k].find((q) => q.key === p.key);
+          if (before && before.count > p.count) bad.push(`back in time ${day}: ${p.name} went down`);
+        }
       }
       prev = A;
     }

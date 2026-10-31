@@ -146,37 +146,67 @@ export default async function ({ browser, base }) {
     assert(fav.few.startsWith("1960,1950") && fav.thin === 0 && /^Not enough yet: only 2 release years have 5 or more rated films watched in 2024, and a list needs 3\.$/.test(fav.empty) && fav.bar >= 5 && fav.sorted && fav.enough,
       `${file} favourite years ranked with caution: ${JSON.stringify(fav)}`);
     await p.click(phone ? '[data-relmode="films"]' : '[data-tab="released"][data-val="films"]'); await p.waitForTimeout(150);
-    // back in time (asked 1 Nov 2026): a year's end, the slider and a typed date move the results, never the controls
-    // being used; each list is Most watched counted up to that day; a person opens their films up to it
+    // back in time (asked 1 Nov 2026, reworked the same day): a year's end, the slider, a typed date and a click on the
+    // timeline move the results, never the control being used; each list is Most watched up to that day, in its order,
+    // with shared ranks; who led when is drawn for the lists on show; a person opens their films up to that day
     if (phone) { await p.goto(`${base}${file}?example#/people`); await p.waitForFunction(() => typeof state === "object" && state.lib); await p.click('[data-role="asof"]'); }
     await p.waitForSelector(".asof .asof-range");
+    const firstChip = phone && await p.$eval(".chips .chip", (c) => c.dataset.role);
+    assert(!phone || firstChip === "asof", `${file} back in time is the first chip on People (${firstChip})`);
     const jump = await p.$eval("[data-asof-day]", (b) => b.dataset.asofDay);
     await p.click(`[data-asof-day="${jump}"]`); await p.waitForTimeout(120);
-    const at = () => p.evaluate(() => ({ date: document.querySelector(".asof-date").value, range: +document.querySelector(".asof-range").value, sum: document.querySelector(".asof-sum").textContent,
-      on: [...document.querySelectorAll(".asof-jump.on")].map((b) => b.dataset.asofDay).join(), cols: [...document.querySelectorAll(".asof-col")].map((c) => c.dataset.kind).join(),
-      first: [...document.querySelectorAll(".asof-col")].map((c) => { const b = c.querySelector(".asof-p"); return b ? [b.querySelector(".asof-nm").textContent, parseInt(b.querySelector(".asof-ct").textContent, 10)] : null; }) }));
-    const want = (day) => p.evaluate((day) => { const C = asofCount(ASOF.lib, day); return Object.fromEntries(ASOF_KINDS.map(([k]) => [k, C.lists[k][0] ? [C.lists[k][0].name, C.lists[k][0].count] : null])); }, day);
-    const a1 = await at(), w1 = await want(jump);
-    assert(a1.date === jump && a1.on === jump && new RegExp(`^By ${await p.evaluate((d) => fmtDate(d), jump)} you had`).test(a1.sum) && a1.cols === (phone ? "d" : "d,m,w")
-      && JSON.stringify(a1.first[0]) === JSON.stringify(w1.d) && (phone || JSON.stringify(a1.first.slice(1)) === JSON.stringify([w1.m, w1.w])), `${file} back in time, a year's end: ${JSON.stringify({ a1, w1 })}`);
-    // the slider: the date box follows; a typed date: the slider follows
+    const at = () => p.evaluate(() => ({ date: document.querySelector(".asof-date").value, range: +document.querySelector(".asof-range").value, big: document.querySelector(".asof-big").textContent,
+      stat: document.querySelector(".asof-stat").textContent, on: [...document.querySelectorAll(".asof-jump.on")].map((b) => b.dataset.asofDay).join(),
+      cols: [...document.querySelectorAll(".asof-col")].map((c) => c.dataset.kind).join(), bars: [...document.querySelectorAll(".asof-bar")].map((c) => c.dataset.kind).join(),
+      mark: getComputedStyle(document.querySelector(".asof")).getPropertyValue("--at").trim(),
+      first: [...document.querySelectorAll(".asof-col")].map((c) => { const b = c.querySelector(".asof-hero"); return b ? [b.querySelector(".asof-hn b").textContent, parseInt(b.querySelector(".asof-hs").textContent, 10)] : null; }),
+      ranks: [...document.querySelectorAll(".asof-col")].map((c) => [...c.querySelectorAll(".asof-rk")].map((r) => r.textContent).join(" ")) }));
+    const want = (day) => p.evaluate((day) => { const C = asofCount(ASOF.lib, day), I = asofIndex(ASOF.lib);
+      return { top: Object.fromEntries(ASOF_KINDS.map(([k]) => [k, C.lists[k][0] ? [C.lists[k][0].name, C.lists[k][0].count] : null])),
+        ranks: Object.fromEntries(ASOF_KINDS.map(([k]) => [k, C.lists[k].slice(1, ASOF_N).map((p) => `${p.tied ? "=" : ""}${p.rank}`).join(" ")])),
+        films: asofIdx(I.B, day), long: asofLong(day), at: asofAt(I.B, day).toFixed(2) + "%" }; }, day);
+    const a1 = await at(), w1 = await want(jump), shown = phone ? ["d"] : ["d", "m", "w"];
+    assert(a1.date === jump && a1.on === jump && a1.big === w1.long && a1.stat.startsWith(`${w1.films} films by then`) && a1.mark === w1.at && a1.cols === shown.join() && a1.bars === "d,m,w"
+      && shown.every((k, i) => JSON.stringify(a1.first[i]) === JSON.stringify(w1.top[k]) && a1.ranks[i] === w1.ranks[k]), `${file} back in time, a year's end: ${JSON.stringify({ a1, w1 })}`);
+    // the slider: the date box and the marker follow; a typed date: the slider follows; a click on the timeline's middle
     await p.$eval(".asof-range", (r) => { r.value = String(Math.floor(+r.max / 2)); r.dispatchEvent(new Event("input", { bubbles: true })); }); await p.waitForTimeout(120);
-    const a2 = await p.evaluate(() => ({ date: document.querySelector(".asof-date").value, half: asofAdd(asofBase(ASOF.lib).first, Math.floor(+document.querySelector(".asof-range").max / 2)), sum: document.querySelector(".asof-sum").textContent, same: document.activeElement }));
-    assert(a2.date === a2.half && a2.sum.includes(await p.evaluate((d) => fmtDate(d), a2.half)), `${file} back in time, the slider: ${JSON.stringify(a2)}`);
+    const a2 = await at(), half = await p.evaluate(() => asofAdd(asofBase(ASOF.lib).start, Math.floor(+document.querySelector(".asof-range").max / 2)));
+    assert(a2.date === half && a2.big === (await want(half)).long, `${file} back in time, the slider: ${JSON.stringify({ a2, half })}`);
     await p.fill(".asof-date", jump); await p.waitForTimeout(120);
     const a3 = await at();
-    assert(a3.range === await p.evaluate((d) => asofDays(asofBase(ASOF.lib).first, d), jump) && JSON.stringify(a3.first[0]) === JSON.stringify(w1.d), `${file} back in time, a typed date: ${JSON.stringify(a3)}`);
+    assert(a3.range === await p.evaluate((d) => asofDays(asofBase(ASOF.lib).start, d), jump) && JSON.stringify(a3.first[0]) === JSON.stringify(w1.top.d), `${file} back in time, a typed date: ${JSON.stringify(a3)}`);
+    const bar = await (await p.$(".asof-bar")).boundingBox();
+    await p.mouse.click(bar.x + bar.width / 2, bar.y + bar.height / 2); await p.waitForTimeout(120);
+    const a5 = await at(), mid = await p.evaluate(() => { const B = asofBase(ASOF.lib); return asofAdd(B.start, Math.round(asofSpan(B) / 2)); });
+    assert(Math.abs(await p.evaluate(([a, b]) => asofDays(a, b), [a5.date, mid])) <= 2 && a5.date === (await p.evaluate(() => ASOF.day)), `${file} back in time, a click on the timeline: ${a5.date}, not about ${mid}`);
+    await p.fill(".asof-date", jump); await p.waitForTimeout(120);
+    // the other lists: the phone's switch, the computer's everyone together
     if (phone) {
       await p.click('[data-asof-kind="w"]'); await p.waitForTimeout(120);
       const a4 = await at();
-      assert(a4.cols === "w" && JSON.stringify(a4.first[0]) === JSON.stringify(w1.w) && a4.date === jump, `${file} back in time, actresses: ${JSON.stringify(a4)}`);
+      assert(a4.cols === "w" && JSON.stringify(a4.first[0]) === JSON.stringify(w1.top.w) && a4.date === jump, `${file} back in time, actresses: ${JSON.stringify(a4)}`);
+      await p.click('[data-asof-kind="a"]'); await p.waitForTimeout(120);
+      const a6 = await at();
+      assert(a6.cols === "a" && a6.bars === "d,a" && JSON.stringify(a6.first[0]) === JSON.stringify(w1.top.a), `${file} back in time, everyone: ${JSON.stringify(a6)}`);
+      await p.click('[data-asof-kind="w"]'); await p.waitForTimeout(120);
+    } else {
+      await p.click('[data-asof-together="1"]'); await p.waitForTimeout(120);
+      const a6 = await at();
+      assert(a6.cols === "d,a" && a6.bars === "d,a" && JSON.stringify(a6.first[1]) === JSON.stringify(w1.top.a), `${file} back in time, everyone together: ${JSON.stringify(a6)}`);
+      await p.click('[data-asof-together="0"]'); await p.waitForTimeout(120);
     }
-    // a shared top spot is said as one (5 Jun 2022 in the owner's diary: Woody Allen and Alfred Hitchcock, 18 each)
-    const leads = await p.evaluate(() => [asofLead([{ name: "A", count: 3 }, { name: "B", count: 3 }, { name: "C", count: 2 }], "director", "2022-01-01"), asofLead([{ name: "A", count: 3 }, { name: "B", count: 2 }], "actress", "2022-01-01")]);
-    assert(leads[0] === "A and B level at the top with 3 films each; A got there first." && leads[1] === "A, your most watched actress since 1 Jan 2022.", `${file} back in time, who leads: ${JSON.stringify(leads)}`);
-    await p.click(".asof-p"); await p.waitForTimeout(200);
+    // who leads, said: one since a day, or level with others and who got there first
+    const leads = await p.evaluate(() => [asofLead([{ name: "A", count: 3, ord: 9 }, { name: "B", count: 3, ord: 4 }, { name: "C", count: 2, ord: 1 }], "director", "2022-01-01"), asofLead([{ name: "A", count: 3, ord: 1 }, { name: "B", count: 2, ord: 2 }], "actress", "2022-01-01")]);
+    assert(leads[0] === "Level with B on 3 films; B got there first." && leads[1] === "On top since 1 Jan 2022.", `${file} back in time, who leads: ${JSON.stringify(leads)}`);
+    // the films marked as seen on joining Letterboxd: the timeline starts when they end, and says so
+    const pile = await p.evaluate(() => { const f = (k, added, d) => ({ key: k, added, entries: d ? [{ date: d }] : [] });
+      const films = [...Array.from({ length: 12 }, (_, i) => f(`m${i}`, `2020-01-1${i % 3}`)), f("x", "2020-01-05", "2020-01-05"), f("y", "2020-03-01", "2020-03-01"), f("z", "2021-06-01", "2021-05-30")];
+      const B = asofBase({ films, profile: { joined: "2020-01-10" } }), C = asofBase({ films: films.slice(12), profile: { joined: "2020-01-10" } });
+      return [B.first, B.start, B.pile, B.last, C.start, C.pile]; });
+    assert(JSON.stringify(pile) === JSON.stringify(["2020-01-05", "2020-01-12", 12, "2021-05-30", "2020-01-05", 0]), `${file} back in time, the sign-up pile: ${JSON.stringify(pile)}`);
+    await p.click(".asof-hero"); await p.waitForTimeout(200);
     const who = await p.evaluate((panel) => { const d = document.querySelector(panel); return d ? [d.querySelector("h2, h3") && d.querySelector("h2, h3").textContent, d.textContent] : null; }, panel);
-    const lead = phone ? w1.w : w1.d;
+    const lead = phone ? w1.top.w : w1.top.d;
     assert(who && who[0] === lead[0] && who[1].includes(`${lead[1] === 1 ? "1 film" : `${lead[1]} films`} by ${await p.evaluate((d) => fmtDate(d), jump)}`), `${file} back in time opened ${JSON.stringify(who && [who[0], who[1].slice(0, 120)])}`);
     await close();
     noErrors(p, file);

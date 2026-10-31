@@ -455,23 +455,39 @@ friend replaces the address instead.
   best kept, a new best, none of the last round's films).
 - **Back in time** (asked 1 Nov 2026: "an option to see the user's cumulative most watched actor director stat at a
   particular period in their diary history. For example on 5th june 2022 who were my most watched director and actors
-  of all time ... on 3rd December 2023 who was my most watched actress"; `06r-asof.js`): directors, actors and
-  actresses of all time as they stood on any day. A film counts from the day it was first in the diary: its first
-  diary entry, or the day watched.csv says it was marked watched (`f.added`), whichever is earlier (`filmSince`; a
-  film with neither isn't placed, and the line says how many). Up to a day each person counts once a film by the same
-  `roleNames` as Most watched, so the latest day gives Most watched's counts; actors and actresses are the on-screen
-  cast by TMDB's gender (`cg`, `TMDB_DETAILS_V` 15 read every film again; someone listed as neither is in neither,
-  and films not yet read again are said); ties go to who got there first (`seq`), and the first of each list says since
-  when they've led, or who share the top (`asofLead`: on the owner's 5 Jun 2022 Woody Allen and Alfred Hitchcock had 18
-  films each). Each person shows "now N" when it has grown since, and opens their films up to that day. Controls:
-  a date box, a slider along the diary, a jump to the end of each year and Latest; they change only the results in
-  place (`asofSet`, one count a frame while dragging), never the control in use (the Safari freeze). It follows the
-  filters, and a year picked above starts it at that year's end. Desktop: section `asof` "Back in time" in People
-  before People over the years, three lists side by side; phone: Stats › People, chip "Back in time" (`state.role`
-  "asof"), one list at a time with a Directors / Actors / Actresses switch (`ASOF.kind`). The `counts` check places
-  every film once, matches the latest day to Most watched, keeps actors and actresses apart, and checks every list at
-  each year's end; `extras` drives the controls on both layouts; `phoneTour` visits all three lists. The example diary's
-  watched.csv dates are now its first diary entries' (they were all its first day, which placed every film there).
+  of all time ... on 3rd December 2023 who was my most watched actress"; then reviewed and reworked the same day, "both
+  aesthetically and functionally"; `06r-asof.js`): directors, actors, actresses and everyone of all time as they stood
+  on any day, and who led when. A film counts from the day it was first in the diary: its first diary entry, or the day
+  watched.csv says it was marked watched (`f.added`), whichever is earlier (`filmSince`; on the owner's export the
+  marked day is the first entry's logged day for 1,202 of 1,218 logged films; a film with neither isn't placed, and
+  the small print says how many). **The sign-up pile**: films marked as seen within a week of joining Letterboxd
+  (`profile.joined`, `ASOF_PILE` 10 or more, `ASOF_PILE_DAYS`) aren't a moment in the diary (252 of the owner's on
+  21–23 Feb 2018), so the timeline starts when they end (`B.start`), a "Joined" jump goes there and the small print
+  says so. Up to a day each person counts once a film by the same `roleNames` as Most watched, in Most watched's order
+  (films, then average rating, then name), so the latest day is the Most watched lists themselves; tied counts share a
+  rank ("=2", `rank`, `tied`). Actors and actresses are the on-screen cast by TMDB's gender (`cg`, `TMDB_DETAILS_V` 15
+  read every film again), Everyone is the whole cast as in Starring (it holds people TMDB lists as neither: Elliot Page,
+  Ezra Miller). **Worked out once per diary** (`asofIndex`: each person's films in order with a running total of
+  ratings, each list by films now, `runs` of who led, "=" for a shared top), so a slider step is a lookup
+  (`asofRows`, top ten and anyone tied with the tenth; 1 ms on a phone slowed four times, it was 150 ms). The view: the
+  day in big letters with "N films by then · M now"; **who led when**, a bar per list on show of each leader's stretch in
+  the pie colours (in order of first leading; ties striped, a tip each), lined up under a restyled slider (the bars inset
+  by half the thumb) with a white marker at the day (`--at`); a tap or drag on a bar picks the day under it
+  (`asofPoint`); a date box, a jump to Joined, each year's end and Latest; each list's first in a card with a big photo
+  ("Joint first" when shared) and a line under it ("On top since …", or "Level with … on N films; … got there first",
+  `asofLead`), then down to the tenth with "now N" where it has grown; small print at the foot. The controls change
+  only the results in place (`asofSet`, `asofRedraw`, one count a frame), never the control in use (the Safari freeze),
+  and the links of the lists they replace are let go (`ASOF.ids`). It follows the filters; a year picked above starts
+  it at that year's end. Desktop: section `asof` "Back in time" in People before People over the years, directors,
+  actors and actresses side by side, or with "Everyone together" (`ASOF.together`) directors and everyone; phone:
+  Stats › People, **the first chip** (with a clock; it was the seventh, off the screen), one list at a time with a
+  Directors / Actors / Actresses / Everyone switch (`ASOF.kind`). On the owner's 5 Jun 2022: Hitchcock and Woody Allen
+  level on 18 (Allen got there first), Tom Cruise and Samuel L. Jackson on 17, Scarlett Johansson 18 (on top since Nov
+  2018). The `counts` check places every film once, matches the latest day to Most watched and Starring (people, counts
+  and order), keeps actors and actresses apart, and at each year's end checks every list's films, ranks, order, the top
+  ten against the full list and that nobody goes down; `extras` drives every control on both layouts, the timeline
+  click, both cast views, the lead line and the sign-up pile; `phoneTour` visits all four lists. The example diary's
+  watched.csv dates are its first diary entries' (they were all its first day, which placed every film there).
 - **Insights**: a study of the diary (below), findings only: all years (in short, chapters, through the year, how taste has moved, what
   ratings follow, one film to the next, habits) and each year against the rest of the diary (in short, what set it
   apart, its months, ratings, threads, habits, the year picture).
