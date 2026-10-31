@@ -53,6 +53,13 @@ function audit() {
       const want = new Set(s.countries.most.filter((c) => p.names.includes(c.name)).flatMap((c) => c.films));
       if (p.count !== p.films.length || p.count !== want.size) bad.push(`${w}: ${p.name} on the map has ${p.count} films, its names ${want.size}`);
     }
+    // the studios pie (Insights): each film in exactly one slice, the slices adding up to the films with a studio, and
+    // every film with details in a slice, without a studio on TMDB, or still to be read for one
+    const St = studioData(s.films, metaOf, 3), sliced = St.slices.flatMap((x) => x.films);
+    once(sliced, film, `${w} studios pie`); once(St.all.flatMap((x) => x.films), film, `${w} studios list`); once(St.all, (x) => x.name, `${w} studio names`);
+    const withMeta = s.films.filter((f) => metaOf(f) && !metaOf(f).miss).length;
+    if (sliced.length !== St.pieTotal || St.total + St.none.length + St.later.length !== withMeta || (St.topOnly ? St.slices.some((x, i) => x !== St.slices[i] || x.name !== St.all[i].name) : sliced.length !== St.total))
+      bad.push(`${w}: the studios pie has ${sliced.length} films (${St.total} with a studio, ${St.none.length} none, ${St.later.length} later, top only ${St.topOnly}) of ${withMeta}`);
   }
   return bad;
 }
@@ -150,7 +157,7 @@ export default async function ({ browser, base }) {
     reviews: [{ Name: "Twilight's Last Gleaming", Year: "1977", Date: "2026-10-02", "Watched Date": "2026-10-02", Rating: "3.5", Review: "<p>Tense.</p>" }],
     watchlist: [{ Name: "Twilight’s Last Gleaming", Year: "1977" }, { Name: "Ikiru", Year: "1952" }],
   };
-  const meta = { "twilight’s last gleaming|1977": { src: "tmdb", v: 3, id: 75938, d: ["Robert Aldrich"], c: ["Burt Lancaster", "Charles McGraw", "Charles McGraw"], w: [], p: [], m: [], g: ["Thriller", "Thriller"], k: ["USA", "United States of America", "Soviet Union", "Elbonia"], l: "English", r: 146 } };
+  const meta = { "twilight’s last gleaming|1977": { src: "tmdb", v: 3, id: 75938, d: ["Robert Aldrich"], c: ["Burt Lancaster", "Charles McGraw", "Charles McGraw"], w: [], p: [], m: [], g: ["Thriller", "Thriller"], k: ["USA", "United States of America", "Soviet Union", "Elbonia"], co: ["Lorimar Productions", "Bavaria Film", "Lorimar Productions"], l: "English", r: 146 } };
   const feed = { user: "tester", items: [
     { guid: "letterboxd-watch-1", title: "Twilight&#039;s Last Gleaming", year: 1977, watched: "2026-10-02", logged: "2026-10-02", rating: 3.5, rewatch: false, liked: true, tmdb: 75938, review: "" },
     { guid: "letterboxd-watch-2", title: "七人の侍", year: 1954, watched: "2026-08-30", logged: "2026-09-01", rating: 5, rewatch: false, liked: false, tmdb: 346, review: "" }, // date changed since: same viewing
@@ -167,12 +174,20 @@ export default async function ({ browser, base }) {
       return { films: MY_LIB.films.length, twilight: t.entries.length, rating: t.rating, liked: t.liked, reviews: MY_LIB.reviews.length,
         mcgraw: s.cast.most.find((p) => p.name === "Charles McGraw").count, thriller: s.genres.most.find((g) => g.name === "Thriller").count,
         watchlist: MY_LIB.watchlistFilms.map((w) => w.name).join(), next: (watchNext(MY_LIB) || { picks: [] }).picks.map((p) => p.f.name).join(),
+        // the pie's rule: "Other studios" while the rest is 10% or less of the films, else only the top 7
+        studioRule: (() => { const mk = (n, co) => Array.from({ length: n }, (_, i) => ({ key: co + i, rating: 3, co })), mo = (f) => ({ co: [f.co] });
+          const many = [...mk(20, "A"), ...mk(15, "B"), ...mk(10, "C"), ...mk(8, "D"), ...mk(6, "E"), ...mk(5, "F"), ...mk(4, "G"), ...mk(3, "H")];
+          const a = studioData(many, mo, 1), b = studioData([...many, ...mk(2, "I")], mo, 1);
+          return [a.topOnly, a.slices.length, a.pieTotal, b.topOnly, b.slices.map((x) => x.name).join(""), b.pieTotal].join(); })(),
+        studios: (({ all, total }) => `${total}:${all.map((x) => `${x.name} ${x.films.length}`).join()}`)(studioData(MY_LIB.films, metaOf, 1)),
         map: (({ by, gone, off }) => [by.get("US").count, [...by.values()].map((p) => `${p.code}:${p.names.join("+")}`).join(), gone.map((g) => `${g.name} ${g.count}`).join(), off.map((c) => c.name).join()])(worldData(s.countries)).join("|") };
     });
     assert(got.films === 4, `${file}: ${got.films} films, not 4 (one film spelled four ways, or two titles in other scripts merged)`);
     assert(got.twilight === 2 && got.rating === 3.5 && got.liked && got.reviews === 2, `${file}: Twilight's Last Gleaming ${JSON.stringify(got)}`);
     assert(got.mcgraw === 1 && got.thriller === 1, `${file}: a name or genre listed twice in one film counted twice: ${JSON.stringify(got)}`);
     assert(got.watchlist === "Ikiru" && !got.next.includes("Twilight"), `${file}: a watched film is still to watch next: ${got.watchlist}`);
+    assert(got.studioRule === "false,7,71,true,ABCDEFG,68", `${file}: the studios pie's rule (Other up to 10%, else the top 7): ${got.studioRule}`);
+    assert(got.studios === "1:Lorimar Productions 1", `${file}: a film listed twice under one studio, or under two: ${got.studios}`);
     assert(/^1\|(.*,)?US:United States of America\+USA(,.*)?\|Soviet Union 1\|Elbonia$/.test(got.map), `${file}: the world map counted a country's two spellings twice, or lost one: ${got.map}`);
     pages.push(p);
   }

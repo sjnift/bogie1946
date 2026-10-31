@@ -27,6 +27,7 @@ function renderInsights() {
     section("i-glance", "In short", "The strongest finding of each kind.", glanceBlock(S.overview, "No clear patterns yet. They'll show as your diary grows.")),
     section("i-chapters", "Chapters", "Stretches of your diary that stood apart from the rest of it.", chaptersBlock(S.chapters, S.n)),
     section("i-months", "Through the year", "How your watching runs month by month, and how that has changed over the years.", monthsInsBlock(S.months)),
+    section("i-studios", "Studios", "Who made the films you watch: each film once, under its studio.", studiosHtml(lib.films, metaOf, "all", false)),
     section("i-tastes", "How your taste has moved", "Your first years of diary against your latest. Only clear, lasting changes are listed.", driftBlock(S.drift)),
     section("i-ratings", "What your ratings follow", "What tells most about how you'll rate a film, and what you like beyond its reputation.", ratingsBlock(S.ratings)),
     section("i-threads", "One film to the next", "How a film led you to more by the same people.", threadsBlock(S.threads)),
@@ -120,6 +121,7 @@ function renderYearInsights(Y) {
   $("#insights").innerHTML = [
     section("y-glance", `${esc(Y)} in short`, `The year's clearest differences. ${dlink(R.n.entries && D.story(Y), "▶ Play it as a story")} · ${dlink(R.n.entries && D.share(Y), "share it as a picture")}`, glanceBlock(R.overview, `Nothing about ${esc(Y)} stands out clearly from your other years yet.`)),
     section("y-differ", "What set it apart", `What ${esc(Y)}'s films were made of, against your other years.`, differ + places),
+    section("y-studios", `Studios in ${esc(Y)}`, `Who made the films you watched in ${esc(Y)}: each film once, under its studio.`, studiosHtml([...new Set(lib.entries.filter((e) => e.date.startsWith(Y)).map((e) => e.film))], metaOf, Y, false)),
     section("y-chapters", `${esc(Y)}, month by month`, "Stretches of the year that stood apart, and what each season leaned toward.", monthsBlock(R, Y)),
     section("y-ratings", `Ratings in ${esc(Y)}`, "The year against your usual, with the crowd's view of the same films.", findings(R.ratings, `Not enough rated films in ${esc(Y)}.`)),
     section("y-threads", `Threads in ${esc(Y)}`, "Runs of films by the same people that began this year.", threadsBlock(R.threads, `No run of films by one person began in ${esc(Y)}.`)),

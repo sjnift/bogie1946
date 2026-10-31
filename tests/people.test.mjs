@@ -4,7 +4,7 @@
 // isn't counted; the people check says so on both layouts.
 import { open, seed, assert, noErrors } from "./lib.mjs";
 
-const meta = (id, y, c, ci, d = ["A Director"], di = [900], more = {}) => ({ src: "tmdb", v: 13, id, y, d, di, c, ci, w: [], p: [], m: [], g: ["Crime"], k: ["USA"], l: "English", r: 90, ...more });
+const meta = (id, y, c, ci, d = ["A Director"], di = [900], more = {}) => ({ src: "tmdb", v: 14, id, y, d, di, c, ci, w: [], p: [], m: [], g: ["Crime"], k: ["USA"], l: "English", r: 90, ...more });
 // a star at the top of four films, then far down a big cast (a cameo), and far down another as a named extended cameo
 const crowd = (n, id) => Array.from({ length: n }, (_, i) => `Extra Player ${id}-${i}`), crowdIds = (n, base) => Array.from({ length: n }, (_, i) => base + i);
 const pad = (i) => String(i).padStart(2, "0"), ensemble = (name, base) => [Array.from({ length: 32 }, (_, i) => (i === 26 ? "Ensemble A26" : name(i))), Array.from({ length: 32 }, (_, i) => (i === 26 ? 70 : base + i))];

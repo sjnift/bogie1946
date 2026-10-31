@@ -718,4 +718,23 @@ body.empty #settings, body.empty .foot-settings { display: none !important; }
 .ptc-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 14px; }
 .ptc-row small { display: block; color: var(--muted); font-size: 12.5px; margin-top: 2px; }
 .ptc-acts { display: flex; gap: 6px; flex: none; }
+
+.studios { display: flex; gap: 36px; align-items: center; flex-wrap: wrap; --pie-1: #c98500; --pie-2: #3987e5; --pie-3: #d95926; --pie-4: #199e70; --pie-5: #9085e9; --pie-6: #d55181; --pie-7: #008300; --pie-o: #7A7184; }
+.pie-wrap { flex: 0 0 240px; }
+.pie { width: 240px; height: 240px; display: block; overflow: visible; }
+.pie-s { stroke: var(--bg); stroke-width: 2; stroke-linejoin: round; cursor: pointer; transition: filter .15s; }
+.pie-s:hover, .pie-s:focus-visible { filter: brightness(1.18); outline: none; }
+.pie-side { flex: 1 1 340px; min-width: 0; max-width: 560px; }
+.pie-head, .pie-key li { display: grid; grid-template-columns: 12px minmax(0, 1fr) 52px 48px 56px; gap: 12px; align-items: baseline; }
+.pie-head { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); padding-bottom: 6px; }
+.pie-key { list-style: none; margin: 0; padding: 0; }
+.pie-key li { padding: 7px 0; border-top: 1px solid var(--line); font-size: 14.5px; }
+.pie-key .sw { width: 12px; height: 12px; border-radius: 3px; align-self: center; }
+.pie-key .dlink { color: var(--ink); text-decoration-color: transparent; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pie-key .dlink:hover { color: var(--gold-ink); }
+.pk-n, .pk-p, .pk-a { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink-2); }
+.pie-key .pk-n { color: var(--ink); }
+.pie-lines { margin-top: 18px; }
+.pie-lines .lead { margin: 0 0 6px; }
+.pie-note { margin-top: 10px; }
 </style>

@@ -102,9 +102,10 @@ async function tmdbGet(path, params, key, signal) {
 // 11: bit parts and people far better known than those billed around them, for small parts (05-core, `smallPart`).
 // 12: the series a film is part of on TMDB (`cl`), for a lead back in a small part (05-core, `walkOn`).
 // 13: someone playing themselves is a cameo only below the top 10, or not at all where the film's cast plays itself.
-const TMDB_MATCH_VERSION = 13;
+// 14: the companies that made it (`co`), for the studios in Insights (06p-studios).
+const TMDB_MATCH_VERSION = 14;
 // The last version that changed what's kept of a film: older details are read again, even when the match is the same.
-const TMDB_DETAILS_V = 13;
+const TMDB_DETAILS_V = 14;
 // Bump when matching finds films it used to miss, so only those are looked up again.
 // 7: a title that is half of the other ("Glass Onion: A Knives Out Mystery" for Glass Onion).
 // 8: a pinned film TMDB keeps on its TV side (The Sorrow and the Pity, Nathan for You: Finding Frances).
@@ -245,7 +246,7 @@ async function tmdbDetails(id, key, signal) {
     ...credits("p", crew.filter((c) => c.job === "Director of Photography")),
     ...credits("m", crew.filter((c) => c.job === "Original Music Composer" || c.job === "Music")),
     g: (d.genres || []).map((g) => g.name),
-    k: (d.production_countries || []).map((c) => c.name),
+    k: (d.production_countries || []).map((c) => c.name), co: (d.production_companies || []).map((c) => c.name),
     l: spokenIn(d), r: d.runtime, va: d.vote_average, vc: d.vote_count, im: d.imdb_id, t: new Date().toISOString(),
     ...(FILM_FIXES[d.id] || {}),
   });
@@ -292,7 +293,7 @@ async function tmdbTvDetails(ref, key, signal) {
     ...credits("p", crew.filter((c) => did(c, ["Director of Photography"]))),
     ...credits("m", crew.filter((c) => did(c, ["Original Music Composer", "Music"]))),
     g: [...new Set((show.genres || []).flatMap((g) => TV_GENRES[g.name] || [g.name]))],
-    k: (show.production_countries || []).map((c) => c.name), l: spokenIn(show), r: r || null, va, vc, im, t: new Date().toISOString(),
+    k: (show.production_countries || []).map((c) => c.name), co: (show.production_companies || []).map((c) => c.name), l: spokenIn(show), r: r || null, va, vc, im, t: new Date().toISOString(),
   });
 }
 // A film's language: TMDB's original language, unless the film is spoken only in another one (Breaking the
@@ -659,9 +660,10 @@ function claudePrompt(batch) {
 - k: production countries, short names (USA, UK, France, South Korea)
 - l: original language (English, Korean, Cantonese, Mandarin, French...)
 - r: runtime in minutes, as an integer
+- co: the companies that made it, the main studio first (Warner Bros. Pictures, Toho, A24)
 Spell names the way TMDB credits them, and spell each person the same way every time. If you don't recognise a film with confidence, return {"i": <index>, "x": 1} for it instead of guessing.
 Reply with only a JSON array with one object per film, in the same order, like:
-[{"i":0,"d":["Bong Joon-ho"],"c":["Song Kang-ho","Lee Sun-kyun"],"w":["Bong Joon-ho","Han Jin-won"],"p":["Hong Kyung-pyo"],"m":["Jung Jae-il"],"g":["Comedy","Thriller","Drama"],"k":["South Korea"],"l":"Korean","r":133}]
+[{"i":0,"d":["Bong Joon-ho"],"c":["Song Kang-ho","Lee Sun-kyun"],"w":["Bong Joon-ho","Han Jin-won"],"p":["Hong Kyung-pyo"],"m":["Jung Jae-il"],"g":["Comedy","Thriller","Drama"],"k":["South Korea"],"l":"Korean","r":133,"co":["Barunson E&A"]}]
 
 Films:
 ${batch.map((f, i) => `${i}. ${f.name}${f.year ? ` (${f.year})` : ""}`).join("\n")}`;

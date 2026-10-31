@@ -506,7 +506,7 @@ function cleanMeta(m) {
     ...(Array.isArray(m.un) && m.un.length ? { un: m.un.map(Number).filter(Boolean).slice(0, 300) } : {}), // bit parts (`smallPart`)
     ...(Array.isArray(m.so) && m.so.length ? { so: m.so.map(Number).filter(Boolean).slice(0, 40) } : {}), // well known among unknowns (`walkOn`)
     g: list((m.g || []).map(genre).filter((g) => GENRES.includes(g)), 6),
-    k: list((m.k || []).map(country), 20), l: language(m.l), why: m.why || undefined, r: Math.round(Number(m.r)) || null,
+    k: list((m.k || []).map(country), 20), ...(Array.isArray(m.co) ? { co: list(m.co.map((x) => String(x).slice(0, 80)), 8) } : {}), l: language(m.l), why: m.why || undefined, r: Math.round(Number(m.r)) || null,
     va: Number(m.va) || null, vc: Number(m.vc) || null, // TMDB audience score out of 10, and how many votes
     im: /^tt\d+$/.test(m.im || "") ? m.im : null, // IMDb id, for IMDb scores from OMDb
     pin: m.pin || undefined, // matched by hand, so lookups leave it alone

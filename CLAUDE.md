@@ -222,6 +222,7 @@ The owner asked for this to be checked every time. A film, diary entry, person o
   `SHARE_SIZE` feed or story, always the whole diary via `shareLib`), `06j-site.js` (the diary kept on the site, locked with a password),
   `06k-study.js` (Insights: `computeStudy`, `computeYearStudy`, and the pieces both layouts draw, `driftCols`,
   `chapterStrip`; see "Insights, the study"; also `crowdOf`, the Stats page's against-the-crowd numbers),
+  `06p-studios.js` (the studios pie in Insights: `STUDIOS`, `filmStudio`, `studioData`, `pieSvg`, `studiosHtml`),
   `06l-filter.js` (filters: `FILTER`, `filteredLib`, `D.filters` and its panel `filtersInner`, `filterStripHtml`,
   `dropEmpties`; see "Filters"), `06m-story.js` (the
   story: `D.story`, `storyBodyHtml`, `fillStory`, `storyFindings`), `06n-world.js` (the world map's country shapes and
@@ -255,7 +256,8 @@ The owner asked for this to be checked every time. A film, diary entry, person o
   `ci/di/wi/pi/mi` the TMDB person ids beside `c/d/w/p/m` (see "People are TMDB's people, by id"), `vo/voi` voice roles,
   `x/xi/xw` credited cameos with why, `ce` named extended appearances (see "Cameos and voices"), `un` bit parts and
   `so` people far better known than those billed around them, by id, `cl` the film's series on TMDB (see "Small parts"),
-  `po` who counts set by hand on the film card (see "Who counts, by hand").
+  `po` who counts set by hand on the film card (see "Who counts, by hand"), `co` the companies that made it, in TMDB's
+  order (see "Studios").
 - `FACTS[tmdbPersonId]`: `{ b, d, im, p, t, cs, st }` birth and death years, IMDb id, photo, when, and for people billed
   where a star would be a walk-on their career (`cs` read, `st` runs of years they were usually top-billed; see "Who
   counts, by hand") (`cr-people-v1`, this device only, in backups; asked again after `FACTS_DAYS`). `metaOf(f)` reads it (example films use `EXAMPLE_META`).
@@ -376,6 +378,22 @@ friend replaces the address instead.
   no Antarctica, about 40 KB; to change them, `npm i --no-save d3-geo@3 topojson-client@3 world-atlas@2
   i18n-iso-countries@7 && node tools/make_world.mjs`. The `counts` check proves every country of the list lands in
   exactly one place and two spellings of one country count a film once; `extras` hovers, clicks and opens the key.
+- **Studios** (asked 31 Oct 2026: "a Studio pie chart in insights on both app and web page … studios which are most
+  watched"; the one chart of counts in Insights, at the owner's request): `06p-studios.js`. TMDB's companies (`co`,
+  kept at lookup, `TMDB_DETAILS_V` 14 read every film again) give each film **one** studio, so the slices add up to
+  the films: the first of its companies in `STUDIOS` (a studio's labels and old names together: Fox 2000 and
+  Twentieth Century-Fox are 20th Century Fox), else the first it lists (`filmStudio`; Universal for Oppenheimer, which
+  TMDB lists after Syncopy). `studioData` ranks them; the pie (`pieSvg`) shows the top `STUDIO_SLICES` 6 and "Other
+  studios" (opening the list of its studios), **unless the rest would be more than `OTHER_MAX` 10% of the films: then
+  only the top `STUDIO_TOP` 7, against each other** (asked the same day; `topOnly`, `pieTotal`, a line under it says so
+  and that the Share column is of all the films); each slice opens its films, hover/tap saying films, share (and share
+  of the pie) and your average; a key beside it (films, share, average), a line for the biggest and the best and worst rated of studios
+  with 8+ rated films (3 in a year), and "All N studios". Colours `--pie-1`…`--pie-7`, `--pie-o` on each layout,
+  checked with the dataviz validator for neighbouring slices on each dark surface. Desktop section `i-studios` after
+  Through the year, `y-studios` for a year; phone Insights tab "Studios" (all years and a year). On the owner's films:
+  490 studios, Warner Bros. 160, 20th Century Fox 113, Paramount 111, Columbia 90, Universal 87, MGM 51, United
+  Artists 44: the rest about three in five, so their pie is the top 7. The `counts` check proves each film is in one slice, the slices add up, and the 10% rule both ways; `study` and `xss`
+  cover the section.
 - **Insights**: a study of the diary (below), findings only: all years (in short, chapters, through the year, how taste has moved, what
   ratings follow, one film to the next, habits) and each year against the rest of the diary (in short, what set it
   apart, its months, ratings, threads, habits, the year picture).
@@ -484,9 +502,9 @@ standard errors or more from what the rest of the diary gives; every sentence op
   `FILM_FIXES` (by TMDB id, with a `why`) corrects facts TMDB has wrong (The Prowler 1951 is American; Breaking
   the Waves is in English; The Battle of Algiers in French). A film's language is TMDB's original language unless
   it's spoken in exactly one other (`spokenIn`). Every TMDB country is kept (it used to stop at 6, which made
-  lists differ from Letterboxd's). `TMDB_MATCH_VERSION` (13) re-looks-up films when matching changes; from 6 on, a
+  lists differ from Letterboxd's). `TMDB_MATCH_VERSION` (14) re-looks-up films when matching changes; from 6 on, a
   film whose match is unchanged keeps its details without a second request, unless what's kept of a film has changed
-  since (`TMDB_DETAILS_V`, 13: playing themselves a cameo only below the top 10; 12 the film's series; 11 bit parts): then it's read again by its id alone, one request,
+  since (`TMDB_DETAILS_V`, 14: the studios, `co`; 13: playing themselves a cameo only below the top 10; 12 the film's series; 11 bit parts): then it's read again by its id alone, one request,
   no search (`rereadRef`; films matched by hand too, keeping their pin). Watchlist films are looked up too.
 - **Counting people like Letterboxd** (a guest found actor and director counts off, 25 Oct 2026; then the owner asked
   for it "finely treading the line with credited, not credited and cameo and sometimes extended cameos", and for their

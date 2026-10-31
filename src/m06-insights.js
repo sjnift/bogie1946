@@ -1,8 +1,8 @@
 <script>
 /* ---------- phone: Insights, a study of the diary (worked out in 06k-study.js). The year chips pick all years or
    one; the tabs under them pick a section. ---------- */
-const INS_TABS = [["overview", "In short"], ["chapters", "Chapters"], ["months", "Months"], ["taste", "Taste"], ["ratings", "Ratings"], ["threads", "Threads"], ["habits", "Habits"]];
-const YEAR_TABS = [["overview", "In short"], ["apart", "Stood out"], ["ratings", "Ratings"], ["threads", "Threads"], ["habits", "Habits"]];
+const INS_TABS = [["overview", "In short"], ["chapters", "Chapters"], ["months", "Months"], ["studios", "Studios"], ["taste", "Taste"], ["ratings", "Ratings"], ["threads", "Threads"], ["habits", "Habits"]];
+const YEAR_TABS = [["overview", "In short"], ["apart", "Stood out"], ["studios", "Studios"], ["ratings", "Ratings"], ["threads", "Threads"], ["habits", "Habits"]];
 // the crowd picked with the chips, or the one with the most scores
 const crowdKey = () => state.crowd || memo("crowd", () => defaultCrowd(state.lib, metaOf));
 const allStudy = () => memo(`study|${crowdKey()}`, () => computeStudy(state.lib, metaOf, crowdKey()));
@@ -22,6 +22,7 @@ function mAllInsights(tab) {
   const lib = state.lib, S = allStudy();
   if (tab === "chapters") return mChapters(S.chapters, S.n);
   if (tab === "months") return mMonthsIns(S.months);
+  if (tab === "studios") return sh("Studios") + studiosHtml(lib.films, metaOf, "all", true);
   if (tab === "taste") return mDrift(S.drift);
   if (tab === "ratings") return mRatings(S.ratings);
   if (tab === "threads") return mThreads(S.threads);
@@ -103,6 +104,7 @@ function mThreads(T, empty = "No film has led to a run of others yet: four or mo
 /* ----- one year ----- */
 function mYearInsights(Y, tab) {
   const lib = state.lib, R = yearStudy(Y);
+  if (tab === "studios") return sh(`Studios in ${esc(Y)}`) + studiosHtml([...new Set(lib.entries.filter((e) => e.date.startsWith(Y)).map((e) => e.film))], metaOf, Y, true);
   if (tab === "apart") {
     let h = sh(`What set ${esc(Y)} apart`);
     h += R.differ.length ? R.differ.map((d) => `<div class="card chap"><p class="ctitle">${dlink(d.to, esc(d.big))}</p><p class="ctext">${dline(d.to, esc(d.text))}</p>${mStrip(d.posters)}</div>`).join("")
