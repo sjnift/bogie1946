@@ -108,8 +108,8 @@ function favouriteCards(s, n) {
   if (!rankedDecades(s).length) return "";
   const F = favourites(s, state.bestBy === "year" ? "year" : "decade");
   const sw = segBar("bestby", [["decade", "Decades"], ["year", "Years"]], F.by, "small");
-  if (!F.items.length) return sw + `<div class="empty">No release year has ${F.bar} or more rated films yet.</div>`;
-  const note = F.by === "year" ? `<p class="status" style="margin:8px 2px 12px">Years with ${F.bar} or more rated films.</p>` : "";
+  if (!F.items.length) return sw + `<div class="empty">${favEmpty(F, s.scope)}</div>`;
+  const note = F.by === "year" ? `<p class="status" style="margin:8px 2px 12px">Years with ${F.bar} or more rated films. ${YEAR_CAUTION}</p>` : "";
   return sw + note + bestDecadeCard(F.items[0], s.scope, F.what) + F.items.slice(1, n).map((x, i) => decadeRunnerCard(x, i, s.scope)).join("");
 }
 // A decade in the ranking: its average and its three best posters.

@@ -767,6 +767,7 @@ body.empty #settings, body.empty .foot-settings { display: none !important; }
 .qz-score { font-family: var(--display); font-size: 40px; margin: 0; color: var(--ink); }
 .qz-score b { color: var(--gold-ink); font-size: 64px; }
 .qz-verdict { font-size: 17px; margin: 0; }
+.qz-best { margin: 4px 0 0; font-size: 13.5px; color: var(--muted); } .qz-best.up { color: var(--gold-ink); font-weight: 600; }
 .qz-list { margin: 6px 0 10px; padding: 0; list-style: none; display: grid; gap: 6px; font-size: 14px; color: var(--ink-2); }
 .qz-list li { display: flex; gap: 10px; align-items: baseline; }
 .qz-list b { color: var(--ink); font-weight: 600; }
@@ -777,6 +778,9 @@ body.empty #settings, body.empty .foot-settings { display: none !important; }
 .ry .hit { fill: transparent; }
 .ry .bar { fill: var(--gold); }
 .ry .bar.few { opacity: .42; }
+.ry .trend, .ry .trend-edge { fill: none; pointer-events: none; stroke-linejoin: round; stroke-linecap: round; }
+.ry .trend { stroke: #F6EEDC; stroke-width: 2px; }
+.ry .trend-edge { stroke: var(--bg); stroke-width: 4.5px; opacity: .6; }
 .ry .yr[data-list] { cursor: pointer; }
 .ry .yr:hover .bar { fill: var(--gold-ink); }
 .ry-line { position: absolute; left: 0; right: -62px; border-top: 1px solid var(--line); pointer-events: none; }

@@ -861,6 +861,7 @@ body.nodata .hero .avatar svg { width: 40px; height: 40px; color: var(--green); 
 .qz-score { font-size: 26px; font-weight: 800; margin: 0; color: var(--ink); }
 .qz-score b { color: var(--green); font-size: 54px; }
 .qz-verdict { font-size: 16px; margin: 0; color: var(--ink-1); }
+.qz-best { margin: 4px 0 0; font-size: 13.5px; color: var(--muted); } .qz-best.up { color: var(--green); font-weight: 600; }
 .qz-list { margin: 6px 0 10px; padding: 0; list-style: none; display: grid; gap: 8px; font-size: 14px; color: var(--ink-2); }
 .qz-list li { display: flex; gap: 10px; align-items: baseline; }
 .qz-list b { color: var(--ink); font-weight: 650; }
@@ -872,6 +873,9 @@ body.nodata .hero .avatar svg { width: 40px; height: 40px; color: var(--green); 
 .ry .hit { fill: transparent; }
 .ry .bar { fill: var(--green-mark); }
 .ry .bar.few { opacity: .42; }
+.ry .trend, .ry .trend-edge { fill: none; pointer-events: none; stroke-linejoin: round; stroke-linecap: round; }
+.ry .trend { stroke: #FFFFFF; stroke-width: 2px; }
+.ry .trend-edge { stroke: var(--bg); stroke-width: 4.5px; opacity: .6; }
 .ry .yr:active .bar { fill: var(--green); }
 .ry-line { position: absolute; left: -24px; right: 0; border-top: 1px dashed var(--line-2); pointer-events: none; }
 .ry-line.avg { left: 0; z-index: 2; border-top-color: rgba(255, 255, 255, .55); }

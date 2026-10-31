@@ -51,8 +51,10 @@ function colChart(cols, aria, legend, H = 162, opts = true) {
 // century of years is under 2px a year on a phone, which boxes round to 1px or 2px, so bars came out uneven (and the
 // phone's bars took the padding of the switch that shares their class name, 6px each, and piled up); SVG bars share the
 // width evenly. A year's whole slot is its target, so a thin bar is easy to tap. In "rating" a dashed line marks your
-// average and years with fewer than RY_FEW ratings are paler. The phone puts the gridline's number in a gutter on the left.
-const RY_FEW = 3;
+// average and years with fewer than RY_FEW ratings are paler; a line follows your average for the films of the five years
+// around each year (RY_SPAN either side, asked 31 Oct 2026, so the drift shows through single years' ups and downs), where
+// those have RY_TREND_MIN ratings. The phone puts the gridline's number in a gutter on the left.
+const RY_FEW = 3, RY_SPAN = 2, RY_TREND_MIN = 5;
 function releaseYearsChart(s, mode, H, every) {
   const ys = s.relYears || [];
   if (!ys.length) return `<div class="empty">No release years in this period.</div>`;
@@ -64,14 +66,21 @@ function releaseYearsChart(s, mode, H, every) {
   const base = rating ? valuesBase(rated.map((x) => x.avg), 0.5) : 0;
   const top = rating ? Math.max(...rated.map((x) => x.avg)) : Math.max(...ys.map((x) => x.count));
   const pct = (v) => rating ? (v - base) / Math.max(1e-9, top - base) * 92 : v / top * 100;
+  // the trend: every rating of the films released within RY_SPAN years either side
+  const trend = (y) => { if (!rating) return null; const r = []; for (let k = y - RY_SPAN; k <= y + RY_SPAN; k++) { const x = by.get(k); if (x) r.push(...x.ratings); } return r.length >= RY_TREND_MIN ? r.reduce((a, b) => a + b, 0) / r.length : null; };
+  const span = (y) => `${Math.max(lo, y - RY_SPAN)}–${Math.min(hi, y + RY_SPAN)}`;
   // a dozen slots at least, so a few years aren't drawn as a few huge bars
   const slots = Math.max(n, 12), off = (slots - n) / 2, pad = 0.14, few = rating && rated.some((x) => x.ratings.length < RY_FEW), bars = [];
   for (let i = 0; i < n; i++) {
     const y = lo + i, x = by.get(y), r = x ? x.ratings.length : 0, v = rating ? (r ? x.avg : 0) : x ? x.count : 0;
-    const tip = `${y}: ${x ? plural(x.count, "film") : "no films"}${r ? ` · ${x.avg.toFixed(2)} average from ${plural(r, "rating")}` : ""}`;
+    const t = trend(y), tip = `${y}: ${x ? plural(x.count, "film") : "no films"}${r ? ` · ${x.avg.toFixed(2)} average from ${plural(r, "rating")}` : ""}${t != null ? ` · films of ${span(y)} ${t.toFixed(2)}` : ""}`;
     const h = v ? Math.max(pct(v), 0.8) : 0;
     bars.push(`<g class="yr" ${x ? dl(DR.relYear(x)) : ""} data-tip="${esc(tip)}"><rect class="hit" x="${(off + i).toFixed(2)}" y="0" width="1" height="100"/>${h ? `<rect class="bar${rating && r < RY_FEW ? " few" : ""}" x="${(off + i + pad).toFixed(2)}" y="${(100 - h).toFixed(2)}" width="${(1 - 2 * pad).toFixed(2)}" height="${h.toFixed(2)}"/>` : ""}</g>`);
   }
+  // the trend as runs of points, broken where too few films were rated; drawn over the bars with a dark edge
+  const runs = [];
+  if (rating) { let run = []; for (let i = 0; i < n; i++) { const t = trend(lo + i); if (t == null) { if (run.length > 1) runs.push(run); run = []; } else run.push(`${(off + i + 0.5).toFixed(2)},${(100 - Math.max(pct(t), 0.8)).toFixed(2)}`); } if (run.length > 1) runs.push(run); }
+  const trendSvg = runs.map((r) => `<polyline class="trend-edge" points="${r.join(" ")}" vector-effect="non-scaling-stroke"/><polyline class="trend" points="${r.join(" ")}" vector-effect="non-scaling-stroke"/>`).join("");
   const tick = niceTick(top);
   const line = rating ? `<div class="ry-line avg" style="bottom:${pct(mean).toFixed(2)}%"></div>`
     : `<div class="ry-line" style="bottom:${pct(tick).toFixed(2)}%"><span>${fmtN(tick)}<em> films</em></span></div>`;
@@ -82,9 +91,9 @@ function releaseYearsChart(s, mode, H, every) {
     if (y % step === 0) ax.push(`<span${at < 4 ? ' class="l"' : at > 96 ? ' class="r"' : ""} style="left:${at.toFixed(2)}%">${y}</span>`);
   }
   const label = rating ? "Your average rating by year of release" : "Films by year of release";
-  return `<div class="ry${rating ? " rating" : ""}"><div class="ry-plot" style="height:${H}px">${line}<svg viewBox="0 0 ${slots} 100" preserveAspectRatio="none" role="img" aria-label="${label}">${bars.join("")}</svg></div>`
+  return `<div class="ry${rating ? " rating" : ""}"><div class="ry-plot" style="height:${H}px">${line}<svg viewBox="0 0 ${slots} 100" preserveAspectRatio="none" role="img" aria-label="${label}">${bars.join("")}${trendSvg}</svg></div>`
     + `<div class="ry-axis" aria-hidden="true">${ax.join("")}</div>`
-    + (rating ? `<p class="ry-note">The dashed line is your average rating, ${mean.toFixed(2)}.${few ? ` Paler years have fewer than ${RY_FEW} ratings.` : ""}</p>` : "") + `</div>`;
+    + (rating ? `<p class="ry-note">${runs.length ? "The solid line is your average for the films of the five years around each year. " : ""}The dashed line is your average rating, ${mean.toFixed(2)}.${few ? ` Paler years have fewer than ${RY_FEW} ratings.` : ""}</p>` : "") + `</div>`;
 }
 // Where columns of averages start, so their differences show: half a step below the lowest.
 const valuesBase = (vals, step) => { const v = vals.filter((x) => x != null && x > 0); return v.length ? Math.max(0, Math.floor(Math.min(...v) / step) * step - step) : 0; };

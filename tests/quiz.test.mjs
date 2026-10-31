@@ -1,5 +1,6 @@
 // The quiz (06q-quiz.js): every question has one right answer among distinct ones, and that answer is right by the
-// diary's own numbers; then a round played through on both layouts, the score, and Play again.
+// diary's own numbers, a film once a round and not again the next; then a round played through on both layouts, the
+// score and the best kept, and Play again (a new best, none of the last round's films).
 import { open, assert, noErrors } from "./lib.mjs";
 
 // Many rounds, all time and for each year: answers distinct, the right one in range, and the films and counts behind
@@ -25,6 +26,16 @@ const audit = () => {
       if (v) { const vs = q.opts.map(v), top = Math.max(...vs); if (vs[q.ans] !== top || vs.filter((x) => x === top).length !== 1) bad.push(`${Y} ${q.kind}: ${q.q} ${keys.join(" / ")} → ${vs.join(",")}, right ${q.ans}`); }
     }
   }
+  // a film once a round, and not again the next round (all time, where the diary has plenty)
+  let prev = [];
+  for (let r = 0; r < 10; r++) {
+    const qs = quizQuestions(lib, "all", prev), per = qs.map((q) => [...new Set(qFilms(q))]), fs = per.flat();
+    if (fs.length !== new Set(fs).size) bad.push(`all: a film twice in one round (${fs.join(" / ")})`);
+    const again = fs.filter((f) => prev.includes(f));
+    if (again.length) bad.push(`all: ${again.join(", ")} again the round after`);
+    if (qs.length !== 10) bad.push(`all: ${qs.length} questions with films kept apart`);
+    prev = [...new Set(fs)];
+  }
   return { bad, kinds: [...kinds].sort().join() };
 };
 
@@ -49,9 +60,20 @@ export default async function ({ browser, base }) {
       await p.click(`${panel} .qz-next`);
     }
     const end = await p.$eval(`${panel} .qz-end`, (e) => e.innerText.replace(/\s+/g, " "));
-    assert(/5 of 10/.test(end) && (end.match(/✓/g) || []).length === 5, `${file}: the score ${end.slice(0, 120)}`);
+    assert(/5 of 10/.test(end) && (end.match(/✓/g) || []).length === 5 && /Your first round here/.test(end), `${file}: the score ${end.slice(0, 160)}`);
+    const saved = await p.evaluate(() => quizSaved("all"));
+    assert(saved.s === 5 && saved.n === 10 && saved.last.length >= 10, `${file}: best kept ${JSON.stringify({ ...saved, last: (saved.last || []).length })}`);
+    // play again, all right this time: a new best, and none of the last round's films
     await p.click(`${panel} [data-qagain]`);
     assert(await p.$eval(`${panel} .qz-head`, (h) => /Question 1 of 10/.test(h.textContent)), `${file}: Play again`);
+    const again = await p.evaluate((last) => [...QUIZZES.values()].pop().qs.flatMap(qFilms).filter((f) => last.includes(f)), saved.last);
+    assert(!again.length, `${file}: the next round asked again about ${again.join(", ")}`);
+    for (let i = 0; i < 10; i++) {
+      const ans = await p.evaluate(() => { const d = [...QUIZZES.values()].pop(); return d.qs[d.at].ans; });
+      await p.click(`${panel} .qz-opt[data-qi="${ans}"]`); await p.click(`${panel} .qz-next`);
+    }
+    const best = await p.$eval(`${panel} .qz-best`, (e) => [e.textContent, e.classList.contains("up")]);
+    assert(best[0] === "A new best, up from 5 of 10." && best[1] && (await p.evaluate(() => quizSaved("all").s)) === 10, `${file}: new best ${JSON.stringify(best)}`);
     noErrors(p, file);
     await p.close();
   }

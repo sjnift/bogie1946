@@ -76,9 +76,15 @@ export default async function ({ browser, base }) {
         sizes: [".decade-hero .pitem", ".decade-run .pitem"].map((sel) => Math.round(document.querySelector(sel).getBoundingClientRect().width)) }));
       assert(dec.want === 2 && dec.runs.length === 2 && dec.runs.every(([t, n]) => /^The \d{4}s$/.test(t) && n >= 3) && dec.sizes[1] < dec.sizes[0], `phone second and third best decades: ${JSON.stringify(dec)}`);
       await p.click('[data-bestby="year"]'); await p.waitForTimeout(200);
+      const notYet = await p.textContent("#screen .empty").catch(() => "");
+      assert(/^Not enough yet: only 2 release years have 5 or more rated films, and a list needs 3\.$/.test(notYet), `phone favourite years, not enough yet: ${notYet}`);
+      await p.evaluate(() => { YEAR_BAR[1] = 3; });
+      await p.click('[data-bestby="decade"]'); await p.waitForTimeout(150);
+      await p.click('[data-bestby="year"]'); await p.waitForTimeout(200);
       const yrs = await p.evaluate(() => ({ want: favourites(computeStats(state.lib, metaOf, "all"), "year").items.slice(0, 3).map((x) => x.name).join(),
         got: [...document.querySelectorAll(".decade-hero .dh-dec, .decade-run .dr-dec")].map((e) => e.textContent).join(), k: document.querySelector(".decade-hero .dh-k").textContent }));
       assert(yrs.got === yrs.want && /^\d{4},\d{4},\d{4}$/.test(yrs.got) && /year/.test(yrs.k), `phone favourite years: ${JSON.stringify(yrs)}`);
+      await p.evaluate(() => { YEAR_BAR[1] = 5; });
       await p.click('[data-bestby="decade"]'); await p.waitForTimeout(200);
       await p.evaluate(() => { state.scope = "all"; goTo("years", { force: true, top: true }); }); await p.waitForTimeout(200);
       const ph = await p.evaluate(() => {
@@ -120,8 +126,25 @@ export default async function ({ browser, base }) {
     assert(relOpen === `Released in ${topYear.slice(0, 4)}`, `${file} a year of release opened ${relOpen} (wanted ${topYear})`);
     await close();
     await p.click(phone ? '[data-relmode="rating"]' : '[data-tab="released"][data-val="rating"]'); await p.waitForTimeout(200);
-    const rt = await p.evaluate(() => ({ line: !!document.querySelector(".ry.rating .ry-line.avg"), note: (document.querySelector(".ry.rating .ry-note") || {}).textContent || "" }));
-    assert(rt.line && rt.note.includes(`your average rating, ${ry.mean}`), `${file} rating by year of release: ${JSON.stringify(rt)} (average ${ry.mean})`);
+    const rt = await p.evaluate(() => ({ line: !!document.querySelector(".ry.rating .ry-line.avg"), note: (document.querySelector(".ry.rating .ry-note") || {}).textContent || "",
+      trend: document.querySelectorAll(".ry.rating polyline.trend").length, tips: [...document.querySelectorAll(".ry.rating .yr")].filter((g) => / · films of \d{4}–\d{4} \d\.\d\d$/.test(g.dataset.tip)).length,
+      // the line is the average of every rating of the films released within two years either side
+      check: (() => { const ys = computeStats(state.lib, metaOf, "all").relYears, mid = ys[Math.floor(ys.length / 2)].year, r = ys.filter((x) => Math.abs(x.year - mid) <= 2).flatMap((x) => x.ratings);
+        const g = [...document.querySelectorAll(".ry.rating .yr")].find((g) => g.dataset.tip.startsWith(`${mid}:`));
+        return [g && g.dataset.tip.split(" ").pop(), r.length >= 5 ? (r.reduce((a, b) => a + b, 0) / r.length).toFixed(2) : "none"]; })() }));
+    assert(rt.line && rt.note.includes(`your average rating, ${ry.mean}`) && rt.trend >= 1 && /solid line/.test(rt.note) && rt.tips >= 10 && rt.check[0] === rt.check[1],
+      `${file} rating by year of release: ${JSON.stringify(rt)} (average ${ry.mean})`);
+    // favourite years are ranked with caution for few films (asked 31 Oct 2026), and need enough of them
+    const fav = await p.evaluate(() => {
+      const yr = (year, ratings) => ({ year, ratings, count: ratings.length, avg: ratings.reduce((a, b) => a + b, 0) / ratings.length, films: [], top: [] });
+      const rep = (v, n) => Array(n).fill(v);
+      const few = favourites({ relYears: [yr(1950, rep(4, 6)), yr(1960, rep(3.9, 30)), yr(1970, rep(2, 30)), yr(1980, rep(3, 30)), yr(1990, rep(2.5, 30))] }, "year");
+      const thin = favourites({ relYears: [yr(1950, rep(4, 6)), yr(1960, rep(3.9, 6)), yr(1970, rep(2, 4)), yr(1980, rep(3, 3))] }, "year");
+      const real = favourites(computeStats(state.lib, metaOf, "all"), "year");
+      return { few: few.items.map((x) => x.name).join(), thin: thin.items.length, empty: favEmpty(thin, "2024"), bar: real.bar, sorted: real.items.every((x, i, a) => !i || a[i - 1].score >= x.score), enough: real.items.every((x) => x.ratings.length >= real.bar) };
+    });
+    assert(fav.few.startsWith("1960,1950") && fav.thin === 0 && /^Not enough yet: only 2 release years have 5 or more rated films watched in 2024, and a list needs 3\.$/.test(fav.empty) && fav.bar >= 5 && fav.sorted && fav.enough,
+      `${file} favourite years ranked with caution: ${JSON.stringify(fav)}`);
     await p.click(phone ? '[data-relmode="films"]' : '[data-tab="released"][data-val="films"]'); await p.waitForTimeout(150);
     noErrors(p, file);
   }
@@ -190,11 +213,19 @@ export default async function ({ browser, base }) {
   assert(lay.decades >= 3 && lay.runners.length === 2 && lay.runners.every((n) => n >= 3 && n <= 6) && lay.sizes[1] < lay.sizes[0],
     `second and third best decades: ${JSON.stringify({ decades: lay.decades, runners: lay.runners, sizes: lay.sizes })}`);
   // favourite years beside them (asked 31 Oct 2026): the switch shows the top release years the same way, then goes back
+  // the example diary has only two release years with 5 rated films: not enough for a list, and it says so; then with the
+  // bar lowered for the check, the list itself
+  await d.click('#best-decade [data-tab="bestby"][data-val="year"]'); await d.waitForTimeout(150);
+  const notYet = await d.textContent("#best-decade .empty").catch(() => "");
+  assert(/^Not enough yet: only 2 release years have 5 or more rated films, and a list needs 3\.$/.test(notYet), `favourite years on the computer, not enough yet: ${notYet}`);
+  await d.evaluate(() => { YEAR_BAR[1] = 3; });
+  await d.click('#best-decade [data-tab="bestby"][data-val="decade"]'); await d.waitForTimeout(100);
   await d.click('#best-decade [data-tab="bestby"][data-val="year"]'); await d.waitForTimeout(150);
   const yrs = await d.evaluate(() => { const F = favourites(computeStats(state.lib, metaOf, "all"), "year");
     return { want: F.items.slice(0, 3).map((x) => x.name).join(), got: [...document.querySelectorAll("#best-decade .bd-title, #best-decade .bd-rtitle")].map((e) => e.textContent.trim()).join(),
       head: $("#best-decade h2").textContent, bar: F.bar, every: F.items.every((x) => x.ratings.length >= F.bar) }; });
   assert(yrs.got === yrs.want && /^\d{4},\d{4},\d{4}$/.test(yrs.got) && yrs.head === "Best years" && yrs.every, `favourite years on the computer: ${JSON.stringify(yrs)}`);
+  await d.evaluate(() => { YEAR_BAR[1] = 5; });
   await d.click('#best-decade [data-tab="bestby"][data-val="decade"]'); await d.waitForTimeout(150);
   assert(/^The \d{4}s$/.test(await d.textContent("#best-decade .bd-title")), "back to decades on the computer");
   // under the faces: actors down to the 21st, directors down to their first row of ties, the same number of rows (and the

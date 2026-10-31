@@ -35,22 +35,31 @@ function hiLo(values) {
    31 Oct 2026: "like favourite decades add an option for favourite years too … top 3 years") -----
    Both layouts feature the best with its posters and the second and third a little smaller, with a switch between
    decades and years (desktop `state.tab.bestby`, phone `state.bestBy`). A decade needs 3 rated films; a year needs
-   the most of YEAR_BAR (10 down to 3) that still leaves YEAR_ENOUGH years to rank, so a handful of films never tops the
-   list (the owner's films: 1942, 3.59★ over 11; 1979, 3.58★ over 19; 1965, 3.55★ over 10). Each item: its name, its
-   title with the accent, the drill it opens, its average, ratings, best films (`top`) and films. */
-const YEAR_BAR = [10, 3], YEAR_ENOUGH = 5;
+   the most of YEAR_BAR (10 down to 5) that still leaves YEAR_ENOUGH years to rank, and with fewer than YEAR_SHOWN such
+   years there's no list ("not enough yet": a single year once crowned 2003 on 3 films). Years are ranked with caution
+   for few films (asked 31 Oct 2026, after 1942's 3.59 over 11 films topped 1979's 3.58 over 19): each year's ratings
+   with YEAR_PRIOR more at the period's own average, so a year's lead counts for more the more films it rests on; the
+   real average is what's shown (the owner's films: 1979, 3.58 over 19; 1942, 3.59 over 11; 1952, 3.55 over 10). Each
+   item: its name, its title with the accent, the drill it opens, its average, ratings, best films (`top`) and films. */
+const YEAR_BAR = [10, 5], YEAR_ENOUGH = 5, YEAR_SHOWN = 3, YEAR_PRIOR = 5;
 function favourites(s, by) {
   if (by === "year") {
     let bar = YEAR_BAR[0];
     while (bar > YEAR_BAR[1] && s.relYears.filter((x) => x.ratings.length >= bar).length < YEAR_ENOUGH) bar--;
-    const items = s.relYears.filter((x) => x.ratings.length >= bar).sort((a, b) => b.avg - a.avg || b.count - a.count)
-      .map((x) => ({ key: x.year, name: String(x.year), title: `<span class="accent">${x.year}</span>`, short: String(x.year), to: DR.relYear(x), avg: x.avg, ratings: x.ratings, top: x.top, count: x.count }));
-    return { by, bar, items, what: "year" };
+    const all = s.relYears.flatMap((x) => x.ratings), mean = all.length ? all.reduce((a, b) => a + b, 0) / all.length : 0;
+    const score = (x) => (x.ratings.reduce((a, b) => a + b, 0) + YEAR_PRIOR * mean) / (x.ratings.length + YEAR_PRIOR);
+    const ok = s.relYears.filter((x) => x.ratings.length >= bar);
+    const items = ok.length < YEAR_SHOWN ? [] : ok.map((x) => ({ x, sc: score(x) })).sort((a, b) => b.sc - a.sc || b.x.avg - a.x.avg || b.x.count - a.x.count || a.x.year - b.x.year)
+      .map(({ x, sc }) => ({ key: x.year, name: String(x.year), title: `<span class="accent">${x.year}</span>`, short: String(x.year), to: DR.relYear(x), avg: x.avg, score: sc, ratings: x.ratings, top: x.top, count: x.count }));
+    return { by, bar, items, what: "year", few: ok.length };
   }
   const items = s.decades.filter((x) => x.ratings.length >= 3).sort((a, b) => b.avg - a.avg || b.count - a.count)
     .map((x) => ({ key: x.decade, name: `The ${x.decade}s`, title: `The <span class="accent">${x.decade}s</span>`, short: `the ${x.decade}s`, to: DR.decade(x), avg: x.avg, ratings: x.ratings, top: x.top, count: x.count }));
   return { by: "decade", bar: 3, items, what: "decade" };
 }
+// what both layouts say under the switch, and when there's no list
+const YEAR_CAUTION = "A year with fewer films is ranked with a little caution, so a lucky few can't top it.";
+const favEmpty = (F, scope) => F.by === "year" ? `Not enough yet: ${F.few ? `only ${plural(F.few, "release year")} ${F.few === 1 ? "has" : "have"}` : "no release year has"} ${F.bar} or more rated films${scope && scope !== "all" ? ` watched in ${esc(scope)}` : ""}, and a list needs ${YEAR_SHOWN}.` : "No decade has 3 or more rated films yet.";
 const HILO_NOTE = "Highest in each column in gold, lowest in purple.";
 // Average rating by year as columns: only the best year's number (gold) and the worst's (purple) are written over them,
 // the rest show on hover or tap, so a long run of years doesn't crowd (the owner found every number congested, Oct 2026).

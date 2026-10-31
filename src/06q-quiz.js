@@ -7,7 +7,8 @@
    differently. Like the story it opens in the pop-up (computer) or the sheet (phone), so Back and Close work; it follows
    the year chips (a year's quiz asks about that year), always on the whole diary, whatever filters are on. After each
    answer: right or not, why (the real numbers), and the films behind it. The `quiz` check plays rounds on both layouts
-   and proves every question has one right answer among distinct ones. */
+   and proves every question has one right answer among distinct ones. A film comes up once a round and not again the
+   next round if the diary allows; the end says your best for that period on this device (both asked 31 Oct 2026). */
 D.quiz = (Y) => ({ kind: "quiz", year: Y, title: Y === "all" ? "Your diary quiz" : `Your ${Y} quiz`, sub: `How well do you know ${Y === "all" ? "your diary" : `your ${Y}`}?` });
 const QUIZ_N = 10;
 const qPick = (arr, n) => { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a.slice(0, n); };
@@ -140,25 +141,63 @@ const QUIZ_KINDS = {
     return qMake(c.all ? "What's the first film in your diary?" : `What was the first film you logged in ${c.Y}?`, [e.film, ...qPick(others, 3)].map((f) => qFilm(f)), 0, `${e.film.name}, on ${fmtDate(e.date)}.`, D.film(e.film));
   },
 };
-// A round of questions for a scope ("all" or a year), each kind once at most.
-function quizQuestions(lib, Y) {
+// A round of questions for a scope ("all" or a year), each kind once at most. A film is asked about once a round, and
+// not again in the next round if it can be helped (asked 31 Oct 2026): a kind whose question lands on a film already
+// used is asked again, up to QUIZ_TRIES times, and if it still repeats (the first film of a year always does) it's set
+// aside and only used when the other kinds can't fill the round.
+const QUIZ_TRIES = 4;
+const qFilms = (q) => [...q.opts.filter((o) => o.film).map((o) => o.film.key), ...(q.to && q.to.kind === "film" ? [q.to.film.key] : [])];
+function quizQuestions(lib, Y, avoid) {
   const s = computeStats(lib, metaOf, Y), all = Y === "all", E = s.entries, F = s.films, first = new Map();
   for (const e of E) if (!first.has(e.film)) first.set(e.film, e.date);
   const c = { lib, Y, all, s, E, F, rated: F.filter((f) => f.rating), logged: [...first.keys()], first };
-  const out = [];
+  const out = [], used = new Set(avoid || []), spare = [];
+  const valid = (q) => q && q.opts.length === 4 && new Set(q.opts.map((o) => `${o.label}|${o.sub || ""}`)).size === q.opts.length;
   for (const k of qPick(Object.keys(QUIZ_KINDS), Object.keys(QUIZ_KINDS).length)) {
-    let q = null;
-    try { q = QUIZ_KINDS[k](c); } catch { q = null; }
-    if (q && q.opts.length === 4 && new Set(q.opts.map((o) => `${o.label}|${o.sub || ""}`)).size === q.opts.length) out.push({ ...q, kind: k });
+    let pick = null, repeat = null;
+    for (let t = 0; t < QUIZ_TRIES && !pick; t++) {
+      let q = null;
+      try { q = QUIZ_KINDS[k](c); } catch { q = null; }
+      if (!valid(q)) break;
+      if (qFilms(q).some((f) => used.has(f))) repeat = repeat || q; else pick = q;
+    }
+    if (pick) { out.push({ ...pick, kind: k }); for (const f of qFilms(pick)) used.add(f); }
+    else if (repeat) spare.push({ ...repeat, kind: k });
     if (out.length === QUIZ_N) break;
   }
+  for (const q of spare) if (out.length < QUIZ_N) out.splice(Math.floor(Math.random() * (out.length + 1)), 0, q);
   return out;
+}
+// Your best score for each period, and the films of your last round, kept in this browser (QUIZ_KEY, by username and
+// period, so a friend's export on the same device keeps its own).
+const QUIZ_KEY = "cr-quiz-v1";
+const quizSlot = (Y) => `${((shareLib().profile || {}).username || "").toLowerCase()}|${Y}`;
+const quizSaved = (Y) => (ls.get(QUIZ_KEY, {}) || {})[quizSlot(Y)] || {};
+function quizSave(Y, patch) { const all = ls.get(QUIZ_KEY, {}) || {}; all[quizSlot(Y)] = { ...(all[quizSlot(Y)] || {}), ...patch }; ls.set(QUIZ_KEY, all); }
+function quizRound(d) {
+  const qs = quizQuestions(shareLib(), d.year, quizSaved(d.year).last);
+  quizSave(d.year, { last: [...new Set(qs.flatMap(qFilms))] });
+  Object.assign(d, { qs, at: 0, picks: [], done: false, best: null });
+}
+// when a round ends: the best so far before it, and whether this one beat it (by share right, a round can be short)
+function quizScored(d, score) {
+  if (d.done) return;
+  const n = d.qs.length, prev = quizSaved(d.year), had = prev.n ? prev.s / prev.n : -1;
+  d.done = true; d.best = { prev: prev.n ? prev : null, beat: score / n > had, equal: prev.n && score / n === had };
+  if (d.best.beat) quizSave(d.year, { s: score, n, at: new Date().toISOString().slice(0, 10) });
+}
+function quizBestLine(d, score) {
+  const b = d.best, n = d.qs.length;
+  if (!b) return "";
+  if (!b.prev) return "Your first round here: your best to beat next time.";
+  if (b.beat) return `A new best, up from ${b.prev.s} of ${b.prev.n}.`;
+  return `${b.equal ? "That equals your best" : "Your best is"} ${b.prev.s} of ${b.prev.n}${b.prev.at ? `, on ${fmtDate(b.prev.at)}` : ""}.`;
 }
 const QUIZZES = new Map();
 let QUIZ_SEQ = 0;
 function quizBodyHtml(d) {
   if (!d.qid) { d.qid = `q${++QUIZ_SEQ}`; QUIZZES.set(d.qid, d); }
-  if (!d.qs) Object.assign(d, { qs: quizQuestions(shareLib(), d.year), at: 0, picks: [] });
+  if (!d.qs) quizRound(d);
   return `<div class="quiz" data-qid="${d.qid}">${quizInner(d)}</div>`;
 }
 const QUIZ_VERDICTS = [[1, "You know your diary inside out."], [0.7, "You know your diary well."], [0.4, "Not bad: your diary still has a few surprises."], [0, "Your diary has plenty left to surprise you."]];
@@ -166,8 +205,9 @@ function quizInner(d) {
   const qs = d.qs, n = qs.length, score = d.picks.filter((p, i) => p === qs[i].ans).length;
   if (n < 3) return `<p class="dr-s">Your diary needs a few more films and dates for a quiz. Log some more and come back.</p>`;
   if (d.at >= n) {
+    quizScored(d, score);
     const verdict = QUIZ_VERDICTS.find(([min]) => score / n >= min)[1];
-    return `<div class="qz-end"><p class="qz-k">Your score</p><p class="qz-score"><b>${score}</b> of ${n}</p><p class="qz-verdict">${esc(verdict)}</p>
+    return `<div class="qz-end"><p class="qz-k">Your score</p><p class="qz-score"><b>${score}</b> of ${n}</p><p class="qz-verdict">${esc(verdict)}</p><p class="qz-best${d.best && d.best.beat && d.best.prev ? " up" : ""}">${esc(quizBestLine(d, score))}</p>
       <ol class="qz-list">${qs.map((q, i) => `<li class="${d.picks[i] === q.ans ? "right" : "wrong"}"><span class="qz-mk" aria-hidden="true">${d.picks[i] === q.ans ? "✓" : "✗"}</span><span>${esc(q.q)} <b>${esc(q.opts[q.ans].label)}</b></span></li>`).join("")}</ol>
       <button class="btn primary green" type="button" data-qagain="${d.qid}">Play again</button></div>`;
   }
@@ -196,7 +236,7 @@ document.addEventListener("click", (e) => {
   e.preventDefault(); e.stopPropagation();
   if (b.dataset.qa) { if (d.picks[d.at] == null) d.picks[d.at] = +b.dataset.qi; }
   else if (b.dataset.qnext) d.at++;
-  else Object.assign(d, { qs: quizQuestions(shareLib(), d.year), at: 0, picks: [] });
+  else quizRound(d);
   quizRedraw(d);
 });
 </script>

@@ -95,8 +95,13 @@ Where it lives:
     "like favourite decades add an option for favourite years too … top 3 years"): a Decades / Years switch over it
     (desktop `state.tab.bestby`, section title "Best years"; phone `state.bestBy`, a `segBar` on Profile and Stats ›
     Breakdown) shows the top 3 release years the same way; `favourites(s, by)` in `06c-insights.js` ranks both (a year
-    needs the most of `YEAR_BAR` 10 down to 3 rated films that still leaves `YEAR_ENOUGH` 5 years, said under the
-    switch; the owner's: 1942, 1979, 1965), `s.relYears` in `computeStats`, `DR.relYear`. The `extras` check covers both.
+    needs the most of `YEAR_BAR` 10 down to 5 rated films that still leaves `YEAR_ENOUGH` 5 years, said under the
+    switch; with fewer than `YEAR_SHOWN` 3 such years, "Not enough yet" (`favEmpty`): a single year had crowned 2003 on 3
+    films). **Years are ranked with caution for few films** (asked 31 Oct 2026, when 1942's 3.59 over 11 topped 1979's
+    3.58 over 19): by their ratings plus `YEAR_PRIOR` 5 more at the period's average (`score`), the real average shown,
+    `YEAR_CAUTION` said under the switch; the owner's: 1979, 1942, 1952. `s.relYears` in `computeStats`, `DR.relYear`.
+    The `extras` check covers both layouts, the ranking and "not enough yet" (the example diary has only two years with
+    5 rated films; the check lowers the bar to see the list).
   - **The desktop main page shows every chapter in full, trimmed** (25 Oct 2026, after a round trip: the owner found
     the page "cluttered with too much data in full view", a dashboard of cards with "See all" pop-ups replaced it, then
     they asked for each chapter back in full, and finally for everything in full with the repeats trimmed). Recently
@@ -272,7 +277,7 @@ The owner asked for this to be checked every time. A film, diary entry, person o
   `lbTooFew`) or `{ tries: 2, v: 2 }` (no page at any address its title gives: `lbNotFound`). `lbRemaining` is the rest.
 - `KNOWN_IDS[filmKey]`: exact TMDB ids from the feed; lookups use them first.
 - Storage (`store` in `05-core.js`): small things in localStorage (API keys `cr-tmdb-key`, `cr-omdb-key`,
-  `cr-apify-key`; views `cr-view-v1`, `cr-mview-v1`; `cr-letterboxd-run`; `cr-imdbcast-run`; the diary on the site `cr-site-v1`, `cr-site-pub-v1`, `cr-site-dirty`); big things in IndexedDB database
+  `cr-apify-key`; views `cr-view-v1`, `cr-mview-v1`; `cr-letterboxd-run`; `cr-imdbcast-run`; the quiz's best scores `cr-quiz-v1`; the diary on the site `cr-site-v1`, `cr-site-pub-v1`, `cr-site-dirty`); big things in IndexedDB database
   `credits-roll`, store `kv` (`cr-rows-v1`, `cr-meta-v1`, `cr-photos-v1`, `cr-letterboxd-v1`, `cr-friends-v1`,
   `cr-filmo-v1`), read into memory by `await store.init()` at start (both `init()`s), moved over from
   localStorage automatically (a localStorage copy wins: only an older page version writes one).
@@ -376,7 +381,9 @@ friend replaces the address instead.
   day: "all the bars are overlapping on each other"): the owner's 107 years are under 2px a year on a phone, which boxes
   round to 1px or 2px, and the phone's bars had taken the switch's padding (6px each); SVG bars share the width evenly,
   each year's whole slot is its target, at least a dozen slots so a few years aren't huge bars. Rating: a dashed line
-  at your average, years with fewer than `RY_FEW` 3 ratings paler, a line under it saying both. The phone puts the
+  at your average, years with fewer than `RY_FEW` 3 ratings paler, and (asked 31 Oct 2026) a solid trend line, your
+  average for the films released within `RY_SPAN` 2 years either side where they have `RY_TREND_MIN` 5 ratings
+  (`vector-effect` keeps it 2px however the SVG stretches; each year's tip says it), a line under it saying all three. The phone puts the
   gridline's number in a gutter on the left so the bars get the card's width. The `extras` check measures a century in
   300px on both layouts (equal bars, each inside its slot), opens a year and the rating view. Desktop: the Released
   section's switch "Films by year / Rating by year / By decade" (`state.tab.released`, films first); phone: Stats ›
@@ -435,9 +442,14 @@ friend replaces the address instead.
   busiest season, the first film); answers from `computeStats` and the other sections' own data, one right answer
   that alone beats the other three (`qExtreme`), numbers near the right one (`qNumbers`). After each answer: right or
   not, why with the numbers, and its films; then the score, a line on it (`QUIZ_VERDICTS`), every question with its
-  answer, and Play again. State lives on the drill (`QUIZZES` by `qid`), redrawn in place (`quizRedraw`). The `quiz`
-  check audits 25 rounds per scope (one right answer among distinct ones, right by the diary's numbers) and plays a
-  round on both layouts.
+  answer, and Play again. State lives on the drill (`QUIZZES` by `qid`), redrawn in place (`quizRedraw`). **Best score
+  and fewer repeats** (asked 31 Oct 2026; sharing the score as a picture was turned down): the end says your best for
+  that period ("A new best, up from 5 of 10", `quizScored`, `quizBestLine`), kept in this browser by username and period
+  (`cr-quiz-v1`, `quizSlot`, with the last round's films); a film comes up once a round and not in the next round: a
+  kind landing on a used film is asked again (`QUIZ_TRIES` 4), else set aside and used only to fill the round (the first
+  film of a year always repeats). The `quiz` check audits 25 rounds per scope (one right answer among distinct ones,
+  right by the diary's numbers), ten rounds in a row with no film twice, and plays two rounds on both layouts (the
+  best kept, a new best, none of the last round's films).
 - **Insights**: a study of the diary (below), findings only: all years (in short, chapters, through the year, how taste has moved, what
   ratings follow, one film to the next, habits) and each year against the rest of the diary (in short, what set it
   apart, its months, ratings, threads, habits, the year picture).

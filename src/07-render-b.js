@@ -163,7 +163,7 @@ function bestDecadeBlock(s) {
   const F = favourites(s, state.tab.bestby === "year" ? "year" : "decade"), [top, ...next] = F.items;
   if (!favourites(s, "decade").items.length) return "";
   const sw = tabs("bestby", [["decade", "Decades"], ["year", "Years"]], F.by);
-  if (!top) return sw + `<div class="empty">No release year has ${F.bar} or more rated films yet.</div>`;
+  if (!top) return sw + `<div class="empty">${favEmpty(F, s.scope)}</div>`;
   const when = s.scope === "all" ? "" : ` · watched in ${esc(s.scope)}`;
   const runner = (x, i) => `<div class="bd-runner"><div class="bd-rhead"><span class="eyebrow">${i ? "Third" : "Second"} best${when}</span>
       <h3 class="bd-rtitle">${dlink(x.to, x.title)}</h3>
@@ -264,7 +264,7 @@ function renderSections(s) {
     s.entries.length ? section("recent", s.scope === "all" ? "Recently watched" : `Last watched in ${s.scope}`,
       s.entries.length > RECENT_N ? dlink(DR.diary(s), `All ${fmtN(s.entries.length)} diary entries`) : "Your latest diary entries.", recentBlock(s)) : "",
     T && T.entries.length ? section("onthisday", T.title, T.sub, onThisDayBlock(T)) : "",
-    best ? (state.tab.bestby === "year" ? section("best-decade", "Best years", `The years of release you rate highest, of those with ${favourites(s, "year").bar} or more rated films.`, best)
+    best ? (state.tab.bestby === "year" ? section("best-decade", "Best years", `The years of release you rate highest, of those with ${favourites(s, "year").bar} or more rated films. ${YEAR_CAUTION}`, best)
       : section("best-decade", "Best decade", "The decade of release you rate highest.", best)) : ""].join("");
   // with a filter on, a section or card it leaves with nothing to show is left out, and so is a chapter left empty
   const trim = (html) => filterOn() ? dropEmpties(html, (root) => { for (const b of root.querySelectorAll(".credit-body")) if (b.children.length === 1 && b.firstElementChild.classList.contains("empty")) b.closest(".credit").remove(); }) : html;
