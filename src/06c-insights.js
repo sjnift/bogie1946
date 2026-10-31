@@ -509,7 +509,7 @@ function monthGridHtml(G) {
     ? `<td><button class="mg-c" type="button" ${dl(DR.month(m.E, m.key))} style="--a:${alpha(m.E.length)}" title="${monthName(m.key)}: ${plural(m.E.length, "film")}">${m.E.length}</button></td>`
     : `<td><span class="mg-0" title="${monthName(m.key)}: none">·</span></td>`;
   const foot = G.Y ? ["Usual", (c) => c.usual != null ? dlink(monthEnts(`${c.name} in your other years`, c.usualE, plural(c.usualYears, "year")), fix(c.usual)) : "—"]
-    : ["A year", (c) => c.years ? dlink(monthEnts(`${c.name}, every year`, c.E, plural(c.years, "year")), fix(c.perYear)) : "—"];
+    : ["Per year", (c) => c.years ? dlink(monthEnts(`${c.name}, every year`, c.E, plural(c.years, "year")), fix(c.perYear)) : "—"];
   return `<div class="scroll"><table class="mgrid"><thead><tr><th></th>${MONTHS.map((m) => `<th>${m[0]}<span>${m.slice(1)}</span></th>`).join("")}<th class="n">All</th></tr></thead>
     <tbody>${[...G.rows].reverse().map((r) => `<tr><th>${r.year}</th>${r.months.map(cell).join("")}<td class="n">${dlink(monthEnts(`Diary of ${r.year}`, r.E), fmtN(r.E.length))}</td></tr>`).join("")}</tbody>
     <tfoot><tr><th>${foot[0]}</th>${G.cal.map((c) => `<td>${foot[1](c)}</td>`).join("")}<td></td></tr></tfoot></table></div>`;
@@ -571,10 +571,12 @@ function seasonData(lib, metaOf, Y) {
       if (!n || !m) continue;
       const a = x / n, b = y / m, p = (x + y) / (n + m), se = Math.sqrt(p * (1 - p) * (1 / n + 1 / m)), z = se ? (a - b) / se : 0;
       const gFilms = inS.filter((f) => metaOf(f).g.includes(g));
-      if (x >= (Y ? 3 : 5) && b > 0 && a / b >= 1.25 && a - b >= 0.05 && (!lean || a / b > lean.share / lean.rest)) lean = { x: g, share: a, rest: b, films: gFilms };
-      // a clear bias: far from the rest of the year, enough films, and (over all time) in more than one year
+      // a clear bias: far from the rest of the year, enough films, and (over all time) in more than one year; the
+      // season's "Leans to" is its clearest one, so the column and the lines above it never disagree (they used two
+      // rules, 1 Nov 2026: summer's animation was a finding with "—" beside it, winter's comedy a lean but no finding)
       const years = new Set(es.filter((e) => metaOf(e.film) && (metaOf(e.film).g || []).includes(g)).map((e) => e.date.slice(0, 4))).size;
       const more = z >= (Y ? SEASON_Z_YEAR : STUDY_Z) && x >= SEASON_MIN && a / b >= 1.3 && (Y || years >= 2);
+      if (more && (!lean || z > lean.z)) lean = { x: g, share: a, rest: b, films: gFilms, z };
       const less = z <= -(Y ? SEASON_Z_YEAR : STUDY_Z) && b * n >= SEASON_MIN && a / b <= 0.6;
       if (more || less) finds.push({ S, g, more, z, a, b, n, years, films: gFilms,
         text: more ? `${S.name} leans to ${g}: ${pc(a)}% of your ${S.name.toLowerCase()} films (${S.when}${Y ? ` ${Y}` : ""}), against ${pc(b)}% in ${where}${Y ? "" : `, over ${plural(years, "year")}`}.`
@@ -588,7 +590,21 @@ function seasonData(lib, metaOf, Y) {
   const thisYear = new Date().toISOString().slice(0, 4);
   const years = Y ? [] : diaryYears(lib).map((y) => { const ye = all.filter((e) => e.date.startsWith(y));
     return { year: y, live: y === thisYear, E: ye, by: SEASONS.map((S) => ye.filter((e) => seasonOf(e.date) === S)) }; });
-  return { Y, seasons, finds: finds.slice(0, 5), years, total: E.length };
+  return { Y, seasons, finds: finds.slice(0, 5), years, total: E.length, even: seasonEven(seasons) };
+}
+// The plain picture: the busiest and the quietest season by pace, and whether your ratings move with the seasons
+// (the owner's: 3.20 to 3.24, so they barely do).
+function seasonEven(seasons) {
+  const paced = seasons.filter((x) => x.days && x.E.length), rated = seasons.filter((x) => x.avg && x.rated.length >= 5), out = [];
+  if (paced.length >= 2) {
+    const by = [...paced].sort((a, b) => b.pace - a.pace), hi = by[0], lo = by[by.length - 1];
+    out.push(`You watch the most in ${hi.name.toLowerCase()}, ${hi.pace.toFixed(1)} films a month, and the least in ${lo.name.toLowerCase()}, ${lo.pace.toFixed(1)}.`);
+  }
+  if (rated.length >= 3) {
+    const lo = Math.min(...rated.map((x) => x.avg)), hi = Math.max(...rated.map((x) => x.avg));
+    out.push(hi - lo < 0.15 ? `Your ratings barely change with the season: ${lo.toFixed(2)} to ${hi.toFixed(2)}.` : `Your ratings run from ${lo.toFixed(2)} in ${rated.find((x) => x.avg === lo).name.toLowerCase()} to ${hi.toFixed(2)} in ${rated.find((x) => x.avg === hi).name.toLowerCase()}.`);
+  }
+  return out.join(" ");
 }
 const seasonEnts = (title, es) => es.length ? D.entries(title, entriesSub(es), es, { order: "asc" }) : null;
 // each season: how many a month and your average (counts follow the seasons' lengths, so they aren't marked)
@@ -598,4 +614,5 @@ const seasonYearsHiLo = (ys) => SEASONS.map((_, i) => hiLo(ys.map((y) => y.live 
 // "Horror 21% · 8% otherwise": a season's lean, as a link to its films
 const seasonLeanHtml = (x, Y) => x.lean ? `${dlink(D.films(`${x.lean.x}, ${x.name.toLowerCase()}${Y ? ` ${Y}` : ""}`, filmsSub(x.lean.films), x.lean.films, { scope: Y || "all" }), esc(x.lean.x))} <span class="muted">${pc(x.lean.share)}% · ${pc(x.lean.rest)}% otherwise</span>` : "—";
 const SEASON_NOTE = "Seasons: winter November to January, spring February and March, summer April to June, monsoon July and August, autumn September and October.";
+const SEASON_LEAN_NOTE = "“Leans to” is the genre a season clearly has more of than the rest of the year, as in the lines above, where there is one.";
 </script>

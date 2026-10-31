@@ -16,17 +16,33 @@ const qOne = (arr) => arr[Math.floor(Math.random() * arr.length)];
 const qFilm = (f, sub) => ({ label: f.name, sub: sub != null ? sub : f.year || "", film: f });
 // a question: its answers shuffled, the right one remembered
 function qMake(q, opts, right, why, to) {
-  const order = qPick(opts.map((_, i) => i), opts.length);
+  // answers that are numbers or stars go in order (1, 2, 3, 4), the rest in a random one
+  const order = opts.every((o) => typeof o.v === "number") ? opts.map((_, i) => i).sort((a, b) => opts[a].v - opts[b].v) : qPick(opts.map((_, i) => i), opts.length);
   return { q, opts: order.map((i) => opts[i]), ans: order.indexOf(right), why, to };
 }
 // the right answer has the highest (or lowest) value of the four, and alone: the other three are all below (above) it
+// Sorted once, best first: a candidate needs three strictly behind it (it compared every item with every other, 0.7 s a
+// round on the owner's 1,560 films). The explanation lists the four in order.
 function qExtreme(q, items, val, show, why, high = true, to) {
-  const ok = items.filter((x) => val(x) != null && Number.isFinite(val(x)));
-  const beats = (a, b) => high ? val(a) > val(b) : val(a) < val(b);
-  const can = ok.filter((x) => ok.filter((y) => beats(x, y)).length >= 3);
+  const ok = [];
+  for (const x of items) { const v = val(x); if (v != null && Number.isFinite(v)) ok.push({ x, v }); }
+  if (ok.length < 4) return null;
+  ok.sort((a, b) => high ? b.v - a.v : a.v - b.v);
+  const behind = (v) => { let lo = 0, hi = ok.length; while (lo < hi) { const mid = (lo + hi) >> 1; if (high ? ok[mid].v < v : ok[mid].v > v) hi = mid; else lo = mid + 1; } return lo; };
+  const can = ok.filter((o) => ok.length - behind(o.v) >= 3);
   if (!can.length) return null;
-  const best = qOne(can), four = [best, ...qPick(ok.filter((y) => beats(best, y)), 3)];
-  return qMake(q, four.map(show), 0, why(best, four), to && to(best, four));
+  const best = qOne(can), four = [best, ...qPick(ok.slice(behind(best.v)), 3)], ordered = [...four].sort((a, b) => high ? b.v - a.v : a.v - b.v).map((o) => o.x);
+  return qMake(q, four.map((o) => show(o.x)), 0, why(best.x, ordered), to && to(best.x, ordered));
+}
+// Wrong answers from the film's own time: people with a film in the diary within 8 years of it, else 15, else any
+// (a 2010 film offered David Lean, a 1949 one Joss Ackland), and from the ones you know: in two or more of your films
+// where there are enough, the fifteen most watched of them.
+function qEra(people, year, n, not) {
+  for (const span of year ? [8, 15, Infinity] : [Infinity]) for (const least of [2, 1]) {
+    const pool = people.filter((p) => !not.has(p.name) && p.count >= least && (span === Infinity || p.films.some((f) => f.year && Math.abs(f.year - year) <= span)));
+    if (pool.length >= n) return qPick(pool.slice(0, Math.max(n, 15)), n).map((p) => p.name);
+  }
+  return [];
 }
 // numbers near the right one, all different
 function qNumbers(right) {
@@ -43,7 +59,7 @@ const QUIZ_KINDS = {
   ratingOf: (c) => {
     if (!c.rated.length) return null;
     const f = qOne(c.rated), others = qPick([0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5].filter((r) => r !== f.rating), 3);
-    return qMake(`What did you rate ${f.name}${f.year ? ` (${f.year})` : ""}?`, [f.rating, ...others].map((r) => ({ label: stars(r), stars: true })), 0, `You gave it ${stars(f.rating)}.`, D.film(f));
+    return qMake(`What did you rate ${f.name}${f.year ? ` (${f.year})` : ""}?`, [f.rating, ...others].map((r) => ({ label: stars(r), stars: true, v: r })), 0, `You gave it ${stars(f.rating)}.`, D.film(f));
   },
   watchedFirst: (c) => qExtreme(`Which of these did you watch first${c.all ? "" : ` in ${c.Y}`}?`, c.logged, (f) => Date.parse(c.first.get(f)), (f) => qFilm(f),
     (b, four) => `${b.name} on ${fmtDate(c.first.get(b))}; ${four.filter((f) => f !== b).map((f) => `${f.name} ${fmtDate(c.first.get(f))}`).join(", ")}.`, false, (b) => D.film(b)),
@@ -58,15 +74,15 @@ const QUIZ_KINDS = {
     if (pool.length < 3) return null;
     return qMake(`Which film did you watch on ${fmtDate(day)}?`, [e.film, ...qPick(pool, 3)].map((f) => qFilm(f)), 0, `${e.film.name}${e.rating ? `, which you rated ${stars(e.rating)}` : ""}.`, DR.day(c.E, day, [e]));
   },
-  topDirector: (c) => qExtreme("Whose films have you watched the most?", c.s.directors.most.slice(0, 15), (p) => p.count, (p) => ({ label: p.name, sub: "Director" }),
+  topDirector: (c) => qExtreme("Whose films have you watched the most?", c.s.directors.most.slice(0, 15), (p) => p.count, (p) => ({ label: p.name }),
     (b, four) => `${b.name}, ${plural(b.count, "film")}; ${four.filter((p) => p !== b).map((p) => `${p.name} ${p.count}`).join(", ")}.`, true, (b) => D.films(b.name, filmsSub(b.films), b.films, { scope: c.Y })),
-  topActor: (c) => qExtreme("Which of these actors have you seen in the most films?", c.s.cast.most.slice(0, 20), (p) => p.count, (p) => ({ label: p.name, sub: "Actor" }),
+  topActor: (c) => qExtreme("Which of these actors have you seen in the most films?", c.s.cast.most.slice(0, 20), (p) => p.count, (p) => ({ label: p.name }),
     (b, four) => `${b.name}, ${plural(b.count, "film")}; ${four.filter((p) => p !== b).map((p) => `${p.name} ${p.count}`).join(", ")}.`, true, (b) => D.films(b.name, filmsSub(b.films), b.films, { scope: c.Y })),
   directorOf: (c) => {
     const films = c.F.filter((f) => { const m = metaOf(f); return m && roleNames(m, "d").length === 1; });
     if (!films.length) return null;
     const f = qOne(films), d = roleNames(metaOf(f), "d")[0];
-    const others = qPick(c.s.directors.most.map((p) => p.name).filter((n) => n !== d), 3);
+    const others = qEra(c.s.directors.most, f.year, 3, new Set([d]));
     if (others.length < 3) return null;
     return qMake(`Who directed ${f.name}${f.year ? ` (${f.year})` : ""}?`, [d, ...others].map((n) => ({ label: n })), 0, `${d} directed it.`, D.film(f));
   },
@@ -74,7 +90,7 @@ const QUIZ_KINDS = {
     const films = c.F.filter((f) => { const m = metaOf(f); return m && castOf(m).length >= 3; });
     if (!films.length) return null;
     const f = qOne(films), cast = castOf(metaOf(f)), a = qOne(cast.slice(0, 3)), inIt = new Set(cast);
-    const others = qPick(c.s.cast.most.slice(0, 60).map((p) => p.name).filter((n) => !inIt.has(n)), 3);
+    const others = qEra(c.s.cast.most, f.year, 3, inIt);
     if (others.length < 3) return null;
     return qMake(`Which of these actors is in ${f.name}${f.year ? ` (${f.year})` : ""}?`, [a, ...others].map((n) => ({ label: n })), 0, `${a} is in it.`, D.film(f));
   },
@@ -93,19 +109,19 @@ const QUIZ_KINDS = {
       const ys = diaryYears(c.lib).filter((y) => c.E.filter((e) => e.date.startsWith(y)).length >= 5 && y !== new Date().toISOString().slice(0, 4));
       if (!ys.length) return null;
       const y = qOne(ys), es = c.E.filter((e) => e.date.startsWith(y)), nums = qNumbers(es.length);
-      return qMake(`How many diary entries did you log in ${y}?`, nums.map((n) => ({ label: fmtN(n) })), 0, `${fmtN(es.length)} entries in ${y}.`, D.entries(`Diary of ${y}`, entriesSub(es), es));
+      return qMake(`How many diary entries did you log in ${y}?`, nums.map((n) => ({ label: fmtN(n), v: n })), 0, `${fmtN(es.length)} entries in ${y}.`, D.entries(`Diary of ${y}`, entriesSub(es), es));
     }
     const ms = [...new Set(c.E.map((e) => e.date.slice(0, 7)))].filter((m) => c.E.filter((e) => e.date.startsWith(m)).length >= 3);
     if (!ms.length) return null;
     const m = qOne(ms), es = c.E.filter((e) => e.date.startsWith(m)), nums = qNumbers(es.length);
-    return qMake(`How many diary entries did you log in ${monthName(m)}?`, nums.map((n) => ({ label: fmtN(n) })), 0, `${fmtN(es.length)} entries.`, DR.month(c.E, m));
+    return qMake(`How many diary entries did you log in ${monthName(m)}?`, nums.map((n) => ({ label: fmtN(n), v: n })), 0, `${fmtN(es.length)} entries.`, DR.month(c.E, m));
   },
   weekday: (c) => {
     const w = c.s.weekday, max = Math.max(...w);
     if (!c.E.length || w.filter((n) => n === max).length > 1) return null;
     const top = w.indexOf(max), others = qPick([0, 1, 2, 3, 4, 5, 6].filter((i) => i !== top), 3);
     return qMake(`On which day of the week do you watch the most${c.all ? "" : ` in ${c.Y}`}?`, [top, ...others].map((i) => ({ label: WEEKDAYS_LONG[i] })), 0,
-      `${WEEKDAYS_LONG[top]}, ${plural(max, "film")}; ${others.map((i) => `${WEEKDAYS_LONG[i]} ${w[i]}`).join(", ")}.`, DR.weekday(c.E, top));
+      `${WEEKDAYS_LONG[top]}, ${plural(max, "film")}; ${[...others].sort((a, b) => w[b] - w[a]).map((i) => `${WEEKDAYS_LONG[i]} ${w[i]}`).join(", ")}.`, DR.weekday(c.E, top));
   },
   topGenre: (c) => qExtreme("Which genre do you watch the most?", c.s.genres.most.slice(0, 10), (g) => g.count, (g) => ({ label: g.name }),
     (b, four) => `${b.name}, ${plural(b.count, "film")}; ${four.filter((g) => g !== b).map((g) => `${g.name} ${g.count}`).join(", ")}.`, true, (b) => D.films(b.name, filmsSub(b.films), b.films, { scope: c.Y })),
@@ -116,7 +132,7 @@ const QUIZ_KINDS = {
   fiveStars: (c) => {
     const five = c.rated.filter((f) => f.rating === 5);
     if (!five.length) return null;
-    return qMake(`How many films have you rated five stars${c.all ? "" : ` in ${c.Y}`}?`, qNumbers(five.length).map((n) => ({ label: fmtN(n) })), 0, plural(five.length, "film") + ".", D.films("Five stars", filmsSub(five), five, { scope: c.Y }));
+    return qMake(`How many films have you rated five stars${c.all ? "" : ` in ${c.Y}`}?`, qNumbers(five.length).map((n) => ({ label: fmtN(n), v: n })), 0, plural(five.length, "film") + ".", D.films("Five stars", filmsSub(five), five, { scope: c.Y }));
   },
   notWatched: (c) => {
     if (!c.all || !c.lib.watchlistFilms.length || c.logged.length < 3) return null;
@@ -124,12 +140,12 @@ const QUIZ_KINDS = {
     return qMake("Which of these haven't you watched yet?", [w, ...qPick(c.logged, 3)].map((f) => qFilm(f)), 0, `${w.name} is still on your watchlist.`, null);
   },
   topStudio: (c) => {
-    const S = studioData(c.F, metaOf, 1);
+    const S = c.studios || (c.studios = studioData(c.F, metaOf, 1));
     return qExtreme("Which studio made the most of your films?", S.all.slice(0, 10), (x) => x.films.length, (x) => ({ label: x.name }),
       (b, four) => `${b.name}, ${plural(b.films.length, "film")}; ${four.filter((x) => x !== b).map((x) => `${x.name} ${x.films.length}`).join(", ")}.`, true, (b) => D.films(b.name, filmsSub(b.films), b.films, { scope: c.Y }));
   },
   season: (c) => {
-    const SD = seasonData(c.lib, metaOf, c.all ? null : c.Y);
+    const SD = c.seasons || (c.seasons = seasonData(c.lib, metaOf, c.all ? null : c.Y));
     if (!SD) return null;
     return qExtreme("In which season do you watch the most films a month?", SD.seasons.filter((x) => x.days && x.E.length), (x) => +x.pace.toFixed(1), (x) => ({ label: x.name, sub: x.when }),
       (b, four) => `${b.name}, ${b.pace.toFixed(1)} a month; ${four.filter((x) => x !== b).map((x) => `${x.name.toLowerCase()} ${x.pace.toFixed(1)}`).join(", ")}.`, true, (b) => seasonEnts(b.name, b.E));
@@ -147,8 +163,16 @@ const QUIZ_KINDS = {
 // aside and only used when the other kinds can't fill the round.
 const QUIZ_TRIES = 4;
 const qFilms = (q) => [...q.opts.filter((o) => o.film).map((o) => o.film.key), ...(q.to && q.to.kind === "film" ? [q.to.film.key] : [])];
+// A scope's stats, kept for its next round while the diary and its film details are the same.
+const QUIZ_STATS = new WeakMap();
+function quizStats(lib, Y) {
+  let m = QUIZ_STATS.get(lib);
+  if (!m || m.meta !== META || m.rev !== META_REV) QUIZ_STATS.set(lib, (m = { meta: META, rev: META_REV, by: new Map() }));
+  if (!m.by.has(Y)) m.by.set(Y, computeStats(lib, metaOf, Y));
+  return m.by.get(Y);
+}
 function quizQuestions(lib, Y, avoid) {
-  const s = computeStats(lib, metaOf, Y), all = Y === "all", E = s.entries, F = s.films, first = new Map();
+  const s = quizStats(lib, Y), all = Y === "all", E = s.entries, F = s.films, first = new Map();
   for (const e of E) if (!first.has(e.film)) first.set(e.film, e.date);
   const c = { lib, Y, all, s, E, F, rated: F.filter((f) => f.rating), logged: [...first.keys()], first };
   const out = [], used = new Set(avoid || []), spare = [];

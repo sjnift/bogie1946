@@ -237,7 +237,8 @@ function avatar(p, size) {
 }
 function poster(f) {
   const m = metaOf(f);
-  return `<span class="poster"><span class="ph${titleFit(f.name)}">${esc(f.name)}<small>${f.year || ""}</small></span>${showImages && m && m.poster ? imgTag(m.poster) : ""}</span>`;
+  const pic = showImages && m && m.poster;
+  return `<span class="poster${pic ? "" : " card"}"><span class="ph${titleFit(f.name)}"${pic ? "" : titleLenAttr(f.name)}>${esc(f.name)}<small>${f.year || ""}</small></span>${pic ? imgTag(m.poster) : ""}</span>`;
 }
 const likeMark = (f) => f.liked ? '<span class="heart" aria-label="liked">♥</span>' : "";
 function posterItem(f, to, caption) {

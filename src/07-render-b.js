@@ -194,7 +194,8 @@ function milestonesBlock(s, most = ROW_N) {
 function artHtml(f) {
   const m = metaOf(f);
   const img = showImages && m && m.poster ? `<img src="${IMG}${esc(m.poster)}" alt="" loading="lazy">` : "";
-  return `<div class="art" title="${esc(f.name)}${f.year ? ` (${f.year})` : ""}">${img}<div class="t${titleFit(f.name)}">${esc(f.name)}</div><div class="y">${f.year || ""}</div></div>`;
+  // a card with no picture sizes its title to its own width (only those: sizing every card doubled the page's drawing time)
+  return `<div class="art${img ? "" : " card"}" title="${esc(f.name)}${f.year ? ` (${f.year})` : ""}">${img}<div class="t${titleFit(f.name)}"${img ? "" : titleLenAttr(f.name)}>${esc(f.name)}</div><div class="y">${f.year || ""}</div></div>`;
 }
 function posterHtml(f) {
   return `<button class="poster" type="button" ${dl(D.film(f))}>${artHtml(f)}

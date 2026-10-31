@@ -22,8 +22,9 @@ function mSeasons(SD) {
   const cell = (v, label, h = "") => `<span class="c${h}"><b>${v}</b><small>${label}</small></span>`;
   const finds = SD.finds.length ? mLines(SD.finds.map((f) => ({ ...f, dir: f.more ? "up" : "down" })), (f) => f.more ? "▲" : "▼")
     : `<p class="lead" style="margin:-4px 0 12px">No season pulls a genre clearly${Y ? ` in ${esc(Y)}` : ""}: you watch much the same mix all year.</p>`;
+  const even = SD.even ? `<p class="season-even">${esc(SD.even)}</p>` : "";
   const rows = SD.seasons.map((x, i) => `<div class="yrow sz"><span class="y">${esc(x.name)}<small>${x.when}</small></span>${cell(x.E.length ? dlink(seasonEnts(title(x), x.E), fmtN(x.E.length)) : "0", "films")}
-    ${cell(x.days ? x.pace.toFixed(1) : "—", "a month", H.pace[i])}${cell(x.avg ? dlink(seasonEnts(`Rated, ${title(x)}`, x.rated), x.avg.toFixed(2)) : "—", "average", H.avg[i])}
+    ${cell(x.days ? x.pace.toFixed(1) : "—", "per month", H.pace[i])}${cell(x.avg ? dlink(seasonEnts(`Rated, ${title(x)}`, x.rated), x.avg.toFixed(2)) : "—", "average", H.avg[i])}
     ${x.lean ? `<span class="x">Leans to ${seasonLeanHtml(x, Y)}</span>` : ""}</div>`).join("");
   let years = "";
   if (SD.years.length > 1) {
@@ -31,8 +32,8 @@ function mSeasons(SD) {
     years = sh("Seasons, year by year") + `<div class="group">${ys.map((y, r) => `<div class="yrow y5"><span class="y">${y.year}</span>${y.by.map((es, i) =>
       cell(es.length ? dlink(seasonEnts(`${SEASONS[i].name} ${y.year}`, es), fmtN(es.length)) : "0", SEASONS[i].name.toLowerCase(), HY[i][r])).join("")}</div>`).join("")}</div>`;
   }
-  return sh("Seasons") + finds + `<div class="group">${rows}</div>` + years
-    + `<p class="note">${SEASON_NOTE} “A month” is how many you log in a month of that season. ${HILO_NOTE} Tap any number to see the films.</p>`;
+  return sh("Seasons") + finds + even + `<div class="group">${rows}</div>` + years
+    + `<p class="note">${SEASON_NOTE} “Per month” is how many you log in a month of that season. ${SEASON_LEAN_NOTE} ${HILO_NOTE} Tap any number to see the films.</p>`;
 }
 // Month by month: the grid of every month, then each calendar month across the years (or, for a year, against usual).
 function mMonths(G) {
@@ -43,7 +44,7 @@ function mMonths(G) {
     const cell = (v, label, h) => `<span class="c${h}"><b>${v}</b><small>${label}</small></span>`;
     return `<div class="yrow"><span class="y">${MONTHS[c.i]}</span>${cell(dlink(monthEnts(title, c.E), fmtN(c.E.length)), "films", H.films[i])}
       ${G.Y ? cell(c.usual != null ? dlink(monthEnts(`${c.name} in your other years`, c.usualE, plural(c.usualYears, "year")), c.usual.toFixed(1)) : "—", "usual", H.year[i])
-        : cell(dlink(monthEnts(title, c.E, plural(c.years, "year")), c.perYear.toFixed(1)), "a year", H.year[i])}
+        : cell(dlink(monthEnts(title, c.E, plural(c.years, "year")), c.perYear.toFixed(1)), "per year", H.year[i])}
       ${cell(c.avg ? dlink(monthEnts(`Rated in ${title}`, rated), c.avg.toFixed(2)) : "—", "average", H.avg[i])}
       ${c.lean ? `<span class="x">Leans to ${leanHtml(c, title)}</span>` : ""}</div>`;
   }).join("");

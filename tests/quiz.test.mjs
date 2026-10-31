@@ -22,6 +22,18 @@ const audit = () => {
       const keys = q.opts.map((o) => `${o.label}|${o.sub || ""}`);
       if (q.opts.length !== 4 || new Set(keys).size !== keys.length) bad.push(`${Y} ${q.kind}: answers ${keys.join(" / ")}`);
       if (!(q.ans >= 0 && q.ans < q.opts.length)) bad.push(`${Y} ${q.kind}: right answer ${q.ans}`);
+      // numbers and stars in order; no "Actor" or "Director" under a name; a director or actor's wrong answers from the
+      // film's own time when the diary has enough people from then (asked 1 Nov 2026)
+      if (q.opts.every((o) => typeof o.v === "number") && q.opts.some((o, i) => i && q.opts[i - 1].v > o.v)) bad.push(`${Y} ${q.kind}: numbers out of order ${keys.join(" / ")}`);
+      if (q.opts.some((o) => o.sub === "Actor" || o.sub === "Director")) bad.push(`${Y} ${q.kind}: a role under a name`);
+      if (q.kind === "directorOf" || q.kind === "actorIn") {
+        const year = +(q.q.match(/\((\d{4})\)\?$/) || [])[1], people = q.kind === "directorOf" ? s.directors.most : s.cast.most;
+        const near = (name) => { const p = people.find((x) => x.name === name); return p && p.films.some((f) => f.year && Math.abs(f.year - year) <= 8); };
+        const wrong = q.opts.filter((o, i) => i !== q.ans).map((o) => o.label), right = q.opts[q.ans].label;
+        const film = lib.films.find((f) => q.q.includes(`${f.name} (${f.year})`)), inIt = film ? new Set(q.kind === "directorOf" ? roleNames(metaOf(film), "d") : castOf(metaOf(film))) : new Set([right]);
+        const enough = people.filter((p) => !inIt.has(p.name) && p.films.some((f) => f.year && Math.abs(f.year - year) <= 8)).length >= 3;
+        if (year && enough && !wrong.every(near)) bad.push(`${Y} ${q.kind}: wrong answers from another time for ${year}: ${wrong.join(", ")}`);
+      }
       const v = value(q.kind, s, Y);
       if (v) { const vs = q.opts.map(v), top = Math.max(...vs); if (vs[q.ans] !== top || vs.filter((x) => x === top).length !== 1) bad.push(`${Y} ${q.kind}: ${q.q} ${keys.join(" / ")} → ${vs.join(",")}, right ${q.ans}`); }
     }

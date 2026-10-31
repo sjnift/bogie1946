@@ -192,6 +192,8 @@ img.fade.in { opacity: 1; }
 .poster img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .poster .ph { position: absolute; inset: 0; padding: 8px 7px; display: flex; flex-direction: column; justify-content: flex-end; color: var(--ink-1); font-size: 11px; font-weight: 650; line-height: 1.15; overflow-wrap: break-word; }
 .poster .ph.long { font-size: 10px; } .poster .ph.xlong { font-size: 9px; }
+.poster.card { container-type: inline-size; }
+.poster .ph[style] { font-size: min(var(--tfs, 11px), calc((100cqi - 14px) / (var(--len) * .6))) !important; }
 .poster .ph small { color: var(--ink-2); font-weight: 400; font-size: 11px; margin-top: 2px; }
 .pgrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px 10px; }
 .pgrid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -810,7 +812,7 @@ body.nodata .hero .avatar svg { width: 40px; height: 40px; color: var(--green); 
 .ptc-acts { display: flex; gap: 6px; flex: none; }
 
 .studios { --pie-1: #00A845; --pie-2: #3987e5; --pie-3: #d95926; --pie-4: #199e70; --pie-5: #9085e9; --pie-6: #c98500; --pie-7: #d55181; --pie-o: #5E7387; }
-.pie-wrap { display: flex; justify-content: center; padding: 6px 0 14px; }
+.pie-wrap { display: flex; flex-direction: column; align-items: center; padding: 6px 0 14px; }
 .pie { width: 270px; height: 270px; display: block; overflow: visible; }
 .pie-t { font-family: inherit; font-weight: 700; fill: #111; pointer-events: none; letter-spacing: -.01em; }
 .pie-t.so { fill: #fff; }
@@ -881,6 +883,7 @@ body.nodata .hero .avatar svg { width: 40px; height: 40px; color: var(--green); 
 .ry .yr:active .bar { fill: var(--green); }
 .ry-line { position: absolute; left: -24px; right: 0; border-top: 1px dashed var(--line-2); pointer-events: none; }
 .ry-line.avg { left: 0; z-index: 2; border-top-color: rgba(255, 255, 255, .55); }
+.ry-line.guide { border-top: 1px solid rgba(255, 255, 255, .08); }
 .ry-line span { position: absolute; left: 0; top: -8px; font-size: 11.5px; line-height: 16px; color: var(--muted); white-space: nowrap; }
 .ry-line em { display: none; }
 .ry-axis { position: relative; height: 24px; margin-left: 24px; }
@@ -943,4 +946,6 @@ body.nodata .hero .avatar svg { width: 40px; height: 40px; color: var(--green); 
 .asof-ct small { display: block; font-size: 11px; color: var(--muted); }
 .asof-fine { margin: 14px 4px 0; font-size: 12px; line-height: 1.45; color: var(--muted); }
 .chip .ico-clock { width: 14px; height: 14px; margin: -2px 5px 0 0; vertical-align: middle; }
+.season-even { margin: 0 2px 12px; font-size: 13.5px; color: var(--ink-2); line-height: 1.45; }
+.pie-cap { margin: 10px 0 0; text-align: center; font-size: 13px; color: var(--ink-2); }
 </style>

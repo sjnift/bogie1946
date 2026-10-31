@@ -15,7 +15,10 @@ function niceTick(max) {
   return Math.max(1, (n >= 5 ? 5 : n >= 2 ? 2 : 1) * p);
 }
 // Poster title cards: a title with a long word gets a smaller size, so the word isn't broken in two.
-const titleFit = (name) => { const w = Math.max(0, ...String(name || "").split(/[\s\-–—/]+/).map((x) => x.length)); return w > 11 ? " xlong" : w > 8 ? " long" : ""; };
+const titleLen = (name) => Math.max(1, ...String(name || "").split(/[\s\-–—/]+/).map((x) => x.length));
+const titleFit = (name) => { const w = titleLen(name); return w > 11 ? " xlong" : w > 8 ? " long" : ""; };
+// with `--len` the card works out a size its longest word fits at, by its own width (where the browser can; else titleFit)
+const titleLenAttr = (name) => ` style="--len:${titleLen(name)}"`;
 // "Highest rated needs 4+ rated films, the most that still gives 2024 a top 10."
 const castBarText = (s) => `Highest rated needs ${s.castMinRated}+ rated films${s.castTop ? `, the most that still gives ${s.scope} a top ${CAST_TOP}` : ""}, ${s.scope === "all" ? `${CAST_LEAD} of them` : "one"} billed in the top ${LEAD_TOP}.`;
 const personSub = (p) => `${plural(p.count, "film")}${p.avg ? ` · ${p.avg.toFixed(2)} average from ${plural(p.ratings.length, "rating")}` : ""}`;
@@ -82,7 +85,11 @@ function releaseYearsChart(s, mode, H, every) {
   if (rating) { let run = []; for (let i = 0; i < n; i++) { const t = trend(lo + i); if (t == null) { if (run.length > 1) runs.push(run); run = []; } else run.push(`${(off + i + 0.5).toFixed(2)},${(100 - Math.max(pct(t), 0.8)).toFixed(2)}`); } if (run.length > 1) runs.push(run); }
   const trendSvg = runs.map((r) => `<polyline class="trend-edge" points="${r.join(" ")}" vector-effect="non-scaling-stroke"/><polyline class="trend" points="${r.join(" ")}" vector-effect="non-scaling-stroke"/>`).join("");
   const tick = niceTick(top);
-  const line = rating ? `<div class="ry-line avg" style="bottom:${pct(mean).toFixed(2)}%"></div>`
+  // a scale for the ratings: a faint line at each half star (each star over a wide range) with its value
+  const guides = [];
+  if (rating) { const st = top - base > 1.6 ? 1 : 0.5; for (let v = Math.floor(base / st + 1) * st; v <= top + 1e-9; v += st) guides.push(v); }
+  const starOf = (v) => `${Math.floor(v) || ""}${v % 1 ? "½" : ""}`;
+  const line = rating ? guides.map((v) => `<div class="ry-line guide" style="bottom:${pct(v).toFixed(2)}%"><span>${starOf(v)}<em>★</em></span></div>`).join("") + `<div class="ry-line avg" style="bottom:${pct(mean).toFixed(2)}%"></div>`
     : `<div class="ry-line" style="bottom:${pct(tick).toFixed(2)}%"><span>${fmtN(tick)}<em> films</em></span></div>`;
   const ax = [];
   for (let y = Math.ceil(lo / 10) * 10; y <= hi; y += 10) {

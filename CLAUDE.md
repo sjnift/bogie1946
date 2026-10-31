@@ -386,7 +386,8 @@ friend replaces the address instead.
   each year's whole slot is its target, at least a dozen slots so a few years aren't huge bars. Rating: a dashed line
   at your average, years with fewer than `RY_FEW` 3 ratings paler, and (asked 31 Oct 2026) a solid trend line, your
   average for the films released within `RY_SPAN` 2 years either side where they have `RY_TREND_MIN` 5 ratings
-  (`vector-effect` keeps it 2px however the SVG stretches; each year's tip says it), a line under it saying all three. The phone puts the
+  (`vector-effect` keeps it 2px however the SVG stretches; each year's tip says it), a line under it saying all three,
+  and faint guide lines with their value at each half star (each star over a wide range) for a scale (1 Nov 2026). The phone puts the
   gridline's number in a gutter on the left so the bars get the card's width. The `extras` check measures a century in
   300px on both layouts (equal bars, each inside its slot), opens a year and the rating view. Desktop: the Released
   section's switch "Films by year / Rating by year / By decade" (`state.tab.released`, films first); phone: Stats ›
@@ -399,7 +400,10 @@ friend replaces the address instead.
   length), share, your average, "Leans to" (as Month by month); the clear biases first (a genre a season has more or
   less of than the rest of the year: z ≥ `STUDY_Z` 3 over all time with `SEASON_MIN` 5 films in 2+ years, z ≥
   `SEASON_Z_YEAR` 2.5 in a year), and, over all time, each year season by season (`seasonYearsHiLo`, the year under
-  way unmarked). Stats page on both layouts (numbers and their leans, like Month by month): desktop section `seasons` in
+  way unmarked). **One rule** (1 Nov 2026): a season's "Leans to" is its clearest finding, so the column and the lines
+  over it never disagree (summer's animation had been a finding with "—" beside it, winter's comedy a lean but no
+  finding; `SEASON_LEAN_NOTE`); a plain line says the busiest and quietest season and whether ratings move with the
+  seasons (`seasonEven`: the owner's "barely change … 3.20 to 3.24"); "per month" and Month by month's "per year". Stats page on both layouts (numbers and their leans, like Month by month): desktop section `seasons` in
   When you watch after Month by month (`seasonsBlock`), phone Stats › Years after Month by month (`mSeasons`); follows
   the year chips and filters. The `counts` check puts every entry in exactly one season and one season of its year.
 - **World map** (asked Oct 2026; `06o-map.js`): where the films were made, the more films the deeper the colour (gold on
@@ -432,7 +436,8 @@ friend replaces the address instead.
   `pieLabelAt`: flat at a size from 11 down to 8 if it fits, else along a thin slice, on one line or two, letters
   measured by shape (`pieEm`), nothing where nothing fits; a label's last word left off and a few short forms,
   `pieShort`/`PIE_SHORT`: Columbia, Universal, Marvel, MGM; dark text but white on the darkest slices; the pie 300px on
-  the computer, 270px on the phone; the `extras` check names all seven of the owner's slices inside the pie); a key beside it (films, share, average), a line for the biggest and the best and worst rated of studios
+  the computer, 270px on the phone; the `extras` check names all seven of the owner's slices inside the pie); a caption
+  under the pie says what it covers ("Your top 7 studios: 42% of your films"); possessives by `apos` (Marvel Studios'); a key beside it (films, share, average), a line for the biggest and the best and worst rated of studios
   with 8+ rated films (3 in a year), and "All N studios". Colours `--pie-1`…`--pie-7`, `--pie-o` on each layout,
   checked with the dataviz validator for neighbouring slices on each dark surface. Desktop section `i-studios` after
   Through the year, `y-studios` for a year; phone Insights tab "Studios" (all years and a year). On the owner's films:
@@ -454,9 +459,16 @@ friend replaces the address instead.
   that period ("A new best, up from 5 of 10", `quizScored`, `quizBestLine`), kept in this browser by username and period
   (`cr-quiz-v1`, `quizSlot`, with the last round's films); a film comes up once a round and not in the next round: a
   kind landing on a used film is asked again (`QUIZ_TRIES` 4), else set aside and used only to fill the round (the first
-  film of a year always repeats). The `quiz` check audits 25 rounds per scope (one right answer among distinct ones,
-  right by the diary's numbers), ten rounds in a row with no film twice, and plays two rounds on both layouts (the
-  best kept, a new best, none of the last round's films).
+  film of a year always repeats). **Reviewed and reworked 1 Nov 2026**: a round is quick (`qExtreme` sorts once instead
+  of comparing every film with every other, and `quizStats` keeps a scope's stats for the next round: 0.7 s a round on
+  the owner's diary before, 0.11 s now and 0.02 s for Play again; on a phone slowed four times 0.5 s and 0.09 s);
+  a director's or actor's wrong answers come from the film's own time and from people you know (`qEra`: a film in the
+  diary within 8 years, else 15, in two or more of your films where there are enough, the fifteen most watched; a
+  2010 film had offered David Lean); numbers and stars are in order (`qMake` sorts answers with a `v`); no "Actor" or
+  "Director" under names; explanations list the four in order; the computer's question is in sentence case. The `quiz`
+  check audits 25 rounds per scope (one right answer among distinct ones, right by the diary's numbers, numbers in
+  order, no role tags, same-era wrong answers), ten rounds in a row with no film twice, and plays two rounds on both
+  layouts (the best kept, a new best, none of the last round's films).
 - **Back in time** (asked 1 Nov 2026: "an option to see the user's cumulative most watched actor director stat at a
   particular period in their diary history. For example on 5th june 2022 who were my most watched director and actors
   of all time ... on 3rd December 2023 who was my most watched actress"; then reviewed and reworked the same day, "both
@@ -543,7 +555,12 @@ standard errors or more from what the rest of the diary gives; every sentence op
   year's number (gold) and the worst's (purple) over them, the rest on hover or tap (`avgYearsChart`; the owner found a
   number on every column congested, 25 Oct 2026). Year labels under charts thin out on long diaries (`yearTick`: every
   other past 8 years, every fourth past 16, always the latest).
-  Poster title cards shrink long words instead of breaking them (`titleFit`).
+  Poster title cards shrink long words instead of breaking them (`titleFit`), and a card with no picture sizes its
+  title to its own width where the browser can (1 Nov 2026: `titleLen` as `--len`, container units on `.art.card` /
+  phone `.poster.card`, only those: on every card it doubled the computer's main page drawing, 0.31 to 0.65 s). The
+  computer's cards use Big Shoulders (0.4–0.57 of its size a letter) once it has loaded (`fontWatch`, `narrow-font`, a
+  loaded face of the family, as `fonts.check` says yes when the font's stylesheet never came), else a wide stand-in
+  (up to 0.83); the `extras` check proves no card breaks a word on either layout.
 - **Pictures to share** (`06i-share.js`): a year, all time (desktop hero and phone Profile, "share it as a picture";
   the desktop's Insights year, the phone's Insights year) or a taste match (Compare, both layouts), as a feed post or a
   story, chosen with two chips over the picture. Drawn on a canvas; posters that can't be copied leave title cards.

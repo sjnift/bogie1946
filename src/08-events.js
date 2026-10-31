@@ -189,7 +189,17 @@ function bind() {
   });
 }
 
+// Title cards (a poster that couldn't load) size their words for the font they're in: narrow Big Shoulders once it has
+// loaded, a wide stand-in until then or without it (the class picks; 02-style).
+function fontWatch() {
+  try {
+    // a loaded face of that family, not fonts.check(), which says yes when the font's stylesheet never arrived at all
+    const f = '800 17px "Big Shoulders Display"', set = () => document.documentElement.classList.toggle("narrow-font", [...document.fonts].some((x) => x.family.replace(/["']/g, "") === "Big Shoulders Display" && x.status === "loaded"));
+    set(); document.fonts.load(f).then(set, () => {}); document.fonts.ready.then(set, () => {});
+  } catch {}
+}
 async function init() {
+  fontWatch();
   for (const e of document.querySelectorAll("[data-built]")) e.textContent = builtText(); // the footer, in the viewer's own time zone
   await store.init();
   META = store.get(KEYS.meta, {}); PHOTOS = store.get(KEYS.photos, {}); LBX = store.get(KEYS.lbx, {}); FACTS = store.get(KEYS.facts, {});

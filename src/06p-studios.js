@@ -181,6 +181,8 @@ function pieSvg(S, toOf) {
 // The whole block, for Insights on both layouts: the pie, its key (each studio with its films, share and your
 // average), every studio as a list, and a sentence each for the biggest, the best and the worst rated.
 // `scope` is "all" or a year; `films` the films of that scope.
+// Marvel Studios' films, Toho's films
+const apos = (name) => /s$/i.test(String(name).trim()) ? "'" : "'s";
 function studiosHtml(films, metaOf, scope, phone) {
   const where = scope === "all" ? "" : ` in ${scope}`;
   const S = studioData(films, metaOf, scope === "all" ? 8 : 3);
@@ -193,11 +195,11 @@ function studiosHtml(films, metaOf, scope, phone) {
   const key = `<ul class="pie-key">${S.slices.map((s) => `<li><span class="sw" style="background:var(--pie-${s.slot || "o"})" aria-hidden="true"></span>${dlink(filmsTo(s), esc(s.studios ? `Other studios (${fmtN(s.studios.length)})` : s.name))}<span class="pk-n">${fmtN(s.films.length)}</span><span class="pk-p">${pct(s.films.length)}</span><span class="pk-a">${s.avg ? `${s.avg.toFixed(2)}★` : "–"}</span></li>`).join("")}</ul>`;
   const lead = S.all[0], lines = [];
   lines.push(dline(D.films(`${lead.name}${where}`, filmsSub(lead.films), lead.films, { scope }), `${esc(lead.name)} made ${fmtN(lead.films.length)} of your ${fmtN(S.total)} films${where} (${pct(lead.films.length)}), more than any other studio.`));
-  if (S.best && S.worst && S.best !== S.worst) lines.push(`Of the studios with ${S.minRated} or more rated films, you rate ${dlink(D.films(`${S.best.name}${where}`, filmsSub(S.best.films), S.best.films, { scope }), esc(S.best.name))}'s highest (${S.best.avg.toFixed(2)}★ over ${S.best.rated}) and ${dlink(D.films(`${S.worst.name}${where}`, filmsSub(S.worst.films), S.worst.films, { scope }), esc(S.worst.name))}'s lowest (${S.worst.avg.toFixed(2)}★ over ${S.worst.rated}).`);
+  if (S.best && S.worst && S.best !== S.worst) lines.push(`Of the studios with ${S.minRated} or more rated films, you rate ${dlink(D.films(`${S.best.name}${where}`, filmsSub(S.best.films), S.best.films, { scope }), esc(S.best.name))}${apos(S.best.name)} highest (${S.best.avg.toFixed(2)}★ over ${S.best.rated}) and ${dlink(D.films(`${S.worst.name}${where}`, filmsSub(S.worst.films), S.worst.films, { scope }), esc(S.worst.name))}${apos(S.worst.name)} lowest (${S.worst.avg.toFixed(2)}★ over ${S.worst.rated}).`);
   const every = dlink(D.names(`Studios${where}`, `${plural(S.all.length, "studio")}, each film once, under its studio`, S.all.map((s) => ({ ...s, note: noteOf(s) })), { scope }), `All ${fmtN(S.all.length)} studios`);
   if (S.topOnly) lines.push(`The pie shows your top ${S.slices.length} studios against each other: together they made ${fmtN(S.pieTotal)} of your ${fmtN(S.total)} films${where} (${pct(S.pieTotal)}); the other ${fmtN(S.all.length - S.slices.length)} studios made the rest. The Share column is of all your films${where}.`);
   const foot = `<p class="status pie-note">Each film counts once, under its studio: the first studio TMDB lists for it among the big ones (a studio's labels together), else the first company it lists. ${every}<span class="go" aria-hidden="true">&nbsp;›</span>${S.none.length ? ` · ${plural(S.none.length, "film")} with no studio on TMDB` : ""}${later ? ` · ${later}` : ""}</p>`;
-  return `<div class="studios${phone ? " m" : ""}"><div class="pie-wrap">${pieSvg(S, filmsTo)}</div><div class="pie-side"><div class="pie-head" aria-hidden="true"><span></span><span>Studio</span><span class="pk-n">Films</span><span class="pk-p">Share</span><span class="pk-a">Avg</span></div>${key}</div></div>`
+  return `<div class="studios${phone ? " m" : ""}"><div class="pie-wrap">${pieSvg(S, filmsTo)}<p class="pie-cap">${S.topOnly ? `Your top ${S.slices.length} studios: ${Math.round(S.pieTotal / S.total * 100)}% of your films${where}` : `All ${fmtN(S.total)} films${where}, by studio`}</p></div><div class="pie-side"><div class="pie-head" aria-hidden="true"><span></span><span>Studio</span><span class="pk-n">Films</span><span class="pk-p">Share</span><span class="pk-a">Avg</span></div>${key}</div></div>`
     + `<div class="pie-lines">${lines.map((l) => `<p class="lead">${l}</p>`).join("")}</div>` + foot;
 }
 </script>

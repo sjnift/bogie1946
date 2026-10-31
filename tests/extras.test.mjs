@@ -146,6 +146,16 @@ export default async function ({ browser, base }) {
     assert(fav.few.startsWith("1960,1950") && fav.thin === 0 && /^Not enough yet: only 2 release years have 5 or more rated films watched in 2024, and a list needs 3\.$/.test(fav.empty) && fav.bar >= 5 && fav.sorted && fav.enough,
       `${file} favourite years ranked with caution: ${JSON.stringify(fav)}`);
     await p.click(phone ? '[data-relmode="films"]' : '[data-tab="released"][data-val="films"]'); await p.waitForTimeout(150);
+    // a poster's title card never breaks a word (it showed "MANHATTA / N" where pictures didn't load, 1 Nov 2026): with
+    // breaking turned off, no card's longest word runs past its edge, here in the wide stand-in font the checks have
+    if (phone) { await p.goto(`${base}${file}?example#/profile`); await p.waitForFunction(() => typeof state === "object" && state.lib); }
+    else { await p.goto(`${base}${file}?example#/`); await p.waitForFunction(() => typeof state === "object" && state.lib); }
+    await p.waitForTimeout(300);
+    const titles = await p.evaluate((sel) => { const out = { n: 0, over: [] };
+      for (const t of document.querySelectorAll(sel)) { if (!t.offsetWidth) continue; out.n++; t.style.overflowWrap = "normal"; t.style.wordBreak = "normal";
+        const over = t.scrollWidth > t.clientWidth + 1; t.style.overflowWrap = ""; t.style.wordBreak = ""; if (over) out.over.push(`${t.firstChild.textContent} ${getComputedStyle(t).fontSize}`); }
+      return out; }, phone ? ".poster .ph" : ".poster .art .t");
+    assert(titles.n >= 8 && !titles.over.length, `${file} title cards that break a word: ${titles.over.slice(0, 5).join(" | ")} (of ${titles.n})`);
     // the studios pie has each studio's name inside its slice (asked 1 Nov 2026): every slice of a top-seven pie named,
     // inside the pie, a label's last word left off and Metro-Goldwyn-Mayer as MGM
     const pie = await p.evaluate(() => {
