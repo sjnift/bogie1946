@@ -28,7 +28,7 @@ function mSeasons(SD) {
   let years = "";
   if (SD.years.length > 1) {
     const ys = [...SD.years].reverse(), HY = seasonYearsHiLo(ys);
-    years = sh("Seasons, year by year") + `<div class="group">${ys.map((y, r) => `<div class="yrow y4"><span class="y">${y.year}</span>${y.by.map((es, i) =>
+    years = sh("Seasons, year by year") + `<div class="group">${ys.map((y, r) => `<div class="yrow y5"><span class="y">${y.year}</span>${y.by.map((es, i) =>
       cell(es.length ? dlink(seasonEnts(`${SEASONS[i].name} ${y.year}`, es), fmtN(es.length)) : "0", SEASONS[i].name.toLowerCase(), HY[i][r])).join("")}</div>`).join("")}</div>`;
   }
   return sh("Seasons") + finds + `<div class="group">${rows}</div>` + years

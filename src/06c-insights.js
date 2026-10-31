@@ -522,16 +522,19 @@ function monthsLine(G) {
 
 /* ----- seasons (asked 31 Oct 2026: "watched films and data relative to season, e.g. winter, summer, autumn and monsoon
    for India … over all and year wise too, with any insight about a particular bias to any genre during a season") -----
-   India's four seasons, as the India Meteorological Department reckons them. A year's winter is its own January,
-   February and December, so every diary entry falls in exactly one season of its own year (the `counts` check adds
+   India's seasons: the India Meteorological Department's four, with spring between winter and summer. A year's winter
+   is its own January and December, so every diary entry falls in exactly one season of its own year (the `counts` check adds
    them up). Each season: its entries, films, how many a month (by the days it was in the diary, since monsoon is four
    months and autumn two), its share, your average, and the genre it leans to (as Month by month's "Leans to"). Then
    the clear biases: a genre a season has more (or less) of than the rest of the year, at STUDY_Z standard errors over
    all time (SEASON_Z_YEAR in a single year), with SEASON_MIN films, and over all time in two or more years, so a
    single binge isn't a bias. Stats page, When you watch (desktop `seasons`, phone Stats › Years). */
+// Spring added the same day at the owner's request (India's vasant): February and March, so winter is December and
+// January and summer April and May, the hottest months; monsoon and autumn stay as the IMD has them.
 const SEASONS = [
-  { k: "winter", name: "Winter", when: "Dec–Feb", span: "December to February", months: [12, 1, 2] },
-  { k: "summer", name: "Summer", when: "Mar–May", span: "March to May", months: [3, 4, 5] },
+  { k: "winter", name: "Winter", when: "Dec–Jan", span: "December and January", months: [12, 1] },
+  { k: "spring", name: "Spring", when: "Feb–Mar", span: "February and March", months: [2, 3] },
+  { k: "summer", name: "Summer", when: "Apr–May", span: "April and May", months: [4, 5] },
   { k: "monsoon", name: "Monsoon", when: "Jun–Sep", span: "June to September", months: [6, 7, 8, 9] },
   { k: "autumn", name: "Autumn", when: "Oct–Nov", span: "October and November", months: [10, 11] },
 ];
@@ -586,5 +589,5 @@ const seasonHiLo = (SD) => ({ pace: hiLo(SD.seasons.map((x) => x.days && x.E.len
 const seasonYearsHiLo = (ys) => SEASONS.map((_, i) => hiLo(ys.map((y) => y.live ? null : y.by[i].length)));
 // "Horror 21% · 8% otherwise": a season's lean, as a link to its films
 const seasonLeanHtml = (x, Y) => x.lean ? `${dlink(D.films(`${x.lean.x}, ${x.name.toLowerCase()}${Y ? ` ${Y}` : ""}`, filmsSub(x.lean.films), x.lean.films, { scope: Y || "all" }), esc(x.lean.x))} <span class="muted">${pc(x.lean.share)}% · ${pc(x.lean.rest)}% otherwise</span>` : "—";
-const SEASON_NOTE = "Seasons as India has them: winter December to February, summer March to May, monsoon June to September, autumn October and November.";
+const SEASON_NOTE = "Seasons as India has them: winter December and January, spring February and March, summer April and May, monsoon June to September, autumn October and November.";
 </script>
