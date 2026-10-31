@@ -61,8 +61,8 @@ export default async function ({ browser, base }) {
     }
     const end = await p.$eval(`${panel} .qz-end`, (e) => e.innerText.replace(/\s+/g, " "));
     assert(/5 of 10/.test(end) && (end.match(/✓/g) || []).length === 5 && /Your first round here/.test(end), `${file}: the score ${end.slice(0, 160)}`);
-    const saved = await p.evaluate(() => quizSaved("all"));
-    assert(saved.s === 5 && saved.n === 10 && saved.last.length >= 10, `${file}: best kept ${JSON.stringify({ ...saved, last: (saved.last || []).length })}`);
+    const saved = await p.evaluate(() => ({ ...quizSaved("all"), round: [...new Set([...QUIZZES.values()].pop().qs.flatMap(qFilms))].sort().join() }));
+    assert(saved.s === 5 && saved.n === 10 && saved.last.length >= 1 && [...saved.last].sort().join() === saved.round, `${file}: best kept ${JSON.stringify({ ...saved, last: (saved.last || []).length, round: saved.round.split(",").length })}`);
     // play again, all right this time: a new best, and none of the last round's films
     await p.click(`${panel} [data-qagain]`);
     assert(await p.$eval(`${panel} .qz-head`, (h) => /Question 1 of 10/.test(h.textContent)), `${file}: Play again`);

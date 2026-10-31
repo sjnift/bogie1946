@@ -428,7 +428,11 @@ friend replaces the address instead.
   studios" (opening the list of its studios), **unless the rest would be more than `OTHER_MAX` 10% of the films: then
   only the top `STUDIO_TOP` 7, against each other** (asked the same day; `topOnly`, `pieTotal`, a line under it says so
   and that the Share column is of all the films); each slice opens its films, hover/tap saying films, share (and share
-  of the pie) and your average; a key beside it (films, share, average), a line for the biggest and the best and worst rated of studios
+  of the pie) and your average; **each slice has its studio's name inside it** (asked 1 Nov 2026: `pieLabel`,
+  `pieLabelAt`: flat at a size from 11 down to 8 if it fits, else along a thin slice, on one line or two, letters
+  measured by shape (`pieEm`), nothing where nothing fits; a label's last word left off and a few short forms,
+  `pieShort`/`PIE_SHORT`: Columbia, Universal, Marvel, MGM; dark text but white on the darkest slices; the pie 300px on
+  the computer, 270px on the phone; the `extras` check names all seven of the owner's slices inside the pie); a key beside it (films, share, average), a line for the biggest and the best and worst rated of studios
   with 8+ rated films (3 in a year), and "All N studios". Colours `--pie-1`…`--pie-7`, `--pie-o` on each layout,
   checked with the dataviz validator for neighbouring slices on each dark surface. Desktop section `i-studios` after
   Through the year, `y-studios` for a year; phone Insights tab "Studios" (all years and a year). On the owner's films:

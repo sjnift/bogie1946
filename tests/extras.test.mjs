@@ -146,6 +146,20 @@ export default async function ({ browser, base }) {
     assert(fav.few.startsWith("1960,1950") && fav.thin === 0 && /^Not enough yet: only 2 release years have 5 or more rated films watched in 2024, and a list needs 3\.$/.test(fav.empty) && fav.bar >= 5 && fav.sorted && fav.enough,
       `${file} favourite years ranked with caution: ${JSON.stringify(fav)}`);
     await p.click(phone ? '[data-relmode="films"]' : '[data-tab="released"][data-val="films"]'); await p.waitForTimeout(150);
+    // the studios pie has each studio's name inside its slice (asked 1 Nov 2026): every slice of a top-seven pie named,
+    // inside the pie, a label's last word left off and Metro-Goldwyn-Mayer as MGM
+    const pie = await p.evaluate(() => {
+      const owner = [["Warner Bros.", 160], ["20th Century Fox", 113], ["Paramount", 111], ["Columbia Pictures", 90], ["Universal Pictures", 86], ["Metro-Goldwyn-Mayer", 51], ["United Artists", 44]];
+      const slices = owner.map(([n, k], i) => ({ name: n, films: Array(k).fill(0), slot: i + 1 })), box = document.createElement("div");
+      box.className = "studios"; box.innerHTML = `<div class="pie-wrap">${pieSvg({ slices, pieTotal: 655, total: 1556, topOnly: true }, () => D.films("x", "", []))}</div>`;
+      document.body.append(box);
+      const svg = box.querySelector(".pie").getBoundingClientRect(), labels = [...box.querySelectorAll(".pie-t")];
+      const out = { n: labels.length, names: labels.map((t) => [...t.querySelectorAll("tspan")].map((x) => x.textContent).join(" ")).join(),
+        inside: labels.every((t) => { const r = t.getBoundingClientRect(); return r.left >= svg.left && r.right <= svg.right && r.top >= svg.top && r.bottom <= svg.bottom; }) };
+      box.remove();
+      return out;
+    });
+    assert(pie.n === 7 && pie.inside && pie.names === "Warner Bros.,20th Century Fox,Paramount,Columbia,Universal,MGM,United Artists", `${file} studio names in the pie: ${JSON.stringify(pie)}`);
     // back in time (asked 1 Nov 2026, reworked the same day): a year's end, the slider, a typed date and a click on the
     // timeline move the results, never the control being used; each list is Most watched up to that day, in its order,
     // with shared ranks; who led when is drawn for the lists on show; a person opens their films up to that day

@@ -101,19 +101,82 @@ function studioData(films, metaOf, minRated) {
 // A pie of the slices, each its own colour (`--pie-1`… on each layout; "Other" `--pie-o`), with a surface-coloured
 // edge between slices; every slice opens its films, and says on hover its films, its share of all the films (and of
 // the pie, when it shows only the top studios) and your average.
+// A studio's name as it goes inside its slice: a label's last word left off (Columbia Pictures, Marvel Studios), and a
+// few names everyone shortens (asked 1 Nov 2026: "add studio names inside the colors in pie chart itself").
+const PIE_SHORT = { "Metro-Goldwyn-Mayer": "MGM", "RKO Radio Pictures": "RKO", "Other studios": "Other" };
+function pieShort(name) {
+  if (PIE_SHORT[name]) return PIE_SHORT[name];
+  let n = String(name).trim(), m;
+  while ((m = n.match(/^(.{2,}?)[\s,]+(Pictures|Picture|Studios|Studio|Films|Productions|Entertainment|Corporation|Company|Inc\.?|Ltd\.?|LLC)$/))) n = m[1];
+  return n;
+}
+// Where a name fits inside a slice from angle a to b (the pie's units: radius 96 about 100,100): flat, at a few
+// distances from the middle, else along the slice for a thin one, on one line or two, as large as fits from 11 down to
+// 7; nothing if it doesn't fit at all (the key beside names every slice). Each letter's width is guessed from its shape
+// (bold: M and W wide, i and l narrow; a plain 0.6 a letter let MGM touch its slice's edge on the phone).
+const PIE_R = 96, PIE_C = 100, PIE_LH = 1.15, PIE_PAD = 1.6;
+const pieEm = (t) => [...t].reduce((w, c) => w + (/[MWmw@]/.test(c) ? 0.9 : /[A-Z0-9&]/.test(c) ? 0.7 : /[ilj.,'’!|:;\s]/.test(c) ? 0.32 : /[frt()\-]/.test(c) ? 0.42 : 0.6), 0);
+function pieLabelAt(name, a, b) {
+  const words = pieShort(name).split(/\s+/), splits = [[words.join(" ")]];
+  if (words.length > 1) {
+    let best = null;
+    for (let i = 1; i < words.length; i++) { const l = [words.slice(0, i).join(" "), words.slice(i).join(" ")], m = Math.max(l[0].length, l[1].length); if (!best || m < best.m) best = { l, m }; }
+    splits.push(best.l);
+  }
+  const th = b - a, mid = (a + b) / 2, maxR = PIE_R - 4;
+  const inside = (x, y) => {
+    const r = Math.hypot(x, y);
+    if (r > maxR) return false;
+    if (th >= 2 * Math.PI - 1e-9) return true;
+    let t = Math.atan2(y, x);
+    while (t < a) t += 2 * Math.PI;
+    while (t >= a + 2 * Math.PI) t -= 2 * Math.PI;
+    const d = r > PIE_PAD ? Math.asin(Math.min(1, PIE_PAD / r)) : Math.PI;
+    return t >= a + d && t <= b - d;
+  };
+  const box = (lines, f) => ({ w: Math.max(...lines.map(pieEm)) * f, h: lines.length * f * PIE_LH });
+  const flat = (lines, f) => {
+    const { w, h } = box(lines, f);
+    for (const k of th >= 2 * Math.PI - 1e-9 ? [0] : [0.58, 0.52, 0.64, 0.46, 0.7, 0.4]) {
+      const x = k * PIE_R * Math.cos(mid), y = k * PIE_R * Math.sin(mid);
+      if ([[-1, -1], [1, -1], [-1, 1], [1, 1]].every(([sx, sy]) => inside(x + sx * w / 2, y + sy * h / 2))) return { x, y, rot: 0, lines, f };
+    }
+    return null;
+  };
+  const along = (lines, f) => {
+    if (th >= Math.PI) return null;
+    const { w, h } = box(lines, f), inner = (h / 2 + PIE_PAD) / Math.sin(th / 2);
+    if (inner + w > maxR) return null;
+    const rho = (inner + maxR) / 2, deg = mid * 180 / Math.PI;
+    return { x: rho * Math.cos(mid), y: rho * Math.sin(mid), rot: Math.cos(mid) < 0 ? deg + 180 : deg, lines, f };
+  };
+  // flat if it fits at a good size, else along a thin slice, else flat and small
+  const tries = [[flat, 11, 8], [along, 11, 7], [flat, 7.5, 7]];
+  for (const [how, hi, lo] of tries) for (let f = hi; f >= lo; f -= 0.5) for (const lines of splits) { const L = how(lines, f); if (L) return L; }
+  return null;
+}
+function pieLabel(name, a, b, slot) {
+  const L = pieLabelAt(name, a, b);
+  if (!L) return "";
+  const x = (PIE_C + L.x).toFixed(1), y = (PIE_C + L.y).toFixed(1), lh = L.f * PIE_LH;
+  return `<text class="pie-t s${slot}" x="${x}" y="${y}" font-size="${L.f}" text-anchor="middle" aria-hidden="true"${L.rot ? ` transform="rotate(${L.rot.toFixed(1)} ${x} ${y})"` : ""}>${L.lines.map((l, i) => `<tspan x="${x}" dy="${(i ? lh : -(L.lines.length - 1) * lh / 2 + L.f * 0.36).toFixed(2)}">${esc(l)}</tspan>`).join("")}</text>`;
+}
 function pieSvg(S, toOf) {
-  const R = 96, C = 100, pc = (n, of) => { const p = n / of * 100; return p < 1 ? "<1%" : `${Math.round(p)}%`; };
+  const R = PIE_R, C = PIE_C, pc = (n, of) => { const p = n / of * 100; return p < 1 ? "<1%" : `${Math.round(p)}%`; };
   const tip = (s) => `${plural(s.films.length, "film")} · ${pc(s.films.length, S.total)} of your films${S.topOnly ? ` · ${pc(s.films.length, S.pieTotal)} of the pie` : ""}${s.avg ? ` · your average ${s.avg.toFixed(2)}★` : ""}`;
   const attrs = (s) => `class="pie-s" fill="var(--pie-${s.slot || "o"})" ${dl(toOf(s))} role="button" tabindex="0" data-tip-h="${esc(s.name)}" data-tip="${esc(tip(s))}" aria-label="${esc(`${s.name}: ${tip(s)}`)}"`;
   const label = S.topOnly ? `Your top ${S.slices.length} studios` : "Your films by studio";
-  if (S.slices.length === 1) return `<svg class="pie" viewBox="0 0 200 200" role="group" aria-label="${label}"><circle cx="${C}" cy="${C}" r="${R}" ${attrs(S.slices[0])}/></svg>`;
+  if (S.slices.length === 1) return `<svg class="pie" viewBox="0 0 200 200" role="group" aria-label="${label}"><circle cx="${C}" cy="${C}" r="${R}" ${attrs(S.slices[0])}/>${pieLabel(S.slices[0].name, 0, 2 * Math.PI, S.slices[0].slot || "o")}</svg>`;
   let a = -Math.PI / 2;
-  const pt = (t) => `${(C + R * Math.cos(t)).toFixed(2)} ${(C + R * Math.sin(t)).toFixed(2)}`;
-  return `<svg class="pie" viewBox="0 0 200 200" role="group" aria-label="${label}">${S.slices.map((s) => {
+  const pt = (t) => `${(C + R * Math.cos(t)).toFixed(2)} ${(C + R * Math.sin(t)).toFixed(2)}`, names = [];
+  const paths = S.slices.map((s) => {
     const b = a + s.films.length / S.pieTotal * 2 * Math.PI, d = `M${C} ${C} L${pt(a)} A${R} ${R} 0 ${b - a > Math.PI ? 1 : 0} 1 ${pt(b)} Z`;
+    names.push(pieLabel(s.name, a, b, s.slot || "o"));
     a = b;
     return `<path d="${d}" ${attrs(s)}/>`;
-  }).join("")}</svg>`;
+  }).join("");
+  // the names over every slice, so a slice's edge never cuts across its neighbour's name
+  return `<svg class="pie" viewBox="0 0 200 200" role="group" aria-label="${label}">${paths}${names.join("")}</svg>`;
 }
 // The whole block, for Insights on both layouts: the pie, its key (each studio with its films, share and your
 // average), every studio as a list, and a sentence each for the biggest, the best and the worst rated.
