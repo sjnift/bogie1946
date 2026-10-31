@@ -233,7 +233,8 @@ The owner asked for this to be checked every time. A film, diary entry, person o
   `06k-study.js` (Insights: `computeStudy`, `computeYearStudy`, and the pieces both layouts draw, `driftCols`,
   `chapterStrip`; see "Insights, the study"; also `crowdOf`, the Stats page's against-the-crowd numbers),
   `06p-studios.js` (the studios pie in Insights: `STUDIOS`, `filmStudio`, `studioData`, `pieSvg`, `studiosHtml`),
-  `06q-quiz.js` (the quiz: `D.quiz`, `QUIZ_KINDS`, `quizQuestions`, `quizBodyHtml`),
+  `06q-quiz.js` (the quiz: `D.quiz`, `QUIZ_KINDS`, `quizQuestions`, `quizBodyHtml`), `06r-asof.js` (Back in time, most
+  watched as of a date: `ASOF`, `filmSince`, `asofBase`, `asofCount`, `asofHtml`, `asofOut`),
   `06l-filter.js` (filters: `FILTER`, `filteredLib`, `D.filters` and its panel `filtersInner`, `filterStripHtml`,
   `dropEmpties`; see "Filters"), `06m-story.js` (the
   story: `D.story`, `storyBodyHtml`, `fillStory`, `storyFindings`), `06n-world.js` (the world map's country shapes and
@@ -256,7 +257,7 @@ The owner asked for this to be checked every time. A film, diary entry, person o
   page flushes when it's hidden or closed. If the database can't be opened at start, `store.failed` is set and the
   import screen says so; if the saved export can't be read, `LOAD_ERROR` says why. Neither falls back to the example.
 - `buildLibrary(rows)` makes the library: `films` (one per film: key, name, year, rating, liked, entries,
-  reviews, uri), `entries` (diary, oldest first), `reviews` (sanitised HTML + text), `profile`, `watchlistFilms`
+  reviews, uri, `added`: the day watched.csv says it was marked watched), `entries` (diary, oldest first), `reviews` (sanitised HTML + text), `profile`, `watchlistFilms`
   (film-like objects, minus films already watched). `watched.csv` and the diary decide what is seen; likes,
   ratings and reviews only mark films already there.
 - `META[filmKey]`: film details from TMDB (or Claude in the artifact): `d` directors, `c` cast (every credited role, see
@@ -268,7 +269,9 @@ The owner asked for this to be checked every time. A film, diary entry, person o
   `x/xi/xw` credited cameos with why, `ce` named extended appearances (see "Cameos and voices"), `un` bit parts and
   `so` people far better known than those billed around them, by id, `cl` the film's series on TMDB (see "Small parts"),
   `po` who counts set by hand on the film card (see "Who counts, by hand"), `co` the companies that made it, in TMDB's
-  order (see "Studios").
+  order (see "Studios"), `cg`/`vg` each cast and voice member's gender as TMDB lists it, a digit per name in step with
+  `c`/`vo` (0 not listed, 1 a woman, 2 a man, 3 non-binary; kept in step by `metaPeople`, read by `roleGender`, and
+  from another film by id through `peopleIndex().gender`; see "Back in time").
 - `FACTS[tmdbPersonId]`: `{ b, d, im, p, t, cs, st }` birth and death years, IMDb id, photo, when, and for people billed
   where a star would be a walk-on their career (`cs` read, `st` runs of years they were usually top-billed; see "Who
   counts, by hand") (`cr-people-v1`, this device only, in backups; asked again after `FACTS_DAYS`). `metaOf(f)` reads it (example films use `EXAMPLE_META`).
@@ -450,6 +453,24 @@ friend replaces the address instead.
   film of a year always repeats). The `quiz` check audits 25 rounds per scope (one right answer among distinct ones,
   right by the diary's numbers), ten rounds in a row with no film twice, and plays two rounds on both layouts (the
   best kept, a new best, none of the last round's films).
+- **Back in time** (asked 1 Nov 2026: "an option to see the user's cumulative most watched actor director stat at a
+  particular period in their diary history. For example on 5th june 2022 who were my most watched director and actors
+  of all time ... on 3rd December 2023 who was my most watched actress"; `06r-asof.js`): directors, actors and
+  actresses of all time as they stood on any day. A film counts from the day it was first in the diary: its first
+  diary entry, or the day watched.csv says it was marked watched (`f.added`), whichever is earlier (`filmSince`; a
+  film with neither isn't placed, and the line says how many). Up to a day each person counts once a film by the same
+  `roleNames` as Most watched, so the latest day gives Most watched's counts; actors and actresses are the on-screen
+  cast by TMDB's gender (`cg`, `TMDB_DETAILS_V` 15 read every film again; someone listed as neither is in neither,
+  and films not yet read again are said); ties go to who got there first (`seq`), and the first of each list says since
+  when they've led. Each person shows "now N" when it has grown since, and opens their films up to that day. Controls:
+  a date box, a slider along the diary, a jump to the end of each year and Latest; they change only the results in
+  place (`asofSet`, one count a frame while dragging), never the control in use (the Safari freeze). It follows the
+  filters, and a year picked above starts it at that year's end. Desktop: section `asof` "Back in time" in People
+  before People over the years, three lists side by side; phone: Stats › People, chip "Back in time" (`state.role`
+  "asof"), one list at a time with a Directors / Actors / Actresses switch (`ASOF.kind`). The `counts` check places
+  every film once, matches the latest day to Most watched, keeps actors and actresses apart, and checks every list at
+  each year's end; `extras` drives the controls on both layouts; `phoneTour` visits all three lists. The example diary's
+  watched.csv dates are now its first diary entries' (they were all its first day, which placed every film there).
 - **Insights**: a study of the diary (below), findings only: all years (in short, chapters, through the year, how taste has moved, what
   ratings follow, one film to the next, habits) and each year against the rest of the diary (in short, what set it
   apart, its months, ratings, threads, habits, the year picture).
@@ -558,9 +579,9 @@ standard errors or more from what the rest of the diary gives; every sentence op
   `FILM_FIXES` (by TMDB id, with a `why`) corrects facts TMDB has wrong (The Prowler 1951 is American; Breaking
   the Waves is in English; The Battle of Algiers in French). A film's language is TMDB's original language unless
   it's spoken in exactly one other (`spokenIn`). Every TMDB country is kept (it used to stop at 6, which made
-  lists differ from Letterboxd's). `TMDB_MATCH_VERSION` (14) re-looks-up films when matching changes; from 6 on, a
+  lists differ from Letterboxd's). `TMDB_MATCH_VERSION` (15) re-looks-up films when matching changes; from 6 on, a
   film whose match is unchanged keeps its details without a second request, unless what's kept of a film has changed
-  since (`TMDB_DETAILS_V`, 14: the studios, `co`; 13: playing themselves a cameo only below the top 10; 12 the film's series; 11 bit parts): then it's read again by its id alone, one request,
+  since (`TMDB_DETAILS_V`, 15: each cast member's gender, `cg`/`vg`; 14: the studios, `co`; 13: playing themselves a cameo only below the top 10; 12 the film's series; 11 bit parts): then it's read again by its id alone, one request,
   no search (`rereadRef`; films matched by hand too, keeping their pin). Watchlist films are looked up too.
 - **Counting people like Letterboxd** (a guest found actor and director counts off, 25 Oct 2026; then the owner asked
   for it "finely treading the line with credited, not credited and cameo and sometimes extended cameos", and for their
@@ -919,7 +940,7 @@ shows the latest ~50, so it accumulates), commits, and asks Pages to rebuild. Th
 `tests/`: `lib.mjs` (server, browser, stand-ins: papaparse/jszip served from `node_modules`, every outside
 service cut off unless a check stands in for it, service worker off unless asked, reduced motion, pages opened
 with `?example` (pass `example: false` for an empty browser; a check's own `goto` must add `?example` too),
-`phoneTour()` which opens every phone tab, every Stats view for all time and for a year, and every Insights/Compare section), `run.mjs`, and checks:
+`phoneTour()` which opens every phone tab, every Stats view for all time and for a year (and People › Back in time's three lists), and every Insights/Compare section), `run.mjs`, and checks:
 `apify`, `imdbcast` (the owner's cast checked on IMDb), `people` (people by TMDB id, the people check, cameos, voices, small parts and who counts by hand), `check` (film data check), `counts` (double counting, also with filters on), `reviews` (missing review text spotted; six-film actors), `welcome` (no example diary; import saved at once), `extras` (year picture, On this day, Watch next, PWA), `feed`, `import`,
 `links` (every link opens something), `pages` (nothing broken shows, no sideways scroll on the phone),
 `routes`, `storage` (IndexedDB move, backup and restore), `site` (the diary on the site: a stand-in GitHub and site),

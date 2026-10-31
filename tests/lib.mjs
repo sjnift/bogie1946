@@ -74,7 +74,17 @@ export async function phoneTour(m, each) {
   await tab("profile"); await each("profile");
   await tab("diary"); await each("diary");
   await tab("stats");
-  for (const v of ["films", "people", "genres", "years", "crowd"]) { await m.click(`#screen .seg [data-view="${v}"]`); await m.waitForTimeout(60); await each(v); }
+  for (const v of ["films", "people", "genres", "years", "crowd"]) {
+    await m.click(`#screen .seg [data-view="${v}"]`); await m.waitForTimeout(60); await each(v);
+    // People › Back in time (most watched as of a date), on the end of the first year, each list
+    if (v === "people" && await m.$('[data-role="asof"]')) {
+      await m.click('[data-role="asof"]'); await m.waitForTimeout(60);
+      const day = await m.$eval("[data-asof-day]", (b) => b.dataset.asofDay).catch(() => null);
+      if (day) { await m.click(`[data-asof-day="${day}"]`); await m.waitForTimeout(60); }
+      for (const k of ["d", "m", "w"]) if (await m.$(`[data-asof-kind="${k}"]`)) { await m.click(`[data-asof-kind="${k}"]`); await m.waitForTimeout(40); await each(`people back in time ${k}`); }
+      await m.click('[data-role="c"]'); await m.waitForTimeout(60);
+    }
+  }
   // and each Stats view for a year
   const y0 = await m.$$eval("#scopes [data-scope]", (x) => x.map((b) => b.dataset.scope).filter((y) => y !== "all")[0]);
   if (y0) {

@@ -146,6 +146,36 @@ export default async function ({ browser, base }) {
     assert(fav.few.startsWith("1960,1950") && fav.thin === 0 && /^Not enough yet: only 2 release years have 5 or more rated films watched in 2024, and a list needs 3\.$/.test(fav.empty) && fav.bar >= 5 && fav.sorted && fav.enough,
       `${file} favourite years ranked with caution: ${JSON.stringify(fav)}`);
     await p.click(phone ? '[data-relmode="films"]' : '[data-tab="released"][data-val="films"]'); await p.waitForTimeout(150);
+    // back in time (asked 1 Nov 2026): a year's end, the slider and a typed date move the results, never the controls
+    // being used; each list is Most watched counted up to that day; a person opens their films up to it
+    if (phone) { await p.goto(`${base}${file}?example#/people`); await p.waitForFunction(() => typeof state === "object" && state.lib); await p.click('[data-role="asof"]'); }
+    await p.waitForSelector(".asof .asof-range");
+    const jump = await p.$eval("[data-asof-day]", (b) => b.dataset.asofDay);
+    await p.click(`[data-asof-day="${jump}"]`); await p.waitForTimeout(120);
+    const at = () => p.evaluate(() => ({ date: document.querySelector(".asof-date").value, range: +document.querySelector(".asof-range").value, sum: document.querySelector(".asof-sum").textContent,
+      on: [...document.querySelectorAll(".asof-jump.on")].map((b) => b.dataset.asofDay).join(), cols: [...document.querySelectorAll(".asof-col")].map((c) => c.dataset.kind).join(),
+      first: [...document.querySelectorAll(".asof-col")].map((c) => { const b = c.querySelector(".asof-p"); return b ? [b.querySelector(".asof-nm").textContent, parseInt(b.querySelector(".asof-ct").textContent, 10)] : null; }) }));
+    const want = (day) => p.evaluate((day) => { const C = asofCount(ASOF.lib, day); return Object.fromEntries(ASOF_KINDS.map(([k]) => [k, C.lists[k][0] ? [C.lists[k][0].name, C.lists[k][0].count] : null])); }, day);
+    const a1 = await at(), w1 = await want(jump);
+    assert(a1.date === jump && a1.on === jump && new RegExp(`^By ${await p.evaluate((d) => fmtDate(d), jump)} you had`).test(a1.sum) && a1.cols === (phone ? "d" : "d,m,w")
+      && JSON.stringify(a1.first[0]) === JSON.stringify(w1.d) && (phone || JSON.stringify(a1.first.slice(1)) === JSON.stringify([w1.m, w1.w])), `${file} back in time, a year's end: ${JSON.stringify({ a1, w1 })}`);
+    // the slider: the date box follows; a typed date: the slider follows
+    await p.$eval(".asof-range", (r) => { r.value = String(Math.floor(+r.max / 2)); r.dispatchEvent(new Event("input", { bubbles: true })); }); await p.waitForTimeout(120);
+    const a2 = await p.evaluate(() => ({ date: document.querySelector(".asof-date").value, half: asofAdd(asofBase(ASOF.lib).first, Math.floor(+document.querySelector(".asof-range").max / 2)), sum: document.querySelector(".asof-sum").textContent, same: document.activeElement }));
+    assert(a2.date === a2.half && a2.sum.includes(await p.evaluate((d) => fmtDate(d), a2.half)), `${file} back in time, the slider: ${JSON.stringify(a2)}`);
+    await p.fill(".asof-date", jump); await p.waitForTimeout(120);
+    const a3 = await at();
+    assert(a3.range === await p.evaluate((d) => asofDays(asofBase(ASOF.lib).first, d), jump) && JSON.stringify(a3.first[0]) === JSON.stringify(w1.d), `${file} back in time, a typed date: ${JSON.stringify(a3)}`);
+    if (phone) {
+      await p.click('[data-asof-kind="w"]'); await p.waitForTimeout(120);
+      const a4 = await at();
+      assert(a4.cols === "w" && JSON.stringify(a4.first[0]) === JSON.stringify(w1.w) && a4.date === jump, `${file} back in time, actresses: ${JSON.stringify(a4)}`);
+    }
+    await p.click(".asof-p"); await p.waitForTimeout(200);
+    const who = await p.evaluate((panel) => { const d = document.querySelector(panel); return d ? [d.querySelector("h2, h3") && d.querySelector("h2, h3").textContent, d.textContent] : null; }, panel);
+    const lead = phone ? w1.w : w1.d;
+    assert(who && who[0] === lead[0] && who[1].includes(`${lead[1] === 1 ? "1 film" : `${lead[1]} films`} by ${await p.evaluate((d) => fmtDate(d), jump)}`), `${file} back in time opened ${JSON.stringify(who && [who[0], who[1].slice(0, 120)])}`);
+    await close();
     noErrors(p, file);
   }
   // phone pictures: a poster that has loaded fades in (it once stayed invisible: the page listened for "load" on the
@@ -203,7 +233,7 @@ export default async function ({ browser, base }) {
       sizes: [document.querySelector("#best-decade .best-decade .poster"), document.querySelector("#best-decade .bd-runner .poster")].map((p) => p && Math.round(p.getBoundingClientRect().width)) }; });
   const at = (id) => lay.ids.indexOf(id);
   assert(at("best-decade") > at("recent") && at("best-decade") < at("ch-films") && at("top") > at("ch-ratings") && at("top") > at("rated"), `main page order: ${lay.ids.join(" ")}`);
-  assert(lay.cards === 0 && lay.films.join() === "released,milestones,records,rewatched" && lay.people.join() === "starring,directed,crew,people-years"
+  assert(lay.cards === 0 && lay.films.join() === "released,milestones,records,rewatched" && lay.people.join() === "starring,directed,crew,asof,people-years"
     && lay.origin.join() === "origin,world,genre-years,genre-rates" && lay.faces >= 5 && lay.cats === 2
     && lay.when.join() === "logged,months,seasons,years,habits" && lay.ratings.join() === "rated,crowd,top" && lay.reviews.join() === "reviews,review-stats" && lay.next.join() === "next",
     `every chapter in full: ${JSON.stringify(lay)}`);

@@ -223,6 +223,11 @@ const EXAMPLE_WATCHLIST = [["Seven Samurai", 1954], ["The Thing", 1982], ["Amél
 
 /* Turns the table above into the same shape an imported export produces:
    a library of films plus diary entries, and a metadata map keyed by film. */
+/* The example cast's genders, as TMDB lists them (06r-asof: actors and actresses as of a date); two left unlisted, as
+   TMDB leaves some. */
+const EXAMPLE_WOMEN = new Set(["Scarlett Johansson", "Florence Pugh", "Emma Stone", "Saoirse Ronan", "Zendaya", "Julie Delpy", "Faye Wong", "Zhang Ziyi", "Meryl Streep", "Emily Blunt", "Anne Hathaway", "Rebecca Ferguson", "Olivia Colman", "Rachel Weisz", "Sandra Hüller", "Laura Dern", "Michelle Yeoh", "Cho Yeo-jeong", "Park So-dam", "Lee Jung-eun", "Bae Doona", "Go Ah-sung", "Tang Wei", "Lee Jung-hyun", "Kang Hye-jung", "Kim Min-hee", "Kim Tae-ri", "Greta Lee", "Maggie Cheung", "Rebecca Pan", "Brigitte Lin", "Valerie Chow", "Gong Li", "Michelle Reis", "Charlie Yeung", "Karen Mok", "Anna Faris", "Anjelica Huston", "Gwyneth Paltrow", "Tilda Swinton", "Kara Hayward", "Frances McDormand", "Olivia Williams", "Jessica Chastain", "Mackenzie Foy", "Rebecca Hall", "Marion Cotillard", "Amy Adams", "Ana de Armas", "Sylvia Hoeks", "Robin Wright", "Viola Davis", "Maria Bello", "Melissa Leo", "Mélanie Laurent", "Sarah Gadon", "Isabella Rossellini", "Rene Russo", "Michelle Williams", "Jena Malone", "Maggie Gyllenhaal", "Drew Barrymore", "Mary McDonnell", "Rooney Mara", "Rosamund Pike", "Carrie Coon", "Helena Bonham Carter", "Rosemarie DeWitt", "Melissa Benoist", "Carey Mulligan", "Jessica Barden", "Léa Seydoux", "Margaret Qualley", "Hong Chau", "Noémie Merlant", "Adèle Haenel", "Luàna Bajrami", "Valeria Golino", "Rumi Hiiragi", "Mari Natsuki", "Yasuko Sawaguchi", "Noriko Hidaka", "Chika Sakamoto", "Sumi Shimamoto", "Yuriko Ishida", "Yuko Tanaka", "Arisa Nakano", "Aoi Yamada", "Toko Miura", "Reika Kirishima", "Frankie Corio", "Celia Rowlson-Hall", "Claire Foy", "Laurie Metcalf", "Beanie Feldstein", "Emma Watson", "Eliza Scanlen", "Greta Gerwig", "Mickey Sumner", "Golshifteh Farahani", "Amira Casar", "Esther Garrel", "Naomi Watts", "Laura Harring", "Ann Miller", "Junko Iwao", "Rica Matsumoto", "Stephanie Hsu", "Jamie Lee Curtis", "Jeon Jong-seo", "Han Ye-ri", "Noel Kate Cho", "Youn Yuh-jung", "Keke Palmer", "Allison Williams", "Catherine Keener", "Toni Collette", "Milly Shapiro", "Sigourney Weaver", "Veronica Cartwright", "Keiko Tsushima", "Shelley Duvall", "Audrey Tautou", "Lorella Cravotta", "Sally Hawkins"]);
+const EXAMPLE_UNLISTED = new Set(["Shinpachi Tsuji", "Masaaki Okura"]);
+const exampleGenders = (names) => names.map((n) => EXAMPLE_UNLISTED.has(n) ? 0 : EXAMPLE_WOMEN.has(n) ? 1 : 2).join("");
 function buildExample() {
   let seed = 20261021;
   const rand = () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
@@ -244,14 +249,17 @@ function buildExample() {
   EXAMPLE_FILMS.forEach((f, i) => {
     const [name, year, rating, liked, d, c, g, k, l, r, w, p, m] = f;
     const base = { Name: name, Year: String(year), "Letterboxd URI": "" };
-    rows.watched.push({ ...base, Date: iso(start) });
+    // watched.csv dates a film the day it was marked watched: its first diary entry's, or the start for one never logged
+    const watched = { ...base, Date: iso(start) };
+    rows.watched.push(watched);
     rows.ratings.push({ ...base, Rating: String(rating) });
     if (liked) rows.likes.push(base);
     const crowd = EXAMPLE_CROWD[name] || [];
-    meta[filmKey(name, year)] = { src: "example", d: split(d), c: split(c), g: split(g), k: split(k), l, r, w: split(w), p: split(p), m: split(m), va: crowd[0], vc: crowd[1], co: split(EXAMPLE_STUDIOS[`${name}|${year}`]) };
+    meta[filmKey(name, year)] = { src: "example", d: split(d), c: split(c), cg: exampleGenders(split(c)), g: split(g), k: split(k), l, r, w: split(w), p: split(p), m: split(m), va: crowd[0], vc: crowd[1], co: split(EXAMPLE_STUDIOS[`${name}|${year}`]) };
     if (i % 9 === 4) return; // logged as watched without a diary date
     const first = pick(year, l);
     rows.diary.push({ ...base, Date: logDate(first), "Watched Date": iso(first), Rating: String(rating), Rewatch: "", Tags: "" });
+    watched.Date = rows.diary[rows.diary.length - 1].Date;
     if (rating >= 4.5 && rand() < 0.55) {
       const again = first + Math.floor(rand() * (end - first) / day) * day;
       if (again > first) rows.diary.push({ ...base, Date: logDate(again), "Watched Date": iso(again), Rating: String(rating), Rewatch: "Yes", Tags: "" });
@@ -259,7 +267,7 @@ function buildExample() {
     if (EXAMPLE_REVIEWS[name]) rows.reviews.push({ ...base, Date: logDate(first), "Watched Date": iso(first), Rating: String(rating), Review: EXAMPLE_REVIEWS[name] });
   });
   for (const [name, year, d, c, g, k, l, r, w, p, m, va, vc] of EXAMPLE_EXTRA)
-    meta[filmKey(name, year)] = { src: "example", d: split(d), c: split(c), g: split(g), k: split(k), l, r, w: split(w), p: split(p), m: split(m), va, vc };
+    meta[filmKey(name, year)] = { src: "example", d: split(d), c: split(c), cg: exampleGenders(split(c)), g: split(g), k: split(k), l, r, w: split(w), p: split(p), m: split(m), va, vc };
   rows.watchlist = EXAMPLE_WATCHLIST.map(([Name, Year]) => ({ Name, Year: String(Year) }));
   return { rows, meta };
 }

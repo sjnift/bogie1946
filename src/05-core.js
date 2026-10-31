@@ -325,7 +325,8 @@ function buildLibrary(input) {
   // Watched films and diary entries decide what counts as seen. Likes and reviews only mark films
   // already in it: Letterboxd lets you like a film you never logged.
   const find = (r) => films.get(keyOf(r));
-  rows.watched.forEach(get);
+  // the day a film was marked watched (watched.csv's Date), for films counted as of a date (06r-asof)
+  rows.watched.forEach((r) => { const f = get(r), d = r.Date; if (/^\d{4}-\d{2}-\d{2}$/.test(d || "") && (!f.added || d < f.added)) f.added = d; });
   const rated = rows.watched.length ? find : get; // without watched.csv, a rating is the only sign of a watch
   for (const r of rows.ratings) { const v = parseFloat(r.Rating); const f = v && rated(r); if (f) f.rating = v; }
   const entries = [];
@@ -476,15 +477,20 @@ const cameoWhy = (w) => w === "self" ? "playing themselves" : w === "star" ? "a 
 // Where each role is kept in a film's details: voices in `vo` (`v` is the details' version), ids beside each.
 const ROLE_FIELD = { c: "c", v: "vo", d: "d", w: "w", p: "p", m: "m" };
 const ROLE_IDS = { c: "ci", v: "voi", d: "di", w: "wi", p: "pi", m: "mi" };
+// each cast member's gender as TMDB lists it, a digit per name in step with the names (0 not listed, 1 a woman, 2 a man,
+// 3 non-binary), for actors and actresses as of a date (asked 1 Nov 2026; 06r-asof)
+const ROLE_GENDER = { c: "cg", v: "vg" };
 function metaPeople(m, role, n) {
   const f = ROLE_FIELD[role], names = Array.isArray(m[f]) ? m[f] : [], ids = Array.isArray(m[ROLE_IDS[role]]) ? m[ROLE_IDS[role]] : [];
-  const out = [], outIds = [], seen = new Set();
+  const gf = ROLE_GENDER[role], gs = gf && typeof m[gf] === "string" ? m[gf] : "";
+  const out = [], outIds = [], outG = [], seen = new Set();
   names.forEach((x, i) => {
     const name = String(x).trim(), id = Number(ids[i]) || 0, k = id ? `#${id}` : `=${name.toLowerCase()}`;
     if (!name || seen.has(k) || out.length >= n) return;
-    seen.add(k); out.push(name); outIds.push(id);
+    seen.add(k); out.push(name); outIds.push(id); outG.push(/^[0-3]$/.test(gs[i] || "") ? gs[i] : "0");
   });
-  return { ...(out.length || role !== "v" ? { [f]: out } : {}), ...(outIds.some(Boolean) ? { [ROLE_IDS[role]]: outIds } : {}) };
+  const g = outG.join("");
+  return { ...(out.length || role !== "v" ? { [f]: out } : {}), ...(outIds.some(Boolean) ? { [ROLE_IDS[role]]: outIds } : {}), ...(gf && /[1-3]/.test(g) ? { [gf]: g } : {}) };
 }
 // The cameos a film's cast had, with why: names, ids and reasons kept in step.
 function cameoList(m) {
@@ -589,17 +595,18 @@ function peopleIndex() {
   if (PEOPLE && PEOPLE.meta === META && PEOPLE.rev === META_REV) return PEOPLE;
   const facts = typeof FACTS === "object" && FACTS ? FACTS : {};
   // TMDB sometimes keeps one person twice; two entries with the same IMDb id are one person, under the first
-  const byName = new Map(), byImdb = new Map(), canon = new Map(), nameOf = new Map();
+  const byName = new Map(), byImdb = new Map(), canon = new Map(), nameOf = new Map(), gender = new Map();
   for (const [id, f] of Object.entries(facts)) if (f && f.im) { if (byImdb.has(f.im)) canon.set(Number(id), byImdb.get(f.im)); else byImdb.set(f.im, Number(id)); }
   for (const m of Object.values(META)) {
     if (!m || m.miss) continue;
     const y = Number(m.y) || 0;
     for (const [role, ir] of Object.entries(ROLE_IDS)) {
-      const ids = m[ir];
+      const ids = m[ir], gs = ROLE_GENDER[role] && typeof m[ROLE_GENDER[role]] === "string" ? m[ROLE_GENDER[role]] : "";
       if (!Array.isArray(ids)) continue;
       (m[ROLE_FIELD[role]] || []).forEach((n, i) => {
         const id = canon.get(Number(ids[i])) || Number(ids[i]);
         if (!id) return;
+        if (+gs[i] && !gender.has(id)) gender.set(id, +gs[i]);
         if (!nameOf.has(id)) nameOf.set(id, n);
         n = nameOf.get(id);
         const k = personKey(n), g = byName.get(k) || byName.set(k, new Map()).get(k), p = g.get(id) || g.set(id, { name: n, lo: 9999, hi: 0 }).get(id);
@@ -636,7 +643,7 @@ function peopleIndex() {
   const twice = new Set(canon.values());
   for (const id of canon.keys()) nameOf.set(id, nameOf.get(canon.get(id)));
   for (const id of [...nameOf.keys()]) if (!canon.has(id) && !twice.has(id)) nameOf.delete(id);
-  return (PEOPLE = { meta: META, rev: META_REV, label, idOf, byImdb, canon, nameOf, namesakes, usual, habit });
+  return (PEOPLE = { meta: META, rev: META_REV, label, idOf, byImdb, canon, nameOf, namesakes, usual, habit, gender });
 }
 // The TMDB person id behind a name as shown (a namesake's label included), when there's one.
 const personIdOf = (name) => peopleIndex().idOf.get(personKey(name)) || 0;
@@ -768,11 +775,13 @@ function roleNames(m, role) {
   let c = ROLE_NAMES.get(m);
   if (!c || c.P !== P) ROLE_NAMES.set(m, (c = { P, lists: {} }));
   if (c.lists[role]) return c.lists[role];
-  const out = [], have = new Set(), lead = new Set();
+  const out = [], have = new Set(), lead = new Set(), sex = new Map(), gs = ROLE_GENDER[role] && typeof m[ROLE_GENDER[role]] === "string" ? m[ROLE_GENDER[role]] : "";
   const add = (name, id, place) => {
     const cid = (id && P.canon.get(id)) || id, shown = (cid && (P.label.get(cid) || P.nameOf.get(cid))) || name, k = personKey(shown);
     if (!k || have.has(k)) return;
     have.add(k); out.push(shown);
+    // their gender: as this film's credits list it, else as another film's do
+    sex.set(k, (place != null && +gs[place]) || (cid && P.gender && (P.gender.get(cid) || P.gender.get(id))) || 0);
     if (place != null && place < LEAD_TOP) lead.add(k);
   };
   for (const { name, id, place } of rolePeople(m, role)) {
@@ -785,12 +794,16 @@ function roleNames(m, role) {
   if (role === "c") (m.x || []).forEach((name, i) => { const id = Number((m.xi || [])[i]) || 0; if (id && partFix(m, id) === 1) add(name, id, null); });
   c.leads = c.leads || {};
   c.leads[role] = lead;
+  c.sex = c.sex || {};
+  c.sex[role] = sex;
   return (c.lists[role] = out);
 }
 // The people of a film billed in its top LEAD_TOP, by `personKey` (for "Highest rated", `rankPeople`).
 const LEAD_TOP = 8;
 const roleLeads = (m, role) => { roleNames(m, role); const c = m && ROLE_NAMES.get(m); return (c && c.leads && c.leads[role]) || new Set(); };
 const castOf = (m) => roleNames(m, "c");
+// The gender of each of a film's people as counted (`personKey` → 0 not listed, 1 a woman, 2 a man, 3 non-binary).
+const roleGender = (m, role) => { roleNames(m, role); const c = m && ROLE_NAMES.get(m); return (c && c.sex && c.sex[role]) || new Map(); };
 // Every cameo of a film, as shown (not counted): from its lookup, stars far down its cast, and parts left out by hand.
 function cameosOf(m) {
   if (!m) return [];

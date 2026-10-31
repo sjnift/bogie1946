@@ -103,9 +103,10 @@ async function tmdbGet(path, params, key, signal) {
 // 12: the series a film is part of on TMDB (`cl`), for a lead back in a small part (05-core, `walkOn`).
 // 13: someone playing themselves is a cameo only below the top 10, or not at all where the film's cast plays itself.
 // 14: the companies that made it (`co`), for the studios in Insights (06p-studios).
-const TMDB_MATCH_VERSION = 14;
+// 15: each cast member's gender (`cg`, `vg`), for actors and actresses as of a date (06r-asof).
+const TMDB_MATCH_VERSION = 15;
 // The last version that changed what's kept of a film: older details are read again, even when the match is the same.
-const TMDB_DETAILS_V = 14;
+const TMDB_DETAILS_V = 15;
 // Bump when matching finds films it used to miss, so only those are looked up again.
 // 7: a title that is half of the other ("Glass Onion: A Knives Out Mystery" for Glass Onion).
 // 8: a pinned film TMDB keeps on its TV side (The Sorrow and the Pity, Nathan for You: Finding Frances).
@@ -186,7 +187,7 @@ function castParts(list, roleOf, crew, genres) {
   const crewJobs = new Map();
   for (const x of crew) { const j = x.jobs ? x.jobs.map((y) => y.job) : [x.job]; crewJobs.set(x.id, new Set([...(crewJobs.get(x.id) || []), ...j])); }
   const names = new Set((genres || []).map((g) => g.name || g));
-  const s = sortCast(list.map((c) => ({ name: c.name, id: c.id, character: roleOf(c), profile_path: c.profile_path, popularity: c.popularity })), { crewJobs, documentary: names.has("Documentary"), animation: names.has("Animation") });
+  const s = sortCast(list.map((c) => ({ name: c.name, id: c.id, character: roleOf(c), profile_path: c.profile_path, popularity: c.popularity, gender: c.gender })), { crewJobs, documentary: names.has("Documentary"), animation: names.has("Animation") });
   return { s, kept: { ...credits("c", s.live), ...credits("v", s.voice), x: s.cameos.map((c) => c.name), xi: s.cameos.map((c) => Number(c.id) || 0), xw: s.cameos.map((c) => c.why), ce: s.extended, un: s.bits, so: s.standout } };
 }
 // What the people pages say of it (inside Claude, film details come from Claude, with each film's main cast).
@@ -231,7 +232,8 @@ async function tmdbFilm(f, key, signal, prev) {
   return tmdbDetails(hit.id, key, signal);
 }
 // A role's people as kept: their names, and their TMDB person ids beside them (`c` and `ci`…).
-const credits = (role, list) => ({ [ROLE_FIELD[role]]: list.map((x) => x.name), [ROLE_IDS[role]]: list.map((x) => Number(x.id) || 0) });
+const credits = (role, list) => ({ [ROLE_FIELD[role]]: list.map((x) => x.name), [ROLE_IDS[role]]: list.map((x) => Number(x.id) || 0),
+  ...(ROLE_GENDER[role] ? { [ROLE_GENDER[role]]: list.map((x) => [1, 2, 3].includes(Number(x.gender)) ? Number(x.gender) : 0).join("") } : {}) });
 // One TMDB film's details and credits, by its id.
 async function tmdbDetails(id, key, signal) {
   const d = await tmdbGet(`/movie/${id}`, { append_to_response: "credits" }, key, signal);
@@ -653,6 +655,7 @@ function claudePrompt(batch) {
   return `You are filling in film credits for someone's Letterboxd diary. For each film below (title and release year as listed on Letterboxd), give what you know:
 - d: director(s)
 - c: up to 8 top-billed cast, in billing order (for animation, the original-language voice cast)
+- cg: one digit for each name in c, in order: 1 a woman, 2 a man, 0 if unsure
 - w: screenwriter(s)
 - p: director(s) of photography
 - m: original score composer(s), or [] if none
@@ -663,7 +666,7 @@ function claudePrompt(batch) {
 - co: the companies that made it, the main studio first (Warner Bros. Pictures, Toho, A24)
 Spell names the way TMDB credits them, and spell each person the same way every time. If you don't recognise a film with confidence, return {"i": <index>, "x": 1} for it instead of guessing.
 Reply with only a JSON array with one object per film, in the same order, like:
-[{"i":0,"d":["Bong Joon-ho"],"c":["Song Kang-ho","Lee Sun-kyun"],"w":["Bong Joon-ho","Han Jin-won"],"p":["Hong Kyung-pyo"],"m":["Jung Jae-il"],"g":["Comedy","Thriller","Drama"],"k":["South Korea"],"l":"Korean","r":133,"co":["Barunson E&A"]}]
+[{"i":0,"d":["Bong Joon-ho"],"c":["Song Kang-ho","Lee Sun-kyun"],"cg":"22","w":["Bong Joon-ho","Han Jin-won"],"p":["Hong Kyung-pyo"],"m":["Jung Jae-il"],"g":["Comedy","Thriller","Drama"],"k":["South Korea"],"l":"Korean","r":133,"co":["Barunson E&A"]}]
 
 Films:
 ${batch.map((f, i) => `${i}. ${f.name}${f.year ? ` (${f.year})` : ""}`).join("\n")}`;

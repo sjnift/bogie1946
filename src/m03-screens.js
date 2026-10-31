@@ -334,8 +334,10 @@ function peopleScreen(s) {
   const data = { c: s.cast, v: s.voice, d: s.directors, w: s.writers, p: s.dop, m: s.music }[role] || s.cast;
   const best = state.sort === "best";
   const list = best ? data.best : data.most;
-  const head = statsHead() + chipBar("role", [["c", "Actors"], ["v", "Voices"], ["d", "Directors"], ["w", "Writers"], ["p", "Camera"], ["m", "Music"]], role) +
-    segBar("sort", [["most", "Most watched"], ["best", "Highest rated"]], state.sort, "small");
+  const chips = statsHead() + chipBar("role", [["c", "Actors"], ["v", "Voices"], ["d", "Directors"], ["w", "Writers"], ["p", "Camera"], ["m", "Music"], ["asof", "Back in time"]], role);
+  // most watched as they stood on any day (asked 1 Nov 2026; 06r-asof)
+  if (role === "asof") return chips + (s.withMeta ? `<p class="status" style="margin:10px 2px 0">Your most watched of all time as they stood on any day of your diary.</p>${asofHtml(state.lib, state.scope, true)}` : needMeta());
+  const head = chips + segBar("sort", [["most", "Most watched"], ["best", "Highest rated"]], state.sort, "small");
   if (!s.withMeta) return head + needMeta();
   const note = role === "c" ? castRuleText() : role === "v" ? "Voice roles in animation, narration and the like, counted apart from on-screen acting. Additional voices and cameos don't count." : "";
   const bestNote = best ? `${note ? " " : ""}${role === "c" ? castBarText(s) : `Highest rated needs ${s.minRated} or more rated films.`}` : "";
