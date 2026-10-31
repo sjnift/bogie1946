@@ -171,6 +171,9 @@ export default async function ({ browser, base }) {
       const a4 = await at();
       assert(a4.cols === "w" && JSON.stringify(a4.first[0]) === JSON.stringify(w1.w) && a4.date === jump, `${file} back in time, actresses: ${JSON.stringify(a4)}`);
     }
+    // a shared top spot is said as one (5 Jun 2022 in the owner's diary: Woody Allen and Alfred Hitchcock, 18 each)
+    const leads = await p.evaluate(() => [asofLead([{ name: "A", count: 3 }, { name: "B", count: 3 }, { name: "C", count: 2 }], "director", "2022-01-01"), asofLead([{ name: "A", count: 3 }, { name: "B", count: 2 }], "actress", "2022-01-01")]);
+    assert(leads[0] === "A and B level at the top with 3 films each; A got there first." && leads[1] === "A, your most watched actress since 1 Jan 2022.", `${file} back in time, who leads: ${JSON.stringify(leads)}`);
     await p.click(".asof-p"); await p.waitForTimeout(200);
     const who = await p.evaluate((panel) => { const d = document.querySelector(panel); return d ? [d.querySelector("h2, h3") && d.querySelector("h2, h3").textContent, d.textContent] : null; }, panel);
     const lead = phone ? w1.w : w1.d;

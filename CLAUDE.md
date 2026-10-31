@@ -462,7 +462,8 @@ friend replaces the address instead.
   `roleNames` as Most watched, so the latest day gives Most watched's counts; actors and actresses are the on-screen
   cast by TMDB's gender (`cg`, `TMDB_DETAILS_V` 15 read every film again; someone listed as neither is in neither,
   and films not yet read again are said); ties go to who got there first (`seq`), and the first of each list says since
-  when they've led. Each person shows "now N" when it has grown since, and opens their films up to that day. Controls:
+  when they've led, or who share the top (`asofLead`: on the owner's 5 Jun 2022 Woody Allen and Alfred Hitchcock had 18
+  films each). Each person shows "now N" when it has grown since, and opens their films up to that day. Controls:
   a date box, a slider along the diary, a jump to the end of each year and Latest; they change only the results in
   place (`asofSet`, one count a frame while dragging), never the control in use (the Safari freeze). It follows the
   filters, and a year picked above starts it at that year's end. Desktop: section `asof` "Back in time" in People

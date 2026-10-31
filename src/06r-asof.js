@@ -77,6 +77,14 @@ function asofHtml(lib, scope, phone) {
     </div>
     <div class="asof-out" aria-live="polite">${asofOut(lib, day, phone)}</div></div>`;
 }
+// Who led a list: one person since a day, or several level at the top (Woody Allen and Alfred Hitchcock on 18 films
+// each, 5 Jun 2022), the first to get there named.
+function asofLead(L, one, since) {
+  const top = L[0], level = L.filter((p) => p.count === top.count);
+  if (level.length === 1) return `${esc(top.name)}, your most watched ${one} since ${esc(fmtDate(since))}.`;
+  const names = level.slice(0, 3).map((p) => esc(p.name)), more = level.length - names.length;
+  return `${joinAnd(more ? [...names, plural(more, "other")] : names)} level at the top with ${plural(top.count, "film")} each; ${esc(top.name)} got there first.`;
+}
 // The results for a day: who led each list, and the top ten of each (the phone, one list at a time).
 const ASOF_NOW = new WeakMap();
 function asofNow(lib) {
@@ -98,7 +106,7 @@ function asofOut(lib, day, phone) {
   const list = ([k, label, one]) => {
     const L = C.lists[k], top = L[0];
     return `<div class="asof-col" data-kind="${k}"><h3 class="asof-h">${label}</h3>
-      ${top ? `<p class="asof-lead">${esc(top.name)}, your most watched ${one} since ${esc(fmtDate(C.since[k]))}.</p>` : ""}
+      ${top ? `<p class="asof-lead">${asofLead(L, one, C.since[k])}</p>` : ""}
       ${L.length ? `<ol class="asof-list">${L.slice(0, ASOF_N).map((p, i) => row(k, p, i)).join("")}</ol>` : `<div class="empty">No ${label.toLowerCase()} yet${k !== "d" && C.unread ? " (their casts are still being read)" : ""}.</div>`}</div>`;
   };
   const kinds = phone ? ASOF_KINDS.filter(([k]) => k === ASOF.kind) : ASOF_KINDS;
