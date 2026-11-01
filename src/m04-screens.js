@@ -78,8 +78,10 @@ function filmsScreen(s) {
   if (rated.length) html += sh("Highest rated", seeAll(`data-act="all-rated"`)) + posterGrid(rated.slice(0, 8));
   const low = rated.filter((f) => f.rating <= 2.5).reverse();
   if (low.length) html += sh("Lowest rated", low.length > 8 ? seeAll(dl(D.films("Lowest rated", filmsSub(low, "2½★ and under"), low, { scope: s.scope, sort: "given" }))) : "") + posterGrid(low.slice(0, 8));
-  const habits = s.scope === "all" ? allInsights().habits : yearInsights(s.scope).habits.filter((h) => !["Longest streak", "Biggest day", "Oldest film"].includes(h.k));
-  if (habits.length) html += mHabits(habits, "Habits");
+  const I = soonInsights(s.scope);
+  const habits = !I ? null : s.scope === "all" ? I.habits : I.habits.filter((h) => !["Longest streak", "Biggest day", "Oldest film"].includes(h.k));
+  if (!habits) html += sh("Habits") + soonCard("your habits");
+  else if (habits.length) html += mHabits(habits, "Habits");
   if (!s.withMeta) html += needMeta();
   return html + (mReviewInsights(state.lib, s.scope === "all" ? null : s.scope) || "");
 }
@@ -140,7 +142,7 @@ function genresScreen(s) {
       (ranked.length ? sh("Decades, best rated first") + `<div class="group">${ranked.map(decadeRow).join("")}</div>` : "") +
       sh("Films by decade of release") + `<div class="card">${colChart(cols, "Films by decade of release", "", 100, { unit: "films" })}</div>`;
   }
-  if (s.scope === "all" && s.withMeta) html += mGenres(allInsights());
+  if (s.scope === "all" && s.withMeta) { const I = soonInsights("all"); html += I ? mGenres(I) : sh("Genres as you rate them") + soonCard("your genres"); }
   return html;
 }
 

@@ -9,11 +9,12 @@ let MY_LIB = null, EXAMPLE_LIB = null, STATS = null;
 let IMG = imgBase(); // TMDB's picture server, or the relay where it can't be reached (05-core)
 const showImages = !IN_VIEWER; // pages inside Claude can't load outside images
 
+// (your own diary's films only ever take their own details: the example's few hand-written credits used to stand in
+// for a film of the same name not looked up yet, so a guest with no key saw a handful of actors counted from those)
 function metaOf(f) {
   if (state.mode === "example") return EXAMPLE_META[f.key] || null;
   const m = META[f.key];
-  if (m && !m.miss) return m;
-  return EXAMPLE_META[f.key] || null;
+  return m && !m.miss ? m : null;
 }
 let renderQueued = false;
 function scheduleRender() {
@@ -59,6 +60,7 @@ function render() {
   renderLookup();
   renderSections(STATS);
   syncHash();
+  warmStudy();
 }
 // Search opens over whatever is on screen.
 function openSearch() {
@@ -98,7 +100,7 @@ function renderHero(s, years) {
   let line = (filterOn() && state.page === "stats" ? `<span class="fnote">${esc(filterText())}:</span> ` : "") + dlink(DR.films(s), plural(s.films.length, "film"));
   if (s.timed) line += ` and ${dlink(DR.runtime(s), plural(hours, "hour"))} in front of the screen`;
   line += ".";
-  const star = s.cast.most[0], dir = s.directors.most[0];
+  const later = peopleLater(state.lib), star = later ? null : s.cast.most[0], dir = later ? null : s.directors.most[0];
   if (star && star.count > 1) line += ` ${dlink(DR.person(star), esc(star.name))} turns up most, in ${star.count} of them.`;
   if (dir && dir.count > 1) line += ` ${dlink(DR.person(dir), esc(dir.name))} directed the most, with ${dir.count}.`;
   if (!s.withMeta && s.films.length) line += " Look up cast and crew below to see who you watch most.";
@@ -159,12 +161,13 @@ function renderLookupMini() {
     const without = state.lib.films.filter((f) => !metaOf(f) && (!todo || todo.has(f))).length;
     if (job.running) html = `<span id="lookup-mini-progress">${progressText()}</span> <button class="linkish" type="button" data-goto="settings">See it in Settings</button>`;
     else if (without && (IN_VIEWER || !tmdbKey())) html = `${plural(without, "film")} ${without === 1 ? "has" : "have"} no cast and crew yet. <button class="linkish" type="button" data-goto="settings">Fill them in from Settings</button>`;
-    else if (MY_LIB && partsToCheck(MY_LIB).length) { const n = partsToCheck(MY_LIB).length; html = `${plural(n, "part")} to check: ${n === 1 ? "a famous name" : "famous names"} far down a big cast, left out as ${n === 1 ? "a walk-on" : "walk-ons"}. <button class="linkish" type="button" data-goto="settings">Check in Settings</button>`; }
+    else if (MY_LIB && partsNotice(MY_LIB).length) { const n = partsNotice(MY_LIB).length; html = `${plural(n, "part")} to check: ${n === 1 ? "a famous name" : "famous names"} far down a big cast, left out as ${n === 1 ? "a walk-on" : "walk-ons"}. <button class="linkish" type="button" data-goto="settings">Check in Settings</button>`; }
   }
   if (el.innerHTML !== html) el.innerHTML = html;
   el.hidden = !html;
 }
-function renderLookup() { renderLookupBox(); renderLookupMini(); }
+// the Cast & crew box lives on Settings: drawn there only (it was redrawn with the stats page, its people check half a second)
+function renderLookup() { if (state.page === "settings") renderLookupBox(); renderLookupMini(); }
 function renderLookupBox() {
   const el = $("#lookup");
   if (!state.lib) return;

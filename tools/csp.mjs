@@ -11,8 +11,8 @@ const UNFRAMED = `<style id="unframed">html{display:none}</style>
 const policy = (hashes) => [
   "default-src 'none'",
   `script-src 'self' ${hashes.map((h) => `'sha256-${h}'`).join(" ")}`,
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  "font-src https://fonts.gstatic.com",
+  "style-src 'self' 'unsafe-inline'",
+  "font-src 'self'", // the fonts are the site's own (src/site/fonts)
   "img-src 'self' data: blob: https://image.tmdb.org https://wsrv.nl https://*.goatcounter.com", // wsrv.nl: TMDB's pictures where TMDB is blocked; GoatCounter: visit counts
   "connect-src 'self' https://api.themoviedb.org https://www.omdbapi.com https://api.apify.com https://api.github.com",
   "manifest-src 'self'",

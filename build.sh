@@ -41,6 +41,13 @@ cp src/site/manifest.webmanifest src/site/sw.js src/site/og.png docs/
 cp src/site/icons/*.png docs/icons/
 # Papa Parse and JSZip come from the site itself, not a CDN, so nobody else can change what runs here
 cp src/site/vendor/*.js docs/vendor/
+# and the fonts: Google's stylesheet held the first paint back on every visit, waiting for another server
+mkdir -p docs/fonts
+cp src/site/fonts/*.woff2 src/site/fonts/README.txt docs/fonts/
+sed -n '/@font-face/p' src/site/fonts.html > docs/fonts.css
+FONTS='/rel="preconnect" href="https:\/\/fonts\.g/d'
+# the pictures to share ask for the fonts on the phone page: the site's own copy
+SHAREFONT='s|https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800&[^"]*display=swap|fonts.css|'
 VENDOR='s|https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js|vendor/papaparse.min.js|; s|https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js|vendor/jszip.min.js|' 
 # What a shared link shows (WhatsApp, iMessage…): a title, a line and a picture (src/site/og.png, from tools/make_og.mjs)
 SITE_URL="https://sjnift.github.io/bogie1946/"
@@ -70,10 +77,10 @@ SW_REGISTER='<script>if ("serviceWorker" in navigator) navigator.serviceWorker.r
 app() { sed -e "s|<meta charset=\"utf-8\">|<meta charset=\"utf-8\">\\
 $APP_HEAD|" -e "s|</body>|$SW_REGISTER\\
 </body>|"; }
-standalone "$DESK_HEAD" "$DESK_BODY" | stamp | app | sed -e "$VENDOR" \
+standalone "$DESK_HEAD" "$DESK_BODY" | stamp | app | sed -e "$VENDOR" -e "$SHAREFONT" -e "$FONTS" -e '/fonts\.googleapis\.com\/css2/{r src/site/fonts.html' -e 'd}' \
   -e 's|https://claude.ai/artifact/2RUkgC4dsysdz66WjJ6gzb" target="_blank" rel="noopener"|mobile.html"|' \
   -e 's|It keeps its own copy of your import, so import there too.|It uses the same import.|' > docs/desktop.html
-standalone "$MOB_HEAD" "$MOB_BODY" | stamp | app | sed -e "$VENDOR" \
+standalone "$MOB_HEAD" "$MOB_BODY" | stamp | app | sed -e "$VENDOR" -e "$SHAREFONT" \
   -e 's|https://claude.ai/artifact/52oE5x53dcjUZgBYQMfPjR" target="_blank" rel="noopener"|desktop.html"|' \
   -e 's|It keeps its own copy of your import.|It uses the same import.|' -e 's|<title>Credits Roll Mobile</title>|<title>Credits Roll</title>|' > docs/mobile.html
 cat > docs/index.html <<'HTML'
@@ -102,4 +109,5 @@ touch docs/.nojekyll
 # the site's pages run only their own code (see tools/csp.mjs)
 node tools/csp.mjs docs/desktop.html docs/mobile.html docs/index.html
 if grep -q "cdnjs.cloudflare.com" docs/*.html; then echo "A page still loads a script from a CDN" >&2; exit 1; fi
+if grep -q "fonts.googleapis.com" docs/*.html; then echo "A page still loads Google's fonts" >&2; exit 1; fi
 if grep -rqE '"[0-9a-f]{32}" /\*TMDB_KEY\*/' docs; then echo "A TMDB key ended up in docs/; refusing to build the public site" >&2; rm -rf docs; exit 1; fi

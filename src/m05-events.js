@@ -204,15 +204,20 @@ function bind() {
 }
 
 async function init() {
+  performance.mark("cr-start");
   await store.init();
+  performance.mark("cr-stored"); // saved data read (marks for speed checks: start, stored, built, drawn)
   META = store.get(KEYS.meta, {}); PHOTOS = store.get(KEYS.photos, {}); LBX = store.get(KEYS.lbx, {}); FACTS = store.get(KEYS.facts, {});
   if (showImages) imgProbe(); // can this device reach TMDB's pictures, or only the relay? (05-core)
-  const ex = buildExample();
-  EXAMPLE_FRIENDS = buildExampleFriends().map((f) => ({ ...f, lib: buildLibrary(f.rows) }));
+  // the made-up example only with ?example in the address (it was built at every start, for nothing)
+  const ex = SHOW_EXAMPLE ? buildExample() : { rows: {}, meta: {} };
+  EXAMPLE_FRIENDS = SHOW_EXAMPLE ? buildExampleFriends().map((f) => ({ ...f, lib: buildLibrary(f.rows) })) : [];
   loadFriends();
   EXAMPLE_META = Object.fromEntries(Object.entries(ex.meta).map(([k, m]) => [k, cleanMeta(m)]));
   EXAMPLE_LIB = buildLibrary(ex.rows);
+  FEED = feedCached(); // the last feed this device saw, so the first drawing has its entries (06h-more)
   try { MY_LIB = myLibrary(); } catch (e) { MY_LIB = null; LOAD_ERROR = (e && e.message) || "unknown error"; }
+  performance.mark("cr-built");
   // a device that opened the diary on the site before but has nothing saved now: bring it in before the first screen
   if (!MY_LIB && SITE && SITE_ON) await siteCheck(false);
   const view = store.get(VIEW_KEY, {});
@@ -224,6 +229,7 @@ async function init() {
   bind();
   routeFromHash();
   render();
+  performance.mark("cr-drawn");
   routeReady = true;
   syncHash(true);
   openRouteFilm();
@@ -237,9 +243,8 @@ async function init() {
   countVisit(); // (06j-site)
 }
 async function refreshFeed() {
-  const feed = MY_LIB && await loadFeed(MY_LIB.profile.username);
-  if (!feed) return;
-  FEED = feed; MY_LIB = myLibrary(); SEARCH_INDEX = null; DATA_REV++;
+  if (!MY_LIB || !(await feedFresh(MY_LIB.profile.username))) return;
+  MY_LIB = myLibrary(); SEARCH_INDEX = null; DATA_REV++;
   render();
 }
 init();

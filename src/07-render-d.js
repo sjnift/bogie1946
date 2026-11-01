@@ -4,9 +4,8 @@
    highest and lowest rated films a row of posters each with the rest a click away, one calendar in When you watch, one
    row of charts in Year by year, and the countries on the map rather than in a column beside it. */
 // The chapters, in order, each a list of sections.
-function dashChapters(s) {
-  const all = s.scope === "all", noMeta = !s.withMeta, L = cardLines(s), lib = state.lib, scope = s.scope;
-  const I = homeInsights(), R = all ? null : homeInsights(s.scope), views = viewsOf(s);
+function dashChapters(s, quick) {
+  const all = s.scope === "all", noMeta = !s.withMeta, L = cardLines(s), lib = state.lib, scope = s.scope, views = viewsOf(s);
 
   /* films */
   const decCols = [];
@@ -26,6 +25,10 @@ function dashChapters(s) {
     recordsBlock(s) ? section("records", "Records", "The longest, shortest, oldest and newest films.", recordsBlock(s)) : "",
     re.length ? section("rewatched", "Most rewatched", `${L.rewatched} ${dlink(re.length > 8 && D.films("Most rewatched", filmsSub(re), re, { scope, sort: "given", note: (f) => plural(views(f), "viewing") }), `All ${fmtN(re.length)} rewatched films`)}`, rewatchedBlock(s)) : ""];
 
+  // the first drawing of a visit with a big diary stops here: the rest needs everyone's credits worked out (renderSections)
+  if (quick) return [["films", "Films", filmsFull]];
+  const I = homeInsights(), R = all ? null : homeInsights(s.scope);
+
   /* people, and genres and countries */
   const everyone = (data, label) => dlink(data.total && D.names(label, `${fmtN(data.total)} in all, most watched first`, data.most, { faces: true }), `${fmtN(data.total)} ${label.toLowerCase()}`);
   const people = (kind, data) => noMeta ? emptyMeta() : tabs(kind, [["most", "Most watched"], ["best", "Highest rated"]], state.tab[kind]) + peopleBlock(kind, data, s);
@@ -36,7 +39,7 @@ function dashChapters(s) {
     section("directed", "Directed by", `${everyone(s.directors, "Directors")}.`, people("directors", s.directors)),
     section("crew", "Crew", `Writers, cinematographers and composers. Highest rated needs ${s.minRated}+ rated films.`, noMeta ? emptyMeta() : crewBlock(s)),
     // most watched as they stood on any day (asked 1 Nov 2026)
-    section("asof", "Back in time", "Your most watched of all time as they stood on any day of your diary, and who led when. Drag the slider, click the timeline, pick a date or jump to a year's end.", noMeta ? emptyMeta() : asofHtml(lib, scope, false)),
+    section("asof", "Back in time", "Your most watched of all time as they stood on any day of your diary, and who led when. Drag the slider, click the timeline, pick a date or jump to a year's end.", noMeta ? emptyMeta() : asofSoon(lib, scope)),
     all ? section("people-years", "People over the years", "Who's new, who stays, and how many directors each year brought.", noMeta ? emptyMeta() : peopleYearsBlock(I)) : "",
     !all && R.firstYear !== s.scope ? section("new-in", `New in ${esc(s.scope)}`, "Directors, actors, countries and languages that first turned up in your diary this year.", noMeta ? emptyMeta() : newInBlock(R)) : ""];
   const originFull = [

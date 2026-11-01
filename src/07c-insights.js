@@ -11,6 +11,16 @@ function desktopStudy(Y) {
   if (!C.years.has(Y)) C.years.set(Y, computeYearStudy(state.lib, metaOf, k, Y, C.S));
   return C.years.get(Y);
 }
+// While nothing is happening on the stats page, the study behind Insights, so its page opens at once (it took 1.5 s the
+// first time on a slow computer). Not while films are being looked up (each find would start it again), nor filtered.
+let STUDY_WARM = false;
+function warmStudy() {
+  if (STUDY_WARM || job.running || !state.lib || state.lib.filtered || !state.lib.entries.length) return;
+  STUDY_WARM = true;
+  const lib = state.lib, idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 1200));
+  const go = () => idle(() => { STUDY_WARM = false; if (state.lib === lib && state.page === "stats" && !job.running) desktopStudy(); }, { timeout: 8000 });
+  if (peopleLater(lib)) warmPeople(lib, metaOf).then(go); else go();
+}
 function renderInsights() {
   const lib = state.lib;
   const ys = diaryYears(lib);

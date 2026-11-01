@@ -21,11 +21,12 @@ const shareBodyHtml = (d) => `<div class="share-size" role="group" aria-label="S
 const shareLib = () => state.mode === "mine" && MY_LIB ? MY_LIB : EXAMPLE_LIB;
 
 async function shareFonts() {
-  // the phone page doesn't load these fonts; its stylesheet has to arrive before the fonts can be asked for
-  if (!document.querySelector('link[href*="Big+Shoulders"]')) {
+  // the phone page doesn't load these fonts; their stylesheet has to arrive before the fonts can be asked for (the site
+  // has its own copy, fonts.css; the Claude versions ask Google)
+  if (![...document.fonts].some((f) => f.family.replace(/["']/g, "") === "Big Shoulders Display")) {
     const link = Object.assign(document.createElement("link"), { rel: "stylesheet",
       href: "https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800&family=IBM+Plex+Mono:wght@500&family=Schibsted+Grotesk:wght@500;700&display=swap" });
-    await Promise.race([new Promise((resolve) => { link.onload = link.onerror = resolve; document.head.append(link); }), sleep(2500)]);
+    await Promise.race([new Promise((resolve) => { link.addEventListener("load", resolve); link.addEventListener("error", resolve); document.head.append(link); }), sleep(2500)]);
   }
   try { await Promise.race([Promise.all([`800 100px ${SHARE_FONTS.display}`, `500 20px ${SHARE_FONTS.mono}`, `700 30px ${SHARE_FONTS.sans}`].map((f) => document.fonts.load(f))), sleep(2500)]); } catch {}
 }

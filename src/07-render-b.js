@@ -269,7 +269,14 @@ function renderSections(s) {
       : section("best-decade", "Best decade", "The decade of release you rate highest.", best)) : ""].join("");
   // with a filter on, a section or card it leaves with nothing to show is left out, and so is a chapter left empty
   const trim = (html) => filterOn() ? dropEmpties(html, (root) => { for (const b of root.querySelectorAll(".credit-body")) if (b.children.length === 1 && b.firstElementChild.classList.contains("empty")) b.closest(".credit").remove(); }) : html;
-  const chapters = dashChapters(s).map(([id, name, parts]) => [id, name, trim(parts.filter(Boolean).join(""))]).filter(([, , html]) => html.trim());
+  // a visit's first drawing with a big diary: the top of the page now, the chapters after Films as soon as everyone's
+  // credits are worked out (1 Nov 2026: they held up the whole page, over a second on a slower computer)
+  const quick = peopleLater(state.lib);
+  const chapters = dashChapters(s, quick).map(([id, name, parts]) => [id, name, trim(parts.filter(Boolean).join(""))]).filter(([, , html]) => html.trim());
+  if (quick) {
+    chapters.push(["soon", "More", `<section class="credit soon"><p class="status">Counting the people in your films…</p></section>`]);
+    warmPeople(state.lib, metaOf).then(() => { if (state.page === "stats") render(); });
+  }
   const glanceHtml = trim(glance);
   const all = [glanceHtml.trim() && ["glance", "At a glance", glanceHtml], ...chapters].filter(Boolean);
   $("#sections").innerHTML = all.map(([id, name, html]) => `<div class="ch-mark" id="ch-${id}"><span>${name}</span></div>${html}`).join("")

@@ -61,8 +61,8 @@ function asofIndex(lib) {
   const people = { d: new Map(), m: new Map(), w: new Map(), a: new Map() }, top = {}, runs = {};
   for (const k of Object.keys(people)) { top[k] = { max: 0, at: new Set() }; runs[k] = []; }
   const unread = new Int32Array(B.films.length + 1);
-  const add = (k, name, i, place, f) => {
-    const key = personKey(name), M = people[k];
+  const add = (k, name, i, place, f, known) => {
+    const key = known || personKey(name), M = people[k];
     if (!key) return;
     let P = M.get(key);
     if (!P) M.set(key, (P = { key, name, pos: [], ord: [], films: [], rsum: [], rn: [] }));
@@ -77,10 +77,11 @@ function asofIndex(lib) {
     const m = metaOf(f);
     let un = 0;
     if (m) {
-      roleNames(m, "d").forEach((n, j) => add("d", n, i, j, f));
-      const cast = roleNames(m, "c"), sex = roleGender(m, "c");
+      const dk = roleKeys(m, "d");
+      roleNames(m, "d").forEach((n, j) => add("d", n, i, j, f, dk[j]));
+      const cast = roleNames(m, "c"), ck = roleKeys(m, "c"), sex = roleGender(m, "c");
       if (cast.length && !m.cg && !(m.src === "tmdb" && (m.v || 0) >= 15)) un = 1;
-      cast.forEach((n, j) => { add("a", n, i, j, f); const g = sex.get(personKey(n)); if (g === 2) add("m", n, i, j, f); else if (g === 1) add("w", n, i, j, f); });
+      cast.forEach((n, j) => { add("a", n, i, j, f, ck[j]); const g = sex.get(ck[j]); if (g === 2) add("m", n, i, j, f, ck[j]); else if (g === 1) add("w", n, i, j, f, ck[j]); });
     }
     unread[i + 1] = unread[i] + un;
     for (const k of Object.keys(runs)) {
@@ -171,6 +172,20 @@ function asofReigns(lib, kinds, phone) {
   const years = [];
   for (let y = +B.start.slice(0, 4) + 1; y <= +B.last.slice(0, 4); y++) years.push(`<span style="left:${asofAt(B, `${y}-01-01`).toFixed(2)}%">${phone ? `’${String(y).slice(2)}` : y}</span>`);
   return rows.join("") + `<span></span><div class="asof-yrs" aria-hidden="true">${years.join("")}</div>`;
+}
+// On the computer's main page: drawn at once when its working out is in hand, else a moment after the page appears
+// (worked out the first time, a quarter of a second for the owner's diary, it held up the whole page; 1 Nov 2026).
+const asofReady = (lib) => { const c = ASOF_INDEX.get(lib); return !!(c && c.meta === META && c.rev === META_REV); };
+function asofSoon(lib, scope) {
+  if (asofReady(lib)) return asofHtml(lib, scope, false);
+  const first = !ASOF.soon;
+  ASOF.soon = { lib, scope };
+  if (first) (window.requestIdleCallback || ((fn) => setTimeout(fn, 150)))(() => {
+    const w = ASOF.soon, el = document.querySelector("[data-asof-soon]");
+    ASOF.soon = null;
+    if (el && w && state.lib === w.lib) el.outerHTML = asofHtml(w.lib, w.scope, false);
+  }, { timeout: 1200 });
+  return `<div class="asof-soon" data-asof-soon><p class="status">Working out who led when…</p></div>`;
 }
 // The whole thing: the day, the timeline and its controls, the lists, and the small print.
 function asofHtml(lib, scope, phone) {

@@ -240,7 +240,11 @@ The owner asked for this to be checked every time. A film, diary entry, person o
   story: `D.story`, `storyBodyHtml`, `fillStory`, `storyFindings`), `06n-world.js` (the world map's country shapes and
   names, `WORLD`; drawn by `tools/make_world.mjs`, never edited by hand), `06o-map.js` (the map: `worldData`,
   `worldSteps`, `worldMapHtml`; see "World map").
-- `src/site/`: `manifest.webmanifest`, `sw.js` (network-first service worker; skips TMDB, OMDb, Apify),
+- `src/site/`: `manifest.webmanifest`, `sw.js` (network-first service worker, the saved copy after `WAIT` 4 s on a
+  connection that's there but hardly moving; fonts and `vendor/` saved copy first; skips TMDB, OMDb, Apify),
+  `fonts/` and `fonts.html` (the desktop's three fonts, Latin and Latin Extended, from Google Fonts, served by the site:
+  `build.sh` puts `fonts.html` in place of the Google stylesheet in `docs/desktop.html` and writes `docs/fonts.css` for
+  the share pictures; the Claude versions still ask Google),
   icons (drawn by `tools/make_icons.py`), `og.png` (the link preview, 1200×630, drawn from `tools/og.html` by
   `node tools/make_og.mjs`; `build.sh` puts its tags, `PREVIEW`, first in the head of all three pages, before the
   security policy (`tools/csp.mjs` goes in after `twitter:card`), because link-preview readers like WhatsApp's look
@@ -274,7 +278,8 @@ The owner asked for this to be checked every time. A film, diary entry, person o
   from another film by id through `peopleIndex().gender`; see "Back in time").
 - `FACTS[tmdbPersonId]`: `{ b, d, im, p, t, cs, st }` birth and death years, IMDb id, photo, when, and for people billed
   where a star would be a walk-on their career (`cs` read, `st` runs of years they were usually top-billed; see "Who
-  counts, by hand") (`cr-people-v1`, this device only, in backups; asked again after `FACTS_DAYS`). `metaOf(f)` reads it (example films use `EXAMPLE_META`).
+  counts, by hand") (`cr-people-v1`, this device only, in backups; asked again after `FACTS_DAYS`). `metaOf(f)` reads it (the example's films use `EXAMPLE_META`, only in the example: a film of your own never borrows
+  the example's hand-written credits, which until 1 Nov 2026 stood in for a film of the same name not yet looked up).
 - `LBX[filmKey]`: Letterboxd averages `{ r, n, slug }`; `{ tries: 1, v: 2 }` not found by the scraper; `{ tries: 1, v: 2, few: true,
   slug }` came back from it without an average; after the film's own page is read, `few: 2` (the page shows no average:
   `lbTooFew`) or `{ tries: 2, v: 2 }` (no page at any address its title gives: `lbNotFound`). `lbRemaining` is the rest.
@@ -310,6 +315,30 @@ The owner asked for this to be checked every time. A film, diary entry, person o
   end): the owner found the site slow after opening the diary on a device (Oct 2026) because IMDb scores being
   fetched redrew everything every 25 films (on a slowed phone with a 1,560-film diary, busy 15 s of every 25; now 4). Long lists load more as you
   scroll (`data-auto`). Each tab remembers its scroll (`SCROLL`); tapping the current tab scrolls to the top.
+- **Speed** (the owner asked for "no slow loading time", 31 Oct 2026; measured on their 1,560-film diary, a desktop and
+  a phone slowed four times, `performance.mark`s `cr-start`, `cr-stored`, `cr-built`, `cr-drawn` in both `init()`s):
+  the first drawing went from 2.8 s to 0.3 s on the computer (12 s to 1.3 s slowed) and from 1.2 s to 0.3 s on the
+  phone (4.7 s to 1.2 s slowed). How: (1) **everyone's credits come a moment after the page** with a big diary
+  (`PEOPLE_QUICK_FROM` 300 films): until `warmPeople` (05-core) has worked out every film's `roleNames` in 40 ms steps
+  after the first paint, `peopleLater(lib)` is true and pages draw the rest first: the computer's main page its top
+  and Films with "Counting the people in your films…" (`dashChapters(s, quick)`), the phone's Profile its people card,
+  and People, Years, Insights and Compare (`PEOPLE_VIEWS`) their top and that line; then they redraw. The people
+  index is built in steps too (`peopleIndexStep`, a generator, `buildPeople`). (2) `computeStats` works out its
+  people lists only when asked (`lazy` getters), so a page that shows none pays nothing. (3) Name and title keys are
+  remembered (`keyMemo`; a plain ASCII name skips the slow Unicode part, same key), `rankPeople` uses `roleNames`'
+  keys and one collator (`byName`). (4) The phone's Habits (Stats › Films) and genres as you rate them (Breakdown) come a
+  moment after you arrive with a big diary (`soon`, `soonInsights`, `ARRIVING`; a redraw of the screen you're on works
+  them out at once, so nothing blinks during lookups). (5) Idle warm-ups: the phone's `warmUp` (insights, the study,
+  Back in time) after `warmPeople`; the computer's `warmStudy` (Insights' study) on the stats page, not during lookups.
+  (6) The last feed is kept (`cr-feed-v1`, `feedCached`) so the first drawing has its entries, and the page redraws only
+  when a fetched feed differs (`feedFresh`). (7) Memos for what was worked out on every redraw: `peopleCheck`,
+  `partsToCheck` (06-lookup); the lookup box is drawn only on Settings (`renderLookup`); `partsNotice` waits for the
+  people; Back in time's index is made in idle time (`asofSoon`). (8) The people check no longer bumps `META_REV` (which
+  rebuilds the people index) when it read nothing. (9) Nothing outside holds a start back: the fonts are the site's own
+  (Google's stylesheet blocked the first paint on every visit), Papa Parse and JSZip load only when files are read
+  (`needReader`, `READERS`; they were scripts every start waited for), the made-up example is built only with
+  `?example`, and the installed app opens its saved copy after 4 s on a connection that's barely moving. The `extras`
+  check draws a big diary's first screen (people later) on both layouts.
 - Motion respects reduced motion; the checks run with reduced motion, so sheets close at once there.
 - Don't give an element both a phone class and a name used by the layout (a weekday bar called `.top` once
   became fixed to the top of the screen, because `.top` is the header). Likewise a chart's bars are `.seg`, the
@@ -940,8 +969,9 @@ kept: country and region from the connection), whose pages are behind the owner'
   (`connect-src`: TMDB, OMDb, Apify, GitHub's API). So **no inline `on…=` handlers** in markup: image errors and the
   phone's fade-in are handled by listeners in `05-core.js`. A new outside service needs adding to the policy. Checks
   count anything the policy blocks as an error (`lib.mjs`). Pages refuse to show inside another site's frame, and
-  send no referrer. Papa Parse and JSZip are served from the site (`src/site/vendor/`), not a CDN; the Claude
-  artifacts still use cdnjs (allowed there).
+  send no referrer. Papa Parse and JSZip are served from the site (`src/site/vendor/`), not a CDN, and fetched only
+  when files are read (`needReader`); the fonts too (`font-src 'self'`). The Claude artifacts still use cdnjs and
+  Google Fonts (allowed there).
 - **The diary on the site is signed and can't be rolled back**: `index.json` carries `sig` (the diary key sealing the
   SHA-256 of the rest) and an update count `n`; parts are sealed tied to `name|when` (kinds 3 and 4; 1 and 2 are the
   untied ones from before). A device refuses an index that doesn't verify, counts fewer updates than it has seen, or

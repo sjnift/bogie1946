@@ -36,12 +36,21 @@ const unescapeText = (s) => String(s).replace(/&(?:#(\d+)|#x([\da-f]+)|(amp|lt|g
   dec ? String.fromCodePoint(+dec) : hex ? String.fromCodePoint(parseInt(hex, 16)) : { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" }[name.toLowerCase()]);
 // A title and year that ignore how the title is written (curly or straight apostrophes, codes, accents,
 // punctuation, case) but keep the letters of every script, so one film always counts once.
-const titleKey = (name, year) => `${unescapeText(name).normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim()}|${parseInt(year, 10) || ""}`;
+// Both keys are worked out once per spelling and remembered (1 Nov 2026: they ran hundreds of thousands of times at each
+// start, the most time of anything: a third of a second on a computer, over a second on a slow phone).
+// names in order as localeCompare puts them, with one collator made once
+const byName = new Intl.Collator().compare;
+const keyMemo = (fn, max = 200000) => { const m = new Map(); return (s) => { let v = m.get(s); if (v === undefined) { if (m.size >= max) m.clear(); v = fn(s); m.set(s, v); } return v; }; };
+const titleText = keyMemo((name) => unescapeText(name).normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim());
+const titleKey = (name, year) => `${titleText(String(name))}|${parseInt(year, 10) || ""}`;
 // A quick number that's always the same for the same text (FNV-1a), for spreading things into groups.
 const hash32 = (s) => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); } return h >>> 0; };
 // A person's name as a key: accents and case aside, letters of any script kept (a name with no Latin letters, 김청아,
 // used to come out empty and its person went uncounted; Cem Yılmaz kept his ı).
-const personKey = (n) => String(n).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^\p{L}\p{M}\p{N}]+/gu, " ").trim();
+// (a plain ASCII name has nothing to take apart or off, so it skips the slow part and comes out the same)
+const personKeyOf = keyMemo((n) => /^[\x00-\x7f]*$/.test(n) ? n.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()
+  : n.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^\p{L}\p{M}\p{N}]+/gu, " ").trim());
+const personKey = (n) => personKeyOf(String(n));
 const dayIndex = (iso) => Math.floor(Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10)) / 864e5);
 const weekdayOf = (iso) => (new Date(iso + "T00:00:00Z").getUTCDay() + 6) % 7; // Monday = 0
 
@@ -239,8 +248,23 @@ function slim(kind, rows) {
   }
 }
 
+// The CSV and ZIP readers are fetched only when files are read: as scripts at the foot of every page they held each
+// start back for a trip to the server, for something only an import uses. (build.sh points the site at its own copies.)
+const READERS = { Papa: "https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js", JSZip: "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" };
+const READING = {};
+function needReader(name) {
+  if (window[name]) return Promise.resolve(window[name]);
+  if (!READING[name]) READING[name] = new Promise((ok, fail) => {
+    const s = document.createElement("script");
+    s.src = READERS[name]; s.async = true;
+    s.addEventListener("load", () => window[name] ? ok(window[name]) : fail(new Error("bad")));
+    s.addEventListener("error", () => fail(new Error("no")));
+    document.head.appendChild(s);
+  }).catch((e) => { delete READING[name]; throw e; });
+  return READING[name];
+}
 async function readExport(fileList) {
-  if (!window.Papa) throw new Error("The CSV reader didn't load. Check your internet connection and reload the page.");
+  try { await needReader("Papa"); } catch { throw new Error("The CSV reader didn't load. Check your internet connection and try again."); }
   const rows = { diary: [], watched: [], ratings: [], reviews: [], likes: [], watchlist: [], profile: [], files: [] };
   let found = 0;
   // Besides the files at the top, an export has lists/, deleted/, orphaned/ and likes/ folders, and
@@ -262,7 +286,7 @@ async function readExport(fileList) {
   };
   for (const file of fileList) {
     if (/\.zip$/i.test(file.name) || file.type.includes("zip")) {
-      if (!window.JSZip) throw new Error("The ZIP reader didn't load. Check your connection, or unzip the export and import diary.csv, watched.csv and ratings.csv.");
+      try { await needReader("JSZip"); } catch { throw new Error("The ZIP reader didn't load. Check your connection, or unzip the export and import diary.csv, watched.csv and ratings.csv."); }
       const zip = await JSZip.loadAsync(file);
       for (const entry of Object.values(zip.files)) {
         if (!entry.dir && /\.csv$/i.test(entry.name)) take(entry.name, await entry.async("string"));
@@ -590,40 +614,71 @@ function roleSkip(character) {
    catch a credit given to the wrong person on TMDB itself: one in a film made before the person was born (or, for
    directing, writing, camera and music, before they were 8) isn't counted (`badCredit`); the people check in Settings
    lists both (06-lookup, `peopleCheck`). */
-let META_REV = 0, PEOPLE = null;
+let META_REV = 0, PEOPLE = null, PEOPLE_BUILD = null;
+const peopleFresh = () => !!(PEOPLE && PEOPLE.meta === META && PEOPLE.rev === META_REV);
 function peopleIndex() {
-  if (PEOPLE && PEOPLE.meta === META && PEOPLE.rev === META_REV) return PEOPLE;
+  if (peopleFresh()) return PEOPLE;
+  const b = peopleBuild();
+  while (!b.it.next().done);
+  return PEOPLE;
+}
+// It's built in steps, so a warm-up can spread it over a few moments (`peopleIndexStep`, in `warmPeople`): in one go it
+// held a slow phone for 0.8 s just after the page showed. A build that's been overtaken by new details starts again.
+function peopleBuild() {
+  if (!PEOPLE_BUILD || PEOPLE_BUILD.meta !== META || PEOPLE_BUILD.rev !== META_REV) PEOPLE_BUILD = { meta: META, rev: META_REV, it: buildPeople(META, META_REV) };
+  return PEOPLE_BUILD;
+}
+// works on it for up to `ms`; true once it's built
+function peopleIndexStep(ms) {
+  if (peopleFresh()) return true;
+  const b = peopleBuild(), end = performance.now() + ms;
+  do { if (b.it.next().done) return true; } while (performance.now() < end);
+  return false;
+}
+function* buildPeople(META, META_REV) {
   const facts = typeof FACTS === "object" && FACTS ? FACTS : {};
+  let steps = 0;
   // TMDB sometimes keeps one person twice; two entries with the same IMDb id are one person, under the first
-  const byName = new Map(), byImdb = new Map(), canon = new Map(), nameOf = new Map(), gender = new Map();
+  const byName = new Map(), byImdb = new Map(), canon = new Map(), nameOf = new Map(), gender = new Map(), keyOf = new Map();
   for (const [id, f] of Object.entries(facts)) if (f && f.im) { if (byImdb.has(f.im)) canon.set(Number(id), byImdb.get(f.im)); else byImdb.set(f.im, Number(id)); }
-  for (const m of Object.values(META)) {
+  const roles = Object.keys(ROLE_IDS), metas = Object.values(META);
+  for (const m of metas) {
     if (!m || m.miss) continue;
     const y = Number(m.y) || 0;
-    for (const [role, ir] of Object.entries(ROLE_IDS)) {
-      const ids = m[ir], gs = ROLE_GENDER[role] && typeof m[ROLE_GENDER[role]] === "string" ? m[ROLE_GENDER[role]] : "";
+    for (const role of roles) {
+      const ids = m[ROLE_IDS[role]], gf = ROLE_GENDER[role], gs = gf && typeof m[gf] === "string" ? m[gf] : "";
       if (!Array.isArray(ids)) continue;
-      (m[ROLE_FIELD[role]] || []).forEach((n, i) => {
-        const id = canon.get(Number(ids[i])) || Number(ids[i]);
-        if (!id) return;
-        if (+gs[i] && !gender.has(id)) gender.set(id, +gs[i]);
-        if (!nameOf.has(id)) nameOf.set(id, n);
-        n = nameOf.get(id);
-        const k = personKey(n), g = byName.get(k) || byName.set(k, new Map()).get(k), p = g.get(id) || g.set(id, { name: n, lo: 9999, hi: 0 }).get(id);
-        if (y) { p.lo = Math.min(p.lo, y); p.hi = Math.max(p.hi, y); }
-      });
+      const names = m[ROLE_FIELD[role]] || [];
+      for (let i = 0; i < names.length; i++) {
+        const raw = Number(ids[i]), id = canon.get(raw) || raw;
+        if (!id) continue;
+        if (gs && +gs[i] && !gender.has(id)) gender.set(id, +gs[i]);
+        let n = nameOf.get(id);
+        if (n === undefined) { n = names[i]; nameOf.set(id, n); keyOf.set(id, personKey(n)); }
+        const k = keyOf.get(id);
+        let g = byName.get(k);
+        if (!g) byName.set(k, (g = new Map()));
+        let p = g.get(id);
+        if (!p) g.set(id, (p = { name: n, lo: 9999, hi: 0 }));
+        if (y) { if (y < p.lo) p.lo = y; if (y > p.hi) p.hi = y; }
+      }
     }
+    if (++steps % 40 === 0) yield;
   }
   // where each person is billed, on screen and in voice roles: their place in each film's counted cast, by year
   const usual = { c: new Map(), v: new Map() };
-  for (const m of Object.values(META)) {
+  for (const m of metas) {
     if (!m || m.miss) continue;
     const y = Number(m.y) || 0;
-    for (const role of ["c", "v"]) (m[ROLE_IDS[role]] || []).forEach((id, i) => { id = canon.get(Number(id)) || Number(id); if (id) (usual[role].get(id) || usual[role].set(id, []).get(id)).push({ y, i, m }); });
+    for (const role of ["c", "v"]) {
+      const ids = m[ROLE_IDS[role]] || [], U = usual[role];
+      for (let i = 0; i < ids.length; i++) { const raw = Number(ids[i]), id = canon.get(raw) || raw; if (!id) continue; let a = U.get(id); if (!a) U.set(id, (a = [])); a.push({ y, i, m }); }
+    }
+    if (++steps % 120 === 0) yield;
   }
   // who mostly turns up in cameos: cameos found at lookup against roles counted
   const cameoN = new Map(), habit = new Set();
-  for (const m of Object.values(META)) if (m && !m.miss) for (const id of new Set(m.xi || [])) { const k = canon.get(Number(id)) || Number(id); if (k) cameoN.set(k, (cameoN.get(k) || 0) + 1); }
+  for (const m of metas) if (m && !m.miss) for (const id of new Set(m.xi || [])) { const k = canon.get(Number(id)) || Number(id); if (k) cameoN.set(k, (cameoN.get(k) || 0) + 1); }
   for (const [id, n] of cameoN) { const roles = (usual.c.get(id) || []).length + (usual.v.get(id) || []).length; if (n >= CAMEO_HABIT && n >= 2 * roles) habit.add(id); }
   const label = new Map(), idOf = new Map(), namesakes = [];
   for (const [k, g] of byName) {
@@ -643,7 +698,8 @@ function peopleIndex() {
   const twice = new Set(canon.values());
   for (const id of canon.keys()) nameOf.set(id, nameOf.get(canon.get(id)));
   for (const id of [...nameOf.keys()]) if (!canon.has(id) && !twice.has(id)) nameOf.delete(id);
-  return (PEOPLE = { meta: META, rev: META_REV, label, idOf, byImdb, canon, nameOf, namesakes, usual, habit, gender });
+  PEOPLE = { meta: META, rev: META_REV, label, idOf, byImdb, canon, nameOf, namesakes, usual, habit, gender };
+  if (PEOPLE_BUILD && PEOPLE_BUILD.meta === META && PEOPLE_BUILD.rev === META_REV) PEOPLE_BUILD = null;
 }
 // The TMDB person id behind a name as shown (a namesake's label included), when there's one.
 const personIdOf = (name) => peopleIndex().idOf.get(personKey(name)) || 0;
@@ -775,11 +831,11 @@ function roleNames(m, role) {
   let c = ROLE_NAMES.get(m);
   if (!c || c.P !== P) ROLE_NAMES.set(m, (c = { P, lists: {} }));
   if (c.lists[role]) return c.lists[role];
-  const out = [], have = new Set(), lead = new Set(), sex = new Map(), gs = ROLE_GENDER[role] && typeof m[ROLE_GENDER[role]] === "string" ? m[ROLE_GENDER[role]] : "";
+  const out = [], keys = [], have = new Set(), lead = new Set(), sex = new Map(), gs = ROLE_GENDER[role] && typeof m[ROLE_GENDER[role]] === "string" ? m[ROLE_GENDER[role]] : "";
   const add = (name, id, place) => {
     const cid = (id && P.canon.get(id)) || id, shown = (cid && (P.label.get(cid) || P.nameOf.get(cid))) || name, k = personKey(shown);
     if (!k || have.has(k)) return;
-    have.add(k); out.push(shown);
+    have.add(k); out.push(shown); keys.push(k);
     // their gender: as this film's credits list it, else as another film's do
     sex.set(k, (place != null && +gs[place]) || (cid && P.gender && (P.gender.get(cid) || P.gender.get(id))) || 0);
     if (place != null && place < LEAD_TOP) lead.add(k);
@@ -796,8 +852,12 @@ function roleNames(m, role) {
   c.leads[role] = lead;
   c.sex = c.sex || {};
   c.sex[role] = sex;
+  c.keys = c.keys || {};
+  c.keys[role] = keys;
   return (c.lists[role] = out);
 }
+// Each of a film's people's key, in step with `roleNames` (worked out there once, not again by everything that counts).
+const roleKeys = (m, role) => { roleNames(m, role); const c = m && ROLE_NAMES.get(m); return (c && c.keys && c.keys[role]) || []; };
 // The people of a film billed in its top LEAD_TOP, by `personKey` (for "Highest rated", `rankPeople`).
 const LEAD_TOP = 8;
 const roleLeads = (m, role) => { roleNames(m, role); const c = m && ROLE_NAMES.get(m); return (c && c.leads && c.leads[role]) || new Set(); };
@@ -851,22 +911,23 @@ function rankPeople(films, metaOf, role, minRated, leadMin = 0) {
   for (const f of films) {
     const m = metaOf(f);
     if (!m || !Array.isArray(m[ROLE_FIELD[role]])) continue;
-    const names = roleNames(m, role), leads = roleLeads(m, role);
-    const seen = new Set();
-    for (const name of names) {
-      const k = personKey(name);
-      if (!k || seen.has(k)) continue;
-      seen.add(k);
+    const names = roleNames(m, role), keys = roleKeys(m, role), leads = roleLeads(m, role);
+    // names and keys come once each from roleNames
+    for (let i = 0; i < names.length; i++) {
+      const name = names[i], k = keys[i];
       let p = map.get(k);
       if (!p) { p = { key: k, name, films: [], ratings: [], lead: 0 }; map.set(k, p); }
       p.films.push(f);
       if (f.rating) { p.ratings.push(f.rating); if (leads.has(k)) p.lead++; }
     }
   }
-  const all = [...map.values()].map((p) => ({ ...p, count: p.films.length, avg: avg(p.ratings) }));
-  const most = [...all].sort((a, b) => b.count - a.count || (b.avg || 0) - (a.avg || 0) || a.name.localeCompare(b.name));
+  // (each person's record is made here, so it's filled in rather than copied; names compare with one collator, as
+  // localeCompare made one per comparison: a 1,500-film diary's actors took 0.45 s on a slow phone)
+  const all = [...map.values()];
+  for (const p of all) { p.count = p.films.length; p.avg = avg(p.ratings); }
+  const most = [...all].sort((a, b) => b.count - a.count || (b.avg || 0) - (a.avg || 0) || byName(a.name, b.name));
   const best = all.filter((p) => p.ratings.length >= minRated && p.lead >= leadMin)
-    .sort((a, b) => b.avg - a.avg || b.ratings.length - a.ratings.length || a.name.localeCompare(b.name));
+    .sort((a, b) => b.avg - a.avg || b.ratings.length - a.ratings.length || byName(a.name, b.name));
   return { most, best, total: all.length };
 }
 
@@ -884,7 +945,7 @@ function rankCategory(films, metaOf, field) {
   }
   const all = [...map.values()].map((c) => ({ ...c, count: c.films.length, avg: avg(c.ratings) }));
   return {
-    most: [...all].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)),
+    most: [...all].sort((a, b) => b.count - a.count || byName(a.name, b.name)),
     best: all.filter((c) => c.ratings.length >= 3).sort((a, b) => b.avg - a.avg || b.count - a.count),
   };
 }
@@ -941,11 +1002,18 @@ function computeStats(lib, metaOf, scope) {
     .sort((a, b) => a.year - b.year);
 
   const minRated = films.length >= 150 ? 3 : 2;
-  const cast = rankPeople(films, metaOf, "c", scope === "all" ? CAST_MIN_RATED : 1, scope === "all" ? CAST_LEAD : 1);
-  const castMinRated = scope === "all" ? CAST_MIN_RATED : castBar(cast.best);
-  if (scope !== "all") cast.best = cast.best.filter((p) => p.ratings.length >= castMinRated);
-  return {
-    scope, films, entries, withMeta: withMeta.length, minRated, castMinRated, castTop: scope !== "all" && castMinRated < CAST_MIN_RATED && cast.best.length >= CAST_TOP,
+  // the people lists are worked out when first asked for, not with the rest (1 Nov 2026: the first time in a visit they're
+  // the slowest part of a page, so a page can show what it has before them; `peopleWarm`, `warmPeople`)
+  let castCore = null;
+  const core = () => {
+    if (castCore) return castCore;
+    const cast = rankPeople(films, metaOf, "c", scope === "all" ? CAST_MIN_RATED : 1, scope === "all" ? CAST_LEAD : 1);
+    const castMinRated = scope === "all" ? CAST_MIN_RATED : castBar(cast.best);
+    if (scope !== "all") cast.best = cast.best.filter((p) => p.ratings.length >= castMinRated);
+    return (castCore = { cast, castMinRated, castTop: scope !== "all" && castMinRated < CAST_MIN_RATED && cast.best.length >= CAST_TOP });
+  };
+  const out = {
+    scope, films, entries, withMeta: withMeta.length, minRated,
     minutes, timed,
     avgRating: avg(rated.map((f) => f.rating)), rated: rated.length, spread,
     rewatches: entries.filter((e) => e.rewatch).length,
@@ -953,10 +1021,47 @@ function computeStats(lib, metaOf, scope) {
     likes: films.filter((f) => f.liked).length,
     byDay, byMonth, weekday, busiestMonth, busiestDay, streak: longestStreak(entries),
     decades, relYears,
-    cast, voice: rankPeople(films, metaOf, "v", minRated), directors: rankPeople(films, metaOf, "d", minRated),
-    writers: rankPeople(films, metaOf, "w", minRated), dop: rankPeople(films, metaOf, "p", minRated), music: rankPeople(films, metaOf, "m", minRated),
+
     genres: rankCategory(films, metaOf, "g"), countries: rankCategory(films, metaOf, "k"), languages: rankCategory(films, metaOf, "l"),
     newReleases: scope === "all" ? null : films.filter((f) => String(f.year) === scope).length,
   };
+  const lazy = (name, fn) => { let v, done = false; Object.defineProperty(out, name, { enumerable: true, configurable: true,
+    get() { if (!done) { v = fn(); done = true; } return v; }, set(x) { v = x; done = true; } }); };
+  lazy("cast", () => core().cast); lazy("castMinRated", () => core().castMinRated); lazy("castTop", () => core().castTop);
+  lazy("voice", () => rankPeople(films, metaOf, "v", minRated)); lazy("directors", () => rankPeople(films, metaOf, "d", minRated));
+  lazy("writers", () => rankPeople(films, metaOf, "w", minRated)); lazy("dop", () => rankPeople(films, metaOf, "p", minRated));
+  lazy("music", () => rankPeople(films, metaOf, "m", minRated));
+  return out;
+}
+// Whether everyone's credits have been worked out once for the film details in hand (`roleNames` keeps them), so a page
+// can draw its people at once; until then pages draw the rest first and `warmPeople` does it a moment later.
+let PEOPLE_WARMED = null;
+// from how many films a page draws its people a moment after the rest (a small diary's are quick enough to wait for)
+let PEOPLE_QUICK_FROM = 300;
+const peopleLater = (lib) => !peopleWarm() && !!lib && lib.films.length >= PEOPLE_QUICK_FROM;
+const peopleWarm = () => !!(PEOPLE_WARMED && PEOPLE_WARMED.meta === META && PEOPLE_WARMED.rev === META_REV);
+let PEOPLE_WARMING = null;
+function warmPeople(lib, metaOf) {
+  if (peopleWarm()) return Promise.resolve();
+  if (PEOPLE_WARMING && PEOPLE_WARMING.meta === META && PEOPLE_WARMING.rev === META_REV) return PEOPLE_WARMING.p;
+  const meta = META, rev = META_REV;
+  // after the page has been painted (a timer alone can run before the browser paints, and held the first screen back),
+  // and in short steps, so the page answers taps and clicks meanwhile (in one go it froze a slow computer for 3.5 s)
+  const films = [...lib.films, ...(lib.watchlistFilms || [])];
+  let i = 0;
+  const p = new Promise((done) => requestAnimationFrame(() => {
+    const step = () => {
+      if (META !== meta || META_REV !== rev) { PEOPLE_WARMING = null; done(); return; } // the details changed: a fresh start will come
+      const until = performance.now() + 40;
+      if (!peopleIndexStep(40)) { setTimeout(step, 0); return; }
+      while (i < films.length && performance.now() < until) { const m = metaOf(films[i++]); if (m) for (const r of ["c", "v", "d", "w", "p", "m"]) roleNames(m, r); }
+      if (i < films.length) { setTimeout(step, 0); return; }
+      PEOPLE_WARMED = { meta, rev };
+      done();
+    };
+    setTimeout(step, 0);
+  }));
+  PEOPLE_WARMING = { meta, rev, p };
+  return p;
 }
 </script>

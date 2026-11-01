@@ -457,15 +457,17 @@ async function runFacts(lib, key) {
         const d = await tmdbGet(`/person/${Number(id)}`, career ? { append_to_response: "movie_credits" } : {}, key);
         const st = career ? (d && d.movie_credits ? careerRuns(d.movie_credits.cast, today) : []) : old.st, cs = career ? CAREER_V : old.cs;
         FACTS[id] = { ...(d ? { b: year(d.birthday), d: year(d.deathday), im: /^nm\d+$/.test(d.imdb_id || "") ? d.imdb_id : "", p: imagePath(d.profile_path) || "" } : {}), t: today, ...(cs ? { cs } : {}), ...(st && st.length ? { st } : {}) };
+        since++;
       } catch (e) { if (e && (e.code === "auth" || e instanceof TypeError)) { stop = true; return; } }
       factsJob.done++;
-      if (++since >= 250) { since = 0; store.set(KEYS.facts, FACTS); META_REV++; }
+      if (since >= 250) { since = 0; store.set(KEYS.facts, FACTS); META_REV++; }
       renderLookupProgress();
     }
   };
   await Promise.all(Array.from({ length: 6 }, worker));
-  store.set(KEYS.facts, FACTS);
-  META_REV++;
+  // nothing read (no connection, or a key turned away): nothing to save, and who's who hasn't changed, so the people
+  // index isn't built again for nothing (it was, at every start without a connection to TMDB)
+  if (since) { store.set(KEYS.facts, FACTS); META_REV++; }
   factsJob.running = false;
   scheduleRender();
 }
@@ -476,7 +478,14 @@ const safeFacts = (o) => Object.fromEntries(Object.entries(o || {}).filter(([k, 
 // What the people check found in a diary: people of one name told apart, credits TMDB's dates make impossible (not
 // counted), roles TMDB gave to another person of that name than IMDb does (owner's checked films), and roles long
 // long after a death (a role TMDB gave to the wrong person of that name; not counted).
+// kept until the diary, its film details or people's facts change (it was worked out at every redraw of Settings)
+let PEOPLE_CHECK = null;
 function peopleCheck(lib) {
+  const c = PEOPLE_CHECK;
+  if (c && c.lib === lib && c.meta === META && c.rev === META_REV && c.facts === FACTS) return c.v;
+  return (PEOPLE_CHECK = { lib, meta: META, rev: META_REV, facts: FACTS, v: peopleCheckNow(lib) }).v;
+}
+function peopleCheckNow(lib) {
   const P = peopleIndex(), shownNs = new Map(), impossible = [], wrong = [], late = [], cameos = [], small = [], films = new Map(), roleWord = { c: "acting", v: "voice", d: "directing", w: "writing", p: "camera", m: "music" };
   for (const f of lib.films) {
     const m = META[f.key];
@@ -512,7 +521,16 @@ const SMALL_KNOWN = 3;
    hand, `PART_FIXES`), to count or leave out with a tap (kept in the film's `po`): stars far down a cast (`walkOn`
    "star") and, in the last quarter of a big cast, people counted in SMALL_KNOWN or more of the diary's other films. */
 const PARTS_FROM = "2026-10-26";
+// kept until the diary or its film details change; and for the notices on the main page and Profile, nothing until
+// everyone's credits are worked out (it needs them all, and held up a big diary's first screen; `partsNotice`)
+let PARTS_CHECK = null;
 function partsToCheck(lib) {
+  const c = PARTS_CHECK;
+  if (c && c.lib === lib && c.meta === META && c.rev === META_REV) return c.v;
+  return (PARTS_CHECK = { lib, meta: META, rev: META_REV, v: partsToCheckNow(lib) }).v;
+}
+const partsNotice = (lib) => peopleLater(lib) ? [] : partsToCheck(lib);
+function partsToCheckNow(lib) {
   if (IN_VIEWER || !lib) return [];
   const P = peopleIndex(), out = [];
   for (const f of lib.films) {

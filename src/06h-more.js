@@ -14,6 +14,19 @@ function repoOfPage(host, path) {
   return `https://github.com/${m[1]}/${first && !first.includes(".") ? first : `${m[1].toLowerCase()}.github.io`}`;
 }
 const SITE_REPO = repoOfPage(location.hostname, location.pathname);
+// The last feed is kept in this browser (FEED_KEY): the page's first drawing already has its entries, and the copy
+// fetched after it redraws the page only when it differs (1 Nov 2026: every start drew the whole page twice, half a
+// second on a computer).
+const FEED_KEY = "cr-feed-v1";
+const feedCached = () => { const f = ls.get(FEED_KEY, null); return f && typeof f.user === "string" && Array.isArray(f.items) ? f : null; };
+// The member's feed from the site; true when it's new or changed since the copy in hand.
+async function feedFresh(user) {
+  const feed = await loadFeed(user);
+  if (!feed) return false;
+  if (FEED && JSON.stringify(FEED) === JSON.stringify(feed)) return false;
+  FEED = feed; ls.set(FEED_KEY, feed);
+  return true;
+}
 async function loadFeed(user) {
   if (IN_VIEWER || !user || !/^https?:$/.test(location.protocol)) return null;
   try {

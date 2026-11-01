@@ -146,6 +146,18 @@ export default async function ({ browser, base }) {
     assert(fav.few.startsWith("1960,1950") && fav.thin === 0 && /^Not enough yet: only 2 release years have 5 or more rated films watched in 2024, and a list needs 3\.$/.test(fav.empty) && fav.bar >= 5 && fav.sorted && fav.enough,
       `${file} favourite years ranked with caution: ${JSON.stringify(fav)}`);
     await p.click(phone ? '[data-relmode="films"]' : '[data-tab="released"][data-val="films"]'); await p.waitForTimeout(150);
+    // a big diary's first drawing of a visit: the top of the page at once, the people a moment later (1 Nov 2026), here
+    // with the bar lowered so the example counts as big
+    {
+      await p.goto(`${base}${file}?example${phone ? "#/profile" : "#/"}`); await p.waitForFunction(() => typeof state === "object" && state.lib); await p.waitForTimeout(300);
+      const first = await p.evaluate((phone) => { PEOPLE_QUICK_FROM = 0; PEOPLE_WARMED = null; PEOPLE_WARMING = null; META_REV++; if (phone) DATA_REV++; render();
+        return { soon: !!document.querySelector(".soon"), people: phone ? /Most watched actors/.test(document.querySelector("#screen").textContent) : !!document.querySelector("#starring"),
+          top: phone ? !!document.querySelector("#screen .tiles, #screen .card") : !!document.querySelector("#recent, #best-decade") }; }, phone);
+      await p.waitForFunction((phone) => !document.querySelector(".soon") && (phone ? /Most watched actors/.test(document.querySelector("#screen").textContent) : !!document.querySelector("#starring")), phone, { timeout: 5000 }).catch(() => {});
+      const then = await p.evaluate((phone) => ({ soon: !!document.querySelector(".soon"), people: phone ? /Most watched actors/.test(document.querySelector("#screen").textContent) : !!document.querySelector("#starring"), warm: peopleWarm() }), phone);
+      await p.evaluate(() => { PEOPLE_QUICK_FROM = 300; });
+      assert(first.soon && !first.people && first.top && !then.soon && then.people && then.warm, `${file} people a moment after the rest: ${JSON.stringify({ first, then })}`);
+    }
     // a poster's title card never breaks a word (it showed "MANHATTA / N" where pictures didn't load, 1 Nov 2026): with
     // breaking turned off, no card's longest word runs past its edge, here in the wide stand-in font the checks have
     if (phone) { await p.goto(`${base}${file}?example#/profile`); await p.waitForFunction(() => typeof state === "object" && state.lib); }

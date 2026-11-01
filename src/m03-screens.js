@@ -32,11 +32,12 @@ const ICON = {
   filter: svg(`<path d="M4 5h16l-6.2 7.4V18l-3.6 1.8v-7.4z"/>`, 1.9),
 };
 
+// (your own diary's films only ever take their own details: the example's few hand-written credits used to stand in
+// for a film of the same name not looked up yet, so a guest with no key saw a handful of actors counted from those)
 function metaOf(f) {
   if (state.mode === "example") return EXAMPLE_META[f.key] || null;
   const m = META[f.key];
-  if (m && !m.miss) return m;
-  return EXAMPLE_META[f.key] || null;
+  return m && !m.miss ? m : null;
 }
 
 /* ---------- speed: results worked out once per change of data, and screens patched rather than redrawn ---------- */
@@ -49,6 +50,26 @@ function memo(key, fn) {
   return MEMO.get(key);
 }
 const statsOf = (scope) => memo(`stats|${scope}`, () => computeStats(state.lib, metaOf, scope));
+const memoReady = (key) => [state.lib, META, LBX, FRIENDS, DATA_REV].every((x, i) => x === memoTag[i]) && MEMO.has(key);
+// A part of a screen worked out a moment after the screen shows, when you arrive on it and it isn't worked out yet with a
+// big diary: the habits under Stats › Films and genres as you rate them under Breakdown (the whole diary's insights) held
+// those views up for 0.6 s, 2.7 s on a slow phone, when the app reopened on them. A redraw of the screen you're on still
+// works it out at once, so nothing blinks while films are looked up. Gives null until it's ready.
+let ARRIVING = false, SOON_QUEUED = false;
+function soon(key, fn) {
+  if (!ARRIVING || memoReady(key) || !BASE_LIB || BASE_LIB.films.length < PEOPLE_QUICK_FROM) return memo(key, fn);
+  if (!SOON_QUEUED) {
+    SOON_QUEUED = true;
+    const lib = state.lib, frame = () => new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
+    (peopleLater(BASE_LIB) ? warmPeople(BASE_LIB, metaOf) : frame()).then(() => {
+      SOON_QUEUED = false;
+      if (state.lib === lib) memo(key, fn);
+      render();
+    });
+  }
+  return null;
+}
+const soonCard = (what) => `<div class="card soon"><p class="status">Working out ${what}…</p></div>`;
 // Puts new HTML into place by changing only what differs: loaded posters stay, side-scrolled rows keep their
 // place, and nothing flashes. Children with data-k keep their element when they move.
 function morph(el, html) {
@@ -97,6 +118,7 @@ const tabOf = (view) => STATS_VIEWS.includes(view) ? "stats" : view;
 let screenKey = "", SCROLL = {};
 
 // Draws the current screen. `motion` is how it arrived: "push", "pop" or "tab".
+const PEOPLE_VIEWS = new Set(["people", "years", "insights", "compare"]);
 function render(motion) {
   if (state.mode === "mine" && !MY_LIB) state.mode = "example";
   state.lib = state.mode === "mine" ? MY_LIB : EXAMPLE_LIB;
@@ -119,11 +141,19 @@ function render(motion) {
   LISTS = new Map();
   const d = state.stack[state.stack.length - 1];
   renderTop(d);
-  let html = d ? detailScreen(d, STATS) : SCREENS[state.view](STATS);
+  // a screen that needs everyone's credits, first in a visit with a big diary: its top and a line, then the screen a
+  // moment later (the app reopens on the last tab used; People, Years, Insights and Compare held it up for seconds)
+  const cold = !d && PEOPLE_VIEWS.has(state.view) && peopleLater(BASE_LIB);
+  const key = d ? `${state.stack.length}:${d.type}:${d.title}` : state.view;
+  ARRIVING = key !== screenKey;
+  // (a plain redraw: the stats' people lists are worked out when first asked for, so nothing already worked out is thrown away)
+  if (cold) warmPeople(BASE_LIB, metaOf).then(() => render());
+  let html = d ? detailScreen(d, STATS) : cold ? (STATS_VIEWS.includes(state.view) ? statsHead() : scopeBar()) + `<div class="card soon"><p class="status">Counting the people in your films…</p></div>`
+    : SCREENS[state.view](STATS);
   // with a filter on, a heading over nothing ("No films…") is left out with its empty note
   if (state.lib.filtered) html = dropEmpties(html, (root) => { for (const e of root.querySelectorAll(".empty")) { const h = e.previousElementSibling; if (h && h.classList.contains("sh")) h.remove(); e.remove(); } });
-  const el = $("#screen"), key = d ? `${state.stack.length}:${d.type}:${d.title}` : state.view;
-  const fresh = key !== screenKey;
+  const el = $("#screen"), fresh = ARRIVING;
+  ARRIVING = false;
   if (fresh) { el.innerHTML = html; screenKey = key; } else morph(el, html);
   siteRestore(); // what's typed in the diary-on-the-site boxes survives the redraw
   for (const b of document.querySelectorAll(".tabbar [data-view]")) {
@@ -152,14 +182,16 @@ function warmUp() {
   warmQueued = true;
   const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 1200));
   const lib = state.lib, Y = state.scope !== "all" ? state.scope : YEARS[0];
-  const steps = [allInsights, allStudy, ...(Y ? [() => yearInsights(Y), () => yearStudy(Y)] : [])];
+  // and Back in time's working out, so People › Back in time opens at once (it took 1.9 s the first time on a slow phone)
+  const steps = [allInsights, allStudy, ...(Y ? [() => yearInsights(Y), () => yearStudy(Y)] : []), () => asofIndex(lib)];
   const next = () => idle(() => {
     // stop if the diary changed meanwhile (the next redraw starts again) or isn't the whole diary (filters on)
     if (state.lib !== lib || !lib.entries.length || lib.filtered || !steps.length) { warmQueued = false; return; }
     steps.shift()();
     if (steps.length) next(); else warmQueued = false;
   }, { timeout: 5000 });
-  next();
+  // after everyone's credits are worked out (`warmPeople`), which these need: before, they did it in one go themselves
+  if (peopleLater(BASE_LIB)) warmPeople(BASE_LIB, metaOf).then(next); else next();
 }
 $("#screen").addEventListener("animationend", (e) => { if (e.target.id === "screen") e.target.classList.remove("enter-push", "enter-pop", "enter-tab"); });
 
@@ -289,8 +321,8 @@ function profileScreen(s) {
   const fill = !ex && (job.running || lib.films.some((f) => !metaOf(f) && todo.has(f))) ? `<button class="banner" type="button" data-act="settings"><span class="ico g">${ICON.sparkle}</span>
       <span><b>${job.running ? "Looking up cast &amp; crew" : "Fill in cast &amp; crew"}</b><small>${job.running ? `${fmtN(job.done)} of ${fmtN(job.total)} films` : `${fmtN(have)} of ${plural(total, "film")} have details`}</small>
       <span class="meter" aria-hidden="true"><span style="width:${Math.round((job.running ? job.done / Math.max(1, job.total) : have / Math.max(1, total)) * 100)}%"></span></span></span>${CHEV}</button>`
-    : !ex && MY_LIB && partsToCheck(MY_LIB).length ? `<button class="banner" type="button" data-act="settings"><span class="ico o">${ICON.sparkle}</span>
-      <span><b>${plural(partsToCheck(MY_LIB).length, "part")} to check</b><small>${partsToCheck(MY_LIB).length === 1 ? "A famous name far down a big cast, left out as a walk-on" : "Famous names far down a big cast, left out as walk-ons"}</small></span>${CHEV}</button>` : "";
+    : !ex && MY_LIB && partsNotice(MY_LIB).length ? `<button class="banner" type="button" data-act="settings"><span class="ico o">${ICON.sparkle}</span>
+      <span><b>${plural(partsNotice(MY_LIB).length, "part")} to check</b><small>${partsNotice(MY_LIB).length === 1 ? "A famous name far down a big cast, left out as a walk-on" : "Famous names far down a big cast, left out as walk-ons"}</small></span>${CHEV}</button>` : "";
   const nReviews = lib.reviewTextMissing ? s.reviews : reviewsIn(lib, s.scope === "all" ? null : s.scope).length;
   const tile = (attrs, ico, cls, label, sub) => `<button class="tile" type="button" ${attrs}><span class="ico ${cls}">${ico}</span><span style="min-width:0"><b>${label}</b><small>${sub}</small></span></button>`;
   const tiles = `<div class="tiles">${tile(`data-act="reviews"`, ICON.review, "b", "Reviews", plural(nReviews, "review"))}
@@ -314,7 +346,11 @@ function profileScreen(s) {
       `<div class="scroller">${list.map((p) => `<button class="pcard" type="button" data-k="${esc(p.name)}" data-list="${reg(p.name, filmsTitle(p), p.films, p)}">
         ${avatar(p, "lg")}<span class="nm">${esc(p.name)}</span><span class="ct">${plural(p.count, "film")}</span></button>`).join("")}</div>`;
   };
-  const people = s.withMeta ? strip("Most watched actors", s.cast, "c") + strip("Most watched directors", s.directors, "d") : "";
+  // with a big diary, the first drawing of a visit has the people a moment after the rest (they took most of its time)
+  const later = s.withMeta && peopleLater(BASE_LIB || lib);
+  if (later) warmPeople(BASE_LIB || lib, metaOf).then(() => render());
+  const people = !s.withMeta ? "" : later ? `<div class="card soon"><p class="status">Counting the people in your films…</p></div>`
+    : strip("Most watched actors", s.cast, "c") + strip("Most watched directors", s.directors, "d");
   const reimport = !ex && lib.reviewTextMissing ? mReimport() : "";
   const onSite = ex ? "" : `<div data-sitebox="open">${siteBox("open")}</div>`; // a newer copy of the diary is on the site
   const iosTip = iosTipDue() ? `<div class="card notice"><p class="title">Add Credits Roll to your Home Screen</p><p class="status">${esc(IOS_TIP_TEXT)}</p>

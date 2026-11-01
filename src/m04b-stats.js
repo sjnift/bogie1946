@@ -4,6 +4,9 @@
    against the crowd, genres as you rate them, habits. Insights itself is now the study (m06). */
 const allInsights = () => memo(`ins|${crowdKey()}`, () => computeInsights(state.lib, metaOf, crowdKey()));
 const yearInsights = (Y) => memo(`yins|${Y}|${crowdKey()}`, () => computeYearInsights(state.lib, metaOf, Y, crowdKey(), allInsights()));
+// the same, or null while it's worked out a moment after the screen shows (`soon`)
+const soonInsights = (Y) => Y === "all" ? soon(`ins|${crowdKey()}`, () => computeInsights(state.lib, metaOf, crowdKey()))
+  : soon(`yins|${Y}|${crowdKey()}`, () => computeYearInsights(state.lib, metaOf, Y, crowdKey(), allInsights()));
 const twoYears = (what) => `<div class="empty">${what} need diary entries from at least two years, with five or more films in each.</div>`;
 
 function yearsScreen(s) {
