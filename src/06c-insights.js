@@ -322,7 +322,7 @@ function computeInsights(lib, metaOf, crowdKey) {
     const catchE = E.filter((e) => !e.rewatch && e.film.year && +e.date.slice(0, 4) <= e.film.year + 0), catches = catchE.length;
     habits.push({ k: "Same-year catches", v: fmtN(catches), text: `${catches === 1 ? "film" : "films"} seen in the year ${catches === 1 ? "it" : "they"} came out.`, to: catches ? D.entries("Seen the year they came out", entriesSub(catchE), catchE) : null });
     const rwE = E.filter((e) => e.rewatch), rw = pctOf(rwE.length, E.length);
-    habits.push({ k: "Rewatches", v: `${rw}%`, text: "of your diary entries are rewatches.", to: rwE.length ? D.entries("Rewatches", entriesSub(rwE, `${rw}% of the diary`), rwE) : null });
+    if (rwE.length) habits.push({ k: "Rewatches", v: `${rw}%`, text: "of your diary entries are rewatches.", to: rwE.length ? D.entries("Rewatches", entriesSub(rwE, `${rw}% of the diary`), rwE) : null });
     const timedFilms = lib.films.filter((f) => runtimeOf(f)), runtimes = timedFilms.map(runtimeOf);
     const long = runtimes.filter((r) => r >= 150).length, longPct = pctOf(long, runtimes.length);
     if (runtimes.length >= 10) habits.push({ k: "Typical length", v: `${Math.round(avg(runtimes))} min`,
@@ -403,7 +403,7 @@ function computeYearInsights(lib, metaOf, Y, crowdKey, I = computeInsights(lib, 
     row("Not in English", cur.nonEnglish, prev.nonEnglish, (x) => `${x}%`, "nonEnglish");
     row("Film age when watched", cur.age, prev.age, (x) => `${Math.round(x)} years`, "age");
     row("Countries", cur.countries, prev.countries, fmtN, "countries");
-    row("Rewatches", pctOf(cur.rewatches, cur.entries), pctOf(prev.rewatches, prev.entries), (x) => `${x}%`, "rewatches");
+    if (everRewatched(lib)) row("Rewatches", pctOf(cur.rewatches, cur.entries), pctOf(prev.rewatches, prev.entries), (x) => `${x}%`, "rewatches");
   }
   const genreLines = [];
   if (cur && prev && cur.withMeta >= 5 && prev.withMeta >= 5) {
@@ -432,7 +432,7 @@ function computeYearInsights(lib, metaOf, Y, crowdKey, I = computeInsights(lib, 
     const oldest = S.films.filter((f) => f.year).sort((a, b) => a.year - b.year)[0];
     if (oldest) habits.push({ k: "Oldest film", v: String(oldest.year), text: `${oldest.name}.`, to: D.film(oldest) });
     const reE = E.filter((e) => e.rewatch);
-    habits.push({ k: "Rewatches", v: fmtN(reE.length), text: `of ${plural(E.length, "diary entry", "diary entries")}.`, to: reE.length ? D.entries(`Rewatches in ${Y}`, entriesSub(reE), reE) : null });
+    if (everRewatched(lib)) habits.push({ k: "Rewatches", v: fmtN(reE.length), text: `of ${plural(E.length, "diary entry", "diary entries")}.`, to: reE.length ? D.entries(`Rewatches in ${Y}`, entriesSub(reE), reE) : null });
   }
 
   const glance = [];
@@ -505,12 +505,15 @@ const monthEnts = (title, es, extra) => es.length ? D.entries(title, entriesSub(
 // year (or, for one year, your usual for each month in your other years).
 function monthGridHtml(G) {
   const alpha = (n) => (0.16 + 0.84 * n / G.max).toFixed(2), fix = (v) => v.toFixed(v < 10 ? 1 : 0);
+  // dark numbers on the brightest squares, where white was hard to read (from 0.75 of the way to full gold on the
+  // computer, 0.65 to full green on the phone: `lit`, `lit2`)
+  const lit = (n) => { const a = +alpha(n); return a >= 0.75 ? " lit" : a >= 0.65 ? " lit2" : ""; };
   const cell = (m) => !m.live ? `<td class="mg-off"></td>` : m.E.length
-    ? `<td><button class="mg-c" type="button" ${dl(DR.month(m.E, m.key))} style="--a:${alpha(m.E.length)}" title="${monthName(m.key)}: ${plural(m.E.length, "film")}">${m.E.length}</button></td>`
+    ? `<td><button class="mg-c${lit(m.E.length)}" type="button" ${dl(DR.month(m.E, m.key))} style="--a:${alpha(m.E.length)}" title="${monthName(m.key)}: ${plural(m.E.length, "film")}">${m.E.length}</button></td>`
     : `<td><span class="mg-0" title="${monthName(m.key)}: none">·</span></td>`;
   const foot = G.Y ? ["Usual", (c) => c.usual != null ? dlink(monthEnts(`${c.name} in your other years`, c.usualE, plural(c.usualYears, "year")), fix(c.usual)) : "—"]
     : ["Per year", (c) => c.years ? dlink(monthEnts(`${c.name}, every year`, c.E, plural(c.years, "year")), fix(c.perYear)) : "—"];
-  return `<div class="scroll"><table class="mgrid"><thead><tr><th></th>${MONTHS.map((m) => `<th>${m[0]}<span>${m.slice(1)}</span></th>`).join("")}<th class="n">All</th></tr></thead>
+  return `<div class="scroll"><table class="mgrid"><thead><tr><th><i class="sr-only">Year</i></th>${MONTHS.map((m) => `<th>${m[0]}<span>${m.slice(1)}</span></th>`).join("")}<th class="n">All</th></tr></thead>
     <tbody>${[...G.rows].reverse().map((r) => `<tr><th>${r.year}</th>${r.months.map(cell).join("")}<td class="n">${dlink(monthEnts(`Diary of ${r.year}`, r.E), fmtN(r.E.length))}</td></tr>`).join("")}</tbody>
     <tfoot><tr><th>${foot[0]}</th>${G.cal.map((c) => `<td>${foot[1](c)}</td>`).join("")}<td></td></tr></tfoot></table></div>`;
 }

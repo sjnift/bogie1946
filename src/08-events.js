@@ -1,9 +1,10 @@
 <script>
 /* ---------- importing ---------- */
 async function importFiles(files) {
-  const err = $("#import-error"), done = $("#import-done"), btn = $("#btn-import");
+  const err = $("#import-error"), done = $("#import-done"), btn = $("#btn-import"), again = $("#btn-import-3");
   err.hidden = true; done.hidden = true;
   btn.disabled = true; btn.textContent = "Reading export…";
+  again.disabled = true; again.textContent = "Reading export…"; // the button in Settings, where it's imported again
   try {
     // a backup from another device restores everything it holds
     if (isBackupFile(files)) {
@@ -32,6 +33,7 @@ async function importFiles(files) {
     err.hidden = false;
   } finally {
     btn.disabled = false; btn.textContent = "Import Letterboxd export";
+    again.disabled = false; again.textContent = "Import a newer export";
   }
 }
 

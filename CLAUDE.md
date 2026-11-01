@@ -345,6 +345,36 @@ The owner asked for this to be checked every time. A film, diary entry, person o
   segmented switch's name: until 31 Oct 2026 every phone bar took the switch's padding, margin and ring (6px wide and
   tall at least, the tallest cut 12px short), so `.col .seg` resets them.
 
+### The review of 1 Nov 2026 (asked: "a comprehensive and honest review … implement them")
+
+Walked both layouts with the owner's diary and as a visitor, with an accessibility scan (axe). What changed, keep it:
+- **Tied places are shared** (`tieRanks` in 05-core): people with the same count (or average, as shown) all show the
+  place they reach first, "=3": the desktop's faces and rows (`peopleBlock`; `foldTies` takes the labels and keeps the
+  position in `at`, which `peopleRowsShown` uses), the phone's People list and podium, People over the years on both
+  (first 8 / 6 of the whole list's places, and "See all N ›" on the desktop when there are more).
+- **No empty places in grids**: the desktop's faces are six across (`.people`), so twelve fill two rows; Watch next
+  shows two rows of seven (`WN_SHOWN` 14); Habits wrap like "In short" (`.habits` flex, the last row widens).
+- **A diary that never marks a rewatch** (`everRewatched`, on the whole diary: the owner's 1,217 entries have none)
+  leaves out what would only read 0: the desktop's Rewatches tile becomes **Liked** (Reviews' foot then "N% of films"),
+  the year-by-year table's Rewatches column, the Rewatches habit, the "against the year before" row, the phone's
+  Rewatches trend chip; the phone Profile's Rewatches tile becomes **Back in time** ("Who led when", `data-act="people"
+  data-role="asof"`), which had been a chip off the screen.
+- **What your ratings follow says when nothing does** (`FOLLOW_CLEAR` 10%): below it, "No one thing tells you much
+  about how you'll rate a film: the best guide, its genres, accounts for only 3%…", and it isn't an "In short" card
+  (`followClear`); it had read "What tells most … is its genres: it accounts for 3%".
+- **Who counts, in one line**: "Principal and supporting parts count; small parts and cameos don't." with "How people
+  are counted" folded under it (`castRuleShort`, `castRuleHtml`, `.howcount` details, both layouts); the full rule was a
+  paragraph beside Starring and over the phone's actors.
+- With a diary in, the desktop header has no gold "Import Letterboxd export" (`body.has-diary`); importing again is in
+  Settings, whose button says "Reading export…" meanwhile. The welcome's title is white, not the muted grey that made it
+  look switched off. The phone's Compare with no friends has one "Add a friend's export" button (the chip beside it did
+  the same). The phone's top bar names Stats › Years and vs. Others too (`TITLES` had no `years`, `crowd`).
+- Month by month's brightest squares have dark numbers (`lit`, `lit2` in `monthGridHtml`; white was 2.7:1 on full gold).
+- Accessibility: charts with bars to click are `role="group"` (were `img` around buttons), the map's countries
+  `role="img"` with their label, the calendar strip a focusable region (it scrolls), empty table corners named for
+  screen readers. Left as they are, by the owner's earlier choices: gold links in sentences without underlines,
+  Letterboxd's green buttons with white text (2.6:1).
+
 ### Drill-downs (what a click opens)
 
 `drill(d)` registers a description and returns an id for `data-list="…"`; `dl(d)` writes the attribute,

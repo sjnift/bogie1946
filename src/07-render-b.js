@@ -20,15 +20,16 @@ function rankRows(list, valueOf, widthOf, startRank, titleOf) {
 }
 // A run of four or more with the same count becomes one row ("12 actors with 3 films each", opening them all)
 // instead of a column of identical bars. Ranks run from `start`.
-function foldTies(list, countOf, start, group) {
+// Two or three with the same count share a place ("=14", from `labels`, the whole list's `tieRanks`); `at` is the place.
+function foldTies(list, countOf, start, group, labels) {
   const out = [];
   for (let i = 0; i < list.length;) {
     let j = i;
     while (j < list.length && countOf(list[j]) === countOf(list[i])) j++;
     if (j - i >= 4) {
       const xs = list.slice(i, j), n = countOf(list[i]);
-      out.push({ ...group(xs, n), group: xs, count: n, rank: `${start + i}–${start + j - 1}`, also: `${xs.slice(0, 3).map((x) => x.name).join(", ")}…` });
-    } else for (let k = i; k < j; k++) out.push({ ...list[k], rank: start + k });
+      out.push({ ...group(xs, n), group: xs, count: n, at: start + i, rank: `${start + i}–${start + j - 1}`, also: `${xs.slice(0, 3).map((x) => x.name).join(", ")}…` });
+    } else for (let k = i; k < j; k++) out.push({ ...list[k], at: start + k, rank: labels ? labels[start - 1 + k] : start + k });
     i = j;
   }
   return out;
@@ -75,19 +76,19 @@ const posterRow = (title, items, to, draw) => `<h3 class="sub-h row-h"><span>${t
 const PEOPLE_TO = 21;
 function peopleRowsShown(kind, data) {
   const rows = foldTies(data.most.slice(12), (p) => p.count, 13, peopleTies(kind === "cast" ? "actors" : kind === "voices" ? "voice actors" : "directors"));
-  const upTo = rows.filter((r) => parseInt(r.rank, 10) <= PEOPLE_TO).length, tie = rows.findIndex((r) => r.group);
+  const upTo = rows.filter((r) => r.at <= PEOPLE_TO).length, tie = rows.findIndex((r) => r.group);
   return kind === "directors" && tie >= 0 ? Math.min(tie + 1, upTo) : upTo;
 }
 function peopleBlock(kind, data, s) {
   const t = state.tab[kind];
   const list = t === "most" ? data.most : data.best;
   if (!list.length) return `<div class="empty">${t === "best" ? `Nobody here has ${kind === "cast" ? s.castMinRated : s.minRated} or more rated films yet.` : kind === "voices" ? "No voice roles in this period." : "Nobody to show for this period."}</div>`;
-  const top = list.slice(0, 12);
+  const top = list.slice(0, 12), R = tieRanks(list, t === "most" ? (p) => p.count : (p) => p.avg.toFixed(2));
   const cards = top.map((p, i) => `<button class="person" type="button" data-list="${reg(p.name, personSub(p), p.films, p)}">
-    ${faceHtml(p, i + 1)}<span class="nm">${esc(p.name)}</span>
+    ${faceHtml(p, R[i])}<span class="nm">${esc(p.name)}</span>
     <span class="ct">${t === "most" ? plural(p.count, "film") : `<span class="stars">★</span> ${p.avg.toFixed(2)} · ${plural(p.ratings.length, "film")}`}</span></button>`).join("");
   const limit = state.more[kind] ? 60 : peopleRowsShown(kind, data); // rows below the cards
-  const all = t === "most" ? foldTies(list.slice(12), (p) => p.count, 13, peopleTies(kind === "cast" ? "actors" : kind === "voices" ? "voice actors" : "directors")) : list.slice(12).map((p, i) => ({ ...p, rank: 13 + i }));
+  const all = t === "most" ? foldTies(list.slice(12), (p) => p.count, 13, peopleTies(kind === "cast" ? "actors" : kind === "voices" ? "voice actors" : "directors"), R) : list.slice(12).map((p, i) => ({ ...p, at: 13 + i, rank: R[12 + i] }));
   const rest = all.slice(0, limit);
   const max = list[0].count;
   const rows = rest.length ? rankRows(rest,
@@ -146,10 +147,11 @@ function diaryBlock(s) {
   const weekdays = `<div class="weekdays" role="group" aria-label="Diary entries by day of the week">${s.weekday.map((n, i) =>
     `<button class="wd" type="button" ${dl(DR.weekday(s.entries, i))} data-tip="${WEEKDAYS_LONG[i]}: ${plural(n, "film")}" aria-label="${WEEKDAYS_LONG[i]}: ${plural(n, "film")}"><span class="cnt">${n}</span><span class="bar-v"><span style="height:${(n / wmax * 100).toFixed(1)}%"></span></span><span class="lbl">${WEEKDAYS[i]}</span></button>`).join("")}</div>`;
   const shown = cols.filter((c) => c.a + c.b), hA = hiLo(shown.map((c) => c.a)), hB = hiLo(shown.map((c) => c.b));
-  const table = `<details class="tbl"><summary>View as table</summary><div class="scroll"><table class="data"><thead><tr><th>${unit[0].toUpperCase() + unit.slice(1)}</th><th class="n">First watches</th><th class="n">Rewatches</th></tr></thead><tbody>${
+  const rw = everRewatched(wholeLib()); // a diary that never marks a rewatch: one column, its entries
+  const table = `<details class="tbl"><summary>View as table</summary><div class="scroll"><table class="data"><thead><tr><th>${unit[0].toUpperCase() + unit.slice(1)}</th>${rw ? `<th class="n">First watches</th><th class="n">Rewatches</th>` : `<th class="n">Diary entries</th>`}</tr></thead><tbody>${
     shown.map((c, i) => { const first = c.es.filter((e) => !e.rewatch), again = c.es.filter((e) => e.rewatch);
-      return `<tr><td>${dlink(c.to, esc(c.tipLabel))}</td><td class="n${hA[i]}">${dlink(c.a && D.entries(`${c.tipLabel}: first watches`, entriesSub(first), first, { order: "asc" }), c.a)}</td>
-      <td class="n${hB[i]}">${dlink(c.b && D.entries(`${c.tipLabel}: rewatches`, entriesSub(again), again, { order: "asc" }), c.b)}</td></tr>`; }).join("")}</tbody></table></div><p class="status">${HILO_NOTE}</p></details>`;
+      return `<tr><td>${dlink(c.to, esc(c.tipLabel))}</td><td class="n${hA[i]}">${dlink(c.a && D.entries(`${c.tipLabel}: ${rw ? "first watches" : "diary entries"}`, entriesSub(first), first, { order: "asc" }), c.a)}</td>
+      ${rw ? `<td class="n${hB[i]}">${dlink(c.b && D.entries(`${c.tipLabel}: rewatches`, entriesSub(again), again, { order: "asc" }), c.b)}</td>` : ""}</tr>`; }).join("")}</tbody></table></div><p class="status">${HILO_NOTE}</p></details>`;
   return `<div class="facts">${facts}</div>${colChart(cols, `Diary entries by ${unit}`, legend, 162, { unit: "films" })}${table}
     <div class="facts" style="align-items:end; gap:28px 48px"><div class="fact"><span class="k" style="margin-bottom:8px">By day of the week</span>${weekdays}</div>
     ${s.scope === "all" ? "" /* the months are in Month by month, just below (the owner's trim, Oct 2026) */
@@ -231,14 +233,15 @@ function onThisDayBlock(T) {
     (T.entries.length > 12 ? `<p class="status">${dlink(T.to, `All ${fmtN(T.entries.length)}`)}</p>` : "");
 }
 // The watchlist, likeliest favourites first, with why.
+const WN_SHOWN = 14; // two rows of seven
 function watchNextBlock(W) {
   if (!W) return `<div class="empty">Watch next needs a watchlist in your export and five or more rated films.</div>`;
   const list = W.picks.filter((p) => p.known && wnFits(p, state.wn));
   const chips = `<div class="tabs" role="tablist">${WN_LENGTHS.map(([v, l]) => `<button class="tab" role="tab" type="button" data-wn="${v}" aria-selected="${v === state.wn}">${l}</button>`).join("")}</div>`;
-  const cards = list.length ? `<div class="posters wn">${list.slice(0, 12).map((p) => `<button class="poster" type="button" ${dl(D.film(p.f))}>${artHtml(p.f)}
+  const cards = list.length ? `<div class="posters wn">${list.slice(0, WN_SHOWN).map((p) => `<button class="poster" type="button" ${dl(D.film(p.f))}>${artHtml(p.f)}
     <span class="cap"><span class="pred">About ${p.pred.toFixed(1)}★</span>${p.why[0] ? `<span class="muted why">${esc(p.why[0])}</span>` : ""}</span></button>`).join("")}</div>`
     : `<div class="empty">${W.picks.some((p) => p.known) ? "Nothing on your watchlist fits that length." : "Your watchlist films need cast &amp; crew details first. They're looked up with your TMDB key."}</div>`;
-  const all = list.length > 12 ? `<p class="status">${dlink(wnDrill(list, "Watch next"), `See all ${fmtN(list.length)}`)}, best bets first.</p>` : "";
+  const all = list.length > WN_SHOWN ? `<p class="status">${dlink(wnDrill(list, "Watch next"), `See all ${fmtN(list.length)}`)}, best bets first.</p>` : "";
   const missing = W.missing ? `<p class="status">${plural(W.missing, "film")} on your watchlist ${W.missing === 1 ? "has" : "have"} no details yet, so ${W.missing === 1 ? "isn't" : "aren't"} ranked.</p>` : "";
   return chips + cards + all + missing + `<p class="status">A guess at your rating: your average, moved by how you rate each film's director, leads and genres, and by its crowd score as far as your ratings follow the crowd.</p>`;
 }

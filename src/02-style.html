@@ -125,7 +125,9 @@ main { padding-block: 8px 64px; }
 .ins-grid .rank-row { grid-template-columns: 22px minmax(0, 1.7fr) minmax(0, 1fr) 70px; }
 .lead { margin: 0; font-size: 16px; color: var(--ink); max-width: 72ch; }
 .poster .cap .diff { color: var(--ink); }
-.habits { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 18px 16px; }
+/* a wrapping row, like "In short": the last row's habits widen, so none sits alone beside two empty places (Nov 2026) */
+.habits { display: flex; flex-wrap: wrap; gap: 18px 16px; }
+.habits > .habit { flex: 1 1 220px; min-width: 0; }
 .habit { border-top: 2px solid var(--gold); padding-top: 8px; display: grid; gap: 2px; align-content: start; }
 .habit .k { font-size: 12.5px; color: var(--muted); }
 .habit .v { font-weight: 700; font-size: 24px; color: var(--ink); line-height: 1.15; }
@@ -278,7 +280,8 @@ main { padding-block: 8px 64px; }
 .stars-axis span { text-align: center; font-size: 11px; color: var(--muted); white-space: nowrap; letter-spacing: -.04em; }
 
 /* ---------- people ---------- */
-.people { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 18px 14px; }
+/* six across, so the twelve faces fill two rows (seven across left two empty places, Nov 2026) */
+.people { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 18px 14px; }
 .person {
   all: unset; cursor: pointer; display: grid; gap: 8px; align-content: start; min-width: 0; border-radius: 8px;
 }
@@ -516,6 +519,8 @@ button.drill-row.name { cursor: pointer; }
 .fix-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .fix-row input { flex: 1 1 260px; min-width: 0; font: inherit; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
 .fix-note { margin: 6px 0 0; }
+.posters.wn { grid-template-columns: repeat(7, minmax(0, 1fr)); } /* two full rows of seven (WN_SHOWN) */
+@media (max-width: 900px) { .posters.wn { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); } }
 .posters.wn .cap .pred { color: var(--gold-ink); font-weight: 600; }
 .posters.wn .cap .why { font-size: 12px; line-height: 1.3; }
 .backup-keys { margin-left: 10px; }
@@ -599,6 +604,12 @@ footer p { margin: 0 0 6px; max-width: 80ch; }
 .mgrid td.n { text-align: right; padding-left: 8px; font-size: 13px; }
 .mg-c { all: unset; box-sizing: border-box; cursor: pointer; display: grid; place-items: center; width: 100%; height: 32px; border-radius: 6px; font-size: 12.5px; font-weight: 600;
   background: color-mix(in srgb, var(--gold) calc(var(--a) * 100%), var(--surface-2)); color: var(--ink); }
+.mg-c { color: #fff; } .mg-c.lit { color: var(--bg); }
+/* the whole rule for who counts, folded under its one line (Nov 2026) */
+.howcount { margin-top: 6px; }
+.howcount summary { cursor: pointer; color: var(--gold-ink); width: fit-content; }
+.howcount summary:focus-visible { outline: 2px solid var(--gold-ink); outline-offset: 2px; border-radius: 3px; }
+.howcount p { margin: 6px 0 0; }
 .mg-c:hover, .mg-c:focus-visible { outline: 2px solid var(--gold-ink); outline-offset: 1px; }
 .mg-0 { color: var(--muted); }
 .mg-off { background: repeating-linear-gradient(135deg, transparent 0 4px, var(--line) 4px 5px); border-radius: 6px; opacity: .5; }
@@ -607,7 +618,7 @@ footer p { margin: 0 0 6px; max-width: 80ch; }
 /* nothing imported yet: just the title band and how to import */
 body.empty #tiles, body.empty #lookup-mini, body.empty #ios-tip, body.empty #jump, body.empty #sections, body.empty #insights, body.empty #compare, body.empty #drillpage,
 body.empty .scopes-row, body.empty #btn-search, body.empty #btn-insights, body.empty #btn-compare, body.empty #btn-settings, body.empty #btn-import,
-body.empty #settings, body.empty .foot-settings { display: none !important; }
+body.empty #settings, body.empty .foot-settings, body.has-diary #btn-import { display: none !important; }
 /* recently watched: one row of posters (two of four in a narrow window) */
 #recent .posters { grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 12px; }
 @media (max-width: 900px) { #recent .posters { grid-template-columns: repeat(4, minmax(0, 1fr)); } }

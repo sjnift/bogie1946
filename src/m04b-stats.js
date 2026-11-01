@@ -72,7 +72,8 @@ const TRENDS = {
 };
 function mYears(I) {
   if (I.years.length < 2) return sh("Year by year") + twoYears("Year-by-year trends");
-  const t = TRENDS[state.trend] ? state.trend : "films", T = TRENDS[t];
+  const rw = everRewatched(BASE_LIB || state.lib); // no Rewatches trend for a diary that never marks one
+  const t = TRENDS[state.trend] && (rw || state.trend !== "rewatches") ? state.trend : "films", T = TRENDS[t];
   const anyPace = t === "films" && I.years.some((p) => p.pace && p.pace > p.films);
   const legend = anyPace ? `<div class="legend"><span><i style="background:var(--green-mark)"></i>Watched</span><span><i style="background:var(--blue-mark)"></i>Rest of this year at your pace</span></div>` : "";
   const chart = colChart(I.years.map((p, i) => ({ a: Math.max(0, T.value(p) || 0), b: T.extra ? T.extra(p) : 0, label: yearTick(i, I.years.length, p.year), year: p.year, tip: T.tip(p), to: p.entries ? yearDrill(p, t) : null })), `${T.label} by year`, legend, 130,
@@ -87,7 +88,7 @@ function mYears(I) {
     return `<div class="yrow"><span class="y">${dlink(yearDrill(p, "entries"), p.year)}</span>${cell("films", fmtN(p.films) + (p.pace ? `<span class="dim" style="font-weight:500"> →${fmtN(p.pace)}</span>` : ""), "films")}
       ${cell("hours", fmtN(Math.round(p.hours)), "hours")}${cell("rating", p.avgRating ? p.avgRating.toFixed(2) : null, "average")}${extra ? `<span class="x">${extra}</span>` : ""}</div>`;
   }).join("");
-  return sh("Year by year") + chipBar("trend", Object.entries(TRENDS).map(([k, x]) => [k, x.label]), t) + `<div class="card" style="margin-top:12px">${chart}</div>` +
+  return sh("Year by year") + chipBar("trend", Object.entries(TRENDS).filter(([k]) => rw || k !== "rewatches").map(([k, x]) => [k, x.label]), t) + `<div class="card" style="margin-top:12px">${chart}</div>` +
     sh("Every year") + `<div class="group">${rows}</div><p class="note">${HILO_NOTE}${ys.some((p) => p.pace) ? " A year still under way isn't marked for its counts." : ""} Tap any number to see what's behind it.</p>`;
 }
 
@@ -117,10 +118,12 @@ function mGenres(I) {
 function mPeopleYears(I) {
   const P = I.people;
   const row = (p, i, value, sub) => `<button class="prow" type="button" data-list="${reg(p.name, sub(p), p.films, p)}">
-    <span class="rk">${i + 1}</span>${avatar(p, "md")}<span style="min-width:0"><span class="nm">${esc(p.name)}</span><span class="sub">${esc(sub(p))}</span></span>
+    <span class="rk">${p.rank || i + 1}</span>${avatar(p, "md")}<span style="min-width:0"><span class="nm">${esc(p.name)}</span><span class="sub">${esc(sub(p))}</span></span>
     <span class="val">${value}</span>${CHEV}</button>`;
-  const obs = [...P.obsDirectors.map((p) => ({ ...p, role: "Director" })), ...P.obsActors.map((p) => ({ ...p, role: "Actor" }))].sort((a, b) => b.inLatest - a.inLatest).slice(0, 6);
-  const comp = [...P.compDirectors.map((p) => ({ ...p, role: "Director" })), ...P.compActors.map((p) => ({ ...p, role: "Actor" }))].sort((a, b) => b.years.size - a.years.size || b.count - a.count).slice(0, 6);
+  // places shared where they tie, over the whole list (Nov 2026)
+  const top6 = (all, val) => { const R = tieRanks(all, val); return all.slice(0, 6).map((p, i) => ({ ...p, rank: R[i] })); };
+  const obs = top6([...P.obsDirectors.map((p) => ({ ...p, role: "Director" })), ...P.obsActors.map((p) => ({ ...p, role: "Actor" }))].sort((a, b) => b.inLatest - a.inLatest), (p) => p.inLatest);
+  const comp = top6([...P.compDirectors.map((p) => ({ ...p, role: "Director" })), ...P.compActors.map((p) => ({ ...p, role: "Actor" }))].sort((a, b) => b.years.size - a.years.size || b.count - a.count), (p) => p.years.size);
   let html = "";
   if (obs.length) html += sh(`New in ${I.latest}`) + `<div class="group">${obs.map((p, i) => row(p, i, `${p.inLatest}`, (q) => `${q.role} · ${plural(q.inLatest, "film")} in ${I.latest}, none before`)).join("")}</div>`;
   if (comp.length) html += sh("Long-time companions") + `<div class="group">${comp.map((p, i) => row(p, i, `${p.years.size}y`, (q) => `${q.role} · ${plural(q.years.size, "year")} of your diary`)).join("")}</div>`;

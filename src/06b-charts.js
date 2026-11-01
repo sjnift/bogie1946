@@ -45,7 +45,7 @@ function colChart(cols, aria, legend, H = 162, opts = true) {
   }).join("");
   const axis = cols.map((c) => `<span${c.minor ? ' class="minor"' : ""}>${c.label || ""}</span>`).join("");
   return `${legend || ""}<div class="chart${o.cls ? ` ${o.cls}` : ""}${grid ? "" : " bare"}${o.values ? " valued" : ""}${grid && o.unit ? " unit" : ""}">${grid ? `<div class="gridline" style="bottom:${(tick / max * H).toFixed(1)}px"><span>${fmtN(tick)}${o.unit ? (o.unit === "%" ? "%" : ` ${o.unit}`) : ""}</span></div>` : ""}
-    <div class="cols" style="height:${H + 8}px" role="img" aria-label="${esc(aria)}">${bars}</div></div><div class="axis${o.cls ? ` ${o.cls}` : ""}" aria-hidden="true">${axis}</div>`;
+    <div class="cols" style="height:${H + 8}px" role="group" aria-label="${esc(aria)}">${bars}</div></div><div class="axis${o.cls ? ` ${o.cls}` : ""}" aria-hidden="true">${axis}</div>`;
 }
 // Every release year from the first to the last, like Letterboxd's (asked 31 Oct 2026: "a year wise graph with the
 // number of films released in each year I've watched"): how many films (`mode` "films") or your average rating
@@ -162,7 +162,7 @@ function heatmap(s) {
     for (let k = 0; k < 7; k++) { const d = start - pad + w * 7 + k; if (d >= start && d <= end && isoOfDay(d).endsWith("-01")) label = MONTHS[+isoOfDay(d).slice(5, 7) - 1]; }
     months.push(`<span>${label}</span>`);
   }
-  return `<div class="cal-wrap"><div class="cal-months" aria-hidden="true">${months.join("")}</div>
+  return `<div class="cal-wrap" tabindex="0" role="region" aria-label="Calendar, scrolls sideways"><div class="cal-months" aria-hidden="true">${months.join("")}</div>
     <div class="cal" role="img" aria-label="Calendar of diary entries, ${fmtDate(isoOfDay(start))} to ${fmtDate(isoOfDay(end))}">${cells.join("")}</div></div>
     <div class="heat-key" aria-hidden="true">Fewer <i></i><i style="background:var(--heat-1)"></i><i style="background:var(--heat-2)"></i><i style="background:var(--heat-3)"></i> More</div>`;
 }

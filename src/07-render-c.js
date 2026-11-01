@@ -64,15 +64,15 @@ function yearsBlock(I) {
     ${mult("Film age when watched (years)", "age", (p) => p.age, (p) => `${p.year}: films were ${p.age != null ? Math.round(p.age) : "—"} years old on average`, null, { unit: "yrs" })}
   </div>`;
   const top = (p, pair, role) => pair && pair[1] > 1 ? `${dlink(personDrill(state.lib, pair[0], role, p.F), esc(pair[0]))} <span class="muted">${pair[1]}</span>` : "—";
-  const ys = [...I.years].reverse(), H = yearsHiLo(ys);
+  const ys = [...I.years].reverse(), H = yearsHiLo(ys), rw = everRewatched(wholeLib()); // no column of 0%s
   const rows = ys.map((p, i) => { const cell = (what, v) => v == null || v === "—" ? "—" : dlink(yearDrill(p, what), v);
     return `<tr><td>${cell("entries", p.year)}${p.pace ? ` <span class="muted">(pace ${fmtN(p.pace)})</span>` : ""}</td>
     <td class="n${H.films[i]}">${cell("films", fmtN(p.films))}</td><td class="n${H.hours[i]}">${cell("hours", fmtN(Math.round(p.hours)))}</td><td class="n${H.rating[i]}">${cell("rating", p.avgRating ? p.avgRating.toFixed(2) : null)}</td>
-    <td class="n${H.newShare[i]}">${cell("new", p.newShare != null ? p.newShare + "%" : null)}</td><td class="n${H.nonEnglish[i]}">${cell("nonEnglish", p.nonEnglish != null ? p.nonEnglish + "%" : null)}</td><td class="n${H.rewatches[i]}">${cell("rewatches", p.entries ? pctOf(p.rewatches, p.entries) + "%" : null)}</td><td class="n${H.countries[i]}">${cell("countries", p.countries || null)}</td>
+    <td class="n${H.newShare[i]}">${cell("new", p.newShare != null ? p.newShare + "%" : null)}</td><td class="n${H.nonEnglish[i]}">${cell("nonEnglish", p.nonEnglish != null ? p.nonEnglish + "%" : null)}</td>${rw ? `<td class="n${H.rewatches[i]}">${cell("rewatches", p.entries ? pctOf(p.rewatches, p.entries) + "%" : null)}</td>` : ""}<td class="n${H.countries[i]}">${cell("countries", p.countries || null)}</td>
     <td>${p.topGenre ? dlink(D.films(`${p.topGenre[0]} in ${p.year}`, filmsSub(p.F.filter(hasGenre(p.topGenre[0]))), p.F.filter(hasGenre(p.topGenre[0])), { scope: p.year }), esc(p.topGenre[0])) : "—"}</td>
     <td>${top(p, p.topDirector, "d")}</td><td>${top(p, p.topActor, "c")}</td></tr>`; }).join("");
   return legend + charts + `<div class="tbl-wrap"><table class="data"><thead><tr><th>Year</th><th class="n">Films</th><th class="n">Hours</th><th class="n">Avg ★</th>
-    <th class="n">New releases</th><th class="n">Not English</th><th class="n">Rewatches</th><th class="n">Countries</th><th>Top genre</th><th>Top director</th><th>Top actor</th></tr></thead><tbody>${rows}</tbody></table></div><p class="status">${HILO_NOTE}${ys.some((p) => p.pace) ? " A year still under way isn't marked for its counts." : ""} Click any number to see the films or diary entries behind it.</p>`;
+    <th class="n">New releases</th><th class="n">Not English</th>${rw ? `<th class="n">Rewatches</th>` : ""}<th class="n">Countries</th><th>Top genre</th><th>Top director</th><th>Top actor</th></tr></thead><tbody>${rows}</tbody></table></div><p class="status">${HILO_NOTE}${ys.some((p) => p.pace) ? " A year still under way isn't marked for its counts." : ""} Click any number to see the films or diary entries behind it.</p>`;
 }
 
 function genreYearsBlock(I) {
@@ -108,16 +108,19 @@ function peopleYearsBlock(I) {
   if (!P.compDirectors.length && !P.obsDirectors.length && !P.compActors.length && P.discoveries.length < 2) return `<div class="empty">This needs cast &amp; crew details and a few years of diary entries.</div>`;
   const list = (items, value, sub) => items.length ? rankRows(items, value, (p) => p.width, 1, sub) : `<div class="empty">Nobody yet.</div>`;
   const widthBy = (items, f) => { const m = Math.max(1, ...items.map(f)); items.forEach((p) => { p.width = f(p) / m; }); return items; };
-  const obs = widthBy([...P.obsDirectors.map((p) => ({ ...p, role: "director" })), ...P.obsActors.map((p) => ({ ...p, role: "actor" }))]
-    .sort((a, b) => b.inLatest - a.inLatest).slice(0, 8), (p) => p.inLatest);
-  const comp = widthBy([...P.compDirectors.map((p) => ({ ...p, role: "director" })), ...P.compActors.map((p) => ({ ...p, role: "actor" }))]
-    .sort((a, b) => b.years.size - a.years.size || b.count - a.count).slice(0, 8), (p) => p.years.size);
+  // the first eight, places shared where they tie (all eight "=1" on 2 films each, where 1 to 8 had suggested an order),
+  // and everyone a click away when there are more (Nov 2026)
+  const top8 = (all, val) => { const R = tieRanks(all, val); return widthBy(all.slice(0, 8).map((p, i) => ({ ...p, rank: R[i] })), val); };
+  const obsAll = [...P.obsDirectors.map((p) => ({ ...p, role: "director" })), ...P.obsActors.map((p) => ({ ...p, role: "actor" }))].sort((a, b) => b.inLatest - a.inLatest);
+  const compAll = [...P.compDirectors.map((p) => ({ ...p, role: "director" })), ...P.compActors.map((p) => ({ ...p, role: "actor" }))].sort((a, b) => b.years.size - a.years.size || b.count - a.count);
+  const obs = top8(obsAll, (p) => p.inLatest), comp = top8(compAll, (p) => p.years.size);
+  const allOf = (all, title, sub) => all.length > 8 ? `<p class="status">${dlink(D.names(title, sub, all, { faces: true }), `See all ${fmtN(all.length)} ›`)}</p>` : "";
   const disc = P.discoveries.length >= 2 ? `<div><h3>Directors discovered each year</h3>${colChart(P.discoveries.map((d, i) => ({ a: d.count, b: 0, label: yearTick(i, P.discoveries.length, d.year), tip: `${d.year}: ${plural(d.count, "new director")}`,
       to: d.count && D.names(`Directors new in ${d.year}`, plural(d.count, "director"), d.people, { faces: true }) })), "New directors by year", "", 90, { unit: "new" })}
     <p class="status">Directors whose first film in your diary came that year. Your first diary year is left out.</p></div>` : "";
   return `<div class="ins-grid">
-    <div><h3>New in ${esc(I.latest)}</h3>${list(obs, (p) => plural(p.inLatest, "film"), (p) => `${p.role === "director" ? "Director" : "Actor"} · ${plural(p.inLatest, "film")} in ${I.latest}, none before`)}</div>
-    <div><h3>Long-time companions</h3>${list(comp, (p) => plural(p.years.size, "year"), (p) => `${p.role === "director" ? "Director" : "Actor"} · in your diary in ${[...p.years].sort().join(", ")}`)}</div>
+    <div><h3>New in ${esc(I.latest)}</h3>${list(obs, (p) => plural(p.inLatest, "film"), (p) => `${p.role === "director" ? "Director" : "Actor"} · ${plural(p.inLatest, "film")} in ${I.latest}, none before`)}${allOf(obsAll, `New in ${I.latest}`, `Directors and actors with films in ${I.latest} and none before, most first`)}</div>
+    <div><h3>Long-time companions</h3>${list(comp, (p) => plural(p.years.size, "year"), (p) => `${p.role === "director" ? "Director" : "Actor"} · in your diary in ${[...p.years].sort().join(", ")}`)}${allOf(compAll, "Long-time companions", "Directors and actors in the most years of your diary")}</div>
     ${disc}</div>`;
 }
 
@@ -161,7 +164,7 @@ function habitsBlock(habits, empty) {
 function vsPrevBlock(R, prevY) {
   if (!R.changes.length) return `<div class="empty">No diary entries in ${prevY} to compare with.</div>`;
   const arrow = (c) => Math.abs(c.d) < 1e-9 ? `<span class="muted">same</span>` : `<span aria-hidden="true">${c.d > 0 ? "▲" : "▼"}</span> <span class="sr-only">${c.d > 0 ? "up" : "down"}</span>`;
-  return `<div class="tbl-wrap"><table class="data"><thead><tr><th></th><th class="n">${esc(R.Y)}</th><th class="n">${prevY}</th><th class="n">Change</th></tr></thead>
+  return `<div class="tbl-wrap"><table class="data"><thead><tr><th><span class="sr-only">Measure</span></th><th class="n">${esc(R.Y)}</th><th class="n">${prevY}</th><th class="n">Change</th></tr></thead>
     <tbody>${R.changes.map((c) => `<tr><td>${dlink(c.to, c.label)}</td><td class="n">${dlink(c.to.groups[0], c.now)}</td><td class="n">${dlink(c.to.groups[1], c.before)}</td><td class="n">${arrow(c)}</td></tr>`).join("")}</tbody></table></div>
     <p class="status">Click any number to see the films or diary entries behind it.</p>` + (R.genreLines.length ? lineItems(R.genreLines, (l) => l.dir === "up" ? "▲" : "▼") : "");
 }

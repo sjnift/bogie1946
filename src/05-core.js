@@ -38,6 +38,22 @@ const unescapeText = (s) => String(s).replace(/&(?:#(\d+)|#x([\da-f]+)|(amp|lt|g
 // punctuation, case) but keep the letters of every script, so one film always counts once.
 // Both keys are worked out once per spelling and remembered (1 Nov 2026: they ran hundreds of thousands of times at each
 // start, the most time of anything: a third of a second on a computer, over a second on a slow phone).
+// Places in a ranked list where people with the same value share the place they reach first: "=3" for each of three
+// on 19 films (Nov 2026: three actors on 16 films had shown as 13th, 14th and 15th; the list's order among them is
+// only the tie-break, their average). `val` gives what's compared, as shown (a count, or an average to 2 places).
+// A diary that has never marked a rewatch (the owner's: 1,217 entries, none marked) leaves out what would only ever
+// read 0: the Rewatches tile, column, habit and trend (Nov 2026). Judged on the whole diary, so years look alike.
+const everRewatched = (lib) => !!lib && lib.entries.some((e) => e.rewatch);
+function tieRanks(list, val) {
+  const vs = list.map(val), out = new Array(list.length);
+  let rank = 0;
+  for (let i = 0; i < vs.length; i++) {
+    if (!i || vs[i] !== vs[i - 1]) rank = i + 1;
+    const tied = (i > 0 && vs[i] === vs[i - 1]) || (i + 1 < vs.length && vs[i] === vs[i + 1]);
+    out[i] = `${tied ? "=" : ""}${rank}`;
+  }
+  return out;
+}
 // names in order as localeCompare puts them, with one collator made once
 const byName = new Intl.Collator().compare;
 const keyMemo = (fn, max = 200000) => { const m = new Map(); return (s) => { let v = m.get(s); if (v === undefined) { if (m.size >= max) m.clear(); v = fn(s); m.set(s, v); } return v; }; };

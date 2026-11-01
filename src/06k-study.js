@@ -10,6 +10,9 @@
 const STUDY_Z = 3;
 // what ratings follow: anything accounting for less than this share (%) of their ups and downs isn't worth saying
 const FOLLOW_MIN = 3;
+// below this share (%) even the best guide is a weak one, and it's said so: the owner's best was their films' genres at
+// 3%, which had read "What tells most about how you'll rate a film is its genres" and led "In short" (Nov 2026)
+const FOLLOW_CLEAR = 10;
 const sq = (x) => x * x;
 const medianOf = (a) => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y), i = s.length >> 1; return s.length % 2 ? s[i] : (s[i - 1] + s[i]) / 2; };
 const sdOf = (a) => { if (a.length < 2) return 0; const m = avg(a); return Math.sqrt(a.reduce((t, x) => t + sq(x - m), 0) / (a.length - 1)); };
@@ -392,7 +395,9 @@ function ratingStudy(B, periods) {
   const fl = out.follow.filter((f) => f.pct >= FOLLOW_MIN && !(f.id === "w" && dir && Math.abs(f.pct - dir.pct) <= 5));
   if (fl.length) {
     const low = out.follow.find((f) => f.id === "g");
-    out.followText = `What tells most about how you'll rate a film is ${fl[0].short}: it accounts for ${fl[0].pct}% of the ups and downs in your ratings` +
+    out.followClear = fl[0].pct >= FOLLOW_CLEAR;
+    out.followText = (out.followClear ? `What tells most about how you'll rate a film is ${fl[0].short}: it accounts for ${fl[0].pct}% of the ups and downs in your ratings`
+      : `No one thing tells you much about how you'll rate a film: the best guide, ${fl[0].short}, accounts for only ${fl[0].pct}% of the ups and downs in your ratings`) +
       (fl[1] ? `, then ${fl[1].short} (${fl[1].pct}%)${fl[2] ? ` and ${fl[2].short} (${fl[2].pct}%)` : ""}` : "") + "." +
       (low && fl.indexOf(low) > 2 ? ` Its genres account for only ${low.pct}%.` : "");
   }
@@ -865,7 +870,7 @@ function computeStudy(lib, metaOf, crowdKey) {
   if (S.chapters.length) { const c = S.chapters[S.chapters.length - 1]; o.push({ k: S.chapters.length > 1 ? `Latest of ${S.chapters.length} chapters` : "A chapter", big: c.title, text: c.text, to: c.to }); }
   if (S.drift.list.length) { const d = S.drift.list[0]; o.push({ k: "Biggest shift", big: d.big, text: d.text, to: d.to }); }
   { const p = S.months.pace.find((x) => x.big !== "No fixed season") || S.months.shifts[0] || S.months.leans[0]; if (p) o.push({ k: "Through the year", big: p.big, text: p.text, to: p.to }); }
-  if (R.follow.length && R.follow[0].pct >= FOLLOW_MIN) o.push({ k: "Your ratings follow", big: capFirst(R.follow[0].short.replace(/ \(.*\)$/, "")), text: R.followText, to: R.follow[0].to });
+  if (R.follow.length && R.follow[0].pct >= FOLLOW_CLEAR) o.push({ k: "Your ratings follow", big: capFirst(R.follow[0].short.replace(/ \(.*\)$/, "")), text: R.followText, to: R.follow[0].to });
   if (R.beyond.up.length) { const b = R.beyond.up[0]; o.push({ k: R.beyond.vsCrowd ? "You like more than the crowd" : "You like most", big: b.big, text: b.text, to: b.to }); }
   if (R.judge.length && !["Steady", "No clear change"].includes(R.judge[0].big)) o.push({ k: "Tougher or choosier?", big: R.judge[0].big, text: R.judge[0].text, to: R.judge[0].to });
   if (T.gateways.length) { const g = T.gateways[0]; o.push({ k: "A door that opened", big: g.name, text: g.text, to: g.to }); }

@@ -12,7 +12,7 @@ const showImages = !IN_VIEWER; // pages inside Claude can't load outside images
 const VIEW_KEY = "cr-mview-v1";
 const STATS_VIEWS = ["films", "people", "genres", "years", "crowd"];
 const TOP_VIEWS = ["profile", "diary", ...STATS_VIEWS, "insights", "compare"];
-const TITLES = { diary: "Diary", films: "Stats", people: "Stats", genres: "Stats", insights: "Insights", compare: "Compare" };
+const TITLES = { diary: "Diary", films: "Stats", people: "Stats", genres: "Stats", years: "Stats", crowd: "Stats", insights: "Insights", compare: "Compare" };
 const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const svg = (body, sw = 2) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
 const CHEV = `<svg class="chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg>`;
@@ -24,6 +24,7 @@ const ICON = {
   review: svg(`<path d="M5 4h14a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H9l-4 3.5V5a1 1 0 0 1 1-1z"/><path d="M8.5 9h7M8.5 12.5h4.5"/>`, 1.9),
   next: svg(`<path d="M6 4.5v15l12-7.5z"/>`, 1.9),
   heart: svg(`<path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.2a4.3 4.3 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20z"/>`, 1.9),
+  clock: svg(`<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>`, 1.9),
   rewatch: svg(`<path d="M4 12a8 8 0 0 1 13.7-5.6L20 8.5M20 4v4.5h-4.5M20 12a8 8 0 0 1-13.7 5.6L4 15.5M4 20v-4.5h4.5"/>`, 1.9),
   sparkle: svg(`<path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9z"/>`, 1.9),
   upload: svg(`<path d="M12 15V4M7.5 8.5L12 4l4.5 4.5"/><path d="M4 15.5v3A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5v-3"/>`, 1.9),
@@ -278,7 +279,7 @@ function posterItem(f, to, caption) {
 }
 const posterGrid = (films, cls = "") => `<div class="pgrid ${cls}">${films.map((f) => posterItem(f)).join("")}</div>`;
 const filmsTitle = (p) => `${plural(p.count, "film")}${p.avg ? ` · ★ ${p.avg.toFixed(2)} average` : ""}`;
-function personRow(p, rank, sortBest) {
+function personRow(p, rank, sortBest) { // rank: its place, "=4" when shared (`tieRanks`)
   return `<button class="prow" type="button" data-k="${esc(p.name)}" data-list="${reg(p.name, filmsTitle(p), p.films, p)}">
     <span class="rk">${rank}</span>${avatar(p, "md")}
     <span style="min-width:0"><span class="nm">${esc(p.name)}</span><span class="sub">${sortBest ? plural(p.count, "film") : p.avg ? `★ ${p.avg.toFixed(2)} average` : "No ratings"}</span></span>
@@ -328,7 +329,9 @@ function profileScreen(s) {
   const tiles = `<div class="tiles">${tile(`data-act="reviews"`, ICON.review, "b", "Reviews", plural(nReviews, "review"))}
     ${tile(lib.watchlistFilms.length ? `data-act="watchnext"` : `${dl(DR.watchlist(lib))}`, ICON.next, "g", "Watch next", lib.watchlistFilms.length ? `${fmtN(lib.watchlistFilms.length)} on your watchlist` : "Needs a watchlist")}
     ${tile(s.likes ? dl(DR.liked(s)) : `data-act="liked"`, ICON.heart, "r", "Liked", plural(s.likes, "film"))}
-    ${tile(s.rewatches ? dl(DR.rewatches(s)) : `data-view="diary"`, ICON.rewatch, "s", "Rewatches", plural(s.rewatches, "rewatch", "rewatches"))}</div>`;
+    ${everRewatched(BASE_LIB || lib) ? tile(s.rewatches ? dl(DR.rewatches(s)) : `data-view="diary"`, ICON.rewatch, "s", "Rewatches", plural(s.rewatches, "rewatch", "rewatches"))
+      // a diary that never marks a rewatch: Back in time, which was a chip off the screen under Stats › People (Nov 2026)
+      : tile(`data-act="people" data-role="asof"`, ICON.clock, "s", "Back in time", "Who led when")}</div>`;
   const recent = s.entries.slice(-12).reverse();
   const recentRow = recent.length ? sh(s.scope === "all" ? "Recently watched" : `Last watched in ${s.scope}`, seeAll(`data-view="diary"`, "Diary")) +
     `<div class="scroller">${recent.map((e) => posterItem(e.film, D.film(e.film, { entry: e }), `<span class="pmeta"><span class="stars">${stars(e.rating)}</span>${e.rewatch ? '<span class="rewatch" aria-label="rewatch">↻</span>' : ""}${likeMark(e.film)}</span><span class="mdate">${fmtDate(e.date)}</span>`)).join("")}</div>` : "";
@@ -376,17 +379,18 @@ function peopleScreen(s) {
   if (role === "asof") return chips + (s.withMeta ? `<p class="status" style="margin:10px 2px 0">Your most watched of all time as they stood on any day of your diary, and who led when.</p>${asofHtml(state.lib, state.scope, true)}` : needMeta());
   const head = chips + segBar("sort", [["most", "Most watched"], ["best", "Highest rated"]], state.sort, "small");
   if (!s.withMeta) return head + needMeta();
-  const note = role === "c" ? castRuleText() : role === "v" ? "Voice roles in animation, narration and the like, counted apart from on-screen acting. Additional voices and cameos don't count." : "";
+  const note = role === "c" ? castRuleShort() : role === "v" ? "Voice roles in animation, narration and the like, counted apart from on-screen acting. Additional voices and cameos don't count." : "";
   const bestNote = best ? `${note ? " " : ""}${role === "c" ? castBarText(s) : `Highest rated needs ${s.minRated} or more rated films.`}` : "";
   const val = (p) => best ? `★ ${p.avg.toFixed(2)}` : plural(p.count, "film");
+  const R = tieRanks(list, best ? (p) => p.avg.toFixed(2) : (p) => p.count);
   const podium = list.length >= 3 ? `<div class="podium">${[1, 0, 2].map((i) => { const p = list[i];
-    return `<button class="pod${i ? "" : " first"}" type="button" data-list="${reg(p.name, filmsTitle(p), p.films, p)}">${avatar(p, "lg")}<span class="rkb">${i + 1}</span><span class="nm">${esc(p.name)}</span><span class="ct">${val(p)}</span></button>`; }).join("")}</div>` : "";
+    return `<button class="pod${i ? "" : " first"}" type="button" data-list="${reg(p.name, filmsTitle(p), p.films, p)}">${avatar(p, "lg")}<span class="rkb">${R[i]}</span><span class="nm">${esc(p.name)}</span><span class="ct">${val(p)}</span></button>`; }).join("")}</div>` : "";
   const from = podium ? 3 : 0;
-  const rows = list.slice(from, state.peopleLimit).map((p, i) => personRow(p, i + from + 1, best)).join("");
+  const rows = list.slice(from, state.peopleLimit).map((p, i) => personRow(p, R[i + from], best)).join("");
   const more = (list.length > state.peopleLimit ? `<button class="row" type="button" data-act="more-people" data-auto><span>Show more</span><span class="count">${fmtN(list.length - state.peopleLimit)} more</span>${CHEV}</button>` : "")
     + (state.peopleLimit > 50 && list.length > 50 ? `<button class="row" type="button" data-act="less-people"><span>Show less</span><span class="count">back to the first 50</span>${CHEV}</button>` : "");
   const label = { c: "actors", v: "voice actors", d: "directors", w: "writers", p: "cinematographers", m: "composers" }[role];
-  return head + (list.length ? podium + sh(`${fmtN(list.length)} ${label}`) + (note + bestNote ? `<p class="status" style="margin:-6px 0 10px">${esc(note + bestNote)}</p>` : "") +
+  return head + (list.length ? podium + sh(`${fmtN(list.length)} ${label}`) + (note + bestNote ? `<div class="status" style="margin:-6px 0 10px">${esc(note + bestNote)}${role === "c" && !IN_VIEWER ? ` <details class="howcount"><summary>How people are counted</summary><p>${esc(castRuleText())}</p></details>` : ""}</div>` : "") +
     (rows ? `<div class="group">${rows}${more}</div>` : "") : `<div class="empty">Nobody to show for this period.${bestNote ? ` ${esc(bestNote)}` : ""}</div>`);
 }
 </script>

@@ -158,6 +158,25 @@ export default async function ({ browser, base }) {
       await p.evaluate(() => { PEOPLE_QUICK_FROM = 300; });
       assert(first.soon && !first.people && first.top && !then.soon && then.people && then.warm, `${file} people a moment after the rest: ${JSON.stringify({ first, then })}`);
     }
+    // the review of 1 Nov 2026: tied places are shared ("=2"), and a diary that never marks a rewatch leaves out what would
+    // only read 0 (desktop: Liked takes the tile, no Rewatches column; phone: Back in time takes the tile)
+    {
+      await p.goto(`${base}${file}?example${phone ? "#/profile" : "#/"}`); await p.waitForFunction(() => typeof state === "object" && state.lib); await p.waitForTimeout(300);
+      const r = await p.evaluate((phone) => {
+        const ties = tieRanks([3, 2, 2, 1, 1, 1].map((c) => ({ c })), (x) => x.c).join(" ");
+        const before = everRewatched(EXAMPLE_LIB), saved = EXAMPLE_LIB.entries.map((e) => e.rewatch);
+        const look = () => phone ? { tile: /Rewatches/.test(document.querySelector("#screen .tiles").textContent), alt: /Back in time/.test(document.querySelector("#screen .tiles").textContent) }
+          : { tile: /Rewatches/.test(document.querySelector("#tiles").textContent), alt: /Liked/.test(document.querySelector("#tiles").textContent),
+            column: [...document.querySelectorAll("#sections th")].some((t) => t.textContent === "Rewatches") };
+        const was = look();
+        EXAMPLE_LIB.entries.forEach((e) => { e.rewatch = false; }); if (phone) DATA_REV++; render();
+        const none = look();
+        EXAMPLE_LIB.entries.forEach((e, i) => { e.rewatch = saved[i]; }); if (phone) DATA_REV++; render();
+        return { ties, before, was, none };
+      }, phone);
+      assert(r.ties === "1 =2 =2 =4 =4 =4" && r.before && r.was.tile && !r.none.tile && r.none.alt && (phone || (r.was.column && !r.none.column)),
+        `${file} shared places and a diary with no rewatches: ${JSON.stringify(r)}`);
+    }
     // a poster's title card never breaks a word (it showed "MANHATTA / N" where pictures didn't load, 1 Nov 2026): with
     // breaking turned off, no card's longest word runs past its edge, here in the wide stand-in font the checks have
     if (phone) { await p.goto(`${base}${file}?example#/profile`); await p.waitForFunction(() => typeof state === "object" && state.lib); }
@@ -337,7 +356,7 @@ export default async function ({ browser, base }) {
   await d.click('#starring [data-tab="cast"][data-val="most"]'); await d.click('#directed [data-tab="directors"][data-val="most"]'); await d.waitForTimeout(150);
   // (Highest rated can hold fewer people than that: then it shows what it has)
   const bestLen = await d.evaluate(() => { const s = computeStats(state.lib, metaOf, "all"); return { starring: s.cast.best.length, directed: s.directors.best.length }; });
-  const lastRank = (r) => parseInt(String(r[r.length - 1]).split("–")[0], 10), tieAt = most.directed.r.findIndex((x) => /–/.test(x));
+  const lastRank = (r) => parseInt(String(r[r.length - 1]).replace("=", "").split("–")[0], 10), tieAt = most.directed.r.findIndex((x) => /–/.test(x));
   const same = (k) => best[k].r.length === Math.min(most[k].r.length, Math.max(0, bestLen[k] - 12)) && (best[k].r.length !== most[k].r.length || bestLen[k] < 12 || best[k].h === most[k].h);
   assert(most.starring.r.length && lastRank(most.starring.r) <= 21 && (tieAt < 0 || tieAt === most.directed.r.length - 1) && same("starring") && same("directed"),
     `people rows: ${JSON.stringify({ most, best, bestLen })}`);

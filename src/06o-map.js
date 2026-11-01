@@ -69,7 +69,7 @@ function worldMapHtml(countries, o) {
   };
   const attrs = (c) => {
     const p = W.by.get(c), name = p ? p.name : WORLD.label[c] || c;
-    return `${p ? `class="wc ${stepOf(p.count).cls}" ${dl(filmsTo(p))}` : `class="wc"`} data-tip-h="${esc(name)}" data-tip="${esc(tipOf(p, c))}" aria-label="${esc(name)}: ${p ? plural(p.count, "film") : "no films"}"`;
+    return `${p ? `class="wc ${stepOf(p.count).cls}" ${dl(filmsTo(p))}` : `class="wc"`} data-tip-h="${esc(name)}" data-tip="${esc(tipOf(p, c))}" role="img" aria-label="${esc(name)}: ${p ? plural(p.count, "film") : "no films"}"`;
   };
   // countries with films go last, the most last, so their outline shows over their neighbours'
   const order = (c) => (W.by.get(c) || { count: 0 }).count;

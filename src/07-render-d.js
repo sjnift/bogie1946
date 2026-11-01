@@ -33,7 +33,7 @@ function dashChapters(s, quick) {
   const everyone = (data, label) => dlink(data.total && D.names(label, `${fmtN(data.total)} in all, most watched first`, data.most, { faces: true }), `${fmtN(data.total)} ${label.toLowerCase()}`);
   const people = (kind, data) => noMeta ? emptyMeta() : tabs(kind, [["most", "Most watched"], ["best", "Highest rated"]], state.tab[kind]) + peopleBlock(kind, data, s);
   const peopleFull = [
-    section("starring", "Starring", `${everyone(s.cast, "Actors")}. ${castRuleText()} ${castBarText(s)}`, people("cast", s.cast)),
+    section("starring", "Starring", `${everyone(s.cast, "Actors")}. ${esc(castBarText(s))} ${castRuleHtml()}`, people("cast", s.cast)),
     // voice roles apart from on-screen acting (asked 26 Oct 2026)
     s.voice.total ? section("voices", "Voices", `${everyone(s.voice, "Voice actors")} in animation, narration and other voice roles, counted apart from on-screen acting. Additional voices and cameos don't count. Highest rated needs ${s.minRated}+ rated films.`, people("voices", s.voice)) : "",
     section("directed", "Directed by", `${everyone(s.directors, "Directors")}.`, people("directors", s.directors)),

@@ -7,7 +7,8 @@ function compareScreen() {
   if (state.cmp === "all" ? friends.length < 2 : !friends.some((f) => f.id === state.cmp)) state.cmp = friends.length ? friends[0].id : null;
   const ex = state.mode === "example";
   const sel = friends.find((f) => f.id === state.cmp);
-  const chips = friends.length || !ex ? `<div class="chips" role="group" aria-label="Friends">${friends.map((f) =>
+  // (with no friends yet, only the big button below: the chip beside it did the same, Nov 2026)
+  const chips = friends.length ? `<div class="chips" role="group" aria-label="Friends">${friends.map((f) =>
     `<button class="chip" type="button" data-cmp="${esc(f.id)}" aria-pressed="${state.cmp === f.id}">${avatar({ name: f.name }, "xs")}${esc(f.name)}</button>`).join("")}
     ${friends.length >= 2 ? `<button class="chip" type="button" data-cmp="all" aria-pressed="${state.cmp === "all"}">Everyone</button>` : ""}
     ${ex ? "" : `<button class="chip add" type="button" data-act="add-friend"${MY_LIB ? "" : " disabled"}>${ICON.plus}Add a friend</button>`}</div>` : "";
@@ -91,7 +92,7 @@ function mGroup(profiles) {
   let h = sh("Taste matrix");
   if (pairs.length) h += mLines([{ text: `Closest: ${pairs[0].a} and ${pairs[0].b}, ${pairs[0].s}/100.`, to: pairs[0].to },
     pairs.length > 1 && { text: `Furthest apart: ${pairs[pairs.length - 1].a} and ${pairs[pairs.length - 1].b}, ${pairs[pairs.length - 1].s}/100.`, to: pairs[pairs.length - 1].to }].filter(Boolean), () => "●");
-  h += `<div class="card" style="margin-top:12px;padding:8px"><div class="tscroll"><table class="mtable heat"><thead><tr><th></th>${profiles.map((p) => `<th class="n">${esc(p.name)}</th>`).join("")}</tr></thead><tbody>
+  h += `<div class="card" style="margin-top:12px;padding:8px"><div class="tscroll"><table class="mtable heat"><thead><tr><th><span class="sr-only">Friend</span></th>${profiles.map((p) => `<th class="n">${esc(p.name)}</th>`).join("")}</tr></thead><tbody>
     ${profiles.map((P, i) => `<tr><td>${esc(P.name)}</td>${profiles.map((_, j) => { const m = G.matrix[i][j];
       return m && m.score != null ? `<td class="n" style="background:color-mix(in srgb, var(--green-mark) ${Math.round(m.score * 0.65)}%, transparent)">${dlink(G.pairTo(i, j), m.score)}</td>` : `<td class="n dim">${m ? "—" : ""}</td>`; }).join("")}</tr>`).join("")}</tbody></table></div></div>
     <p class="note">${dlink(G.everyone && G.everyoneTo, plural(G.everyone, "film"))} everyone has seen.</p>`;

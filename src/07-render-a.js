@@ -49,6 +49,8 @@ function render() {
   $("#btn-insights").textContent = page === "insights" ? "Back to stats" : "Insights";
   $("#btn-compare").textContent = page === "compare" ? "Back to stats" : "Compare";
   $("#backup").hidden = IN_VIEWER || !MY_LIB;
+  // with a diary in, importing again is a Settings thing (the gold button stood out on every page, Nov 2026)
+  document.body.classList.toggle("has-diary", !!MY_LIB);
   if (page === "drill") { $(".scopes-row").hidden = true; renderDrillPage(); syncHash(); return; }
   if (page === "insights") { renderInsights(); return; }
   if (page === "compare") { renderCompare(); return; }
@@ -132,8 +134,11 @@ function renderTiles(s) {
     tile("Hours", hoursVal, hoursFoot, s.timed && DR.runtime(s), s.timed && DR.runtime(s)),
     tile("Diary entries", fmtN(s.entries.length), s.streak.days > 1 ? `longest streak ${s.streak.days} days` : "", s.entries.length && DR.diary(s), s.streak.days > 1 && DR.streak(s)),
     tile("Average rating", s.avgRating ? s.avgRating.toFixed(2) + "<small>/ 5</small>" : "—", `${fmtN(s.rated)} rated`, s.rated && DR.rated(s), s.rated && DR.rated(s)),
-    tile("Rewatches", fmtN(s.rewatches), s.entries.length ? `${pct}% of entries` : "", s.rewatches && DR.rewatches(s), s.rewatches && DR.rewatches(s)),
-    tile("Reviews", fmtN(s.reviews), `${fmtN(s.likes)} liked`, reviews.length && D.reviews(s.scope === "all" ? "Your reviews" : `Reviews of ${s.scope}`, plural(reviews.length, "review"), reviews), s.likes && DR.liked(s)),
+    // with no rewatch ever marked, liked films take the tile that would only ever read 0
+    ...(everRewatched(wholeLib()) ? [tile("Rewatches", fmtN(s.rewatches), s.entries.length ? `${pct}% of entries` : "", s.rewatches && DR.rewatches(s), s.rewatches && DR.rewatches(s)),
+      tile("Reviews", fmtN(s.reviews), `${fmtN(s.likes)} liked`, reviews.length && D.reviews(s.scope === "all" ? "Your reviews" : `Reviews of ${s.scope}`, plural(reviews.length, "review"), reviews), s.likes && DR.liked(s))]
+      : [tile("Liked", fmtN(s.likes), films ? `${pctOf(s.likes, films)}% of films` : "", s.likes && DR.liked(s), s.likes && DR.liked(s)),
+        tile("Reviews", fmtN(s.reviews), films ? `${pctOf(s.reviews, films)}% of films` : "", reviews.length && D.reviews(s.scope === "all" ? "Your reviews" : `Reviews of ${s.scope}`, plural(reviews.length, "review"), reviews), reviews.length && D.reviews(s.scope === "all" ? "Your reviews" : `Reviews of ${s.scope}`, plural(reviews.length, "review"), reviews))]),
   ].join("");
 }
 

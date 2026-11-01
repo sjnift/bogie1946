@@ -191,6 +191,10 @@ function castParts(list, roleOf, crew, genres) {
   return { s, kept: { ...credits("c", s.live), ...credits("v", s.voice), x: s.cameos.map((c) => c.name), xi: s.cameos.map((c) => Number(c.id) || 0), xw: s.cameos.map((c) => c.why), ce: s.extended, un: s.bits, so: s.standout } };
 }
 // What the people pages say of it (inside Claude, film details come from Claude, with each film's main cast).
+// The rule in one line, with the whole of it folded under (it was a paragraph beside Starring and over the phone's
+// actors, Nov 2026): `castRuleHtml`, a <details> on both layouts.
+const castRuleShort = () => IN_VIEWER ? "" : "Principal and supporting parts count; small parts and cameos don't.";
+const castRuleHtml = () => IN_VIEWER ? esc(castRuleText()) : `${esc(castRuleShort())} <details class="howcount"><summary>How people are counted</summary><p>${esc(castRuleText())}</p></details>`;
 const castRuleText = () => (IN_VIEWER ? "Counts each film's main cast."
   : "Each film's principal and supporting cast counts; voice roles are under Voices. Small parts don't (the last quarter of a cast of more than 30, and parts like \"Guy at bar\" or \"Cop #2\" below the top 8), nor cameos: uncredited or labelled ones, people playing themselves in a walk-on, the author of the source, a star far down the cast. A film's card can change who counts. People who share a name are counted apart." + (castChecked() ? ` Checked against IMDb for ${plural(castChecked(), "film")}.` : ""));
 // Photos kept from a film's credits: its directors, its top billed, and anyone already met in another film, so a
