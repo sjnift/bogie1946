@@ -2,6 +2,19 @@
  "user": "bogie1946",
  "items": [
   {
+   "guid": "letterboxd-watch-1570824305",
+   "title": "Barcelona",
+   "year": 1994,
+   "watched": "2026-11-03",
+   "logged": "2026-11-03",
+   "rating": 3,
+   "rewatch": false,
+   "liked": false,
+   "tmdb": 16771,
+   "review": "",
+   "link": "https://letterboxd.com/bogie1946/film/barcelona/"
+  },
+  {
    "guid": "letterboxd-watch-1558474754",
    "title": "Coraline",
    "year": 2009,
