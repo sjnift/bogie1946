@@ -25,7 +25,7 @@ const dlink = (d, html) => d ? `<button class="dlink" type="button" ${dl(d)}>${h
 const dline = (d, html) => d ? `<button class="dline" type="button" ${dl(d)}>${html}<span class="go" aria-hidden="true">&nbsp;›</span></button>` : html;
 
 const PANEL_CAP = 25;
-const drillSize = (d) => d.kind === "film" ? 1 : d.kind === "search" || d.kind === "share" || d.kind === "story" || d.kind === "quiz" || d.kind === "filters" || d.kind === "parts" ? 0 : d.kind === "groups" ? d.groups.reduce((s, g) => s + drillSize(g), 0)
+const drillSize = (d) => d.kind === "film" ? 1 : d.kind === "search" || d.kind === "share" || d.kind === "story" || d.kind === "quiz" || d.kind === "log" || d.kind === "filters" || d.kind === "parts" ? 0 : d.kind === "groups" ? d.groups.reduce((s, g) => s + drillSize(g), 0)
   : (d.films || d.entries || d.reviews || d.items || []).length;
 
 /* ----- sub-lines ----- */
@@ -183,6 +183,7 @@ function drillBody(d, cap = Infinity) {
   if (d.kind === "share") return { html: shareBodyHtml(d), hidden: 0 };
   if (d.kind === "story") return { html: storyBodyHtml(d), hidden: 0 };
   if (d.kind === "quiz") return { html: quizBodyHtml(d), hidden: 0 };
+  if (d.kind === "log") return { html: logBodyHtml(d), hidden: 0 }; // logging a film here (06u-log)
   if (d.kind === "filters") return { html: filtersBodyHtml(), hidden: 0 };
   if (d.kind === "parts") return { html: `<div class="ppanel" data-pkey="${esc(d.film.key)}">${partsInner(d.film.key)}</div>`, hidden: 0 };
   if (d.kind === "groups") {
@@ -218,7 +219,7 @@ function recordHtml(p, d, solo) {
   const line = [g.rating ? `<span class="stars">${stars(g.rating)}</span>` : "Not rated", g.liked ? '<span class="heart">♥</span> Liked' : "",
     g.entries.length ? plural(g.entries.length, "diary entry", "diary entries") : "Logged without a date"].filter(Boolean).join(" · ");
   const rows = [...g.entries].reverse().map((e) => `<div class="fc-entry${d.entry === e ? " on" : ""}"><span>${fmtDate(e.date)}${e.logged && e.logged !== e.date ? ` <small>logged ${fmtDate(e.logged)}</small>` : ""}</span>
-    <span><span class="stars">${stars(e.rating)}</span>${e.rewatch ? ' <span title="Rewatch">↻</span>' : ""}${e.review ? ' <span title="Reviewed">≡</span>' : ""}</span></div>`).join("");
+    <span><span class="stars">${stars(e.rating)}</span>${e.rewatch ? ' <span title="Rewatch">↻</span>' : ""}${e.review ? ' <span title="Reviewed">≡</span>' : ""}</span>${logEntryTools(e, d)}</div>`).join("");
   const reviews = p.lib.reviews.filter((r) => r.film === g && r.html).map((r) => `<div class="fc-review"><p class="dr-s">Review${r.date ? `, ${fmtDate(r.date)}` : ""}</p><div class="rv-text">${r.html}</div></div>`).join("");
   return `<section class="fc-sec">${head}<p class="fc-line">${line}</p>${rows ? `<div class="fc-entries">${rows}</div>` : ""}${reviews}</section>`;
 }

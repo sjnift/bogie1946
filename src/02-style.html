@@ -652,6 +652,54 @@ body.empty #settings, body.empty .foot-settings, body.has-diary #btn-import, bod
 #sections { padding-top: 0; }
 .chapter-empty { margin-top: 24px; }
 .export-date { margin-top: -8px; color: var(--muted); }
+/* logging a film here (06u-log): the header's Log button, and the panel */
+.btn-log { background: var(--gold-btn); border-color: var(--gold-btn); color: var(--on-gold); font-weight: 700; }
+.btn-log:hover { filter: brightness(1.1); }
+.logp { display: grid; gap: 14px; }
+.lg-label, .lg-k { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.lg-q, .lg-date, .lg-review { font: inherit; color: var(--ink); background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; width: 100%; box-sizing: border-box; }
+.lg-q:focus, .lg-date:focus, .lg-review:focus { outline: 2px solid var(--gold-ink); outline-offset: 1px; border-color: transparent; }
+.lg-date { width: auto; color-scheme: dark; }
+.lg-review { resize: vertical; min-height: 110px; line-height: 1.45; }
+.lg-hits { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.lg-hit { all: unset; cursor: pointer; box-sizing: border-box; width: 100%; display: flex; gap: 12px; align-items: center; padding: 6px 8px; border-radius: 8px; }
+.lg-hit:hover, .lg-hit:focus-visible { background: var(--surface-2); }
+.lg-hit:focus-visible { outline: 2px solid var(--gold-ink); }
+.lg-hit-t { display: grid; gap: 2px; min-width: 0; }
+.lg-hit-t b { font-weight: 650; color: var(--ink); }
+.lg-hit-t small { font-size: 12px; color: var(--muted); }
+.lg-y { color: var(--muted); font-weight: 400; }
+.lg-seen { font-size: 12px; color: var(--gold-ink); } .lg-seen.wl { color: var(--muted); }
+.lg-art { flex: none; width: 40px; aspect-ratio: 2 / 3; border-radius: 4px; overflow: hidden; background: var(--surface-2); position: relative; }
+.lg-art.big { width: 84px; border-radius: 6px; }
+.lg-art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.lg-film, .lg-done { display: flex; gap: 16px; align-items: flex-start; }
+.lg-film-t { display: grid; gap: 6px; align-content: start; }
+.lg-t { margin: 0; font-size: 19px; font-weight: 700; color: var(--ink); line-height: 1.2; }
+.lg-fields { display: grid; gap: 12px; }
+.lg-line { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; color: var(--ink); font-size: 14.5px; }
+.lg-check input { width: 17px; height: 17px; accent-color: var(--gold-ink); }
+.lg-rl { display: flex; gap: 28px; align-items: flex-end; flex-wrap: wrap; }
+.lg-rl > div { display: grid; gap: 4px; }
+.lg-rate { display: inline-flex; gap: 2px; }
+.lg-star { position: relative; font-size: 30px; line-height: 1; color: #4A3F52; }
+.lg-star.full { color: var(--gold-ink); }
+.lg-star.half { background: linear-gradient(90deg, var(--gold-ink) 50%, #4A3F52 50%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.lg-h { all: unset; cursor: pointer; position: absolute; top: 0; bottom: 0; width: 50%; }
+.lg-h.l { left: 0; } .lg-h.r { right: 0; }
+.lg-h:focus-visible { outline: 2px solid var(--gold-ink); border-radius: 3px; }
+.lg-rv { font-size: 12.5px; color: var(--muted); min-height: 16px; }
+.lg-like { all: unset; cursor: pointer; font-size: 30px; line-height: 1; color: #4A3F52; transition: transform .15s; }
+.lg-like.on { color: var(--heart); }
+.lg-like:active { transform: scale(.88); }
+.lg-like:focus-visible { outline: 2px solid var(--gold-ink); border-radius: 4px; }
+.lg-err { margin: 0; color: var(--heart); font-size: 13.5px; min-height: 0; }
+.lg-err:empty { display: none; }
+.lg-foot { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+.lg-ok { margin: 0 0 2px; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--gold-ink); font-weight: 700; }
+.lg-done .dr-s { margin: 6px 0 0; }
+.fc-local { font-size: 12px; color: var(--muted); margin-left: 8px; white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { .lg-like { transition: none; } }
 /* your lists (06t-lists): a card each, its first posters fanned out */
 .lcards { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 30px 26px; }
 .lcard { display: grid; gap: 8px; align-content: start; min-width: 0; }

@@ -66,11 +66,14 @@ async function prepare(page) {
     { guid: "letterboxd-review-1", title: nasty("Fed"), year: 2026, watched: "2026-10-20", logged: "2026-10-20", rating: 4, rewatch: false, liked: true, tmdb: 77, review: review, link: P.url }] }) }));
   await page.context().route(/api\.themoviedb\.org/, (r) => {
     const u = new URL(r.request().url()), json = (o) => r.fulfill({ contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: JSON.stringify(o) });
+    if (/\/search\/movie/.test(u.pathname)) return json({ results: [{ id: 77, title: nasty("Found"), original_title: nasty("Orig"), release_date: "2001-01-01", poster_path: `/f.jpg${P.quote}` }] });
     if (/\/search\/person/.test(u.pathname)) return json({ results: [{ id: 5, name: nasty("Person"), known_for_department: "Acting", popularity: 9, profile_path: `/x.jpg${P.quote}` }] });
     if (/\/person\/\d+\/movie_credits/.test(u.pathname)) return json({ cast: [{ id: 9, title: nasty("Credit"), release_date: "2001-01-01", character: nasty("Role"), vote_count: 900, poster_path: `/c.jpg${P.quote}` }], crew: [] });
     json({ results: [] });
   });
-  await seed(page, rows("tester", nasty("Sam")), { "cr-tmdb-key": "k123" });
+  await seed(page, rows("tester", nasty("Sam")), { "cr-tmdb-key": "k123",
+    // a film logged on this site (06u-log), as another device could send it
+    "cr-logs-v1": [{ id: "lgxss01", user: "", tmdb: 77, title: nasty("Logged"), year: 2020, poster: `/l.jpg${P.quote}`, watched: "2024-05-05", logged: "2024-05-05", rating: 4, liked: true, rewatch: false, review, at: "2024-05-05T00:00:00Z" }] });
   // film details, photos, Letterboxd averages and a friend, for every film including the watchlist's and the friend's
   await page.evaluate(([friendRows, metas]) => {
     const metaFor = (i) => metas[i % metas.length];
@@ -114,6 +117,12 @@ export default async function ({ browser, base }) {
     await d.goto(base + "desktop.html" + hash); await d.waitForFunction(() => typeof state === "object" && state.lib); await d.waitForTimeout(200);
     await check(d, `desktop address ${hash.slice(0, 20)}`);
   }
+  // logging a film here (06u-log): TMDB's booby-trapped answer in the results, the form, the saved log and its card
+  await d.evaluate(() => openDrill(D.log())); await d.fill("#dlg .lg-q", "found"); await d.waitForTimeout(600); await check(d, "desktop log search");
+  await d.click("#dlg .lg-hit", { timeout: 3000 }).catch(() => {}); await d.waitForTimeout(100); await check(d, "desktop log form");
+  await d.fill("#dlg .lg-review", review).catch(() => {}); await d.click("#dlg [data-lg-save]", { timeout: 3000 }).catch(() => {}); await d.waitForTimeout(200); await check(d, "desktop log saved");
+  await d.click("#dlg .lg-done .btn[data-list]", { timeout: 3000 }).catch(() => {}); await d.waitForTimeout(200); await check(d, "desktop logged film's card");
+  await d.keyboard.press("Escape"); await d.keyboard.press("Escape");
   // a person's filmography (TMDB's answer is booby-trapped too)
   await d.evaluate(() => openDrill(D.film(MY_LIB.films[0]))); await d.waitForTimeout(100);
   await d.click("#dlg .fc-dir .dlink", { timeout: 3000 }).catch(() => {}); await d.waitForTimeout(400); await check(d, "desktop filmography");
@@ -128,6 +137,8 @@ export default async function ({ browser, base }) {
     await tab(v); await check(m, `phone ${v}`);
     await clickAround(m, "#screen", "#sheet", `phone ${v}`, 12);
   }
+  await m.evaluate(() => openSheet(D.log())); await m.fill("#sheet .lg-q", "found"); await m.waitForTimeout(600); await check(m, "phone log search");
+  await m.click("#sheet .lg-hit", { timeout: 3000 }).catch(() => {}); await m.waitForTimeout(100); await check(m, "phone log form");
   await m.evaluate(() => { state.insTab = "studios"; }); await tab("insights"); await check(m, "phone insights studios");
   await clickAround(m, "#screen", "#sheet", "phone insights studios", 8);
   await tab("stats");

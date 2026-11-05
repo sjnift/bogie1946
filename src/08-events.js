@@ -52,6 +52,7 @@ function bind() {
   $("#btn-settings").addEventListener("click", () => { if (state.page === "settings") { state.page = "stats"; render(); window.scrollTo(0, 0); } else goSettings(); });
   document.addEventListener("click", (e) => { if (e.target.closest('[data-goto="settings"]')) goSettings(); });
   fileInput.addEventListener("change", () => { const files = [...fileInput.files]; fileInput.value = ""; if (files.length) importFiles(files); });
+  $("#btn-log").addEventListener("click", () => openDrill(D.log())); // logging a film here (06u-log)
   $("#btn-insights").addEventListener("click", () => { state.page = state.page === "insights" ? "stats" : "insights"; saveView(); render(); window.scrollTo(0, 0); });
   $("#btn-foryou").addEventListener("click", () => { state.page = state.page === "foryou" ? "stats" : "foryou"; render(); window.scrollTo(0, 0); });
   $("#foryou").addEventListener("click", (e) => {

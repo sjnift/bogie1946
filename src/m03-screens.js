@@ -23,6 +23,7 @@ const ICON = {
   gear: svg(`<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>`, 1.8),
   review: svg(`<path d="M5 4h14a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H9l-4 3.5V5a1 1 0 0 1 1-1z"/><path d="M8.5 9h7M8.5 12.5h4.5"/>`, 1.9),
   next: svg(`<path d="M6 4.5v15l12-7.5z"/>`, 1.9),
+  plus: svg(`<path d="M12 5v14M5 12h14"/>`, 2.2),
   heart: svg(`<path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.2a4.3 4.3 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20z"/>`, 1.9),
   clock: svg(`<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>`, 1.9),
   rewatch: svg(`<path d="M4 12a8 8 0 0 1 13.7-5.6L20 8.5M20 4v4.5h-4.5M20 12a8 8 0 0 1-13.7 5.6L4 15.5M4 20v-4.5h4.5"/>`, 1.9),
@@ -205,7 +206,8 @@ function renderTop(d, welcome) {
   $("#nav-title").textContent = welcome ? "Credits Roll" : d ? d.title : state.view === "profile" ? who : TITLES[state.view];
   // Profile, Diary and Stats can be filtered: the button lights up while a filter is on
   const filt = !welcome && !d && FILTER_VIEWS.has(state.view) ? `<button class="nav-btn filt${filterOn() ? " on" : ""}" type="button" ${dl(D.filters())}>${ICON.filter}<span class="sr-only">${filterOn() ? `Filter: ${esc(filterText())}` : "Filter"}</span></button>` : "";
-  $("#nav-right").innerHTML = filt + (welcome || (!d && state.view === "profile") ? `<button class="nav-btn" type="button" data-act="settings">${ICON.gear}<span class="sr-only">Import &amp; settings</span></button>` : "");
+  const log = !welcome && !d && canLog() ? `<button class="nav-btn log" type="button" data-act="log">${ICON.plus}<span class="sr-only">Log a film</span></button>` : "";
+  $("#nav-right").innerHTML = log + filt + (welcome || (!d && state.view === "profile") ? `<button class="nav-btn" type="button" data-act="settings">${ICON.gear}<span class="sr-only">Import &amp; settings</span></button>` : "");
 }
 // Nothing imported (or this browser lost hold of it): how to bring your diary in.
 function welcomeScreen() {

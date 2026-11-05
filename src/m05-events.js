@@ -44,6 +44,7 @@ function act(t) {
   else if (a === "search") openSearch();
   else if (a === "watchnext") push({ type: "watchnext", title: "Watch next" });
   else if (a === "foryou") push({ type: "foryou", title: "For you" });
+  else if (a === "log") openSheet(D.log()); // logging a film here (06u-log)
   else if (a === "backup") downloadBackup(state.backupKeys);
   else if (a === "backup-keys") { state.backupKeys = !state.backupKeys; render(); }
   else if (a === "people") { Object.assign(state, { role: t.dataset.role || "c", peopleLimit: 50 }); goTo("people", { force: true, top: true }); }

@@ -146,7 +146,7 @@ export default async function ({ browser, base }) {
   await a.click('#site-box [data-site="create"]');
   await until(a, () => !site.job && site.index && SITEPUB && SITEPUB.at, "the first copy to go up");
   const idx = JSON.parse(gh.file("docs/diary/index.json"));
-  const wantParts = ["rows", "keys", "lbx", "friends", ...Array.from({ length: 16 }, (_, i) => `m${i}`), ...Array.from({ length: 16 }, (_, i) => `p${i}`)];
+  const wantParts = ["rows", "keys", "lbx", "friends", "logs", ...Array.from({ length: 16 }, (_, i) => `m${i}`), ...Array.from({ length: 16 }, (_, i) => `p${i}`)];
   assert(idx.v === 2 && idx.user === "tester" && wantParts.every((p) => idx.parts[p]) && JSON.stringify(diaryFiles(gh)) === JSON.stringify([...wantParts.map((p) => `${p}.bin`), "index.json"].sort()),
     `on the site: ${diaryFiles(gh)}`);
   const everything = () => diaryFiles(gh).map((f) => gh.file(`docs/diary/${f}`).toString("latin1")).join();
@@ -218,6 +218,29 @@ export default async function ({ browser, base }) {
   await until(a, () => !site.job && !site.busy, "the computer to send the new key");
   await b.evaluate(() => siteCheck(true));
   assert(await b.evaluate(() => store.get(KEYS.tmdb, "")) === "k999", "the new key didn't reach the phone");
+
+  // A film logged on the computer reaches the phone; one logged on the phone before it heard isn't lost; a deletion on
+  // one reaches the other (films logged on the site, 5 Nov 2026)
+  const logsAt = JSON.parse(gh.file("docs/diary/index.json")).parts.logs;
+  const logged = (id, title) => ({ id, user: "tester", tmdb: null, title, year: 2001, poster: "", watched: "2026-11-01", logged: "2026-11-01", rating: 4, liked: false, rewatch: false, review: "", at: new Date().toISOString() });
+  await a.evaluate((x) => store.set(KEYS.logs, mergeLogs(store.get(KEYS.logs, []), [x])), logged("lgcomp1", "Logged On Computer"));
+  { const t0 = Date.now(); while (JSON.parse(gh.file("docs/diary/index.json")).parts.logs === logsAt && Date.now() - t0 < 12000) await a.waitForTimeout(250); }
+  await until(a, () => !site.job && !site.busy, "the computer to send its log");
+  await b.evaluate((x) => store.set(KEYS.logs, mergeLogs(store.get(KEYS.logs, []), [x])), logged("lgphon1", "Logged On Phone"));
+  await b.evaluate(() => siteCheck(true)); await until(b, () => !site.job && !site.busy, "the phone to settle"); await b.evaluate(() => sitePublish());
+  await a.evaluate(() => siteCheck(true));
+  const logsOn = (p) => p.evaluate(() => ({ ids: store.get(KEYS.logs, []).filter((x) => !x.deleted).map((x) => x.id).sort().join(), films: MY_LIB.films.filter((f) => /^Logged On/.test(f.name)).map((f) => f.name).sort().join() }));
+  const la = await logsOn(a), lb = await logsOn(b);
+  assert(la.ids === "lgcomp1,lgphon1" && lb.ids === la.ids && la.films === "Logged On Computer,Logged On Phone" && lb.films === la.films, `logs on both devices: ${JSON.stringify({ la, lb })}`);
+  await b.evaluate(() => logDelete("lgcomp1")); // as the film card's Delete does
+  await until(b, () => !site.job && !site.busy, "the phone to settle"); await b.evaluate(() => sitePublish());
+  await a.evaluate(() => siteCheck(true));
+  const after = await logsOn(a);
+  assert(after.ids === "lgphon1" && after.films === "Logged On Phone", `a log deleted on the phone, on the computer: ${JSON.stringify(after)}`);
+  // (and the other, so the steps below run on the export alone)
+  await b.evaluate(() => logDelete("lgphon1")); await until(b, () => !site.job && !site.busy, "the phone to settle"); await b.evaluate(() => sitePublish());
+  await a.evaluate(() => siteCheck(true));
+  assert(await a.evaluate(() => !MY_LIB.films.some((f) => /^Logged On/.test(f.name))), "the logs deleted on the phone are still on the computer");
 
   // What the phone looks up goes up (only the one part it falls in) and reaches the computer; then neither has
   // anything to send

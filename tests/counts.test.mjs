@@ -24,6 +24,11 @@ function audit() {
   };
   for (const d of LISTS.values()) walk(d, location.hash);
   const lib = state.lib;
+  // films logged here (5 Nov 2026): never beside Letterboxd's copy of the same viewing, a day either way
+  for (const e of lib.entries.filter((x) => x.local)) {
+    const twin = e.film.entries.find((x) => !x.local && Math.abs(dayIndex(x.date) - dayIndex(e.date)) <= LOG_NEAR);
+    if (twin) bad.push(`${e.film.name}: logged here on ${e.date} and on Letterboxd on ${twin.date}`);
+  }
   // your lists (5 Nov 2026): a film once a list; seen exactly when it's one of the diary's films; the counts add up
   for (const L of lib.lists || []) {
     once(L.items, (x) => film(x.f), `list ${L.name}`);

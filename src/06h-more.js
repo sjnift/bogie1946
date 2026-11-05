@@ -91,7 +91,76 @@ async function feedAgain() {
 }
 addEventListener("visibilitychange", feedAgain);
 setInterval(feedAgain, 30 * 60e3);
-// Builds your library from the saved export and whatever the feed adds.
+/* ---------- films logged on this site (asked 5 Nov 2026: "add an option to log films on the website itself") ----------
+   Kept apart from the export (KEYS.logs, and the diary on the site's `logs` part, so every device has them), each
+   { id, user, tmdb, title, year, poster, watched, logged, rating, liked, rewatch, review, at }, or once deleted
+   { id, deleted: true, at }. They join the diary like the feed's entries, after them, unless the export or the feed
+   already has that viewing: the same film (by TMDB id or title) watched within LOG_NEAR days, logged on Letterboxd too,
+   whose copy then counts. The saved export isn't changed, so a newer import keeps them; another account's export on
+   this device doesn't take them. */
+const LOG_NEAR = 1;
+let LOGS_ADDED = [], LOGS_DROPPED = [];
+const logReviewHtml = (s) => String(s || "").trim().split(/\n{2,}/).filter(Boolean).map((p) => `<p>${esc(p).replace(/\n/g, "<br>")}</p>`).join("");
+function withLogs(rows, logs) {
+  const user = String((((rows && rows.profile) || [])[0] || {}).Username || "").toLowerCase();
+  const live = (logs || []).filter((x) => x && !x.deleted && x.watched && x.title && (!x.user || !user || x.user.toLowerCase() === user));
+  if (!rows || !live.length) return { rows, added: [], dropped: [] };
+  const out = { ...rows, diary: [...(rows.diary || [])], watched: [...(rows.watched || [])], ratings: [...(rows.ratings || [])], reviews: [...(rows.reviews || [])], likes: [...(rows.likes || [])] };
+  const t = (r) => titleKey(r.Name, r.Year), when = (r) => r["Watched Date"] || r.Date || "";
+  // the film as the diary already names it: by its TMDB id (looked up, or the feed's), else by its title
+  const byId = new Map(), byTitle = new Map();
+  for (const r of [...out.watched, ...out.diary, ...out.ratings]) {
+    if (!byTitle.has(t(r))) byTitle.set(t(r), r);
+    const k = filmKey(r.Name, r.Year), m = META[k], id = Number((m && !m.miss && m.id) || KNOWN_IDS[k]);
+    if (id && !byId.has(id)) byId.set(id, r);
+  }
+  // the viewings the export and the feed have, by film; the latest of each film; what's watched, liked, reviewed
+  const seen = new Map(), latest = new Map();
+  for (const r of out.diary) {
+    const d = when(r), k = t(r);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) continue;
+    if (!seen.has(k)) seen.set(k, []);
+    seen.get(k).push(dayIndex(d));
+    if (d > (latest.get(k) || "")) latest.set(k, d);
+  }
+  const watched = new Set(out.watched.map(t)), liked = new Set(out.likes.map(t)), reviewed = new Set(out.reviews.map((r) => `${t(r)}|${when(r)}`));
+  const added = [], dropped = [];
+  for (const x of [...live].sort((a, b) => a.watched.localeCompare(b.watched) || String(a.at || "").localeCompare(String(b.at || "")))) {
+    const known = (x.tmdb && byId.get(Number(x.tmdb))) || byTitle.get(titleKey(x.title, x.year));
+    const base = known ? { Name: known.Name, Year: known.Year } : { Name: x.title, Year: x.year ? String(x.year) : "" };
+    const tk = t(base), fk = filmKey(base.Name, base.Year), day = dayIndex(x.watched);
+    if (x.tmdb && !KNOWN_IDS[fk]) KNOWN_IDS[fk] = Number(x.tmdb);
+    if ((seen.get(tk) || []).some((d) => Math.abs(d - day) <= LOG_NEAR)) { dropped.push(x.id); continue; } // Letterboxd's copy counts
+    const entry = { ...base, Date: x.logged || x.watched, "Watched Date": x.watched, Rating: x.rating ? String(x.rating) : "", Rewatch: x.rewatch ? "Yes" : "", Tags: "", Local: x.id };
+    out.diary.push(entry);
+    if (!watched.has(tk)) { out.watched.push({ ...base, Date: x.logged || x.watched, "Letterboxd URI": "" }); watched.add(tk); }
+    // a rating given here is the film's rating when this is its latest viewing (one rating a film, as on Letterboxd)
+    if (x.rating && x.watched >= (latest.get(tk) || "")) {
+      const i = out.ratings.findIndex((r) => t(r) === tk);
+      if (i >= 0) out.ratings[i] = { ...out.ratings[i], Rating: String(x.rating) }; else out.ratings.push({ ...base, Rating: String(x.rating) });
+      latest.set(tk, x.watched);
+    }
+    if (x.liked && !liked.has(tk)) { out.likes.push(base); liked.add(tk); }
+    if (x.review && String(x.review).trim() && !reviewed.has(`${tk}|${x.watched}`)) { out.reviews.push({ ...entry, Review: logReviewHtml(x.review), feed: true }); reviewed.add(`${tk}|${x.watched}`); }
+    added.push(x);
+  }
+  return { rows: out, added, dropped };
+}
+// Logs from elsewhere (the site, a backup) as they may be kept: nothing but these fields, of these kinds.
+function safeLogs(list) {
+  const day = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s || "") ? s : "", str = (s, n) => typeof s === "string" ? s.slice(0, n) : "";
+  return (Array.isArray(list) ? list : []).filter((x) => x && typeof x.id === "string" && /^[\w-]{4,40}$/.test(x.id)).slice(0, 20000).map((x) => x.deleted
+    ? { id: x.id, deleted: true, at: str(x.at, 30) }
+    : { id: x.id, user: str(x.user, 60), tmdb: Number(x.tmdb) > 0 ? Math.floor(Number(x.tmdb)) : null, title: str(x.title, 300).trim(), year: Number(x.year) > 1800 ? Math.floor(Number(x.year)) : null,
+      poster: /^\/[\w.-]{1,80}$/.test(x.poster || "") ? x.poster : "", watched: day(x.watched), logged: day(x.logged),
+      rating: [0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5].includes(Number(x.rating)) ? Number(x.rating) : null, liked: !!x.liked, rewatch: !!x.rewatch, review: str(x.review, 20000), at: str(x.at, 30) })
+    .filter((x) => x.deleted || (x.title && x.watched));
+}
+// Two devices' logs: each log once, the newer edit (or deletion) of it kept, in the order of their ids, so two devices
+// with the same logs hold the same list (else each would think the other's differs and send it again).
+const mergeLogs = (a, b) => { const by = new Map((a || []).map((x) => [x.id, x])); for (const x of b || []) { const had = by.get(x.id); if (!had || String(x.at || "") > String(had.at || "")) by.set(x.id, x); }
+  return [...by.values()].sort((x, y) => (x.id < y.id ? -1 : x.id > y.id ? 1 : 0)); };
+// Builds your library from the saved export and whatever the feed and this site's logs add.
 function myLibrary() {
   const saved = store.get(KEYS.rows, null);
   if (!saved) return null;
@@ -99,7 +168,9 @@ function myLibrary() {
   const fit = FEED && user && FEED.user.toLowerCase() === user.toLowerCase();
   const { rows, added } = withFeed(saved, fit ? FEED : null);
   FEED_ADDED = added;
-  return buildLibrary(rows);
+  const L = withLogs(rows, store.get(KEYS.logs, []));
+  LOGS_ADDED = L.added; LOGS_DROPPED = L.dropped;
+  return buildLibrary(L.rows);
 }
 // The feed's line in the Cast & crew box, or how to switch it on.
 function feedBlock(lib, phone) {
@@ -128,7 +199,7 @@ function picturesBlock(phone) {
 
 /* ---------- backups: the same diary on another device ---------- */
 function backupData(withKeys) {
-  const b = { app: "credits-roll", v: 1, at: new Date().toISOString(), rows: store.get(KEYS.rows, null), meta: META, photos: PHOTOS, lbx: LBX, facts: FACTS, friends: store.get(KEYS.friends, []) };
+  const b = { app: "credits-roll", v: 1, at: new Date().toISOString(), rows: store.get(KEYS.rows, null), meta: META, photos: PHOTOS, lbx: LBX, facts: FACTS, friends: store.get(KEYS.friends, []), logs: store.get(KEYS.logs, []) };
   if (withKeys) b.keys = { tmdb: store.get(KEYS.tmdb, ""), omdb: store.get(KEYS.omdb, ""), apify: store.get(KEYS.apify, "") };
   return b;
 }
@@ -148,6 +219,7 @@ async function restoreBackup(file) {
   META = { ...META, ...safeMetaMap(b.meta) }; PHOTOS = { ...PHOTOS, ...safePhotos(b.photos) }; LBX = { ...LBX, ...safeLbx(b.lbx) }; FACTS = { ...FACTS, ...safeFacts(b.facts) };
   saveMeta(); store.set(KEYS.lbx, LBX); store.set(KEYS.facts, FACTS);
   if (Array.isArray(b.friends) && b.friends.length) { store.set(KEYS.friends, safeFriends(b.friends)); loadFriends(); }
+  if (Array.isArray(b.logs) && b.logs.length) store.set(KEYS.logs, mergeLogs(store.get(KEYS.logs, []), safeLogs(b.logs))); // films logged on the site
   for (const k of ["tmdb", "omdb", "apify"]) if (typeof (b.keys || {})[k] === "string" && b.keys[k]) store.set(KEYS[k], b.keys[k]); // only the keys, nothing else
   await store.flush();
   return `Restored the backup from ${fmtDate(String(b.at || "").slice(0, 10))}${b.keys ? ", keys included" : ""}.`;

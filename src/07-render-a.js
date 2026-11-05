@@ -48,6 +48,7 @@ function render() {
   $("#compare").hidden = page !== "compare";
   $("#foryou").hidden = page !== "foryou";
   $("#btn-foryou span").textContent = page === "foryou" ? "Back to stats" : "For you";
+  $("#btn-log").hidden = !canLog(); // logging a film here (06u-log)
   $("#drillpage").hidden = page !== "drill";
   $("#btn-insights").textContent = page === "insights" ? "Back to stats" : "Insights";
   $("#btn-compare").textContent = page === "compare" ? "Back to stats" : "Compare";
