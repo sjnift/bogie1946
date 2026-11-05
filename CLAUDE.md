@@ -1212,6 +1212,11 @@ day, shared with the owner's own app. The in-app version is the "Check film data
   `gh api repos/sjnift/bogie1946/check-runs/<job id>/annotations`.
 - A background `python3 -m http.server` in `docs/` stops after two hours; the checks start their own server.
 - Pushes made by a workflow's own token don't start other workflows (hence the explicit Pages rebuild).
+- A Pages publish can get stuck on GitHub's side (5 Nov 2026: one after a diary update timed out, and the next failed
+  with "Deployment request failed … due to in progress deployment. Please cancel <sha> first"; its status read
+  "failure" all the same). Cancelling needs the Pages API, blocked here; a few minutes later
+  `gh run rerun <run id> --repo sjnift/bogie1946` on the failed "pages build and deployment" run went through. The
+  failed deploy job's reason is in `gh api repos/sjnift/bogie1946/check-runs/<job id>/annotations`.
 
 ## History worth knowing
 
