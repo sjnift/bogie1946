@@ -107,9 +107,9 @@ async function tmdbGet(path, params, key, signal) {
 // 13: someone playing themselves is a cameo only below the top 10, or not at all where the film's cast plays itself.
 // 14: the companies that made it (`co`), for the studios in Insights (06p-studios).
 // 15: each cast member's gender (`cg`, `vg`), for actors and actresses as of a date (06r-asof).
-const TMDB_MATCH_VERSION = 15;
+const TMDB_MATCH_VERSION = 16;
 // The last version that changed what's kept of a film: older details are read again, even when the match is the same.
-const TMDB_DETAILS_V = 15;
+const TMDB_DETAILS_V = 16; // 16: black and white (`bw`, TMDB's keyword 12999), 6 Nov 2026
 // Bump when matching finds films it used to miss, so only those are looked up again.
 // 7: a title that is half of the other ("Glass Onion: A Knives Out Mystery" for Glass Onion).
 // 8: a pinned film TMDB keeps on its TV side (The Sorrow and the Pity, Nathan for You: Finding Frances).
@@ -249,7 +249,7 @@ const listJob = { running: false, done: 0, total: 0 };
 function listLight(m) {
   const t = new Date().toISOString();
   if (!m || m.miss) return { src: "tmdb", miss: true, v: TMDB_MISS_VERSION, t };
-  const out = { src: "tmdb", v: m.v, id: m.id, poster: m.poster, y: m.y, g: m.g || [], k: m.k || [], l: m.l || "", r: m.r || null, va: m.va, vc: m.vc, im: m.im, t };
+  const out = { src: "tmdb", v: m.v, id: m.id, poster: m.poster, y: m.y, g: m.g || [], k: m.k || [], l: m.l || "", r: m.r || null, va: m.va, vc: m.vc, im: m.im, bw: m.bw, t };
   for (const [a, b, n] of [["d", "di", 4], ["c", "ci", 8], ["w", "wi", 3]]) { out[a] = (m[a] || []).slice(0, n); out[b] = (m[b] || []).slice(0, n); }
   if (typeof m.cg === "string") out.cg = m.cg.slice(0, 8);
   return out;
@@ -284,12 +284,13 @@ async function runListLookups(key) {
   };
   try { await Promise.all(Array.from({ length: 4 }, worker)); } finally { listJob.running = false; save(); }
 }
+const BW_KEYWORD = 12999;
 // A role's people as kept: their names, and their TMDB person ids beside them (`c` and `ci`…).
 const credits = (role, list) => ({ [ROLE_FIELD[role]]: list.map((x) => x.name), [ROLE_IDS[role]]: list.map((x) => Number(x.id) || 0),
   ...(ROLE_GENDER[role] ? { [ROLE_GENDER[role]]: list.map((x) => [1, 2, 3].includes(Number(x.gender)) ? Number(x.gender) : 0).join("") } : {}) });
 // One TMDB film's details and credits, by its id.
 async function tmdbDetails(id, key, signal, opts = {}) {
-  const d = await tmdbGet(`/movie/${id}`, { append_to_response: "credits" }, key, signal);
+  const d = await tmdbGet(`/movie/${id}`, { append_to_response: "credits,keywords" }, key, signal);
   if (!d) return { src: "tmdb", miss: true, v: TMDB_MISS_VERSION };
   const { meta, cast, crew } = detailsMeta(d);
   if (!opts.noPhotos) keepPhotos(cast, crew.filter((c) => c.job === "Director")); // (none for films on your lists alone)
@@ -309,6 +310,9 @@ function detailsMeta(d) {
     g: (d.genres || []).map((g) => g.name),
     k: (d.production_countries || []).map((c) => c.name), co: (d.production_companies || []).map((c) => c.name),
     l: spokenIn(d), r: d.runtime, va: d.vote_average, vc: d.vote_count, im: d.imdb_id, t: new Date().toISOString(),
+    // black and white: TMDB's keyword "black and white" (12999; on Psycho, Roma, Belfast, not on Rope or Vertigo), when
+    // its keywords came with it (For you's films come without: unknown)
+    ...(d.keywords ? { bw: ((d.keywords.keywords || []).some((k) => Number(k.id) === BW_KEYWORD) ? 1 : 0) } : {}),
     ...(FILM_FIXES[d.id] || {}),
   }) };
 }

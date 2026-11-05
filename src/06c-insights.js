@@ -61,6 +61,102 @@ function favourites(s, by) {
 const YEAR_CAUTION = "A year with fewer films is ranked with a little caution, so a lucky few can't top it.";
 const favEmpty = (F, scope) => F.by === "year" ? `Not enough yet: ${F.few ? `only ${plural(F.few, "release year")} ${F.few === 1 ? "has" : "have"}` : "no release year has"} ${F.bar} or more rated films${scope && scope !== "all" ? ` watched in ${esc(scope)}` : ""}, and a list needs ${YEAR_SHOWN}.` : "No decade has 3 or more rated films yet.";
 const HILO_NOTE = "Highest in each column in gold, lowest in purple.";
+
+/* Recent favourites (asked 6 Nov 2026: "the 4 films of the last 6 months … in case of tie liked film gets precedence. in
+   case of more tie the films which would make the top 4 more varied as possible (decades, genres, countries, color/black
+   and white, english, foreign)"). The films watched in the six months up to today (a past year: up to its end, never
+   before its start), rated or liked, by the rating you give them now (the newest, as everywhere), liked first at the
+   same rating; where a tier has more films than places left, the set that makes the four most varied wins: each of
+   decade, colour, English or not counts how many kinds the four hold, and genres and countries how little the four
+   share, each from 0 to 1 (`favVariety`); still level, the films watched more lately. Each film once, however often
+   watched. Colour: TMDB's keyword "black and white" (`bw`) where it has one, else films to 1934 are black and white and
+   from 1967 (and animation) colour; TMDB marks only about a third of the owner's 1935–66 black and white films (measured
+   6 Nov 2026), so those count as not known there. */
+const FAV_N = 4, FAV_MONTHS = 6, FAV_EXACT = 30000;
+const localIso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+function colourOf(f, m) {
+  if (m && m.bw === 1) return "bw";
+  const y = f.year || 0;
+  if (!y) return null;
+  if (y <= 1934) return "bw";
+  if (y >= 1967 || (m && (m.g || []).includes("Animation"))) return "colour";
+  return null;
+}
+function favTraits(f, m) {
+  return { dec: f.year ? Math.floor(f.year / 10) * 10 : null, col: colourOf(f, m), lang: m && m.l ? (m.l === "English" ? "en" : "other") : null,
+    g: [...new Set((m && m.g) || [])], k: [...new Set((m && m.k) || [])] };
+}
+// how varied a set of films is: 0 to 5
+function favVariety(S) {
+  const one = (k, max) => { const d = new Set(S.map((x) => x.t[k]).filter((v) => v != null)).size; return max > 1 && d > 1 ? (d - 1) / (max - 1) : 0; };
+  const many = (k) => { const slots = S.reduce((n, x) => n + x.t[k].length, 0); return slots ? new Set(S.flatMap((x) => x.t[k])).size / slots : 0; };
+  return one("dec", S.length) + one("col", Math.min(2, S.length)) + one("lang", Math.min(2, S.length)) + many("g") + many("k");
+}
+function favWindow(Y, now = new Date()) {
+  const today = localIso(now), past = Y && Y !== "all" && `${Y}-12-31` < today;
+  const end = past ? `${Y}-12-31` : today, d = new Date(+end.slice(0, 4), +end.slice(5, 7) - 1 - FAV_MONTHS, +end.slice(8, 10));
+  let start = localIso(d);
+  if (Y && Y !== "all" && start < `${Y}-01-01`) start = `${Y}-01-01`;
+  return { start, end };
+}
+const favCombos = (n, k) => { let c = 1; for (let i = 0; i < k; i++) c = c * (n - i) / (i + 1); return c; };
+function recentFavs(entries, Y, mo = metaOf, now = new Date()) {
+  const { start, end } = favWindow(Y, now);
+  const by = new Map();
+  for (const e of entries) {
+    if (e.date < start || e.date > end) continue;
+    const c = by.get(e.film) || { f: e.film, entry: e, last: e.date, given: null };
+    if (e.date >= c.last) { c.last = e.date; c.entry = e; }
+    if (e.rating && (c.givenAt == null || e.date >= c.givenAt)) { c.given = e.rating; c.givenAt = e.date; }
+    by.set(e.film, c);
+  }
+  const all = [...by.values()];
+  const cands = all.map((c) => ({ ...c, rating: c.f.rating || c.given || null, liked: !!c.f.liked })).filter((c) => c.rating || c.liked);
+  cands.forEach((c) => { c.t = favTraits(c.f, mo(c.f)); });
+  cands.sort((a, b) => (b.rating || 0) - (a.rating || 0) || b.liked - a.liked || (a.last < b.last ? 1 : a.last > b.last ? -1 : 0) || a.f.name.localeCompare(b.f.name));
+  const tiers = [];
+  for (const c of cands) { const t = tiers[tiers.length - 1]; if (t && t[0].rating === c.rating && t[0].liked === c.liked) t.push(c); else tiers.push([c]); }
+  const picked = [];
+  let tie = null;
+  for (const tier of tiers) {
+    const need = FAV_N - picked.length;
+    if (need <= 0) break;
+    if (tier.length <= need) { picked.push(...tier); continue; }
+    // more films at this rating than places: the most varied four, then the latest watched (the tier is in that order)
+    let best = null;
+    if (favCombos(tier.length, need) <= FAV_EXACT) {
+      let bestScore = -1;
+      const pick = (from, chosen) => {
+        if (chosen.length === need) { const sc = favVariety([...picked, ...chosen]); if (sc > bestScore + 1e-9) { bestScore = sc; best = chosen.slice(); } return; }
+        for (let i = from; i <= tier.length - (need - chosen.length); i++) { chosen.push(tier[i]); pick(i + 1, chosen); chosen.pop(); }
+      };
+      pick(0, []);
+    } else {
+      best = [];
+      while (best.length < need) {
+        let top = null, topScore = -1;
+        for (const c of tier) if (!best.includes(c)) { const sc = favVariety([...picked, ...best, c]); if (sc > topScore + 1e-9) { topScore = sc; top = c; } }
+        best.push(top);
+      }
+    }
+    tie = { n: tier.length, places: need, rating: tier[0].rating, liked: tier[0].liked };
+    picked.push(...best.sort((a, b) => tier.indexOf(a) - tier.indexOf(b)));
+    break;
+  }
+  return { films: picked, start, end, watched: all.length, rated: cands.length, tie };
+}
+// the line under it: what it is, and how a tie was settled
+const starWord = (r) => `${Math.floor(r) || ""}${r % 1 ? "½" : ""}★`;
+const NUM_WORDS = ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"];
+const numWord = (n) => NUM_WORDS[n] || fmtN(n);
+const dayRange = (a, b) => a.slice(0, 4) === b.slice(0, 4) ? `${fmtDate(a).replace(/ \d{4}$/, "")} to ${fmtDate(b)}` : `${fmtDate(a)} to ${fmtDate(b)}`;
+function favsLine(R) {
+  const T = R.tie;
+  const N = T && numWord(T.n)[0].toUpperCase() + numWord(T.n).slice(1), at = T ? `${T.rating ? ` at ${starWord(T.rating)}` : ", unrated"}${T.liked ? " and liked" : ""}` : "";
+  const tie = !T ? "" : T.places === FAV_N ? ` ${N} films tied${at}: these are the four most varied.`
+    : ` ${N} films tied${at} for ${T.places === 1 ? "the last place" : `the last ${numWord(T.places)}`}: the ${T.places === 1 ? "one that makes" : `${numWord(T.places)} that make`} the four most varied.`;
+  return `Your best rated films watched ${dayRange(R.start, R.end)}. Ties go to a film you liked, then to the four most varied in decade, genre, country, colour or black and white, and English or not.${tie}`;
+}
 // Average rating by year as columns: only the best year's number (gold) and the worst's (purple) are written over them,
 // the rest show on hover or tap, so a long run of years doesn't crowd (the owner found every number congested, Oct 2026).
 function avgYearsChart(years) {

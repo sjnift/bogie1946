@@ -625,6 +625,7 @@ function cleanMeta(m) {
     ir: Number(m.ir) || null, iv: Number(m.iv) || null, mc: Number(m.mc) || null, rt: Number(m.rt) || null, om: m.om || null, // IMDb, Metacritic, Rotten Tomatoes
     y: parseInt(m.y, 10) || null, // TMDB's release year
     ...(Number(m.cl) ? { cl: Number(m.cl) } : {}), // the series it's part of on TMDB (`walkOn`, "returning")
+    ...(m.bw === 1 || m.bw === 0 ? { bw: m.bw } : {}), // black and white (1) or colour (0), from TMDB's keyword; unknown left out
     ...handParts(m.po), // who counts in it, set by hand on the film card (`partFix`)
     iy: parseInt(m.iy, 10) || null, ik: Array.isArray(m.ik) ? m.ik : undefined, il: Array.isArray(m.il) ? m.il : undefined, inf: m.inf || undefined, // IMDb's year, countries, languages
     t: m.t || undefined, // when it was looked up: of two equally good copies on two devices, the newer is kept

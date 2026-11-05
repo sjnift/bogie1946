@@ -24,7 +24,7 @@ function audit() {
   };
   for (const d of LISTS.values()) walk(d, location.hash);
   const lib = state.lib;
-  // films logged here (5 Nov 2026): never beside Letterboxd's copy of the same viewing, a day either way
+  // films logged here (5 Nov 2026): never beside Letterboxd's copy of the same viewing, a week either way (6 Nov 2026)
   for (const e of lib.entries.filter((x) => x.local)) {
     const twin = e.film.entries.find((x) => !x.local && Math.abs(dayIndex(x.date) - dayIndex(e.date)) <= LOG_NEAR);
     if (twin) bad.push(`${e.film.name}: logged here on ${e.date} and on Letterboxd on ${twin.date}`);
@@ -40,6 +40,10 @@ function audit() {
   for (const scope of ["all", ...new Set(lib.entries.map((e) => e.date.slice(0, 4)))]) {
     const s = computeStats(lib, metaOf, scope), w = `stats ${scope}`;
     once(s.films, film, w);
+    // recent favourites (6 Nov 2026): four at most, each film once, each watched in its six months and rated or liked
+    const R = recentFavs(s.entries, scope);
+    once(R.films.map((c) => c.f), film, `${w} recent favourites`);
+    if (R.films.length > 4 || R.films.some((c) => c.last < R.start || c.last > R.end || !(c.rating || c.liked))) bad.push(`${w}: recent favourites ${R.films.map((c) => `${c.f.name} ${c.last}`).join(", ")}`);
     const sum = (a) => a.reduce((t, x) => t + x, 0);
     if (sum(s.weekday) !== s.entries.length) bad.push(`${w}: weekdays add up to ${sum(s.weekday)}, not ${s.entries.length}`);
     if (sum([...s.byDay.values()]) !== s.entries.length) bad.push(`${w}: days add up wrong`);

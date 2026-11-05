@@ -621,6 +621,9 @@ body.empty #settings, body.empty .foot-settings, body.has-diary #btn-import, bod
 /* recently watched: one row of posters (two of four in a narrow window) */
 #recent .posters { grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 12px; }
 @media (max-width: 900px) { #recent .posters { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+/* recent favourites: four bigger posters, like a Letterboxd profile's favourite films */
+#recent .posters.favs { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; max-width: 760px; }
+#recent .posters.favs .cap { font-size: 14px; }
 /* settings: the same credit layout as the stats, with the boxes inside */
 #settings { padding-top: 8px; }
 .set .lookup, .set .site-box { margin: 0; }

@@ -2,7 +2,7 @@
 /* ---------- page state ---------- */
 const state = {
   mode: "example", lib: null, scope: "all", page: "stats", chapter: "films", crowd: null, wn: "any", insYear: "all", reviewQuery: "", cmp: null, cmpError: "", unfriend: null,
-  tab: { cast: "most", voices: "most", directors: "most", crew: "w", crewSort: "most", cats: "most", bestby: "decade", released: "films" },
+  tab: { cast: "most", voices: "most", directors: "most", crew: "w", crewSort: "most", cats: "most", bestby: "decade", released: "films", recent: "recent" },
   more: { cast: false, voices: false, directors: false },
 };
 let MY_LIB = null, EXAMPLE_LIB = null, STATS = null;

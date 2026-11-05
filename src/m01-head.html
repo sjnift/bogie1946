@@ -197,6 +197,10 @@ img.fade.in { opacity: 1; }
 .poster .ph small { color: var(--ink-2); font-weight: 400; font-size: 11px; margin-top: 2px; }
 .pgrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px 10px; }
 .pgrid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+/* Profile: the switch between recently watched and recent favourites, and the four favourites */
+.seg.small + .scroller, .seg.small + .pgrid.favs, .seg.small + .empty { margin-top: 12px; }
+.pgrid.favs { gap: 12px 10px; }
+.favs-note { margin: 10px 2px 0; }
 .pitem { all: unset; cursor: pointer; display: grid; gap: 5px; min-width: 0; align-content: start; -webkit-tap-highlight-color: transparent; }
 .pitem .poster { transition: transform .18s var(--ease); }
 .pitem:active .poster { transform: scale(.95); }

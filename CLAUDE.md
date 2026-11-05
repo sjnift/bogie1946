@@ -107,7 +107,7 @@ Where it lives:
     it, then they asked for each chapter back in full, and finally for everything in full with the repeats trimmed; then
     on 5 Nov 2026 "homepage is too cluttered" again, 19 screens and 25 sections on their diary: offered one chapter at a
     time, one long page trimmed further, or both, they chose **one chapter at a time**). Under the tiles, always: Recently
-    watched, On this day and the best decade (`#glance`); then the bar that stays at the top (`#jump`) holds the chapter
+    watched (with Recent favourites as its other tab), On this day and the best decade (`#glance`); then the bar that stays at the top (`#jump`) holds the chapter
     tabs (`CHAPTERS`, `.jump-tab`, display-font capitals, the chosen one gold-underlined; Watch next only with a
     watchlist, `chaptersOf`), and under it only the chosen chapter (`#sections`, `role="tabpanel"`): Films (Released,
     Milestones in one row of seven, Records, Most rewatched), People, Genres & countries, When you watch, Ratings, Reviews
@@ -299,7 +299,8 @@ The owner asked for this to be checked every time. A film, diary entry, person o
   `po` who counts set by hand on the film card (see "Who counts, by hand"), `co` the companies that made it, in TMDB's
   order (see "Studios"), `cg`/`vg` each cast and voice member's gender as TMDB lists it, a digit per name in step with
   `c`/`vo` (0 not listed, 1 a woman, 2 a man, 3 non-binary; kept in step by `metaPeople`, read by `roleGender`, and
-  from another film by id through `peopleIndex().gender`; see "Back in time").
+  from another film by id through `peopleIndex().gender`; see "Back in time"), `bw` 1 when TMDB's keywords mark it black
+  and white (keyword 12999), 0 when they don't, left out when they weren't read (see "Recent favourites").
 - `FACTS[tmdbPersonId]`: `{ b, d, im, p, t, cs, st }` birth and death years, IMDb id, photo, when, and for people billed
   where a star would be a walk-on their career (`cs` read, `st` runs of years they were usually top-billed; see "Who
   counts, by hand") (`cr-people-v1`, this device only, in backups; asked again after `FACTS_DAYS`). `metaOf(f)` reads it (the example's films use `EXAMPLE_META`, only in the example: a film of your own never borrows
@@ -316,7 +317,7 @@ The owner asked for this to be checked every time. A film, diary entry, person o
 
 ### The phone app's structure and speed
 
-- Tabs: **Profile** (hero, year chips, tiles for Reviews/Watch next/Liked/Rewatches, recently watched, On this
+- Tabs: **Profile** (hero, year chips, tiles for Reviews/Watch next/Liked/Rewatches, recently watched or recent favourites, On this
   day, the best decade, ratings, most watched people; no "Top rated" row, removed at the owner's request; gear → Settings), **Diary**, **Stats** (a segmented control
   of five views: `films` (milestones, rewatched, records, then highest and lowest rated, habits, review numbers),
   `people`, `genres` labelled **Breakdown** because it also holds countries, languages, decades and genres as you
@@ -683,6 +684,23 @@ standard errors or more from what the rest of the diary gives; every sentence op
   them. Both layouts' `metaOf` read it for `f.listed`. On the owner's export: 161 of 162 found in 13 s, 159 with a poster
   (Maid Servant, 1981, not found). The `lists` check (both layouts, a stand-in TMDB: kept apart, no faces, no director
   counted, the poster on the card, the director on the film card) covers it.
+- **Recent favourites** (asked 6 Nov 2026: "a tab of recent favourites where the 4 films of the last 6 months will
+  appear. in case of tie liked film gets precedence. in case of more tie the films which would make the top 4 more varied
+  as possible (decades, genres, countries, color/black and white, english, foreign) would take precedence";
+  `recentFavs`, `favsLine` in 06c-insights). The other tab of Recently watched: desktop `#recent` (`state.tab.recent`,
+  `favsBlock`, four bigger posters `.posters.favs`, the explanation as the section's line), phone Profile (`state.recentBy`,
+  a `segBar` under the heading, `.pgrid.favs`, the line under it). The films watched in the six months up to today
+  (`FAV_MONTHS`; a past year: its last six months; this year: never before 1 January, `favWindow`), rated or liked, each
+  once however often watched, by the rating they have now (the newest), liked first at the same rating, a liked film
+  without a rating after every rated one. A tier with more films than places left: the set of films that makes the four
+  most varied (`favVariety`: decades, colour and English-or-not by how many kinds the four hold, genres and countries by
+  how little they share, each 0 to 1), every combination tried (`FAV_EXACT` 30,000, else one at a time), then the films
+  watched more lately; the line says how many tied for how many places. **Colour** (`colourOf`): TMDB has no colour
+  field; its keyword "black and white" (12999, `bw`, read with every film's details since `TMDB_DETAILS_V` 16) marks only
+  about a third of the owner's 1935–66 black and white films (measured on 1,557 of their films, 6 Nov 2026: 1920s 60%,
+  1930s 39%, 1940s 37%, 1950s 33%, 1960s 26%, later 1–2%), so: marked → black and white; else up to 1934 black and white;
+  from 1967, or animation, colour; 1935–66 unmarked → not known (no credit either way). Follows the year chips and
+  filters. The `favs`, `counts` (four at most, each once, inside the window) and `tmdb` (the keyword read) checks cover it.
 - **Logging a film here** (asked 5 Nov 2026: "add an option to log films on the website itself similar to letterboxd ui
   ux and update data on the website. use tmdb as the search resource"; `06u-log.js`, data in `06h-more.js`). A panel
   in the pop-up or the sheet (`D.log`, drill kind `log`, like the quiz; `LOGGERS` by `lid`), in Letterboxd's order:
@@ -702,7 +720,8 @@ standard errors or more from what the rest of the diary gives; every sentence op
   carry `local`; watched, a like, a review as `<p>` paragraphs with `feed: true`, the rating when it's the film's
   latest viewing), matched to the diary's film by TMDB id (META or `KNOWN_IDS`) or title, and sets `KNOWN_IDS` so the
   film's details are looked up by its id at once. **Never twice**: a log is left out (`LOGS_DROPPED`) when the export
-  or the feed has the same film watched within `LOG_NEAR` 1 day (logged on Letterboxd too; its copy counts, and the
+  or the feed has the same film watched within `LOG_NEAR` 7 days either way (a week, the owner's call on 6 Nov 2026; it was
+  a day; logged on Letterboxd too, its copy counts, and the
   done step says so); logs follow the diary's username, so another account's export doesn't take them; a newer import
   keeps them. Nothing goes to Letterboxd (it has no way in). The film card marks an entry "Logged here · Edit ·
   Delete" (`logEntryTools`; Delete asks again, then closes the card). The `log` check (both layouts, a stand-in TMDB:
@@ -804,9 +823,9 @@ standard errors or more from what the rest of the diary gives; every sentence op
   `FILM_FIXES` (by TMDB id, with a `why`) corrects facts TMDB has wrong (The Prowler 1951 is American; Breaking
   the Waves is in English; The Battle of Algiers in French). A film's language is TMDB's original language unless
   it's spoken in exactly one other (`spokenIn`). Every TMDB country is kept (it used to stop at 6, which made
-  lists differ from Letterboxd's). `TMDB_MATCH_VERSION` (15) re-looks-up films when matching changes; from 6 on, a
+  lists differ from Letterboxd's). `TMDB_MATCH_VERSION` (16) re-looks-up films when matching changes; from 6 on, a
   film whose match is unchanged keeps its details without a second request, unless what's kept of a film has changed
-  since (`TMDB_DETAILS_V`, 15: each cast member's gender, `cg`/`vg`; 14: the studios, `co`; 13: playing themselves a cameo only below the top 10; 12 the film's series; 11 bit parts): then it's read again by its id alone, one request,
+  since (`TMDB_DETAILS_V`, 16: black and white, `bw`, from TMDB's keywords, asked for with the credits; 15: each cast member's gender, `cg`/`vg`; 14: the studios, `co`; 13: playing themselves a cameo only below the top 10; 12 the film's series; 11 bit parts): then it's read again by its id alone, one request,
   no search (`rereadRef`; films matched by hand too, keeping their pin). Watchlist films are looked up too.
 - **Counting people like Letterboxd** (a guest found actor and director counts off, 25 Oct 2026; then the owner asked
   for it "finely treading the line with credited, not credited and cameo and sometimes extended cameos", and for their
@@ -1189,7 +1208,7 @@ until the next render, so `counts` visits them all before its audit)), `run.mjs`
 `apify`, `imdbcast` (the owner's cast checked on IMDb), `people` (people by TMDB id, the people check, cameos, voices, small parts and who counts by hand), `check` (film data check), `counts` (double counting, also with filters on), `reviews` (missing review text spotted; six-film actors), `welcome` (no example diary; import saved at once), `extras` (year picture, On this day, Watch next, PWA), `feed`, `import`,
 `links` (every link opens something), `pages` (nothing broken shows, no sideways scroll on the phone),
 `routes`, `storage` (IndexedDB move, backup and restore), `site` (the diary on the site: a stand-in GitHub and site),
-`tmdb` (fixing a match, filmography, search), `quiz` (the quiz's answers and a round on both layouts), `foryou` (For you against a stand-in TMDB), `log` (logging a film here against a stand-in TMDB), `lists` (posters for films on a list you haven't seen), `extras` also covers the story and every kind and shape of picture, `xss` (nothing from outside can run code, about three minutes: it opens lists in every chapter), `study` (a
+`tmdb` (fixing a match, filmography, search), `quiz` (the quiz's answers and a round on both layouts), `foryou` (For you against a stand-in TMDB), `log` (logging a film here against a stand-in TMDB), `lists` (posters for films on a list you haven't seen), `favs` (recent favourites: the window, liked first, the most varied four, colour, both layouts), `extras` also covers the story and every kind and shape of picture, `xss` (nothing from outside can run code, about three minutes: it opens lists in every chapter), `study` (a
 five-year diary with patterns planted in it: the study finds them on both layouts and for a year, repeats nothing from
 the Stats page, and every list it opens holds each film once). `lib.mjs`
 also cuts off api.github.com and jsdelivr, answers `diary/` with "not found", and counts anything the security policy

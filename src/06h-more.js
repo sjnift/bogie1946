@@ -95,10 +95,10 @@ setInterval(feedAgain, 30 * 60e3);
    Kept apart from the export (KEYS.logs, and the diary on the site's `logs` part, so every device has them), each
    { id, user, tmdb, title, year, poster, watched, logged, rating, liked, rewatch, review, at }, or once deleted
    { id, deleted: true, at }. They join the diary like the feed's entries, after them, unless the export or the feed
-   already has that viewing: the same film (by TMDB id or title) watched within LOG_NEAR days, logged on Letterboxd too,
+   already has that viewing: the same film (by TMDB id or title) watched within LOG_NEAR days (a week), logged on Letterboxd too,
    whose copy then counts. The saved export isn't changed, so a newer import keeps them; another account's export on
    this device doesn't take them. */
-const LOG_NEAR = 1;
+const LOG_NEAR = 7; // a week either way (the owner's call, 6 Nov 2026; it was a day)
 let LOGS_ADDED = [], LOGS_DROPPED = [];
 const logReviewHtml = (s) => String(s || "").trim().split(/\n{2,}/).filter(Boolean).map((p) => `<p>${esc(p).replace(/\n/g, "<br>")}</p>`).join("");
 function withLogs(rows, logs) {

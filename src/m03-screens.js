@@ -2,7 +2,7 @@
 /* ---------- app state ---------- */
 const state = {
   mode: "example", lib: null, scope: "all", view: "profile", statsView: "films", stack: [], wn: "any", backupKeys: false,
-  role: "c", sort: "most", catSort: "most", bestBy: "decade", relMode: "films", peopleLimit: 50, diaryLimit: 40, crowd: null, insTab: "overview", yearTab: "overview", trend: "films",
+  role: "c", sort: "most", catSort: "most", bestBy: "decade", relMode: "films", recentBy: "recent", peopleLimit: 50, diaryLimit: 40, crowd: null, insTab: "overview", yearTab: "overview", trend: "films",
   reviewQuery: "", reviewLimit: 30, cmp: null, cmpTab: "overview", cmpError: "", unfriend: null, drillLimit: 200,
 };
 let MY_LIB = null, EXAMPLE_LIB = null, STATS = null, YEARS = [], BASE_LIB = null, YEARS_OF = null;
@@ -337,8 +337,14 @@ function profileScreen(s) {
       // a diary that never marks a rewatch: Back in time, which was a chip off the screen under Stats › People (Nov 2026)
       : tile(`data-act="asof"`, ICON.clock, "s", "Back in time", "Who led when")}</div>`;
   const recent = s.entries.slice(-12).reverse();
-  const recentRow = recent.length ? sh(s.scope === "all" ? "Recently watched" : `Last watched in ${s.scope}`, seeAll(`data-view="diary"`, "Diary")) +
-    `<div class="scroller">${recent.map((e) => posterItem(e.film, D.film(e.film, { entry: e }), `<span class="pmeta"><span class="stars">${stars(e.rating)}</span>${e.rewatch ? '<span class="rewatch" aria-label="rewatch">↻</span>' : ""}${likeMark(e.film)}</span><span class="mdate">${fmtDate(e.date)}</span>`)).join("")}</div>` : "";
+  // Recently watched, or (its other tab, 6 Nov 2026) the four best rated of the last six months
+  const favs = state.recentBy === "fav", R = favs && recent.length ? recentFavs(s.entries, s.scope) : null;
+  const recentSw = segBar("recentby", [["recent", "Recently watched"], ["fav", "Recent favourites"]], favs ? "fav" : "recent", "small");
+  const recentRow = !recent.length ? "" : favs
+    ? sh("Recent favourites") + recentSw + (R.films.length ? `<div class="pgrid favs">${R.films.map((c) => posterItem(c.f, D.film(c.f, { entry: c.entry }), `<span class="pmeta">${c.rating ? `<span class="stars">${stars(c.rating)}</span>` : ""}${likeMark(c.f)}</span><span class="mdate">${fmtDate(c.last)}</span>`)).join("")}</div>`
+      : `<div class="empty">${R.watched ? "Nothing you watched" : "Nothing watched"} from ${fmtDate(R.start)} to ${fmtDate(R.end)} has a rating or a like yet.</div>`) + `<p class="status favs-note">${esc(favsLine(R))}</p>`
+    : sh(s.scope === "all" ? "Recently watched" : `Last watched in ${s.scope}`, seeAll(`data-view="diary"`, "Diary")) + recentSw +
+    `<div class="scroller">${recent.map((e) => posterItem(e.film, D.film(e.film, { entry: e }), `<span class="pmeta"><span class="stars">${stars(e.rating)}</span>${e.rewatch ? '<span class="rewatch" aria-label="rewatch">↻</span>' : ""}${likeMark(e.film)}</span><span class="mdate">${fmtDate(e.date)}</span>`)).join("")}</div>`;
   const T = s.scope === "all" ? onThisDay(lib) : null;
   const otd = T && T.entries.length ? sh(esc(T.title), T.entries.length > 4 ? seeAll(dl(T.to)) : "") +
     `<div class="scroller">${T.entries.slice(0, 12).map((e) => posterItem(e.film, D.film(e.film, { entry: e }), `<span class="pmeta"><span class="stars">${stars(e.rating)}</span></span><span class="mdate">${T.week ? fmtDate(e.date) : e.date.slice(0, 4)}</span>`)).join("")}</div>` : "";

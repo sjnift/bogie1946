@@ -239,6 +239,13 @@ function recentBlock(s) {
   return `<div class="posters">${s.entries.slice(-RECENT_N).reverse().map((e) => `<button class="poster" type="button" ${dl(D.film(e.film, { entry: e }))}>${artHtml(e.film)}
     <span class="cap"><span class="d">${fmtDate(e.date)}</span><span><span class="stars">${stars(e.rating)}</span>${e.rewatch ? ' <span class="muted" title="Rewatch">↻</span>' : ""}${e.film.liked ? ' <span class="heart" title="Liked">♥</span>' : ""}</span></span></button>`).join("")}</div>`;
 }
+// Recent favourites (6 Nov 2026), the other tab of Recently watched: the four best rated of the last six months.
+function favsBlock(s) {
+  const R = recentFavs(s.entries, s.scope);
+  if (!R.films.length) return `<div class="empty">${R.watched ? "Nothing you watched" : "Nothing watched"} from ${fmtDate(R.start)} to ${fmtDate(R.end)} has a rating or a like yet.</div>`;
+  return `<div class="posters favs">${R.films.map((c) => `<button class="poster" type="button" ${dl(D.film(c.f, { entry: c.entry }))}>${artHtml(c.f)}
+    <span class="cap"><span class="d">${fmtDate(c.last)}</span><span>${c.rating ? `<span class="stars">${stars(c.rating)}</span>` : ""}${c.liked ? ' <span class="heart" title="Liked">♥</span>' : ""}</span></span></button>`).join("")}</div>`;
+}
 function onThisDayBlock(T) {
   return `<div class="posters">${T.entries.slice(0, 12).map((e) => `<button class="poster" type="button" ${dl(D.film(e.film, { entry: e }))}>${artHtml(e.film)}
     <span class="cap"><span class="d">${T.week ? fmtDate(e.date) : e.date.slice(0, 4)}</span><span class="stars">${stars(e.rating)}</span></span></button>`).join("")}</div>` +
@@ -272,13 +279,16 @@ function cardLines(s) {
   return L;
 }
 const FILTER_ICON = `<svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h14l-5.5 6.5V16l-3 1.5v-7z"/></svg>`;
+const recentTabs = () => tabs("recent", [["recent", "Recently watched"], ["fav", "Recent favourites"]], state.tab.recent === "fav" ? "fav" : "recent");
 function renderSections(s) {
   const T = s.scope === "all" ? onThisDay(state.lib) : null;
   const best = bestDecadeBlock(s);
   // always, under the tiles: what you've watched lately, on this day, and your best decade
   const glance = [
-    s.entries.length ? section("recent", s.scope === "all" ? "Recently watched" : `Last watched in ${s.scope}`,
-      s.entries.length > RECENT_N ? dlink(DR.diary(s), `All ${fmtN(s.entries.length)} diary entries`) : "Your latest diary entries.", recentBlock(s)) : "",
+    s.entries.length ? (state.tab.recent === "fav"
+      ? section("recent", "Recent favourites", esc(favsLine(recentFavs(s.entries, s.scope))), recentTabs() + favsBlock(s))
+      : section("recent", s.scope === "all" ? "Recently watched" : `Last watched in ${s.scope}`,
+        s.entries.length > RECENT_N ? dlink(DR.diary(s), `All ${fmtN(s.entries.length)} diary entries`) : "Your latest diary entries.", recentTabs() + recentBlock(s))) : "",
     T && T.entries.length ? section("onthisday", T.title, T.sub, onThisDayBlock(T)) : "",
     best ? (state.tab.bestby === "year" ? section("best-decade", "Best years", `The years of release you rate highest, of those with ${favourites(s, "year").bar} or more rated films. ${YEAR_CAUTION}`, best)
       : section("best-decade", "Best decade", "The decade of release you rate highest.", best)) : ""].join("");

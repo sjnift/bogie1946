@@ -7,7 +7,7 @@ const rows = { profile: [{ Username: "tester" }], watched: [{ Name: "Heat", Year
   diary: [{ Name: "Heat", Year: "1995", Date: "2024-01-02", "Watched Date": "2024-01-02", Rating: "4" }], ratings: [{ Name: "Heat", Year: "1995", Rating: "4" }],
   likes: [], reviews: [], watchlist: [],
   lists: [{ name: "Thrillers", date: "2025-01-01", tags: "", url: "", desc: "", films: [[1, "Rope", "1948", "https://boxd.it/abcd", "Long takes"], [2, "Heat", "1995", "", ""]] }] };
-const META = { "heat|1995": { src: "tmdb", v: 15, id: 949, y: 1995, d: ["Michael Mann"], di: [1], c: ["Al Pacino"], ci: [2], w: [], wi: [], p: [], pi: [], m: [], mi: [], g: ["Crime"], k: ["USA"], l: "English", r: 170, poster: "/heat.jpg" } };
+const META = { "heat|1995": { src: "tmdb", v: 16, id: 949, y: 1995, d: ["Michael Mann"], di: [1], c: ["Al Pacino"], ci: [2], w: [], wi: [], p: [], pi: [], m: [], mi: [], g: ["Crime"], k: ["USA"], l: "English", r: 170, poster: "/heat.jpg" } };
 const ROPE = { id: 1580, title: "Rope", release_date: "1948-08-26", poster_path: "/rope.jpg", runtime: 80, vote_average: 7.9, vote_count: 3000, imdb_id: "tt0040746", original_language: "en",
   genres: [{ name: "Thriller" }], production_countries: [{ name: "United States of America" }], production_companies: [], spoken_languages: [{ english_name: "English", iso_639_1: "en" }],
   credits: { cast: Array.from({ length: 12 }, (_, i) => ({ id: 100 + i, name: i ? `Player ${i}` : "James Stewart", order: i, character: `Part ${i}`, gender: 2, profile_path: `/f${i}.jpg` })),

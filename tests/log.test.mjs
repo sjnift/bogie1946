@@ -7,7 +7,7 @@ import { open, seed, assert, noErrors, until } from "./lib.mjs";
 const rows = (user = "tester") => ({ profile: [{ Username: user }], watched: [{ Name: "Heat", Year: "1995", Date: "2024-01-01" }],
   diary: [{ Name: "Heat", Year: "1995", Date: "2024-01-02", "Watched Date": "2024-01-02", Rating: "4" }], ratings: [{ Name: "Heat", Year: "1995", Rating: "4" }],
   likes: [], reviews: [], watchlist: [] });
-const META = { "heat|1995": { src: "tmdb", v: 15, id: 949, y: 1995, d: ["Michael Mann"], di: [1], c: ["Al Pacino"], ci: [2], w: [], wi: [], p: [], pi: [], m: [], mi: [], g: ["Crime"], k: ["USA"], l: "English", r: 170, poster: null } };
+const META = { "heat|1995": { src: "tmdb", v: 16, id: 949, y: 1995, d: ["Michael Mann"], di: [1], c: ["Al Pacino"], ci: [2], w: [], wi: [], p: [], pi: [], m: [], mi: [], g: ["Crime"], k: ["USA"], l: "English", r: 170, poster: null } };
 const HITS = [
   { id: 1580, title: "Rope", original_title: "Rope", release_date: "1948-08-26", poster_path: "/rope.jpg" },
   { id: 999001, title: "Rope of Sand", original_title: "Rope of Sand", release_date: "1949-01-01", poster_path: null },
@@ -87,11 +87,18 @@ export default async function ({ browser, base }) {
     await p.reload(); await p.waitForFunction(() => typeof state === "object" && MY_LIB);
     const after = await p.evaluate(() => ({ rope: MY_LIB.films.some((x) => x.name === "Rope"), entries: MY_LIB.entries.length, recent: MY_LIB.entries[MY_LIB.entries.length - 1].film.name }));
     assert(after.rope && after.entries === 2 && after.recent === "Rope", `${file}: after a reload: ${JSON.stringify(after)}`);
-    // Letterboxd's copy of the same viewing (logged there too, a day apart in its own time zone) counts once
-    feedItems = [{ guid: "letterboxd-watch-5", title: "Rope", year: 1948, watched: "2026-11-05", logged: "2026-11-05", rating: 4, rewatch: true, liked: true, tmdb: 1580, review: "", link: "" }];
+    // Letterboxd's copy of the same viewing (logged there too, with a date up to a week apart: the owner's call, 6 Nov
+    // 2026) counts once; eight days apart, they're two viewings
+    const ropeFeed = (watched) => [{ guid: "letterboxd-watch-5", title: "Rope", year: 1948, watched, logged: watched, rating: 4, rewatch: true, liked: true, tmdb: 1580, review: "", link: "" }];
+    const ropes = () => p.evaluate(() => ({ entries: MY_LIB.entries.length, rope: MY_LIB.films.find((x) => x.name === "Rope").entries.map((e) => `${e.date}${e.local ? " here" : ""}`).join(), dropped: LOGS_DROPPED.length }));
+    feedItems = ropeFeed("2026-10-28");
     await p.reload(); await p.waitForFunction(() => typeof state === "object" && MY_LIB && FEED && FEED.items.length);
-    const once = await p.evaluate(() => ({ entries: MY_LIB.entries.length, rope: MY_LIB.films.find((x) => x.name === "Rope").entries.map((e) => `${e.date}${e.local ? " here" : ""}`), dropped: LOGS_DROPPED.length }));
-    assert(once.entries === 2 && once.rope.join() === "2026-11-05" && once.dropped === 1, `${file}: the same viewing from the feed counts once: ${JSON.stringify(once)}`);
+    const once = await ropes();
+    assert(once.entries === 2 && once.rope === "2026-10-28" && once.dropped === 1, `${file}: the same viewing from the feed, a week apart, counts once: ${JSON.stringify(once)}`);
+    feedItems = ropeFeed("2026-10-27");
+    await p.reload(); await p.waitForFunction(() => typeof state === "object" && MY_LIB && FEED && FEED.items.length);
+    const twice = await ropes();
+    assert(twice.entries === 3 && twice.rope === "2026-10-27,2026-11-04 here" && twice.dropped === 0, `${file}: eight days apart, two viewings: ${JSON.stringify(twice)}`);
     feedItems = [];
     await p.reload(); await p.waitForFunction(() => typeof state === "object" && MY_LIB && FEED);
     // a newer import keeps it (logs are apart from the export); another account's export doesn't take it

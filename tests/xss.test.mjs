@@ -30,7 +30,7 @@ const rows = (user, given) => ({
   lists: [{ name: nasty("List"), date: "2024-01-01", tags: nasty("ltag"), url: P.url, desc: review, films: [[1, films[0].Name, films[0].Year, P.url, review], [2, nasty("Unseen"), "1999", "javascript:alert(1)", nasty("note")]] }],
 });
 // film details as another device (or TMDB, which anyone can edit) could send them: nothing cleaned
-const meta = (i) => ({ src: "tmdb", v: 15, id: 1000 + i, poster: `/p${i}.jpg${P.quote}`, y: 1990 + i, d: [nasty("Director")], c: [nasty("Actor"), `${P.single} Star`], w: [nasty("Writer")], co: [nasty("Studio"), "Warner Bros. Pictures"],
+const meta = (i) => ({ src: "tmdb", v: 16, id: 1000 + i, poster: `/p${i}.jpg${P.quote}`, y: 1990 + i, d: [nasty("Director")], c: [nasty("Actor"), `${P.single} Star`], w: [nasty("Writer")], co: [nasty("Studio"), "Warner Bros. Pictures"],
   p: [nasty("Shooter")], m: [nasty("Composer")], g: ["Drama", nasty("Genre")], k: [nasty("Country"), "France"], l: nasty("Language"), r: 100 + i, va: 7.1, vc: 900,
   im: `tt${P.quote}`, ir: 7.5, iv: 1000, mc: 70, rt: 90, om: "2026-10-01", why: nasty("why"), via: P.quote,
   cq: nasty("2026-10-26"), ca: [nasty("Added"), `${P.single} Extra`], cr: [`${P.single} Star`] }); // the cast as IMDb put it right (06d)
