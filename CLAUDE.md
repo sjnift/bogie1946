@@ -1054,7 +1054,8 @@ the Stats page, and every list it opens holds each film once). `lib.mjs`
 also cuts off api.github.com and jsdelivr, answers `diary/` with "not found", and counts anything the security policy
 blocks as a page error.
 
-`.github/workflows/site.yml` runs the checks on every push. Pages currently deploys from the branch, so a
+`.github/workflows/site.yml` runs the checks on every push, on `ubuntu-24.04` (pinned 5 Nov 2026: on the newer image
+`ubuntu-latest` moved to, `npx playwright install --with-deps chromium` failed for Playwright 1.56.1). Pages currently deploys from the branch, so a
 failed check only shows a red mark and an email. If the owner switches Settings → Pages → Source to GitHub
 Actions (their choice; it can't be done through this environment's proxy), the same workflow publishes `docs/`
 only after the checks pass, and `feed.yml` starts it after collecting new entries.

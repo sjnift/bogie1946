@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
@@ -37,7 +37,7 @@ jobs:
   # Pages' source decides whether this workflow publishes the site.
   mode:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       pages: read
     outputs:
@@ -51,7 +51,7 @@ jobs:
   deploy:
     needs: [test, mode]
     if: needs.mode.outputs.type == 'workflow'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       pages: write
       id-token: write
