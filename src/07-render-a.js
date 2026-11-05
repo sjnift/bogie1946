@@ -72,12 +72,23 @@ function openSearch() {
 }
 
 /* ---------- title band ---------- */
+// A story, a picture and the quiz of a year (or all time) as buttons (asked 5 Nov 2026: they were three links at the
+// end of the hero's line, "too cluttered with hyperlinks"); the Insights year has the first two.
+const ACT_ICON = {
+  story: `<svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor" aria-hidden="true"><path d="M4 2.5v11l9-5.5z"/></svg>`,
+  share: `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="M20.5 16l-5-5-8.5 8.5"/></svg>`,
+  quiz: `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.3a2.6 2.6 0 0 1 5 .9c0 1.8-2.5 2.3-2.5 3.8"/><path d="M12 17.2h.01"/></svg>`,
+};
+const actButtons = (scope, quiz) => `<button class="btn hbtn hbtn-main" type="button" ${dl(D.story(scope))}>${ACT_ICON.story}Play as a story</button>
+  <button class="btn hbtn" type="button" ${dl(D.share(scope))}>${ACT_ICON.share}Share as a picture</button>${quiz ? `
+  <button class="btn hbtn" type="button" ${dl(D.quiz(scope))}>${ACT_ICON.quiz}Take the quiz</button>` : ""}`;
 // The page with nothing imported: what to do, and why the diary isn't showing if the browser lost hold of it.
 function renderWelcome() {
   $("#example-notice").hidden = false;
   // plain and short: what to do, nothing else (the owner's call, Oct 2026)
   $("#hero-eyebrow").textContent = "";
   $("#hero-title").innerHTML = "Import your <span class=\"accent\">diary</span>";
+  $("#hero-acts").innerHTML = "";
   $("#hero-sub").innerHTML = "";
   $("#notice-text").innerHTML = (LOAD_ERROR ? `<p><strong>Your saved diary couldn't be read</strong> (${esc(LOAD_ERROR)}). Import your export again.</p>` : store.failed
     ? `<p><strong>This browser's saved data couldn't be opened just now</strong>, so your diary isn't showing. Close the page and open it again; if it still isn't there, import your export or a backup file again.</p>` : "") +
@@ -106,9 +117,9 @@ function renderHero(s, years) {
   if (star && star.count > 1) line += ` ${dlink(DR.person(star), esc(star.name))} turns up most, in ${star.count} of them.`;
   if (dir && dir.count > 1) line += ` ${dlink(DR.person(dir), esc(dir.name))} directed the most, with ${dir.count}.`;
   if (!s.withMeta && s.films.length) line += " Look up cast and crew below to see who you watch most.";
-  // the year (or all time) as a story and a picture, always of the whole diary
-  if (state.page === "stats" && state.lib.entries.length) line += ` <span class="hero-acts">${dlink(D.story(state.scope), `▶ Play ${state.scope === "all" ? "all time" : state.scope} as a story`)} · ${dlink(D.share(state.scope), "share it as a picture")} · ${dlink(D.quiz(state.scope), "take the quiz")}</span>`;
   $("#hero-sub").innerHTML = line;
+  // the year (or all time) as a story, a picture and a quiz, always of the whole diary: buttons under the line
+  $("#hero-acts").innerHTML = state.page === "stats" && state.lib.entries.length ? actButtons(state.scope, true) : "";
   $("#scopes").innerHTML = ["all", ...years].map((y) =>
     `<button class="chip" type="button" data-scope="${y}" aria-pressed="${y === state.scope}">${y === "all" ? "All time" : y}</button>`).join("");
 }

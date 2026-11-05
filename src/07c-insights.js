@@ -129,7 +129,7 @@ function renderYearInsights(Y) {
     return dlink(D.films(`${v} in ${Y}`, filmsSub(fs), fs, { scope: Y }), esc(v)); }).join(", ")}.` : "";
   const places = R.newCountries.length || R.newLangs.length ? `<p class="lead" style="margin-top:14px">${newOnes(`First seen in ${esc(Y)}: countries`, R.newCountries, "k")} ${newOnes("Languages", R.newLangs, "l")}</p>` : "";
   $("#insights").innerHTML = [
-    section("y-glance", `${esc(Y)} in short`, `The year's clearest differences. ${dlink(R.n.entries && D.story(Y), "▶ Play it as a story")} · ${dlink(R.n.entries && D.share(Y), "share it as a picture")}`, glanceBlock(R.overview, `Nothing about ${esc(Y)} stands out clearly from your other years yet.`)),
+    section("y-glance", `${esc(Y)} in short`, "The year's clearest differences.", (R.n.entries ? `<div class="hero-btns in-sec">${actButtons(Y, false)}</div>` : "") + glanceBlock(R.overview, `Nothing about ${esc(Y)} stands out clearly from your other years yet.`)),
     section("y-differ", "What set it apart", `What ${esc(Y)}'s films were made of, against your other years.`, differ + places),
     section("y-studios", `Studios in ${esc(Y)}`, `Who made the films you watched in ${esc(Y)}: each film once, under its studio.`, studiosHtml([...new Set(lib.entries.filter((e) => e.date.startsWith(Y)).map((e) => e.film))], metaOf, Y, false)),
     section("y-chapters", `${esc(Y)}, month by month`, "Stretches of the year that stood apart, and what each season leaned toward.", monthsBlock(R, Y)),

@@ -657,7 +657,14 @@ body.empty #settings, body.empty .foot-settings, body.has-diary #btn-import { di
 /* ---------- pictures to share, and the story ---------- */
 .share-size { display: flex; gap: 6px; margin-bottom: 6px; }
 .share-img.story { max-height: 70vh; width: auto; max-width: 100%; margin-inline: auto; }
-.hero-acts { white-space: nowrap; }
+/* a story, a picture and the quiz, as buttons under the hero's line (Nov 2026) */
+.hero-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.hero-btns:empty { display: none; }
+.hero-btns.in-sec { margin: 0 0 16px; }
+.btn.hbtn { font-size: 13.5px; padding: 7px 14px 7px 12px; }
+.btn.hbtn svg { flex: none; color: var(--gold-ink); }
+.btn.hbtn-main { border-color: color-mix(in srgb, var(--gold) 55%, var(--line)); }
+.btn.hbtn:hover { border-color: var(--gold-ink); }
 .taste-offer { border: 1px solid var(--gold); border-radius: var(--radius); padding: 14px 16px; background: color-mix(in srgb, var(--gold) 8%, var(--surface)); max-width: 640px; }
 .story { position: relative; display: grid; aspect-ratio: 9 / 16; max-height: 62vh; width: min(100%, calc(62vh * 9 / 16)); margin: 0 auto; border-radius: 14px; overflow: hidden;
   background: radial-gradient(120% 70% at 0% 0%, color-mix(in srgb, var(--gold) 22%, transparent), transparent 60%), #141017; color: #F3EEF4; cursor: pointer; user-select: none; outline: none; }

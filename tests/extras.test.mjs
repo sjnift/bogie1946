@@ -13,7 +13,7 @@ export default async function ({ browser, base }) {
     };
     const close = async () => { await p.keyboard.press("Escape"); await p.waitForTimeout(150); };
     await p.goto(`${base}${file}?example#/insights/2025`); await p.waitForFunction(() => typeof state === "object" && state.lib);
-    await p.click(phone ? 'button:has-text("Share 2025 as an image")' : '#y-glance .dlink:has-text("share it as a picture")');
+    await p.click(phone ? 'button:has-text("Share 2025 as an image")' : '#y-glance button:has-text("Share as a picture")');
     await p.waitForSelector(".share-img", { timeout: 15000 });
     await imgSize("1080x1350", "2025 feed post");
     await p.click('[data-sharesize="story"]');
@@ -21,7 +21,7 @@ export default async function ({ browser, base }) {
     await p.click('[data-sharesize="feed"]');
     await close();
     // the year as a story: every card, in turn, and the findings filled in
-    await p.click(phone ? 'button:has-text("Play 2025 as a story")' : '#y-glance .dlink:has-text("Play it as a story")');
+    await p.click(phone ? 'button:has-text("Play 2025 as a story")' : '#y-glance button:has-text("Play as a story")');
     await p.waitForSelector(`${panel} .story`);
     const cards = await p.$$eval(`${panel} .st-card`, (x) => x.length);
     for (let i = 1; i < cards; i++) await p.click(`${panel} [data-story-step="1"]`);

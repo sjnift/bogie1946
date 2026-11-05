@@ -59,7 +59,7 @@ export default async function ({ browser, base }) {
     assert(!A.bad.length, `${file}: ${A.bad.slice(0, 4).join(" | ")}`);
     for (const k of ["rateHigh", "watchedFirst", "topDirector", "directorOf", "onDate", "howMany", "weekday", "topStudio", "season"]) assert(A.kinds.split(",").includes(k), `${file}: no ${k} question in 25 rounds (${A.kinds})`);
     // a round played through: open it from the page, answer each question (right for the first five, wrong after)
-    if (phone) await p.click('.storyrow .quizbtn'); else await p.getByText("take the quiz").click();
+    if (phone) await p.click('.storyrow .quizbtn'); else await p.click('#hero-acts button:has-text("Take the quiz")');
     await p.waitForSelector(`${panel} .quiz .qz-opt`);
     const n = await p.evaluate(() => [...QUIZZES.values()].pop().qs.length);
     assert(n === 10, `${file}: ${n} questions in a round`);

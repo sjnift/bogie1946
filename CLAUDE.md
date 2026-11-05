@@ -505,7 +505,7 @@ friend replaces the address instead.
   cover the section.
 - **The quiz** (asked 31 Oct 2026: "an interactive quiz on the website and app … derived from their watching habits and
   diary data"; `06q-quiz.js`): `D.quiz(scope)`, a drill of kind `quiz` (so the pop-up or the sheet, like the story),
-  from the desktop hero's links ("take the quiz") and the phone Profile's story row ("Take the quiz on …"); it follows
+  from the desktop hero's "Take the quiz" button (`actButtons`) and the phone Profile's story row ("Take the quiz on …"); it follows
   the year chips, on the whole diary (`shareLib`). Ten questions a round (`QUIZ_N`), always four answers each (asked the same day), each from one of `QUIZ_KINDS`
   (highest and lowest rated of four, what you rated a film, watched first, the film of a date, most watched director
   and actor, who directed a film, an actor in a film, the longest, the oldest, the most rewatched, entries in a year or
@@ -620,10 +620,16 @@ standard errors or more from what the rest of the diary gives; every sentence op
   computer's cards use Big Shoulders (0.4–0.57 of its size a letter) once it has loaded (`fontWatch`, `narrow-font`, a
   loaded face of the family, as `fonts.check` says yes when the font's stylesheet never came), else a wide stand-in
   (up to 0.83); the `extras` check proves no card breaks a word on either layout.
-- **Pictures to share** (`06i-share.js`): a year, all time (desktop hero and phone Profile, "share it as a picture";
+- **Story, picture and quiz as buttons** (asked 5 Nov 2026: "make the quiz a separate button … and not a hyperlink in
+  the description … the description is too cluttered with hyperlinks"): on the desktop's stats page a row of buttons
+  under the hero's line, "▶ Play as a story", "Share as a picture", "Take the quiz" (`#hero-acts`, `actButtons(scope,
+  quiz)`, `.hero-btns`, `.btn.hbtn`; not `.story` or `.act`, which the story's own cards use), and the first two at the
+  top of the Insights year's "In short" (`#y-glance`); the hero's line keeps only its numbers and people. The phone
+  already had buttons (Profile's story row, the Insights year).
+- **Pictures to share** (`06i-share.js`): a year, all time (desktop hero and phone Profile, "Share as a picture";
   the desktop's Insights year, the phone's Insights year) or a taste match (Compare, both layouts), as a feed post or a
   story, chosen with two chips over the picture. Drawn on a canvas; posters that can't be copied leave title cards.
-- **The story** (`06m-story.js`, "▶ Play … as a story" beside the picture links): cards for the numbers, the highest
+- **The story** (`06m-story.js`, "▶ Play as a story" beside the picture button): cards for the numbers, the highest
   rated, the director and the face of the year, genres, when you watched, what stood out (the study's headline
   findings, worked out after the first card shows) and a last card that makes the picture. It opens in the pop-up
   or the sheet like any list (so Back and Close work); a tap on the right or → goes on, on the left or ← goes back.
