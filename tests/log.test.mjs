@@ -91,12 +91,15 @@ export default async function ({ browser, base }) {
     // 2026) counts once; eight days apart, they're two viewings
     const ropeFeed = (watched) => [{ guid: "letterboxd-watch-5", title: "Rope", year: 1948, watched, logged: watched, rating: 4, rewatch: true, liked: true, tmdb: 1580, review: "", link: "" }];
     const ropes = () => p.evaluate(() => ({ entries: MY_LIB.entries.length, rope: MY_LIB.films.find((x) => x.name === "Rope").entries.map((e) => `${e.date}${e.local ? " here" : ""}`).join(), dropped: LOGS_DROPPED.length }));
+    // (after a reload the page first draws from the feed it kept, so wait for the new one)
+    const fresh = (day) => p.waitForFunction((day) => typeof state === "object" && MY_LIB && FEED && FEED.items.length && FEED.items[0].watched === day
+      && MY_LIB.films.some((f) => f.name === "Rope" && f.entries.some((e) => e.date === day)), day);
     feedItems = ropeFeed("2026-10-28");
-    await p.reload(); await p.waitForFunction(() => typeof state === "object" && MY_LIB && FEED && FEED.items.length);
+    await p.reload(); await fresh("2026-10-28");
     const once = await ropes();
     assert(once.entries === 2 && once.rope === "2026-10-28" && once.dropped === 1, `${file}: the same viewing from the feed, a week apart, counts once: ${JSON.stringify(once)}`);
     feedItems = ropeFeed("2026-10-27");
-    await p.reload(); await p.waitForFunction(() => typeof state === "object" && MY_LIB && FEED && FEED.items.length);
+    await p.reload(); await fresh("2026-10-27");
     const twice = await ropes();
     assert(twice.entries === 3 && twice.rope === "2026-10-27,2026-11-04 here" && twice.dropped === 0, `${file}: eight days apart, two viewings: ${JSON.stringify(twice)}`);
     feedItems = [];
