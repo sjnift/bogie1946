@@ -13,12 +13,15 @@ const ownTmdbKey = () => store.get(KEYS.tmdb, "") || BUILT_IN_TMDB_KEY;
 // The site owner's TMDB key when they share it with visitors (share.json beside the pages, put there from their
 // Settings), for anyone without a key of their own. Kept in memory only, never saved: when the owner stops sharing,
 // visitors stop using it at their next visit.
-let SHARED_TMDB = "", sharedKeyReady = Promise.resolve();
+let SHARED_TMDB = "", sharedKeyReady = Promise.resolve(), SHARED_PENDING = false;
 const tmdbKey = () => ownTmdbKey() || SHARED_TMDB;
 function loadSharedKey() {
   if (IN_VIEWER || !/^https?:$/.test(location.protocol) || ownTmdbKey()) return sharedKeyReady;
+  SHARED_PENDING = true;
   sharedKeyReady = fetch(`share.json?t=${Date.now()}`, { cache: "no-store" }).then((r) => r.ok ? r.json() : null)
-    .then((j) => { SHARED_TMDB = j && typeof j.tmdb === "string" && /^[A-Za-z0-9._-]{3,500}$/.test(j.tmdb) ? j.tmdb : ""; }).catch(() => {});
+    .then((j) => { SHARED_TMDB = j && typeof j.tmdb === "string" && /^[A-Za-z0-9._-]{3,500}$/.test(j.tmdb) ? j.tmdb : ""; }).catch(() => {})
+    // For you (06s) waits for it, then draws again
+    .finally(() => { SHARED_PENDING = false; if (typeof fyRedraw === "function") fyRedraw(); });
   return sharedKeyReady;
 }
 let editKey = false;
@@ -242,10 +245,16 @@ const credits = (role, list) => ({ [ROLE_FIELD[role]]: list.map((x) => x.name), 
 async function tmdbDetails(id, key, signal) {
   const d = await tmdbGet(`/movie/${id}`, { append_to_response: "credits" }, key, signal);
   if (!d) return { src: "tmdb", miss: true, v: TMDB_MISS_VERSION };
+  const { meta, cast, crew } = detailsMeta(d);
+  keepPhotos(cast, crew.filter((c) => c.job === "Director"));
+  return meta;
+}
+// A TMDB film's details (with `credits`) as the app keeps a film, the same for the diary and for For you (06s), which
+// keeps no photos of the people in films you haven't seen.
+function detailsMeta(d) {
   const crew = (d.credits && d.credits.crew) || [];
   const parts = castParts(((d.credits && d.credits.cast) || []).slice().sort((a, b) => a.order - b.order), (c) => c.character, crew, d.genres), cast = [...parts.s.live, ...parts.s.voice];
-  keepPhotos(cast, crew.filter((c) => c.job === "Director"));
-  return cleanMeta({
+  return { cast, crew, meta: cleanMeta({
     src: "tmdb", v: TMDB_MATCH_VERSION, id: d.id, poster: d.poster_path, y: parseInt((d.release_date || "").slice(0, 4), 10), cl: d.belongs_to_collection && d.belongs_to_collection.id,
     ...credits("d", crew.filter((c) => c.job === "Director")), ...parts.kept,
     ...credits("w", crew.filter((c) => ["Screenplay", "Writer", "Story"].includes(c.job))),
@@ -255,7 +264,7 @@ async function tmdbDetails(id, key, signal) {
     k: (d.production_countries || []).map((c) => c.name), co: (d.production_companies || []).map((c) => c.name),
     l: spokenIn(d), r: d.runtime, va: d.vote_average, vc: d.vote_count, im: d.imdb_id, t: new Date().toISOString(),
     ...(FILM_FIXES[d.id] || {}),
-  });
+  }) };
 }
 // TMDB's TV genres in the film genres the rest of the app counts.
 const TV_GENRES = { "Action & Adventure": ["Action", "Adventure"], "Sci-Fi & Fantasy": ["Science Fiction", "Fantasy"], "War & Politics": ["War"], Kids: ["Family"] };

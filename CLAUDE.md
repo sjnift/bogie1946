@@ -234,7 +234,8 @@ The owner asked for this to be checked every time. A film, diary entry, person o
   `chapterStrip`; see "Insights, the study"; also `crowdOf`, the Stats page's against-the-crowd numbers),
   `06p-studios.js` (the studios pie in Insights: `STUDIOS`, `filmStudio`, `studioData`, `pieSvg`, `studiosHtml`),
   `06q-quiz.js` (the quiz: `D.quiz`, `QUIZ_KINDS`, `quizQuestions`, `quizBodyHtml`), `06r-asof.js` (Back in time, most
-  watched as of a date: `ASOF`, `filmSince`, `asofBase`, `asofCount`, `asofHtml`, `asofOut`),
+  watched as of a date: `ASOF`, `filmSince`, `asofBase`, `asofCount`, `asofHtml`, `asofOut`), `06s-foryou.js` (For you,
+  a hundred films you'd love: `fyLove`, `fyModel`, `fyMake`, `fyPick`, `fyBodyHtml`; see "For you"),
   `06l-filter.js` (filters: `FILTER`, `filteredLib`, `D.filters` and its panel `filtersInner`, `filterStripHtml`,
   `dropEmpties`; see "Filters"), `06m-story.js` (the
   story: `D.story`, `storyBodyHtml`, `fillStory`, `storyFindings`), `06n-world.js` (the world map's country shapes and
@@ -287,7 +288,7 @@ The owner asked for this to be checked every time. A film, diary entry, person o
 - Storage (`store` in `05-core.js`): small things in localStorage (API keys `cr-tmdb-key`, `cr-omdb-key`,
   `cr-apify-key`; views `cr-view-v1`, `cr-mview-v1`; `cr-letterboxd-run`; `cr-imdbcast-run`; the quiz's best scores `cr-quiz-v1`; the diary on the site `cr-site-v1`, `cr-site-pub-v1`, `cr-site-dirty`); big things in IndexedDB database
   `credits-roll`, store `kv` (`cr-rows-v1`, `cr-meta-v1`, `cr-photos-v1`, `cr-letterboxd-v1`, `cr-friends-v1`,
-  `cr-filmo-v1`), read into memory by `await store.init()` at start (both `init()`s), moved over from
+  `cr-filmo-v1`, `cr-foryou-v1` For you's last list), read into memory by `await store.init()` at start (both `init()`s), moved over from
   localStorage automatically (a localStorage copy wins: only an older page version writes one).
 
 ### The phone app's structure and speed
@@ -392,9 +393,9 @@ pinned). In Compare it shows each person's record.
 
 ### Addresses and the back button
 
-Desktop: `#/`, `#/2024`, `#/insights`, `#/insights/2024`, `#/compare/<friend>`, `#/list`, `#/settings`; `/film/<filmKey>`
+Desktop: `#/`, `#/2024`, `#/insights`, `#/insights/2024`, `#/compare/<friend>`, `#/list`, `#/settings`, `#/foryou`; `/film/<filmKey>`
 on the end opens a card. The "Credits Roll" title (`#home-link`) goes to `#/` (the stats, all time) from any page. Phone: `#/profile`, `#/diary`, `#/films`, `#/people`, `#/genres`, `#/insights`,
-`#/years`, `#/crowd`, `#/insights/2024`, `#/compare/<friend>` (tabs) and `#/data`, `#/reviews`, `#/watchnext`, `#/list` (pushed),
+`#/years`, `#/crowd`, `#/insights/2024`, `#/compare/<friend>` (tabs) and `#/data`, `#/reviews`, `#/watchnext`, `#/foryou`, `#/list` (pushed),
 plus `/film/…`. Tabs, pop-ups, sheets and pushed screens are history entries; changing year, Stats section or
 friend replaces the address instead.
 
@@ -631,6 +632,44 @@ standard errors or more from what the rest of the diary gives; every sentence op
   border (`--hb-a`, `--hb-b`); on hover or keyboard focus each lifts 2px with a glow in its colour, a band of light
   sweeps across (`::after`), and its icon moves (▶ nudges on, the picture tilts, the quiz mark wobbles: `hb-wobble`);
   the movement only without reduced motion.
+- **For you** (asked 5 Nov 2026: "write an algorithm to predict movies I would like based on my letterboxd ratings,
+  director actor genre data … correlate all the data you have about my viewing habits … a list of 100 films I would
+  love"; then, the same day: "the engine should update when I log movies in the future and the ratings I give them and
+  their complete profile … a new data point which the algorithm should take in account"). `06s-foryou.js`, for any
+  diary with 20+ rated films with details and a TMDB key (own or shared; not inside Claude). (1) **Love** (`fyLove`):
+  each film's rating in your own spread (z), +0.6 when liked, +0.2 a rewatch; liked unrated 1.2. (2) **Taste**
+  (`fyModel`): for each kind (`FY_FAMS`: directors, writers, leading actors (top 6, weighted by billing), camera and
+  music, genres, genre × decade, decade, countries, language, studio) the shrunk average love of your films with each
+  thing (pulled to 0 by `K` films), a film's score per kind its things' weighted average **with itself left out**;
+  plus TMDB's score shrunk by `FY_PRIOR_VOTES` (`fyCrowd`; a new film's 8.1 from 116 votes said little), how widely
+  seen (log votes), length, and how strongly TMDB's recommendations for films you loved point to it (`rec`, measured on
+  your own diary's films that those lists include); a ridge regression (`fyFit`, `fySolve`) learns the weights; tested
+  five-fold (`test`: on the owner's 1,551 films r 0.53, its top tenth rated 3.44★ against 3.05★, 43% of them loved
+  against 26%); stars by a straight fit to your ratings, "chance you'd love it" (4★+ or liked) by a logistic fit.
+  The owner's weights: TMDB's score 29%, less widely seen 27% (they rate classics above the crowd), genre × decade
+  12%, directors 9%. (3) **Candidates** (`fyMake`): TMDB's `/recommendations` for your `FY_SEEDS` 40 most loved films
+  (two a director), the films of your `FY_DIRS` 15 best-rated directors (2+ films) and those your `FY_ACTORS` 12
+  best-rated actors (3+) lead (`/person/…/movie_credits`, by `personIdOf`), and your watchlist; never in the diary (TMDB
+  id or `titleKey`), unreleased, a "trilogy" re-edit (`FY_NOT_A_FILM`: The Godfather Trilogy: 1901–1980 had come
+  first), under `FY_MIN_VOTES` 100 votes (watchlist 15) or 45 minutes. A first look from the lists' own facts, the
+  best `FY_DETAIL` 260 read in full (`detailsMeta` in 06-lookup, the same as the diary's, no photos kept), then scored
+  in full; about 330 TMDB calls, 8–20 s. (4) **The hundred** (`fyPick`): best first, at most three by one director and
+  one of a series; "All" (`FY.all`, the owner's has 77 watchlist films) and "Not on my watchlist" (`FY.fresh`).
+  **Why** (`fyWhy`): the kinds lifting a film most, only kinds with a positive weight and things you rate above your
+  usual ("You rate David Lean's films 3.6★ on average (6 films)", "TMDB recommends it for Schindler's List, which you
+  loved"), your own taste before the crowd's ("Well regarded…", "Less widely seen…"). **Kept up to date**: `fySig`
+  (entries, rated, the sum of ratings, liked, and rated or liked films with details) changes when a film is logged,
+  rated, re-rated or liked or its details arrive; the list is then made again: on opening the page (not while
+  lookups run), and in the background (`fyAutoCheck`, 20 s after start and every 15 minutes, once a list has been made,
+  lookups done, at most once an hour); a film logged since leaves the list at once (`fyFilms`); kept (`cr-foryou-v1`,
+  written at once) and made again after `FY_DAYS` 7 anyway. Desktop: header button "For you" (`#btn-foryou`), page
+  `#/foryou` (`renderForYou`, `#foryou`): five across, rank, stars, chance, first reason, "How it's worked out"
+  (weights, the test, what it looked at); phone: a banner on Profile under the tiles (`.banner.fy`), pushed screen
+  `foryou` (`forYouScreen`), a line in Watch next. A film is a film-like object `fy:<id>` carrying its details (`f.fy`,
+  read first by both `metaOf`s), its card says "Why it's on your list" in place of the diary's record, Letterboxd by
+  `letterboxd.com/tmdb/<id>/`. The `foryou` check (a stand-in TMDB: the loved director's films first, no diary,
+  unreleased, trilogy or hardly seen film, each once, the card, a logged film leaving the list and the list made again
+  with it, both layouts) covers it.
 - **Pictures to share** (`06i-share.js`): a year, all time (desktop hero and phone Profile, "Share as a picture";
   the desktop's Insights year, the phone's Insights year) or a taste match (Compare, both layouts), as a feed post or a
   story, chosen with two chips over the picture. Drawn on a canvas; posters that can't be copied leave title cards.
@@ -1053,7 +1092,7 @@ with `?example` (pass `example: false` for an empty browser; a check's own `goto
 `apify`, `imdbcast` (the owner's cast checked on IMDb), `people` (people by TMDB id, the people check, cameos, voices, small parts and who counts by hand), `check` (film data check), `counts` (double counting, also with filters on), `reviews` (missing review text spotted; six-film actors), `welcome` (no example diary; import saved at once), `extras` (year picture, On this day, Watch next, PWA), `feed`, `import`,
 `links` (every link opens something), `pages` (nothing broken shows, no sideways scroll on the phone),
 `routes`, `storage` (IndexedDB move, backup and restore), `site` (the diary on the site: a stand-in GitHub and site),
-`tmdb` (fixing a match, filmography, search), `quiz` (the quiz's answers and a round on both layouts), `extras` also covers the story and every kind and shape of picture, `xss` (nothing from outside can run code, about a minute), `study` (a
+`tmdb` (fixing a match, filmography, search), `quiz` (the quiz's answers and a round on both layouts), `foryou` (For you against a stand-in TMDB), `extras` also covers the story and every kind and shape of picture, `xss` (nothing from outside can run code, about a minute), `study` (a
 five-year diary with patterns planted in it: the study finds them on both layouts and for a year, repeats nothing from
 the Stats page, and every list it opens holds each film once). `lib.mjs`
 also cuts off api.github.com and jsdelivr, answers `diary/` with "not found", and counts anything the security policy

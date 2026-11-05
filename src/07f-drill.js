@@ -62,7 +62,7 @@ function renderDrillPage() {
    /film/<film> on the end opens that film's card. */
 const routeBase = () => state.page === "insights" ? `#/insights${state.insYear !== "all" ? "/" + state.insYear : ""}`
   : state.page === "compare" ? `#/compare${state.cmp ? "/" + encodeURIComponent(state.cmp) : ""}`
-  : state.page === "drill" ? "#/list" : state.page === "settings" ? "#/settings" : state.scope === "all" ? "#/" : `#/${state.scope}`;
+  : state.page === "drill" ? "#/list" : state.page === "settings" ? "#/settings" : state.page === "foryou" ? "#/foryou" : state.scope === "all" ? "#/" : `#/${state.scope}`;
 const hashParts = () => {
   const h = decodeURIComponent(location.hash.replace(/^#\/?/, "")), m = h.match(/^(.*?)\/?film\/(.+)$/);
   return m ? { base: m[1], film: m[2] } : { base: h, film: null };
@@ -77,6 +77,7 @@ function routeFromHash(initial) {
   else if (a === "compare") Object.assign(state, { page: "compare", cmp: b || state.cmp });
   else if (a === "list" && state.drill) state.page = "drill";
   else if (a === "settings") state.page = "settings";
+  else if (a === "foryou") state.page = "foryou";
   else Object.assign(state, { page: "stats", scope: /^\d{4}$/.test(a || "") ? a : "all" });
 }
 // After a render: a new page or friend becomes a history entry; a different year or period just changes the address.

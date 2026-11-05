@@ -36,6 +36,7 @@ const ICON = {
 // (your own diary's films only ever take their own details: the example's few hand-written credits used to stand in
 // for a film of the same name not looked up yet, so a guest with no key saw a handful of actors counted from those)
 function metaOf(f) {
+  if (f.fy) return f.fy; // a film of For you (06s) carries its own details
   if (state.mode === "example") return EXAMPLE_META[f.key] || null;
   const m = META[f.key];
   return m && !m.miss ? m : null;
@@ -364,7 +365,9 @@ function profileScreen(s) {
     <button class="btn quizbtn" type="button" ${dl(D.quiz(s.scope))}>${ICON.sparkle}Take the quiz on ${esc(when)}</button></div>` : "";
   // the best-rated decade, featured, then the second and third (the owner's call, Oct 2026)
   const fav = favouriteCards(s, 3), decade = fav ? `<div style="margin-top:22px">${fav}</div>` : "";
-  return hero + scopeBar() + onSite + notice + note + iosTip + reimport + fill + tiles + storyRow + recentRow + otd + decade + ratings + people;
+  // For you (06s): a hundred films you'd love, a screen of its own
+  const fyRow = !ex && MY_LIB ? `<button class="banner fy" type="button" data-act="foryou"><span class="ico g">${ICON.sparkle}</span><span><b>100 films you'd love</b><small>${FY && FY.user === (MY_LIB.profile.username || "") ? `Picked ${esc(fmtDate(FY.at.slice(0, 10)))} from your ratings and likes` : "Picked from your ratings, likes and favourite people"}</small></span>${CHEV}</button>` : "";
+  return hero + scopeBar() + onSite + notice + note + iosTip + reimport + fill + tiles + fyRow + storyRow + recentRow + otd + decade + ratings + people;
 }
 
 /* ---------- Stats: films, people, genres ---------- */

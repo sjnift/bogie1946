@@ -244,14 +244,16 @@ function filmCardHtml(d) {
     !named.length ? dlink(smallList(), plural(small.length, "part")) : rest ? ` and ${dlink(smallList(), `${fmtN(rest)} more`)}` : ` (${dlink(smallList(), "why")})`}.</p>`;
   const whoCounts = m && fixHtml(f) && (m.c || m.vo || m.x) ? `<p class="dr-s fc-who"><button class="linkish" type="button" ${dl(D.parts(f))}>Change who counts</button></p>` : "";
   const cast = m ? chips("Cast", "c") + chips("Voices", "v") + (cameos.length ? `<p class="dr-s fc-cameos">Cameos, not counted: ${cameos.slice(0, 8).map((c) => `${esc(c.name)} (${esc(cameoWhy(c.why))})`).join(", ")}${cameos.length > 8 ? ` and ${cameos.length - 8} more` : ""}.</p>` : "") + smallLine + whoCounts : "";
-  const tm = META[f.key];
+  const tm = META[f.key] || (f.fy ? m : null);
+  // a film of For you (06s): why it's on the list, where the diary's record would be
+  const why = f.fyWhy ? `<section class="fc-sec"><h4>Why it's on your list</h4>${f.fyWhy.length ? `<ul class="fc-why">${f.fyWhy.map((w) => `<li>${esc(w)}</li>`).join("")}</ul>` : ""}<p class="dr-s">Not in your diary${f.fyWl ? ", but on your watchlist" : " or on your watchlist"}.</p></section>` : "";
   const links = [`<a href="${esc(lbUrl(f))}" target="_blank" rel="noopener">Letterboxd ↗</a>`,
     tmdbHref(tm) && !IN_VIEWER ? `<a href="${tmdbHref(tm)}" target="_blank" rel="noopener">TMDB ↗</a>` : "",
     m && /^tt\d+$/.test(m.im || "") ? `<a href="https://www.imdb.com/title/${m.im}/" target="_blank" rel="noopener">IMDb ↗</a>` : ""].filter(Boolean).join("");
   return `<div class="fcard">${d.badge ? `<p class="fc-badge">${esc(d.badge)}</p>` : ""}<div class="fc-top">${thumb(f, true)}<div class="fc-facts">
       ${facts.join("")}${m ? "" : `<p class="dr-s">No cast &amp; crew details yet.</p>`}
       ${crowd.length ? `<p class="fc-crowd">${crowd.join('<span class="sep"> · </span>')}</p>` : ""}${tags.length ? `<p class="fc-tags">${tags.join("")}</p>` : ""}</div></div>
-    ${who.map((p) => recordHtml(p, d, !d.people)).join("")}${cast}<p class="fc-links">${links}</p>${fixHtml(f)}</div>`;
+    ${why || who.map((p) => recordHtml(p, d, !d.people)).join("")}${cast}<p class="fc-links">${links}</p>${fixHtml(f)}</div>`;
 }
 // "Wrong film?" under a card: paste the right film's TMDB or IMDb link and the match is kept from then on.
 let FIXING = null, FIX_NOTE = { key: null, text: "" };

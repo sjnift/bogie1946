@@ -43,6 +43,7 @@ function act(t) {
   else if (a === "back") { if (history.state && history.state.app) history.back(); else { routeReplace = true; pop(); routeReplace = false; } }
   else if (a === "search") openSearch();
   else if (a === "watchnext") push({ type: "watchnext", title: "Watch next" });
+  else if (a === "foryou") push({ type: "foryou", title: "For you" });
   else if (a === "backup") downloadBackup(state.backupKeys);
   else if (a === "backup-keys") { state.backupKeys = !state.backupKeys; render(); }
   else if (a === "people") { Object.assign(state, { role: t.dataset.role || "c", peopleLimit: 50 }); goTo("people", { force: true, top: true }); }
@@ -133,8 +134,10 @@ function bind() {
     else loadMore(x);
   });
   document.addEventListener("click", (e) => {
-    const t = e.target.closest("[data-fix],[data-fixsave],[data-fixcancel],[data-wn],[data-sharego]");
+    const t = e.target.closest("[data-fix],[data-fixsave],[data-fixcancel],[data-wn],[data-sharego],[data-fy],[data-fyshow]");
     if (!t) return;
+    if (t.dataset.fy === "go") { fyStart(BASE_LIB || state.lib, fyRedraw); return; }
+    if (t.dataset.fyshow) { state.fyShow = t.dataset.fyshow; render(); return; }
     if (t.dataset.sharego) { shareGo(t.dataset.sharego); return; }
     if (t.dataset.fix) { FIXING = t.dataset.fix; FIX_NOTE = { key: null, text: "" }; repaintDrill(); $("#fix-input")?.focus(); }
     else if (t.dataset.fixsave) runFix(t.dataset.fixsave, repaintDrill);
@@ -208,6 +211,8 @@ async function init() {
   await store.init();
   performance.mark("cr-stored"); // saved data read (marks for speed checks: start, stored, built, drawn)
   META = store.get(KEYS.meta, {}); PHOTOS = store.get(KEYS.photos, {}); LBX = store.get(KEYS.lbx, {}); FACTS = store.get(KEYS.facts, {});
+  fyLoad(); // For you's last list (06s), made again by itself when the diary has changed
+  setTimeout(fyAutoCheck, 20000); setInterval(fyAutoCheck, 15 * 60 * 1000);
   if (showImages) imgProbe(); // can this device reach TMDB's pictures, or only the relay? (05-core)
   // the made-up example only with ?example in the address (it was built at every start, for nothing)
   const ex = SHOW_EXAMPLE ? buildExample() : { rows: {}, meta: {} };

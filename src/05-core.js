@@ -159,12 +159,12 @@ document.addEventListener("load", (e) => {
   if (t.src.startsWith(IMG_TMDB) && !IMG_SEEN.ok) { IMG_SEEN.ok++; for (const i of IMG_SEEN.held) i.remove(); IMG_SEEN.held = []; } // reachable: those were just missing
   if (t.classList.contains("fade")) t.classList.add("in");
 }, true);
-const KEYS = { rows: "cr-rows-v1", meta: "cr-meta-v1", photos: "cr-photos-v1", tmdb: "cr-tmdb-key", omdb: "cr-omdb-key", apify: "cr-apify-key", lbx: "cr-letterboxd-v1", lbRun: "cr-letterboxd-run", icRun: "cr-imdbcast-run", facts: "cr-people-v1", friends: "cr-friends-v1", view: "cr-view-v1", filmo: "cr-filmo-v1" };
+const KEYS = { rows: "cr-rows-v1", meta: "cr-meta-v1", photos: "cr-photos-v1", tmdb: "cr-tmdb-key", omdb: "cr-omdb-key", apify: "cr-apify-key", lbx: "cr-letterboxd-v1", lbRun: "cr-letterboxd-run", icRun: "cr-imdbcast-run", facts: "cr-people-v1", friends: "cr-friends-v1", view: "cr-view-v1", filmo: "cr-filmo-v1", foryou: "cr-foryou-v1" };
 /* Small things (keys, the view) live in localStorage. The big ones (the export, film details, Letterboxd
    averages, friends' exports) live in IndexedDB, which holds far more than localStorage's few megabytes.
    store.init() reads them into memory once at start; after that reads are instant and writes go to the
    database in the background. Without IndexedDB everything stays in localStorage, as before. */
-const BIG_KEYS = new Set([KEYS.rows, KEYS.meta, KEYS.photos, KEYS.lbx, KEYS.friends, KEYS.filmo, KEYS.facts]);
+const BIG_KEYS = new Set([KEYS.rows, KEYS.meta, KEYS.photos, KEYS.lbx, KEYS.friends, KEYS.filmo, KEYS.facts, KEYS.foryou]);
 const MEM = new Map();
 let IDB = null, idbFailed = false;
 const ls = {

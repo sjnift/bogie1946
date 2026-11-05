@@ -5,7 +5,7 @@
    the end opens that film's card. Every tab, screen and sheet is a history entry, so the phone's back gesture
    steps back the way it came. */
 let sheetDepth = 0, closingByHistory = false, afterClose = null, routeReady = false, routeReplace = false;
-const PUSHED = { data: "Settings", reviews: "Reviews", watchnext: "Watch next" };
+const PUSHED = { data: "Settings", reviews: "Reviews", watchnext: "Watch next", foryou: "For you" };
 function routeBase() {
   const top = state.stack[state.stack.length - 1];
   if (!top) {

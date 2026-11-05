@@ -12,6 +12,7 @@ const showImages = !IN_VIEWER; // pages inside Claude can't load outside images
 // (your own diary's films only ever take their own details: the example's few hand-written credits used to stand in
 // for a film of the same name not looked up yet, so a guest with no key saw a handful of actors counted from those)
 function metaOf(f) {
+  if (f.fy) return f.fy; // a film of For you (06s) carries its own details
   if (state.mode === "example") return EXAMPLE_META[f.key] || null;
   const m = META[f.key];
   return m && !m.miss ? m : null;
@@ -45,6 +46,8 @@ function render() {
   $("#btn-settings span").textContent = page === "settings" ? "Back to stats" : "Settings";
   $("#insights").hidden = page !== "insights";
   $("#compare").hidden = page !== "compare";
+  $("#foryou").hidden = page !== "foryou";
+  $("#btn-foryou span").textContent = page === "foryou" ? "Back to stats" : "For you";
   $("#drillpage").hidden = page !== "drill";
   $("#btn-insights").textContent = page === "insights" ? "Back to stats" : "Insights";
   $("#btn-compare").textContent = page === "compare" ? "Back to stats" : "Compare";
@@ -55,6 +58,7 @@ function render() {
   if (page === "insights") { renderInsights(); return; }
   if (page === "compare") { renderCompare(); return; }
   if (page === "settings") { $(".scopes-row").hidden = true; renderSettings(); syncHash(); return; }
+  if (page === "foryou") { $(".scopes-row").hidden = true; renderForYou(); syncHash(); return; }
   renderTiles(STATS);
   const tip = $("#ios-tip");
   tip.hidden = !iosTipDue();
@@ -70,6 +74,18 @@ function openSearch() {
   if ($("#dlg").open && top && top.kind === "search") { $("#search-q")?.focus(); return; }
   openDrill({ kind: "search", title: "Search your diary", sub: "", q: "" }, $("#dlg").open);
 }
+
+/* ---------- For you: a hundred films you'd love (06s-foryou) ---------- */
+function renderForYou() {
+  const lib = state.lib, rated = lib.films.filter((f) => f.rating).length, liked = lib.films.filter((f) => f.liked).length;
+  $("#hero-title").innerHTML = `For <span class="accent">you</span>`;
+  $("#hero-sub").innerHTML = `A hundred films you haven't logged that you'd likely love, ranked by what your ${plural(rated, "rating")} and ${plural(liked, "like")} show you go for.`;
+  $("#foryou").innerHTML = `<section class="credit fy-sec"><div class="role"><h2>100 films</h2><div class="hint">Click one for why it's here. The stars are a guess at your rating; the percentage, the chance you'd rate it 4★ or more, or like it.</div></div>
+    <div class="credit-body">${fyBodyHtml(lib, false)}</div></section>`;
+  // made again by itself when a week old or the diary has grown
+  if (FY && fyStale(lib) && fyState(lib) === "ok" && !FY_JOB.running && !FY_JOB.err && !job.running) setTimeout(() => fyStart(lib, fyRedraw), 0);
+}
+const fyRedraw = () => { if (state.page === "foryou") renderForYou(); };
 
 /* ---------- title band ---------- */
 // A story, a picture and the quiz of a year (or all time) as buttons (asked 5 Nov 2026: they were three links at the

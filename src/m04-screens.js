@@ -241,6 +241,7 @@ function detailScreen(d, s) {
   if (d.type === "reviews") return reviewsScreen();
   if (d.type === "drill") return drillScreen(d.d);
   if (d.type === "watchnext") return watchNextScreen();
+  if (d.type === "foryou") return forYouScreen();
   if (d.type === "cat") {
     const data = s[d.field], best = state.catSort === "best";
     const list = best ? data.best : data.most;
@@ -251,13 +252,21 @@ function detailScreen(d, s) {
   return "";
 }
 
+// For you (06s): a hundred films you'd love, made on demand, then again when a week old or the diary has grown.
+function forYouScreen() {
+  const lib = BASE_LIB || state.lib;
+  if (FY && fyStale(lib) && fyState(lib) === "ok" && !FY_JOB.running && !FY_JOB.err && !job.running) setTimeout(() => fyStart(lib, fyRedraw), 0);
+  return `<p class="note">A hundred films you haven't logged that you'd likely love. Tap one for why. The stars are a guess at your rating; the percentage, the chance you'd rate it 4★ or more, or like it.</p>` + fyBodyHtml(lib, true);
+}
+const fyRedraw = () => { const top = state.stack[state.stack.length - 1]; if (top && top.type === "foryou") render(); };
+
 // The watchlist, likeliest favourites first, with why.
 function watchNextScreen() {
   const W = memo("watchnext", () => watchNext(state.lib));
   if (!W) return `<div class="empty" style="padding-top:28px">Watch next needs a watchlist in your export and five or more rated films.</div>`;
   const list = W.picks.filter((p) => p.known && wnFits(p, state.wn));
   const rows = list.length ? drillBody(wnDrill(list, "Watch next"), 60).html : `<div class="empty">${W.picks.some((p) => p.known) ? "Nothing on your watchlist fits that length." : "Your watchlist films need cast &amp; crew details first, looked up in Settings."}</div>`;
-  return chipBar("wn", WN_LENGTHS, state.wn) + `<p class="note">Best bets first: a guess at your rating from how you rate each film's director, leads and genres, and its crowd score.</p>` + rows +
+  return chipBar("wn", WN_LENGTHS, state.wn) + `<p class="note">Best bets first: a guess at your rating from how you rate each film's director, leads and genres, and its crowd score. For films you haven't added, see <button class="linkish" type="button" data-act="foryou">100 films for you</button>.</p>` + rows +
     (W.missing ? `<p class="note">${plural(W.missing, "film")} on your watchlist ${W.missing === 1 ? "has" : "have"} no details yet.</p>` : "");
 }
 const SCREENS = { profile: profileScreen, diary: diaryScreen, films: filmsScreen, people: peopleScreen, genres: genresScreen, years: (s) => yearsScreen(s), crowd: (s) => crowdScreen(s), insights: () => insightsScreen(), compare: () => compareScreen() };

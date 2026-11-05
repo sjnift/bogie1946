@@ -53,6 +53,12 @@ function bind() {
   document.addEventListener("click", (e) => { if (e.target.closest('[data-goto="settings"]')) goSettings(); });
   fileInput.addEventListener("change", () => { const files = [...fileInput.files]; fileInput.value = ""; if (files.length) importFiles(files); });
   $("#btn-insights").addEventListener("click", () => { state.page = state.page === "insights" ? "stats" : "insights"; saveView(); render(); window.scrollTo(0, 0); });
+  $("#btn-foryou").addEventListener("click", () => { state.page = state.page === "foryou" ? "stats" : "foryou"; render(); window.scrollTo(0, 0); });
+  $("#foryou").addEventListener("click", (e) => {
+    const t = e.target.closest("[data-fy],[data-fyshow]"); if (!t) return;
+    if (t.dataset.fy === "go") fyStart(state.lib, fyRedraw);
+    else if (t.dataset.fyshow) { state.fyShow = t.dataset.fyshow; renderForYou(); }
+  });
   $("#btn-compare").addEventListener("click", () => { state.page = state.page === "compare" ? "stats" : "compare"; saveView(); render(); window.scrollTo(0, 0); });
   const friendInput = $("#friend-input");
   friendInput.addEventListener("change", async () => {
@@ -207,6 +213,8 @@ async function init() {
   await store.init();
   performance.mark("cr-stored"); // saved data read (marks for speed checks: start, stored, built, drawn)
   META = store.get(KEYS.meta, {}); PHOTOS = store.get(KEYS.photos, {}); LBX = store.get(KEYS.lbx, {}); FACTS = store.get(KEYS.facts, {});
+  fyLoad(); // For you's last list (06s), made again by itself when the diary has changed
+  setTimeout(fyAutoCheck, 20000); setInterval(fyAutoCheck, 15 * 60 * 1000);
   if (showImages) imgProbe(); // can this device reach TMDB's pictures, or only the relay? (05-core)
   // the made-up example only with ?example in the address (it was built at every start, for nothing)
   const ex = SHOW_EXAMPLE ? buildExample() : { rows: {}, meta: {} };

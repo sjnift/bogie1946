@@ -618,7 +618,7 @@ footer p { margin: 0 0 6px; max-width: 80ch; }
 /* nothing imported yet: just the title band and how to import */
 body.empty #tiles, body.empty #lookup-mini, body.empty #ios-tip, body.empty #jump, body.empty #sections, body.empty #insights, body.empty #compare, body.empty #drillpage,
 body.empty .scopes-row, body.empty #btn-search, body.empty #btn-insights, body.empty #btn-compare, body.empty #btn-settings, body.empty #btn-import,
-body.empty #settings, body.empty .foot-settings, body.has-diary #btn-import { display: none !important; }
+body.empty #settings, body.empty .foot-settings, body.has-diary #btn-import, body.empty #btn-foryou { display: none !important; }
 /* recently watched: one row of posters (two of four in a narrow window) */
 #recent .posters { grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 12px; }
 @media (max-width: 900px) { #recent .posters { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
@@ -657,6 +657,35 @@ body.empty #settings, body.empty .foot-settings, body.has-diary #btn-import { di
 /* ---------- pictures to share, and the story ---------- */
 .share-size { display: flex; gap: 6px; margin-bottom: 6px; }
 .share-img.story { max-height: 70vh; width: auto; max-width: 100%; margin-inline: auto; }
+/* For you (06s): a hundred films you'd love */
+.btn.btn-fy svg { color: var(--gold-ink); }
+.fy-sec .credit-body { min-width: 0; }
+.fy-intro p { max-width: 64ch; color: var(--ink-2); margin: 0 0 16px; }
+.fy-run { max-width: 560px; display: grid; gap: 10px; }
+.fy-step { margin: 0; color: var(--ink); font-weight: 600; }
+.fy-small, .fy-foot { margin: 0; color: var(--muted); font-size: 13px; }
+.fy-foot { margin-top: 14px; }
+.fy-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
+.fy-grid { list-style: none; margin: 16px 0 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 24px 16px; }
+@media (max-width: 1000px) { .fy-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 760px) { .fy-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.fy-grid > li { min-width: 0; }
+.poster.fy-p { position: relative; width: 100%; }
+.fy-rk { position: absolute; left: 7px; top: 7px; z-index: 1; min-width: 24px; text-align: center; padding: 2px 7px; border-radius: 999px; font-family: var(--mono); font-size: 12px; font-weight: 500;
+  color: var(--gold-ink); background: color-mix(in srgb, var(--bg) 82%, transparent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--gold) 40%, transparent); }
+.poster .cap .fy-t { color: var(--ink); font-weight: 600; font-size: 13px; }
+.poster .cap .fy-s { color: var(--gold-ink); font-family: var(--mono); font-size: 12px; margin-top: 2px; }
+.fy-wl { color: var(--muted); }
+.poster .cap .fy-why { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; color: var(--muted); font-size: 12px; margin-top: 3px; }
+.fy-how { margin-top: 26px; max-width: 76ch; color: var(--ink-2); font-size: 14px; }
+.fy-how summary { cursor: pointer; color: var(--gold-ink); width: fit-content; }
+.fy-how p { margin: 8px 0 0; }
+.fc-why { margin: 6px 0 6px; padding-left: 18px; color: var(--ink); }
+.fc-why li { margin: 3px 0; }
+.btn.fy-go { color: var(--on-gold); border: 0; font-size: 15px; padding: 11px 20px; background: linear-gradient(120deg, #F2CB73, #D99A2B 55%, #C27F1C);
+  box-shadow: 0 3px 14px rgba(214, 150, 40, .35), inset 0 1px 0 rgba(255, 255, 255, .35); transition: transform .18s ease, box-shadow .2s ease; }
+.btn.fy-go:hover, .btn.fy-go:focus-visible { box-shadow: 0 8px 26px rgba(230, 170, 60, .55), inset 0 1px 0 rgba(255, 255, 255, .45); }
+@media (prefers-reduced-motion: no-preference) { .btn.fy-go:hover { transform: translateY(-2px); } }
 /* a story, a picture and the quiz, as buttons under the hero's line (Nov 2026) */
 .hero-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
 .hero-btns:empty { display: none; }
