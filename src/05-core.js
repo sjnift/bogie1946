@@ -339,7 +339,7 @@ function exportLine(rows) {
   const ago = Math.round((new Date(today.getFullYear(), today.getMonth(), today.getDate()) - new Date(y, m - 1, dd)) / 864e5);
   const when = ago <= 0 ? "today" : ago === 1 ? "yesterday" : `${fmtN(ago)} days ago`;
   return rows.exportedAt ? `Last export: ${fmtDate(day)} (${when}).` : rows.importedAt && d && !isNaN(d) ? `Last export imported: ${fmtDate(day)} (${when}).`
-    : `Last export: around ${fmtDate(day)}, the date of its newest entry (${when}).`;
+    : `Last export: around ${fmtDate(day)} (${when}).`; // (the newest entry's date; the owner asked to leave that unsaid)
 }
 
 // Letterboxd keeps reviews with some HTML. Keep the formatting people use (paragraphs, line breaks,

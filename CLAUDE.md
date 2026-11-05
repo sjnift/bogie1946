@@ -277,8 +277,8 @@ The owner asked for this to be checked every time. A film, diary entry, person o
   `letterboxd-<user>-YYYY-MM-DD-HH-MM-utc.zip`, else the newest time on the files inside). Settings shows it under
   "Import a newer export" on both layouts (`exportLine`, `#set-export-date` / the phone's `.export-date`: "Last export:
   22 Oct 2026 (14 days ago)."; an import from before says "Last export imported: …", and one from before 23 Oct 2026,
-  which kept neither (the owner's: the line didn't show, they reported), "Last export: around 21 Oct 2026, the date of
-  its newest entry (…)"), asked by the owner after hearing
+  which kept neither (the owner's: the line didn't show, they reported), "Last export: around 21 Oct 2026 (…)", from its
+  newest entry, which the line doesn't say: the owner asked to drop "the date of its newest entry"), asked by the owner after hearing
   that ratings changed later and films marked watched without a diary entry come only with a fresh export. The
   `import` check covers it.
 - `buildLibrary(rows)` makes the library: `films` (one per film: key, name, year, rating, liked, entries,

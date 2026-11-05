@@ -40,7 +40,7 @@ export default async function ({ browser, base }) {
       // an import from before either was kept (the owner's): the newest entry in it
       oldest: exportLine({ diary: [{ Date: "2026-09-01" }, { Date: "2026-10-21" }], watched: [{ Date: "2026-10-02" }], reviews: [{ Date: "" }] }) }), phone);
     assert(/^Last export: 22 Oct 2026 \((today|yesterday|[\d,]+ days ago)\)\.$/.test(made.line) && made.under && made.at === "2026-10-22T16:45:00Z"
-      && /^Last export imported: 1 Oct 2026 \(/.test(made.older) && made.none === "" && /^Last export: around 21 Oct 2026, the date of its newest entry \(/.test(made.oldest), `${file}: the export's date: ${JSON.stringify(made)}`);
+      && /^Last export imported: 1 Oct 2026 \(/.test(made.older) && made.none === "" && /^Last export: around 21 Oct 2026 \((today|yesterday|[\d,]+ days ago)\)\.$/.test(made.oldest), `${file}: the export's date: ${JSON.stringify(made)}`);
     noErrors(p, file);
   }
 }
