@@ -220,6 +220,7 @@ function dataScreen() {
       <ol class="steps"><li>On <a href="https://letterboxd.com/settings/data/" target="_blank" rel="noopener">letterboxd.com</a>, open Settings → Data.</li>
         <li>Choose Export your data and download the ZIP.</li><li>Import the ZIP here. It stays in this browser.</li></ol>
       <button class="btn green block" type="button" data-act="import">${lib ? "Import a newer export" : "Import export"}</button>
+      ${lib && exportLine(store.get(KEYS.rows, null)) ? `<p class="status export-date">${esc(exportLine(store.get(KEYS.rows, null)))}</p>` : ""}
       ${state.importError ? `<p class="status err" role="alert">${esc(state.importError)}</p>` : ""}</div>
     <div data-sitebox="publish">${siteBox("publish")}</div>
     ${sh("Film details")}<div id="lookup"><div class="card">${lookupInner()}</div></div>

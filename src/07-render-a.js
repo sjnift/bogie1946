@@ -177,6 +177,8 @@ function renderSettings() {
   const lib = MY_LIB;
   $("#set-export").innerHTML = lib ? `${plural(lib.films.length, "film")}, ${plural(lib.entries.length, "diary entry", "diary entries")} and ${plural(lib.reviews.length, "review")} imported${lib.profile.username ? ` for @${esc(lib.profile.username)}` : ""}.${lib.reviewTextMissing ? " The review text is missing, so import the export again." : ""}`
     : "Nothing imported yet: this is the example diary.";
+  const made = lib ? exportLine(store.get(KEYS.rows, null)) : "";
+  $("#set-export-date").textContent = made; $("#set-export-date").hidden = !made;
   $("#set-site").hidden = !SITE_ON;
   renderLookup();
   siteRedraw();

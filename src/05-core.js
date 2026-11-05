@@ -300,24 +300,41 @@ async function readExport(fileList) {
       }
     }
   };
+  let made = "";
   for (const file of fileList) {
     if (/\.zip$/i.test(file.name) || file.type.includes("zip")) {
       try { await needReader("JSZip"); } catch { throw new Error("The ZIP reader didn't load. Check your connection, or unzip the export and import diary.csv, watched.csv and ratings.csv."); }
       const zip = await JSZip.loadAsync(file);
+      const named = String(file.name).match(/(\d{4})-(\d{2})-(\d{2})-(\d{2})-(\d{2})-utc/i);
+      if (named) made = `${named[1]}-${named[2]}-${named[3]}T${named[4]}:${named[5]}:00Z`;
       for (const entry of Object.values(zip.files)) {
         if (!entry.dir && /\.csv$/i.test(entry.name)) take(entry.name, await entry.async("string"));
+        if (!named && !entry.dir && entry.date instanceof Date && !isNaN(entry.date) && entry.date.toISOString() > made) made = entry.date.toISOString();
       }
     } else if (/\.csv$/i.test(file.name)) {
       take(file.name, await file.text());
     }
   }
   rows.importedAt = new Date().toISOString(); // the newest import wins between this device and the site
+  if (made) rows.exportedAt = made; // when Letterboxd made the export (exportLine)
   if (!rows.watched.length && !rows.diary.length && !rows.ratings.length) {
     throw new Error(found
       ? "Those files have no films in them. Import the whole export ZIP, or at least diary.csv and watched.csv."
       : "That doesn't look like a Letterboxd export. Import the ZIP you get from Settings → Data → Export your data.");
   }
   return rows;
+}
+
+// The line under "Import a newer export" in Settings, both layouts (asked 5 Nov 2026): when the export in hand was made,
+// so it's clear when a fresh one is due (ratings changed later and films marked watched without a diary entry come only
+// with one). Imports before then kept only when they were imported, so those say that instead.
+function exportLine(rows) {
+  const at = rows && (rows.exportedAt || rows.importedAt), d = at && new Date(at);
+  if (!d || isNaN(d)) return "";
+  const p2 = (n) => String(n).padStart(2, "0"), day = `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
+  const today = new Date(), ago = Math.round((new Date(today.getFullYear(), today.getMonth(), today.getDate()) - new Date(d.getFullYear(), d.getMonth(), d.getDate())) / 864e5);
+  const when = ago <= 0 ? "today" : ago === 1 ? "yesterday" : `${fmtN(ago)} days ago`;
+  return `${rows.exportedAt ? "Last export" : "Last export imported"}: ${fmtDate(day)} (${when}).`;
 }
 
 // Letterboxd keeps reviews with some HTML. Keep the formatting people use (paragraphs, line breaks,

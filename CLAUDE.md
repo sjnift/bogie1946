@@ -272,6 +272,13 @@ The owner asked for this to be checked every time. A film, diary entry, person o
 - Saving: `store.set` writes to IndexedDB 250 ms later; imports and restores call `await store.flush()`, and the
   page flushes when it's hidden or closed. If the database can't be opened at start, `store.failed` is set and the
   import screen says so; if the saved export can't be read, `LOAD_ERROR` says why. Neither falls back to the example.
+- The rows keep when they were imported (`importedAt`, which also decides between this device's import and the site's)
+  and, since 5 Nov 2026, when Letterboxd made the export (`exportedAt`: from its file name,
+  `letterboxd-<user>-YYYY-MM-DD-HH-MM-utc.zip`, else the newest time on the files inside). Settings shows it under
+  "Import a newer export" on both layouts (`exportLine`, `#set-export-date` / the phone's `.export-date`: "Last export:
+  22 Oct 2026 (14 days ago)."; an import from before says "Last export imported: …"), asked by the owner after hearing
+  that ratings changed later and films marked watched without a diary entry come only with a fresh export. The
+  `import` check covers it.
 - `buildLibrary(rows)` makes the library: `films` (one per film: key, name, year, rating, liked, entries,
   reviews, uri, `added`: the day watched.csv says it was marked watched), `entries` (diary, oldest first), `reviews` (sanitised HTML + text), `profile`, `watchlistFilms`
   (film-like objects, minus films already watched). `watched.csv` and the diary decide what is seen; likes,

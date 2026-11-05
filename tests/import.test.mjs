@@ -19,7 +19,8 @@ async function exportZip() {
 export default async function ({ browser, base }) {
   for (const [file, phone] of [["desktop.html", false], ["mobile.html", true]]) {
     const p = await open(browser, base, file, { phone });
-    await p.setInputFiles("#file-input", [{ name: "letterboxd-tester.zip", mimeType: "application/zip", buffer: await exportZip() }]);
+    // (Letterboxd names an export by when it was made, in UTC)
+    await p.setInputFiles("#file-input", [{ name: "letterboxd-tester-2026-10-22-16-45-utc.zip", mimeType: "application/zip", buffer: await exportZip() }]);
     await p.waitForFunction(() => MY_LIB && state.mode === "mine");
     const got = await p.evaluate(() => ({ films: MY_LIB.films.map((f) => f.name).sort(), entries: MY_LIB.entries.length, reviews: MY_LIB.reviews.map((r) => r.html),
       liked: MY_LIB.films.filter((f) => f.liked).map((f) => f.name), watchlist: MY_LIB.watchlistFilms.map((w) => w.name), uri: MY_LIB.films.find((f) => f.name === "Heat").uri }));
@@ -30,6 +31,14 @@ export default async function ({ browser, base }) {
     assert(got.watchlist.join() === "Knives Out" && got.uri === "https://boxd.it/a", `${file}: watchlist or film link missing`);
     const summary = await p.evaluate(() => (document.querySelector("#import-done") || {}).textContent || state.importNote);
     assert(/2 films, 2 diary entries and 1 review/.test(summary), `${file}: summary "${summary}"`);
+    // Settings says when the export was made, under "Import a newer export"
+    if (phone) { await p.click('#nav-right [data-act="settings"], #screen [data-act="settings"]'); await p.waitForSelector("#screen .export-date"); }
+    else { await p.click("#btn-settings"); await p.waitForSelector("#set-export-date:not([hidden])"); }
+    const made = await p.evaluate((phone) => ({ line: document.querySelector(phone ? "#screen .export-date" : "#set-export-date").textContent,
+      under: phone ? document.querySelector("#screen .export-date").previousElementSibling.dataset.act === "import" : !!document.querySelector(".lookup-row + #set-export-date"),
+      at: store.get(KEYS.rows).exportedAt, older: exportLine({ importedAt: "2026-10-01T12:00:00Z" }), none: exportLine({}) }), phone);
+    assert(/^Last export: 22 Oct 2026 \((today|yesterday|[\d,]+ days ago)\)\.$/.test(made.line) && made.under && made.at === "2026-10-22T16:45:00Z"
+      && /^Last export imported: 1 Oct 2026 \(/.test(made.older) && made.none === "", `${file}: the export's date: ${JSON.stringify(made)}`);
     noErrors(p, file);
   }
 }
