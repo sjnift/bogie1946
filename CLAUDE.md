@@ -358,8 +358,8 @@ Walked both layouts with the owner's diary and as a visitor, with an accessibili
 - **A diary that never marks a rewatch** (`everRewatched`, on the whole diary: the owner's 1,217 entries have none)
   leaves out what would only read 0: the desktop's Rewatches tile becomes **Liked** (Reviews' foot then "N% of films"),
   the year-by-year table's Rewatches column, the Rewatches habit, the "against the year before" row, the phone's
-  Rewatches trend chip; the phone Profile's Rewatches tile becomes **Back in time** ("Who led when", `data-act="people"
-  data-role="asof"`), which had been a chip off the screen.
+  Rewatches trend chip; the phone Profile's Rewatches tile becomes **Back in time** ("Who led when", `data-act="asof"`, to Insights' Back in
+  time tab), which had been a chip off the screen.
 - **What your ratings follow says when nothing does** (`FOLLOW_CLEAR` 10%): below it, "No one thing tells you much
   about how you'll rate a film: the best guide, its genres, accounts for only 3%…", and it isn't an "In short" card
   (`followClear`); it had read "What tells most … is its genres: it accounts for 3%".
@@ -554,10 +554,13 @@ friend replaces the address instead.
   `asofLead`), then down to the tenth with "now N" where it has grown; small print at the foot. The controls change
   only the results in place (`asofSet`, `asofRedraw`, one count a frame), never the control in use (the Safari freeze),
   and the links of the lists they replace are let go (`ASOF.ids`). It follows the filters; a year picked above starts
-  it at that year's end. Desktop: section `asof` "Back in time" in People before People over the years, directors,
-  actors and actresses side by side, or with "Everyone together" (`ASOF.together`) directors and everyone; phone:
-  Stats › People, **the first chip** (with a clock; it was the seventh, off the screen), one list at a time with a
-  Directors / Actors / Actresses / Everyone switch (`ASOF.kind`). On the owner's 5 Jun 2022: Hitchcock and Woody Allen
+  it at that year's end. **On Insights since 5 Nov 2026** (the owner: "move the history functionality of stars directors
+  in insights page"; it had been in the Stats page's People): desktop section `i-asof` after Chapters on Insights, and
+  `y-asof` on a year's Insights (from that year's end), `asofSection` in 07c-insights; directors, actors and actresses
+  side by side, or with "Everyone together" (`ASOF.together`) directors and everyone; phone: Insights' **second tab**
+  "Back in time", for all years and a year (`INS_TABS`, `YEAR_TABS`, `mAsof`), and the Profile tile "Back in time"
+  (`data-act="asof"`) goes there; one list at a time with a Directors / Actors / Actresses / Everyone switch
+  (`ASOF.kind`). Insights takes no filters, so there it's always the whole diary. On the owner's 5 Jun 2022: Hitchcock and Woody Allen
   level on 18 (Allen got there first), Tom Cruise and Samuel L. Jackson on 17, Scarlett Johansson 18 (on top since Nov
   2018). The `counts` check places every film once, matches the latest day to Most watched and Starring (people, counts
   and order), keeps actors and actresses apart, and at each year's end checks every list's films, ranks, order, the top
@@ -1088,7 +1091,7 @@ shows the latest ~50, so it accumulates), commits, and asks Pages to rebuild. Th
 `tests/`: `lib.mjs` (server, browser, stand-ins: papaparse/jszip served from `node_modules`, every outside
 service cut off unless a check stands in for it, service worker off unless asked, reduced motion, pages opened
 with `?example` (pass `example: false` for an empty browser; a check's own `goto` must add `?example` too),
-`phoneTour()` which opens every phone tab, every Stats view for all time and for a year (and People › Back in time's three lists), and every Insights/Compare section), `run.mjs`, and checks:
+`phoneTour()` which opens every phone tab, every Stats view for all time and for a year, and every Insights/Compare section (and Insights › Back in time's four lists)), `run.mjs`, and checks:
 `apify`, `imdbcast` (the owner's cast checked on IMDb), `people` (people by TMDB id, the people check, cameos, voices, small parts and who counts by hand), `check` (film data check), `counts` (double counting, also with filters on), `reviews` (missing review text spotted; six-film actors), `welcome` (no example diary; import saved at once), `extras` (year picture, On this day, Watch next, PWA), `feed`, `import`,
 `links` (every link opens something), `pages` (nothing broken shows, no sideways scroll on the phone),
 `routes`, `storage` (IndexedDB move, backup and restore), `site` (the diary on the site: a stand-in GitHub and site),

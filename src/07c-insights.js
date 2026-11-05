@@ -21,6 +21,10 @@ function warmStudy() {
   const go = () => idle(() => { STUDY_WARM = false; if (state.lib === lib && state.page === "stats" && !job.running) desktopStudy(); }, { timeout: 8000 });
   if (peopleLater(lib)) warmPeople(lib, metaOf).then(go); else go();
 }
+// Back in time (06r-asof): most watched as they stood on any day, and who led when. On Insights since 5 Nov 2026 (the
+// owner: "move the history functionality of stars directors in insights page"); it was in the Stats page's People.
+const asofSection = (lib, scope, id) => section(id, "Back in time", `Your most watched of all time as they stood on any day of your diary, and who led when${scope === "all" ? "" : `, from the end of ${esc(scope)}`}. Drag the slider, click the timeline, pick a date or jump to a year's end.`,
+  lib.films.some((f) => metaOf(f)) ? asofSoon(lib, scope) : emptyMeta());
 function renderInsights() {
   const lib = state.lib;
   const ys = diaryYears(lib);
@@ -36,6 +40,7 @@ function renderInsights() {
   $("#insights").innerHTML = [
     section("i-glance", "In short", "The strongest finding of each kind.", glanceBlock(S.overview, "No clear patterns yet. They'll show as your diary grows.")),
     section("i-chapters", "Chapters", "Stretches of your diary that stood apart from the rest of it.", chaptersBlock(S.chapters, S.n)),
+    asofSection(lib, "all", "i-asof"),
     section("i-months", "Through the year", "How your watching runs month by month, and how that has changed over the years.", monthsInsBlock(S.months)),
     section("i-studios", "Studios", "Who made the films you watch: each film once, under its studio.", studiosHtml(lib.films, metaOf, "all", false)),
     section("i-tastes", "How your taste has moved", "Your first years of diary against your latest. Only clear, lasting changes are listed.", driftBlock(S.drift)),
@@ -132,6 +137,7 @@ function renderYearInsights(Y) {
     section("y-glance", `${esc(Y)} in short`, "The year's clearest differences.", (R.n.entries ? `<div class="hero-btns in-sec">${actButtons(Y, false)}</div>` : "") + glanceBlock(R.overview, `Nothing about ${esc(Y)} stands out clearly from your other years yet.`)),
     section("y-differ", "What set it apart", `What ${esc(Y)}'s films were made of, against your other years.`, differ + places),
     section("y-studios", `Studios in ${esc(Y)}`, `Who made the films you watched in ${esc(Y)}: each film once, under its studio.`, studiosHtml([...new Set(lib.entries.filter((e) => e.date.startsWith(Y)).map((e) => e.film))], metaOf, Y, false)),
+    asofSection(lib, Y, "y-asof"),
     section("y-chapters", `${esc(Y)}, month by month`, "Stretches of the year that stood apart, and what each season leaned toward.", monthsBlock(R, Y)),
     section("y-ratings", `Ratings in ${esc(Y)}`, "The year against your usual, with the crowd's view of the same films.", findings(R.ratings, `Not enough rated films in ${esc(Y)}.`)),
     section("y-threads", `Threads in ${esc(Y)}`, "Runs of films by the same people that began this year.", threadsBlock(R.threads, `No run of films by one person began in ${esc(Y)}.`)),

@@ -76,14 +76,6 @@ export async function phoneTour(m, each) {
   await tab("stats");
   for (const v of ["films", "people", "genres", "years", "crowd"]) {
     await m.click(`#screen .seg [data-view="${v}"]`); await m.waitForTimeout(60); await each(v);
-    // People › Back in time (most watched as of a date), on the end of the first year, each list
-    if (v === "people" && await m.$('[data-role="asof"]')) {
-      await m.click('[data-role="asof"]'); await m.waitForTimeout(60);
-      const day = await m.$eval("[data-asof-day]", (b) => b.dataset.asofDay).catch(() => null);
-      if (day) { await m.click(`[data-asof-day="${day}"]`); await m.waitForTimeout(60); }
-      for (const k of ["d", "m", "w", "a"]) if (await m.$(`[data-asof-kind="${k}"]`)) { await m.click(`[data-asof-kind="${k}"]`); await m.waitForTimeout(40); await each(`people back in time ${k}`); }
-      await m.click('[data-role="c"]'); await m.waitForTimeout(60);
-    }
   }
   // and each Stats view for a year
   const y0 = await m.$$eval("#scopes [data-scope]", (x) => x.map((b) => b.dataset.scope).filter((y) => y !== "all")[0]);
@@ -93,7 +85,15 @@ export async function phoneTour(m, each) {
     await m.click('[data-scope="all"]');
   }
   await tab("insights"); await m.click('[data-scope="all"]');
-  for (const t of await m.$$eval("[data-instab]", (x) => x.map((b) => b.dataset.instab))) { await m.click(`[data-instab="${t}"]`); await m.waitForTimeout(60); await each(`insights ${t}`); }
+  for (const t of await m.$$eval("[data-instab]", (x) => x.map((b) => b.dataset.instab))) {
+    await m.click(`[data-instab="${t}"]`); await m.waitForTimeout(60); await each(`insights ${t}`);
+    // Insights › Back in time (most watched as of a date), on the end of the first year, each list
+    if (t === "asof") {
+      const day = await m.$eval("[data-asof-day]", (b) => b.dataset.asofDay).catch(() => null);
+      if (day) { await m.click(`[data-asof-day="${day}"]`); await m.waitForTimeout(60); }
+      for (const k of ["d", "m", "w", "a"]) if (await m.$(`[data-asof-kind="${k}"]`)) { await m.click(`[data-asof-kind="${k}"]`); await m.waitForTimeout(40); await each(`insights back in time ${k}`); }
+    }
+  }
   await m.click('[data-instab="overview"]');
   const years = await m.$$eval("#scopes [data-scope]", (x) => x.map((b) => b.dataset.scope).filter((y) => y !== "all"));
   for (const y of years.slice(0, 2)) {

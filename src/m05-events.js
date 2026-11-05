@@ -47,6 +47,7 @@ function act(t) {
   else if (a === "backup") downloadBackup(state.backupKeys);
   else if (a === "backup-keys") { state.backupKeys = !state.backupKeys; render(); }
   else if (a === "people") { Object.assign(state, { role: t.dataset.role || "c", peopleLimit: 50 }); goTo("people", { force: true, top: true }); }
+  else if (a === "asof") { Object.assign(state, { insTab: "asof", yearTab: "asof" }); goTo("insights", { force: true, top: true }); } // Back in time, on Insights
   else if (a === "cat") push({ type: "cat", field: t.dataset.field, title: t.dataset.field[0].toUpperCase() + t.dataset.field.slice(1) });
   else if (a === "all-rated" || a === "liked") openSheet(a === "liked" ? DR.liked(STATS) : D.films("Highest rated", filmsSub(STATS.films.filter((f) => f.rating)), STATS.films.filter((f) => f.rating), { scope: STATS.scope }));
   else if (a === "more-people") { state.peopleLimit += 100; render(); }

@@ -204,10 +204,13 @@ export default async function ({ browser, base }) {
     // back in time (asked 1 Nov 2026, reworked the same day): a year's end, the slider, a typed date and a click on the
     // timeline move the results, never the control being used; each list is Most watched up to that day, in its order,
     // with shared ranks; who led when is drawn for the lists on show; a person opens their films up to that day
-    if (phone) { await p.goto(`${base}${file}?example#/people`); await p.waitForFunction(() => typeof state === "object" && state.lib); await p.click('[data-role="asof"]'); }
+    // on Insights since 5 Nov 2026 (the phone's second tab; the computer's section after Chapters), not on the Stats page
+    await p.goto(`${base}${file}?example#/insights`); await p.waitForFunction(() => typeof state === "object" && state.lib);
+    if (phone) await p.click('[data-instab="asof"]');
     await p.waitForSelector(".asof .asof-range");
-    const firstChip = phone && await p.$eval(".chips .chip", (c) => c.dataset.role);
-    assert(!phone || firstChip === "asof", `${file} back in time is the first chip on People (${firstChip})`);
+    const place = await p.evaluate((phone) => phone ? [...document.querySelectorAll("[data-instab]")].map((t) => t.dataset.instab).slice(0, 2).join()
+      : [...document.querySelectorAll("#insights > section")].map((s) => s.id).slice(0, 3).join(), phone);
+    assert(place === (phone ? "overview,asof" : "i-glance,i-chapters,i-asof"), `${file} back in time's place on Insights: ${place}`);
     const jump = await p.$eval("[data-asof-day]", (b) => b.dataset.asofDay);
     await p.click(`[data-asof-day="${jump}"]`); await p.waitForTimeout(120);
     const at = () => p.evaluate(() => ({ date: document.querySelector(".asof-date").value, range: +document.querySelector(".asof-range").value, big: document.querySelector(".asof-big").textContent,
@@ -321,7 +324,7 @@ export default async function ({ browser, base }) {
       sizes: [document.querySelector("#best-decade .best-decade .poster"), document.querySelector("#best-decade .bd-runner .poster")].map((p) => p && Math.round(p.getBoundingClientRect().width)) }; });
   const at = (id) => lay.ids.indexOf(id);
   assert(at("best-decade") > at("recent") && at("best-decade") < at("ch-films") && at("top") > at("ch-ratings") && at("top") > at("rated"), `main page order: ${lay.ids.join(" ")}`);
-  assert(lay.cards === 0 && lay.films.join() === "released,milestones,records,rewatched" && lay.people.join() === "starring,directed,crew,asof,people-years"
+  assert(lay.cards === 0 && lay.films.join() === "released,milestones,records,rewatched" && lay.people.join() === "starring,directed,crew,people-years"
     && lay.origin.join() === "origin,world,genre-years,genre-rates" && lay.faces >= 5 && lay.cats === 2
     && lay.when.join() === "logged,months,seasons,years,habits" && lay.ratings.join() === "rated,crowd,top" && lay.reviews.join() === "reviews,review-stats" && lay.next.join() === "next",
     `every chapter in full: ${JSON.stringify(lay)}`);

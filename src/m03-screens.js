@@ -332,7 +332,7 @@ function profileScreen(s) {
     ${tile(s.likes ? dl(DR.liked(s)) : `data-act="liked"`, ICON.heart, "r", "Liked", plural(s.likes, "film"))}
     ${everRewatched(BASE_LIB || lib) ? tile(s.rewatches ? dl(DR.rewatches(s)) : `data-view="diary"`, ICON.rewatch, "s", "Rewatches", plural(s.rewatches, "rewatch", "rewatches"))
       // a diary that never marks a rewatch: Back in time, which was a chip off the screen under Stats › People (Nov 2026)
-      : tile(`data-act="people" data-role="asof"`, ICON.clock, "s", "Back in time", "Who led when")}</div>`;
+      : tile(`data-act="asof"`, ICON.clock, "s", "Back in time", "Who led when")}</div>`;
   const recent = s.entries.slice(-12).reverse();
   const recentRow = recent.length ? sh(s.scope === "all" ? "Recently watched" : `Last watched in ${s.scope}`, seeAll(`data-view="diary"`, "Diary")) +
     `<div class="scroller">${recent.map((e) => posterItem(e.film, D.film(e.film, { entry: e }), `<span class="pmeta"><span class="stars">${stars(e.rating)}</span>${e.rewatch ? '<span class="rewatch" aria-label="rewatch">↻</span>' : ""}${likeMark(e.film)}</span><span class="mdate">${fmtDate(e.date)}</span>`)).join("")}</div>` : "";
@@ -373,13 +373,12 @@ function profileScreen(s) {
 /* ---------- Stats: films, people, genres ---------- */
 const statsHead = () => ltitle("Stats") + scopeBar() + segBar("view", [["films", "Films"], ["people", "People"], ["genres", "Breakdown"], ["years", "Years"], ["crowd", "vs. Others"]], state.view, "five");
 function peopleScreen(s) {
+  if (state.role === "asof") state.role = "c"; // Back in time moved to Insights (5 Nov 2026)
   const role = state.role;
   const data = { c: s.cast, v: s.voice, d: s.directors, w: s.writers, p: s.dop, m: s.music }[role] || s.cast;
   const best = state.sort === "best";
   const list = best ? data.best : data.most;
-  const chips = statsHead() + chipBar("role", [["asof", `<svg class="ico-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Back in time`], ["c", "Actors"], ["v", "Voices"], ["d", "Directors"], ["w", "Writers"], ["p", "Camera"], ["m", "Music"]], role);
-  // most watched as they stood on any day (asked 1 Nov 2026; 06r-asof)
-  if (role === "asof") return chips + (s.withMeta ? `<p class="status" style="margin:10px 2px 0">Your most watched of all time as they stood on any day of your diary, and who led when.</p>${asofHtml(state.lib, state.scope, true)}` : needMeta());
+  const chips = statsHead() + chipBar("role", [["c", "Actors"], ["v", "Voices"], ["d", "Directors"], ["w", "Writers"], ["p", "Camera"], ["m", "Music"]], role);
   const head = chips + segBar("sort", [["most", "Most watched"], ["best", "Highest rated"]], state.sort, "small");
   if (!s.withMeta) return head + needMeta();
   const note = role === "c" ? castRuleShort() : role === "v" ? "Voice roles in animation, narration and the like, counted apart from on-screen acting. Additional voices and cameos don't count." : "";

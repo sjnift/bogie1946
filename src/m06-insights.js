@@ -1,8 +1,9 @@
 <script>
 /* ---------- phone: Insights, a study of the diary (worked out in 06k-study.js). The year chips pick all years or
    one; the tabs under them pick a section. ---------- */
-const INS_TABS = [["overview", "In short"], ["chapters", "Chapters"], ["months", "Months"], ["studios", "Studios"], ["taste", "Taste"], ["ratings", "Ratings"], ["threads", "Threads"], ["habits", "Habits"]];
-const YEAR_TABS = [["overview", "In short"], ["apart", "Stood out"], ["studios", "Studios"], ["ratings", "Ratings"], ["threads", "Threads"], ["habits", "Habits"]];
+// Back in time (06r-asof) is the second tab, for all years and for a year (moved from Stats › People, 5 Nov 2026)
+const INS_TABS = [["overview", "In short"], ["asof", "Back in time"], ["chapters", "Chapters"], ["months", "Months"], ["studios", "Studios"], ["taste", "Taste"], ["ratings", "Ratings"], ["threads", "Threads"], ["habits", "Habits"]];
+const YEAR_TABS = [["overview", "In short"], ["asof", "Back in time"], ["apart", "Stood out"], ["studios", "Studios"], ["ratings", "Ratings"], ["threads", "Threads"], ["habits", "Habits"]];
 // the crowd picked with the chips, or the one with the most scores
 const crowdKey = () => state.crowd || memo("crowd", () => defaultCrowd(state.lib, metaOf));
 const allStudy = () => memo(`study|${crowdKey()}`, () => computeStudy(state.lib, metaOf, crowdKey()));
@@ -18,7 +19,11 @@ function insightsScreen() {
   if (!INS_TABS.some(([k]) => k === state.insTab)) state.insTab = "overview";
   return head + utabs("instab", INS_TABS, state.insTab) + mAllInsights(state.insTab);
 }
+// most watched as they stood on any day, and who led when; a year starts it at that year's end
+const mAsof = (scope) => state.lib.films.some((f) => metaOf(f))
+  ? `<p class="status" style="margin:12px 2px 0">Your most watched of all time as they stood on any day of your diary, and who led when.</p>${asofHtml(state.lib, scope, true)}` : needMeta();
 function mAllInsights(tab) {
+  if (tab === "asof") return mAsof("all");
   const lib = state.lib, S = allStudy();
   if (tab === "chapters") return mChapters(S.chapters, S.n);
   if (tab === "months") return mMonthsIns(S.months);
@@ -103,6 +108,7 @@ function mThreads(T, empty = "No film has led to a run of others yet: four or mo
 
 /* ----- one year ----- */
 function mYearInsights(Y, tab) {
+  if (tab === "asof") return mAsof(Y);
   const lib = state.lib, R = yearStudy(Y);
   if (tab === "studios") return sh(`Studios in ${esc(Y)}`) + studiosHtml([...new Set(lib.entries.filter((e) => e.date.startsWith(Y)).map((e) => e.film))], metaOf, Y, true);
   if (tab === "apart") {

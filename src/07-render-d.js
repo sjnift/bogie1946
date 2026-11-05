@@ -38,8 +38,6 @@ function dashChapters(s, quick) {
     s.voice.total ? section("voices", "Voices", `${everyone(s.voice, "Voice actors")} in animation, narration and other voice roles, counted apart from on-screen acting. Additional voices and cameos don't count. Highest rated needs ${s.minRated}+ rated films.`, people("voices", s.voice)) : "",
     section("directed", "Directed by", `${everyone(s.directors, "Directors")}.`, people("directors", s.directors)),
     section("crew", "Crew", `Writers, cinematographers and composers. Highest rated needs ${s.minRated}+ rated films.`, noMeta ? emptyMeta() : crewBlock(s)),
-    // most watched as they stood on any day (asked 1 Nov 2026)
-    section("asof", "Back in time", "Your most watched of all time as they stood on any day of your diary, and who led when. Drag the slider, click the timeline, pick a date or jump to a year's end.", noMeta ? emptyMeta() : asofSoon(lib, scope)),
     all ? section("people-years", "People over the years", "Who's new, who stays, and how many directors each year brought.", noMeta ? emptyMeta() : peopleYearsBlock(I)) : "",
     !all && R.firstYear !== s.scope ? section("new-in", `New in ${esc(s.scope)}`, "Directors, actors, countries and languages that first turned up in your diary this year.", noMeta ? emptyMeta() : newInBlock(R)) : ""];
   const originFull = [
