@@ -259,57 +259,60 @@ function cardLines(s) {
   if (s.rated) L.top = `${five.length ? dlink(D.films("Five stars", filmsSub(five), five, { scope: s.scope }), plural(five.length, "five-star film")) : "No five-star films yet"}${low.length ? `; ${dlink(D.films("Lowest rated", filmsSub(low, "2½★ and under"), low, { scope: s.scope, sort: "given" }), plural(low.length, "film"))} at 2½★ or under` : ""}.`;
   return L;
 }
+const FILTER_ICON = `<svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h14l-5.5 6.5V16l-3 1.5v-7z"/></svg>`;
 function renderSections(s) {
   const T = s.scope === "all" ? onThisDay(state.lib) : null;
   const best = bestDecadeBlock(s);
-  // first, in full: what you've watched lately, on this day, and your best decade; then the chapters, in cards (People and
-  // Genres & countries in full)
+  // always, under the tiles: what you've watched lately, on this day, and your best decade
   const glance = [
     s.entries.length ? section("recent", s.scope === "all" ? "Recently watched" : `Last watched in ${s.scope}`,
       s.entries.length > RECENT_N ? dlink(DR.diary(s), `All ${fmtN(s.entries.length)} diary entries`) : "Your latest diary entries.", recentBlock(s)) : "",
     T && T.entries.length ? section("onthisday", T.title, T.sub, onThisDayBlock(T)) : "",
     best ? (state.tab.bestby === "year" ? section("best-decade", "Best years", `The years of release you rate highest, of those with ${favourites(s, "year").bar} or more rated films. ${YEAR_CAUTION}`, best)
       : section("best-decade", "Best decade", "The decade of release you rate highest.", best)) : ""].join("");
-  // with a filter on, a section or card it leaves with nothing to show is left out, and so is a chapter left empty
+  // with a filter on, a section it leaves with nothing to show is left out
   const trim = (html) => filterOn() ? dropEmpties(html, (root) => { for (const b of root.querySelectorAll(".credit-body")) if (b.children.length === 1 && b.firstElementChild.classList.contains("empty")) b.closest(".credit").remove(); }) : html;
-  // a visit's first drawing with a big diary: the top of the page now, the chapters after Films as soon as everyone's
-  // credits are worked out (1 Nov 2026: they held up the whole page, over a second on a slower computer)
-  const quick = peopleLater(state.lib);
-  const chapters = dashChapters(s, quick).map(([id, name, parts]) => [id, name, trim(parts.filter(Boolean).join(""))]).filter(([, , html]) => html.trim());
-  if (quick) {
-    chapters.push(["soon", "More", `<section class="credit soon"><p class="status">Counting the people in your films…</p></section>`]);
-    warmPeople(state.lib, metaOf).then(() => { if (state.page === "stats") render(); });
-  }
-  const glanceHtml = trim(glance);
-  const all = [glanceHtml.trim() && ["glance", "At a glance", glanceHtml], ...chapters].filter(Boolean);
-  $("#sections").innerHTML = all.map(([id, name, html]) => `<div class="ch-mark" id="ch-${id}"><span>${name}</span></div>${html}`).join("")
-    || `<div class="empty" style="margin-top:24px">No films pass this filter in this period.</div>`;
-  // the menu that stays at the top: the chapters, then the filter (what's on, or a button to set one)
-  $("#jump").innerHTML = `<div class="jump-in">${all.map(([id, name]) => `<button class="jump-link" type="button" data-jump="ch-${id}">${name}</button>`).join("")}</div>
-    ${filterOn() ? filterStripHtml(s.films.length) : `<button class="jump-filter" type="button" ${dl(D.filters())}><svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h14l-5.5 6.5V16l-3 1.5v-7z"/></svg>Filter</button>`}`;
-  watchChapters();
+  $("#glance").innerHTML = trim(glance);
+  // then one chapter at a time (5 Nov 2026): the tabs in the bar that stays at the top, the chosen chapter under it.
+  // A visit's first drawing with a big diary has Films at once and the rest as soon as everyone's credits are worked
+  // out (1 Nov 2026: they held up the whole page, over a second on a slower computer).
+  const have = chaptersOf(state.lib), on = chapterOn(state.lib), quick = peopleLater(state.lib);
+  if (quick) warmPeople(state.lib, metaOf).then(() => { if (state.page === "stats") render(); });
+  const body = quick && on !== "films" ? `<section class="credit soon"><p class="status">Counting the people in your films…</p></section>`
+    : trim(dashChapter(s, on).filter(Boolean).join(""));
+  const name = (have.find(([id]) => id === on) || [])[1] || "";
+  $("#sections").setAttribute("aria-label", name.replace("&amp;", "&"));
+  $("#sections").innerHTML = body.trim() ? body : `<div class="empty chapter-empty">Nothing in ${name} for these films.</div>`;
+  $("#jump").innerHTML = `<div class="jump-in" role="tablist" aria-label="Chapters">${have.map(([id, label]) =>
+    `<button class="jump-tab" type="button" role="tab" data-chapter="${id}" aria-selected="${id === on}" aria-controls="sections" tabindex="${id === on ? 0 : -1}">${label}</button>`).join("")}</div>
+    ${filterOn() ? `<div class="fstrip fmini" title="${esc(filterText())}"><span>Filtered <b>· ${plural(s.films.length, "film")}</b></span>
+      <button class="fstrip-edit" type="button" ${dl(D.filters())}>Change</button><button class="fstrip-x" type="button" data-filter-clear>Clear</button></div>` : ""}`;
+  // (with a filter on, the bar says so in short, so it's in sight further down the page; the whole of it is up here)
+  // the filter, beside the year chips: what's on, or a button to set one
+  $("#scope-filter").innerHTML = filterOn() ? filterStripHtml(s.films.length) : `<button class="jump-filter" type="button" ${dl(D.filters())}>${FILTER_ICON}Filter</button>`;
 }
-// The menu at the top marks the chapter on screen, and takes you to any other.
-let chapterObs = null;
-function watchChapters() {
-  if (!("IntersectionObserver" in window)) return;
-  if (!chapterObs) chapterObs = new IntersectionObserver(() => {
-    const marks = [...document.querySelectorAll("#sections .ch-mark")];
-    let cur = marks[0];
-    for (const m of marks) if (m.getBoundingClientRect().top < 120) cur = m;
-    for (const b of document.querySelectorAll("#jump .jump-link")) {
-      const on = !!cur && b.dataset.jump === cur.id;
-      if (on) b.setAttribute("aria-current", "true"); else b.removeAttribute("aria-current");
-    }
-  }, { rootMargin: "-100px 0px -60% 0px", threshold: [0, 1] });
-  chapterObs.disconnect();
-  for (const m of document.querySelectorAll("#sections .ch-mark, #sections .credit")) chapterObs.observe(m);
+// A chapter's tab: that chapter under the bar, from its top when the page was further down; the arrow keys move along.
+function setChapter(id) {
+  const was = state.chapter;
+  state.chapter = id; saveView();
+  const bar = $("#jump"), stuck = bar.getBoundingClientRect().top <= 1;
+  const keys = !!(document.activeElement && document.activeElement.closest && document.activeElement.closest("[data-chapter]"));
+  renderSections(STATS);
+  if (stuck) window.scrollTo(0, $("#sections").getBoundingClientRect().top + window.scrollY - bar.offsetHeight);
+  // the tabs are drawn again: the one picked keeps the focus (Safari doesn't focus a clicked button, so no ring there)
+  if (keys) $(`[data-chapter="${id}"]`)?.focus({ preventScroll: true });
+  return was !== id;
 }
 document.addEventListener("click", (e) => {
-  const b = e.target.closest("[data-jump]");
-  if (!b) return;
-  const el = document.getElementById(b.dataset.jump);
-  if (el) el.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+  const b = e.target.closest("[data-chapter]");
+  if (b) setChapter(b.dataset.chapter);
+});
+document.addEventListener("keydown", (e) => {
+  const b = e.target.closest && e.target.closest("[data-chapter]");
+  if (!b || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
+  const ids = [...document.querySelectorAll("#jump [data-chapter]")].map((x) => x.dataset.chapter), i = ids.indexOf(b.dataset.chapter);
+  const j = e.key === "Home" ? 0 : e.key === "End" ? ids.length - 1 : (i + (e.key === "ArrowRight" ? 1 : -1) + ids.length) % ids.length;
+  e.preventDefault(); setChapter(ids[j]);
 });
 
 </script>

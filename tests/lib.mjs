@@ -68,6 +68,19 @@ export const text = (page, sel) => page.$eval(sel, (e) => e.innerText.replace(/\
 export async function until(page, fn, what, arg, timeout = 8000) {
   try { await page.waitForFunction(fn, arg, { timeout }); } catch { throw new Error(`timed out waiting for ${what}`); }
 }
+// The computer's main page shows one chapter at a time (5 Nov 2026): each in turn, by its tab, `each` running on each with
+// its id (lists opened by the tabs gather in LISTS until the next render), then back to the first.
+export async function desktopChapters(d, each = async () => {}) {
+  const ids = await d.$$eval("#jump [data-chapter]", (x) => x.map((b) => b.dataset.chapter));
+  assert(ids.length >= 6, `the computer's chapter tabs: ${ids.join()}`);
+  for (const id of ids) {
+    await d.click(`#jump [data-chapter="${id}"]`); await d.waitForTimeout(40);
+    assert(await d.evaluate((id) => state.chapter === id && document.querySelector(`#jump [data-chapter="${id}"]`).getAttribute("aria-selected") === "true", id), `the ${id} tab didn't open its chapter`);
+    await each(id);
+  }
+  await d.click(`#jump [data-chapter="${ids[0]}"]`); await d.waitForTimeout(40);
+  return ids;
+}
 // Every screen and section of the phone layout, opened in turn; `each` runs on each with a name for it.
 export async function phoneTour(m, each) {
   const tab = async (v) => { await m.click(`.tabbar [data-view="${v}"]`); await m.waitForTimeout(60); };

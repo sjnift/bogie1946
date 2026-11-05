@@ -102,12 +102,22 @@ Where it lives:
     `YEAR_CAUTION` said under the switch; the owner's: 1979, 1942, 1952. `s.relYears` in `computeStats`, `DR.relYear`.
     The `extras` check covers both layouts, the ranking and "not enough yet" (the example diary has only two years with
     5 rated films; the check lowers the bar to see the list).
-  - **The desktop main page shows every chapter in full, trimmed** (25 Oct 2026, after a round trip: the owner found
-    the page "cluttered with too much data in full view", a dashboard of cards with "See all" pop-ups replaced it, then
-    they asked for each chapter back in full, and finally for everything in full with the repeats trimmed). Recently
-    watched, On this day and the best decade, then Films (Released, Milestones in one row of seven, Records, Most
-    rewatched), People, Genres & countries, When you watch, Ratings, Reviews and Watch next, all as `section()`s placed by
-    `dashChapters` (`07-render-d.js`). The trims: the crowd's lists and highest/lowest rated show **one row of seven
+  - **The desktop main page shows one chapter at a time, each in full, trimmed** (25 Oct 2026, after a round trip: the
+    owner found the page "cluttered with too much data in full view", a dashboard of cards with "See all" pop-ups replaced
+    it, then they asked for each chapter back in full, and finally for everything in full with the repeats trimmed; then
+    on 5 Nov 2026 "homepage is too cluttered" again, 19 screens and 25 sections on their diary: offered one chapter at a
+    time, one long page trimmed further, or both, they chose **one chapter at a time**). Under the tiles, always: Recently
+    watched, On this day and the best decade (`#glance`); then the bar that stays at the top (`#jump`) holds the chapter
+    tabs (`CHAPTERS`, `.jump-tab`, display-font capitals, the chosen one gold-underlined; Watch next only with a
+    watchlist, `chaptersOf`), and under it only the chosen chapter (`#sections`, `role="tabpanel"`): Films (Released,
+    Milestones in one row of seven, Records, Most rewatched), People, Genres & countries, When you watch, Ratings, Reviews
+    or Watch next, as `section()`s from `dashChapter(s, id)` (`07-render-d.js`), **only the chosen chapter worked out**
+    (0.1–0.3 s a tab on the owner's diary; the page is 3–5 screens instead of 19). `state.chapter`, kept in `cr-view-v1`
+    so the next visit opens where they left (`chapterOn` falls back to Films); a tab clicked with the bar stuck at the top
+    shows its chapter from its start (`setChapter`); arrow keys, Home and End move along the tabs; the chapter eyebrows
+    (`.ch-mark`) and the "At a glance" tab are gone. **The Filter button sits beside the year chips** (`#scope-filter`, so
+    it's on the first screen), the full strip there when one is on, and a short one in the bar ("Filtered · N films",
+    `.fmini`) so it stays in sight; a chapter a filter leaves empty says so. The trims: the crowd's lists and highest/lowest rated show **one row of seven
     posters each with "See all N ›"** for the rest (`posterRow`, `ROW_N`; `crowdOf` keeps the full `higherAll`,
     `lowerAll`, `gemsAll`); Logged has no "last 12 months" calendar for all time (Month by month sits below it; a single
     year keeps "Every day of …"); Year by year has **one row of three charts** (films, average rating, film age) and the
@@ -119,7 +129,7 @@ Where it lives:
     "Show more" brings the rest, and "Show less" takes it away again, the button staying where it was on screen; the
     phone's People list has "Show less" back to the first 50); **Genre & origin shows genres and languages only**, the countries
     being on the map, which lists the most watched and highest rated under it (`worldMapHtml(…, { tops: true })`); with no
-    reviews at all, only one empty review box. Don't bring back cards or "open in place". **Highest and lowest rated**
+    reviews at all, only one empty review box. Don't bring back cards, "open in place" or the one long page. **Highest and lowest rated**
     are off the top, the last section of Ratings (phone: Stats › Films after Records). The `extras` check covers the
     layout and every trim.
   - **Insights is a study of the diary, not a repeat of the Stats page** (they found the old one inadequate and
@@ -152,7 +162,8 @@ Where it lives:
     turns it on, visitors compare with the owner in one tap.
   - **Filters** (asked Oct 2026; rebuilt the next day after the owner called the first version "trash": menus in an odd
     place that seemed to do nothing, and Safari froze or went blank when one was used): a **Filter** button (the
-    computer's bar that stays at the top; the phone's top bar on Profile, Diary and Stats) opens a panel of tappable
+    computer's beside the year chips since 5 Nov 2026, the bar at the top holding the chapter tabs; the phone's top bar
+    on Profile, Diary and Stats) opens a panel of tappable
     choices; while one is on, a strip names it ("Crime films made in France · 5 films") with Change and Clear, and
     sections it leaves empty are left out. Never Insights or Compare (`06l-filter.js`). **No `<select>` menus that are
     redrawn while in use** (the likely Safari freeze), no `backdrop-filter` on the sticky bar, no `:has()` in new CSS.
@@ -204,12 +215,12 @@ The owner asked for this to be checked every time. A film, diary entry, person o
 - Desktop: `01-head.html` (fonts, colour tokens, base CSS), `02-style.html` (all other desktop CSS),
   `03-body.html` (page skeleton), shared files, `07-render-a.js` (state, render(), hero, tiles, the Settings page `renderSettings`, the lookup box and its one-line
   version on the stats page `renderLookupMini`),
-  `07-render-b.js` (Stats sections, placed in chapters by `renderSections` with the menu that stays at the top,
-  `#jump`, below the full-width recent / On this day / best decade, the chapters from `07-render-d.js`; `foldTies` turns four or more with the same count into one row; `posterRow` a row of seven posters with "See all"), `07-render-c.js` (more Stats sections, the numbers from the old Insights page:
+  `07-render-b.js` (Stats sections, placed by `renderSections`: recent / On this day / best decade in `#glance`, the
+  chapter tabs in the bar that stays at the top, `#jump`, and the chosen chapter from `07-render-d.js`; `setChapter`; `foldTies` turns four or more with the same count into one row; `posterRow` a row of seven posters with "See all"), `07-render-c.js` (more Stats sections, the numbers from the old Insights page:
   year by year, genres year by year, genres as you rate them, people over the years, against the crowd, habits, the
   month table, and for a year against the year before and new in the year; `homeInsights`
   keeps `computeInsights`/`computeYearInsights` in `HOME_INS` until the data changes), `07-render-d.js` (the main page's
-  chapters, every section in full, see "The desktop main page shows every chapter in full, trimmed"),
+  chapters, `CHAPTERS`, `dashChapter`, see "The desktop main page shows one chapter at a time"),
   `07c-insights.js` (the study),
   `07d-compare.js`, `07e-reviews.js`,
   `07f-drill.js` (pop-up, full page, hash routes, back button), `08-events.js` (import, clicks, init).
@@ -322,7 +333,7 @@ The owner asked for this to be checked every time. A film, diary entry, person o
   phone (4.7 s to 1.2 s slowed). How: (1) **everyone's credits come a moment after the page** with a big diary
   (`PEOPLE_QUICK_FROM` 300 films): until `warmPeople` (05-core) has worked out every film's `roleNames` in 40 ms steps
   after the first paint, `peopleLater(lib)` is true and pages draw the rest first: the computer's main page its top
-  and Films with "Counting the people in your films…" (`dashChapters(s, quick)`), the phone's Profile its people card,
+  and Films, any other chapter "Counting the people in your films…" (`renderSections`), the phone's Profile its people card,
   and People, Years, Insights and Compare (`PEOPLE_VIEWS`) their top and that line; then they redraw. The people
   index is built in steps too (`peopleIndexStep`, a generator, `buildPeople`). (2) `computeStats` works out its
   people lists only when asked (`lazy` getters), so a page that shows none pays nothing. (3) Name and title keys are
@@ -425,7 +436,7 @@ friend replaces the address instead.
   one per film, so always any), and the counts then follow the picks. A lit choice turns off when picked; "Clear" by a
   group empties it (`data-fclear`); `clearFilters()` empties all. The strip reads "Drama or Romance films from the
   1990s or 2000s" (`filterText`, `joinWords`). The page underneath redraws a frame later (`refreshFilters`, which clears the filters if a redraw
-  fails). While one is on: the strip (desktop in `#jump`, phone under the year chips) and the phone's button lit with
+  fails). While one is on: the strip (desktop beside the year chips, `#scope-filter`, and in short in `#jump`; phone under the year chips) and the phone's button lit with
   a dot; sections (desktop) or headings over nothing (phone) it leaves empty are dropped (`dropEmpties`). `filteredLib` gives a library of the
   films that pass, with their entries, reviews and watchlist, kept as the same object while nothing changes so the
   pages' caches hold; everything is worked out from it as from the whole diary. They last until the page is closed.
@@ -1046,7 +1057,7 @@ kept: country and region from the connection), whose pages are behind the owner'
   go into links are coerced (`Number(...)`, `/^tt\d+$/`). Reviews are rebuilt from an allowlist (`reviewParts`).
   Data arriving from the site or a backup passes `safeMeta`/`safePhotos`/`safeLbx`/`safeFriends` first; a backup may
   set only the TMDB, OMDb and Apify keys. The `xss` check fills every source with booby-trapped text and opens every
-  screen on both layouts (about a minute): run it after any change to what's shown.
+  screen on both layouts (about three minutes): run it after any change to what's shown.
 - **Content security policy** on the site's pages (`tools/csp.mjs`, run by `build.sh`): only the pages' own inline
   scripts (by SHA-256) and same-origin files run; images, fonts and calls only from the places the app uses
   (`connect-src`: TMDB, OMDb, Apify, GitHub's API). So **no inline `on…=` handlers** in markup: image errors and the
@@ -1091,11 +1102,13 @@ shows the latest ~50, so it accumulates), commits, and asks Pages to rebuild. Th
 `tests/`: `lib.mjs` (server, browser, stand-ins: papaparse/jszip served from `node_modules`, every outside
 service cut off unless a check stands in for it, service worker off unless asked, reduced motion, pages opened
 with `?example` (pass `example: false` for an empty browser; a check's own `goto` must add `?example` too),
-`phoneTour()` which opens every phone tab, every Stats view for all time and for a year, and every Insights/Compare section (and Insights › Back in time's four lists)), `run.mjs`, and checks:
+`phoneTour()` which opens every phone tab, every Stats view for all time and for a year, and every Insights/Compare section (and Insights › Back in time's four lists),
+`desktopChapters()` which opens each of the computer's chapter tabs in turn (lists opened by the tabs gather in `LISTS`
+until the next render, so `counts` visits them all before its audit)), `run.mjs`, and checks:
 `apify`, `imdbcast` (the owner's cast checked on IMDb), `people` (people by TMDB id, the people check, cameos, voices, small parts and who counts by hand), `check` (film data check), `counts` (double counting, also with filters on), `reviews` (missing review text spotted; six-film actors), `welcome` (no example diary; import saved at once), `extras` (year picture, On this day, Watch next, PWA), `feed`, `import`,
 `links` (every link opens something), `pages` (nothing broken shows, no sideways scroll on the phone),
 `routes`, `storage` (IndexedDB move, backup and restore), `site` (the diary on the site: a stand-in GitHub and site),
-`tmdb` (fixing a match, filmography, search), `quiz` (the quiz's answers and a round on both layouts), `foryou` (For you against a stand-in TMDB), `extras` also covers the story and every kind and shape of picture, `xss` (nothing from outside can run code, about a minute), `study` (a
+`tmdb` (fixing a match, filmography, search), `quiz` (the quiz's answers and a round on both layouts), `foryou` (For you against a stand-in TMDB), `extras` also covers the story and every kind and shape of picture, `xss` (nothing from outside can run code, about three minutes: it opens lists in every chapter), `study` (a
 five-year diary with patterns planted in it: the study finds them on both layouts and for a year, repeats nothing from
 the Stats page, and every list it opens holds each film once). `lib.mjs`
 also cuts off api.github.com and jsdelivr, answers `diary/` with "not found", and counts anything the security policy

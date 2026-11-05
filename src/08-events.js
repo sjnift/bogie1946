@@ -230,6 +230,7 @@ async function init() {
   const view = store.get(KEYS.view, {});
   state.mode = MY_LIB ? "mine" : "example"; // your diary whenever there is one
   if (view.scope) state.scope = view.scope;
+  if (view.chapter) state.chapter = view.chapter; // the main page's chapter, as it was left
   if (view.page === "insights" || view.page === "compare") state.page = view.page;
   bind();
   routeFromHash(true);

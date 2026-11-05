@@ -115,6 +115,7 @@ export default async function ({ browser, base }) {
       headers: { "access-control-allow-origin": "*" }, contentType: "application/json", body: JSON.stringify({ data: { id: "u9" } }) }));
     await seed(v, { profile: [{ Username: "a_visitor" }], watched: films.slice(0, 30).map((f) => ({ Name: f[0], Year: String(f[1]) })), ratings: [], diary: [] });
     if (phone) await v.evaluate(() => goTo("crowd", { force: true, top: true }));
+    else await v.click('#jump [data-chapter="ratings"]'); // against the crowd is in the computer's Ratings chapter
     await v.click(phone ? '.note [data-act="settings"]' : ".note .lb-go");
     await v.waitForSelector("#apify-key");
     const steps = await v.evaluate(() => document.querySelector(".lb-steps").textContent);

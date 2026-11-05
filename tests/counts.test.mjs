@@ -3,7 +3,7 @@
 // everything behind every list passes them.
 // Then the same over an export written to trip it: one film spelled four ways, titles in other scripts,
 // a cast list naming someone twice, a watched film still on the watchlist, and a feed overlapping the export.
-import { open, seed, assert, noErrors, phoneTour } from "./lib.mjs";
+import { open, seed, assert, noErrors, phoneTour, desktopChapters } from "./lib.mjs";
 
 // Runs in the page: every rule broken anywhere, as text.
 function audit() {
@@ -116,9 +116,11 @@ const check = async (page, where) => {
   assert(!bad.length, `${where}: ${bad.slice(0, 3).join("; ")}${bad.length > 3 ? ` (and ${bad.length - 3} more)` : ""}`);
 };
 // Opens every page and period, auditing each.
+// (the computer's main page, one chapter at a time: every tab is opened first, so the audit sees every chapter's lists)
+const checkAll = async (d, where, audit = check) => { await desktopChapters(d); await audit(d, where); };
 async function tour(d, m, label) {
-  await check(d, `${label} desktop stats`);
-  for (const y of await d.$$eval("#scopes [data-scope]", (x) => x.map((b) => b.dataset.scope))) { await d.click(`[data-scope="${y}"]`); await check(d, `${label} desktop stats ${y}`); }
+  await checkAll(d, `${label} desktop stats`);
+  for (const y of await d.$$eval("#scopes [data-scope]", (x) => x.map((b) => b.dataset.scope))) { await d.click(`[data-scope="${y}"]`); await checkAll(d, `${label} desktop stats ${y}`); }
   await d.click("#btn-insights");
   for (const y of await d.$$eval("#scopes [data-insyear]", (x) => x.map((b) => b.dataset.insyear))) { await d.click(`[data-insyear="${y}"]`); await check(d, `${label} desktop insights ${y}`); }
   await d.click("#btn-compare"); await check(d, `${label} desktop compare`);
@@ -147,7 +149,7 @@ function auditFilter() {
 }
 // The commonest genre and decade, picked from the menus, on both layouts: every page they narrow, every period.
 async function filteredTour(d, m) {
-  // the Filter button (the computer's bar at the top, the phone's top bar), then the first genre and decade in its panel
+  // the Filter button (beside the computer's year chips, the phone's top bar), then the first genre and decade in its panel
   const pickFilters = async (p, phone) => {
     await p.click(phone ? ".nav-btn.filt" : ".jump-filter");
     await p.waitForSelector(".fpanel [data-fpick]");
@@ -159,7 +161,7 @@ async function filteredTour(d, m) {
   const both = async (p, where) => { await check(p, where); const bad = await p.evaluate(`(${auditFilter})()`); assert(!bad.length, `${where}: ${bad.slice(0, 3).join("; ")}`); };
   const f = await pickFilters(d, false);
   assert(f.g && f.d && f.strip, `the computer's filter panel didn't set a filter: ${JSON.stringify(f)}`);
-  for (const y of await d.$$eval("#scopes [data-scope]", (x) => x.map((b) => b.dataset.scope))) { await d.click(`[data-scope="${y}"]`); await both(d, `filtered desktop stats ${y}`); }
+  for (const y of await d.$$eval("#scopes [data-scope]", (x) => x.map((b) => b.dataset.scope))) { await d.click(`[data-scope="${y}"]`); await checkAll(d, `filtered desktop stats ${y}`, both); }
   await d.click('[data-scope="all"]');
   // a second genre: films with either, then films with both
   for (const mode of ["any", "all"]) {
@@ -170,7 +172,7 @@ async function filteredTour(d, m) {
     await d.click(".fp-foot [data-close]"); await d.waitForTimeout(150);
     const t = await d.evaluate(() => ({ n: FILTER.g.length, all: groupAll("g"), text: filterText() }));
     assert(t.n === 2 && t.all === (mode === "all") && t.text.includes(mode === "all" ? " and " : " or "), `two genres (${mode}): ${JSON.stringify(t)}`);
-    for (const y of ["all", (await d.$$eval("#scopes [data-scope]", (x) => x.map((b) => b.dataset.scope)))[1]]) { await d.click(`[data-scope="${y}"]`); await both(d, `two genres (${mode}) desktop ${y}`); }
+    for (const y of ["all", (await d.$$eval("#scopes [data-scope]", (x) => x.map((b) => b.dataset.scope)))[1]]) { await d.click(`[data-scope="${y}"]`); await checkAll(d, `two genres (${mode}) desktop ${y}`, both); }
     await d.click('[data-scope="all"]');
   }
   await d.click("#btn-insights");

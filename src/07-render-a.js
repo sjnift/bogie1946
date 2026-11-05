@@ -1,7 +1,7 @@
 <script>
 /* ---------- page state ---------- */
 const state = {
-  mode: "example", lib: null, scope: "all", page: "stats", crowd: null, wn: "any", insYear: "all", reviewQuery: "", cmp: null, cmpError: "", unfriend: null,
+  mode: "example", lib: null, scope: "all", page: "stats", chapter: "films", crowd: null, wn: "any", insYear: "all", reviewQuery: "", cmp: null, cmpError: "", unfriend: null,
   tab: { cast: "most", voices: "most", directors: "most", crew: "w", crewSort: "most", cats: "most", bestby: "decade", released: "films" },
   more: { cast: false, voices: false, directors: false },
 };
@@ -23,7 +23,7 @@ function scheduleRender() {
   renderQueued = true;
   requestAnimationFrame(() => { renderQueued = false; render(); });
 }
-function saveView() { store.set(KEYS.view, { scope: state.scope, mode: state.mode, page: state.page }); }
+function saveView() { store.set(KEYS.view, { scope: state.scope, mode: state.mode, page: state.page, chapter: state.chapter }); }
 
 function render() {
   LISTS = new Map();
@@ -40,7 +40,7 @@ function render() {
   if (page === "stats") state.lib = filteredLib(base, metaOf); // the filters narrow the stats, not Insights or Compare
   STATS = computeStats(state.lib, metaOf, state.scope);
   renderHero(STATS, years);
-  for (const sel of ["#tiles", "#lookup-mini", "#ios-tip", "#sections", "#jump", ".scopes-row"]) $(sel).hidden = page !== "stats";
+  for (const sel of ["#tiles", "#lookup-mini", "#ios-tip", "#glance", "#sections", "#jump", ".scopes-row", "#scope-filter"]) $(sel).hidden = page !== "stats";
   $("#settings").hidden = page !== "settings";
   $("footer").hidden = page === "settings"; // Settings ends with its own About
   $("#btn-settings span").textContent = page === "settings" ? "Back to stats" : "Settings";

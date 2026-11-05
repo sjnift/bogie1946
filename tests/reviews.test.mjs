@@ -16,6 +16,7 @@ export default async function ({ browser, base }) {
     await p.waitForFunction(() => FEED);
     assert(await p.evaluate(() => MY_LIB.reviewTextMissing), `${file}: an export saved without review text wasn't spotted because the feed has a review`);
     if (phone) { await p.click('#screen [data-act="reviews"]'); await p.waitForTimeout(150); }
+    else { await p.click('#jump [data-chapter="reviews"]'); await p.waitForTimeout(150); } // the computer's Reviews chapter
     const shown = await p.evaluate(() => document.body.innerText);
     assert(/words aren't saved here yet/.test(shown) && /Proto-Eli Sunday/.test(shown), `${file}: reviews page: ${shown.slice(0, 300)}`);
 

@@ -3,7 +3,7 @@
 // friend's export, the daily feed, TMDB's answers, a search, the address), then every screen on both layouts is
 // opened, and lists and film cards with it. Any element that gained an on… attribute or a javascript: link, or any
 // payload that ran, fails the check, with the screen it was on.
-import { open, seed, assert, noErrors } from "./lib.mjs";
+import { open, seed, assert, noErrors, desktopChapters } from "./lib.mjs";
 
 const RAN = "window.__xss=(window.__xss||0)+1;(window.__xssAt=window.__xssAt||[]).push(String(this.outerHTML).slice(0,200)+' IN '+((document.querySelector('#dlg[open]')||document.body).innerText||'').slice(0,300).replace(/\\s+/g,' '))";
 const P = {
@@ -90,7 +90,8 @@ export default async function ({ browser, base }) {
   const d = await open(browser, base, "desktop.html");
   await prepare(d);
   await check(d, "desktop stats");
-  await clickAround(d, "#sections, #tiles, .band", "#dlg", "desktop stats");
+  await clickAround(d, ":is(#tiles, #glance, .band)", "#dlg", "desktop stats", 10);
+  await desktopChapters(d, async (id) => { await check(d, `desktop stats, ${id}`); await clickAround(d, "#sections", "#dlg", `desktop stats, ${id}`, 5); });
   await d.click('[data-scope="2024"]'); await d.waitForTimeout(100); await check(d, "desktop 2024");
   await d.click('[data-scope="all"]');
   await d.click("#btn-insights"); await d.waitForTimeout(150); await check(d, "desktop insights");
@@ -106,6 +107,7 @@ export default async function ({ browser, base }) {
   // search, a film card from the address, a made-up friend in the address
   await d.keyboard.press("/"); await d.keyboard.type(`${P.quote} Heat`); await d.waitForTimeout(150); await check(d, "desktop search");
   await d.keyboard.press("Escape");
+  await d.evaluate(() => setChapter("reviews")); await d.waitForTimeout(100); // the review search is in the Reviews chapter
   await d.fill("#review-search", P.quote); await d.waitForTimeout(100); await check(d, "desktop review search");
   for (const hash of [`#/film/${encodeURIComponent(await d.evaluate(() => MY_LIB.films[0].key))}`, `#/compare/${encodeURIComponent(P.quote)}`, `#/${encodeURIComponent(P.quote)}`]) {
     await d.goto(base + "desktop.html" + hash); await d.waitForFunction(() => typeof state === "object" && state.lib); await d.waitForTimeout(200);

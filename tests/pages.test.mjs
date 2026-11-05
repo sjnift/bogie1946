@@ -1,5 +1,5 @@
 // Every page and screen of the example diary draws, with nothing broken showing on it.
-import { open, assert, noErrors, phoneTour } from "./lib.mjs";
+import { open, assert, noErrors, phoneTour, desktopChapters } from "./lib.mjs";
 
 const clean = async (page, where) => {
   const body = await page.evaluate(() => document.body.innerText);
@@ -9,7 +9,10 @@ const clean = async (page, where) => {
 
 export default async function ({ browser, base }) {
   const d = await open(browser, base, "desktop.html");
-  await clean(d, "desktop stats");
+  await desktopChapters(d, (id) => clean(d, `desktop stats, ${id}`));
+  await d.click('[data-scope="2024"]'); await d.waitForTimeout(100);
+  await desktopChapters(d, (id) => clean(d, `desktop 2024, ${id}`));
+  await d.click('[data-scope="all"]'); await d.waitForTimeout(100);
   for (const [btn, where] of [["#btn-insights", "insights"], ['[data-insyear="2024"]', "insights 2024"], ["#btn-compare", "compare"], ['[data-cmp="all"]', "compare everyone"], ["#btn-settings", "settings"]]) {
     await d.click(btn); await d.waitForTimeout(150);
     await clean(d, `desktop ${where}`);

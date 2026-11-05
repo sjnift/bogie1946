@@ -1,6 +1,6 @@
 // The pictures to share (a year, all time, a taste match; feed post or story), the year as a story, On this day,
 // Watch next, and the site still installing as an app.
-import { open, assert, noErrors } from "./lib.mjs";
+import { open, assert, noErrors, desktopChapters } from "./lib.mjs";
 
 export default async function ({ browser, base }) {
   for (const [file, phone] of [["desktop.html", false], ["mobile.html", true]]) {
@@ -40,6 +40,7 @@ export default async function ({ browser, base }) {
     // the world map (computer: under Genre & origin; phone: Stats › Breakdown): the country with the most films is the
     // deepest shade, tells its numbers on hover and opens its films; the key opens the countries of each shade
     await p.goto(`${base}${file}?example#/${phone ? "genres" : ""}`); await p.waitForFunction(() => typeof state === "object" && state.lib);
+    if (!phone) await p.click('#jump [data-chapter="origin"]'); // the computer's Genres & countries chapter
     await p.waitForSelector(".wsvg");
     const map = await p.evaluate(() => {
       const W = worldData(computeStats(state.lib, metaOf, state.scope).countries), top = W.places[0], el = document.querySelector(`.wsvg [aria-label^="${top.name}:"]`);
@@ -101,6 +102,7 @@ export default async function ({ browser, base }) {
     // the same width and each inside its own slot, also for a century in a phone's width; a year opens its films; the
     // rating view has the dashed average line
     await p.goto(`${base}${file}?example${phone ? "#/genres" : "#/"}`); await p.waitForFunction(() => typeof state === "object" && state.lib);
+    if (!phone) await p.click('#jump [data-chapter="films"]'); // the computer's Films chapter
     await p.waitForSelector(".ry svg");
     const ry = await p.evaluate(() => {
       const measure = (root) => {
@@ -150,12 +152,12 @@ export default async function ({ browser, base }) {
     // with the bar lowered so the example counts as big
     {
       await p.goto(`${base}${file}?example${phone ? "#/profile" : "#/"}`); await p.waitForFunction(() => typeof state === "object" && state.lib); await p.waitForTimeout(300);
-      const first = await p.evaluate((phone) => { PEOPLE_QUICK_FROM = 0; PEOPLE_WARMED = null; PEOPLE_WARMING = null; META_REV++; if (phone) DATA_REV++; render();
+      const first = await p.evaluate((phone) => { PEOPLE_QUICK_FROM = 0; PEOPLE_WARMED = null; PEOPLE_WARMING = null; META_REV++; if (phone) DATA_REV++; else state.chapter = "people"; render();
         return { soon: !!document.querySelector(".soon"), people: phone ? /Most watched actors/.test(document.querySelector("#screen").textContent) : !!document.querySelector("#starring"),
           top: phone ? !!document.querySelector("#screen .tiles, #screen .card") : !!document.querySelector("#recent, #best-decade") }; }, phone);
       await p.waitForFunction((phone) => !document.querySelector(".soon") && (phone ? /Most watched actors/.test(document.querySelector("#screen").textContent) : !!document.querySelector("#starring")), phone, { timeout: 5000 }).catch(() => {});
       const then = await p.evaluate((phone) => ({ soon: !!document.querySelector(".soon"), people: phone ? /Most watched actors/.test(document.querySelector("#screen").textContent) : !!document.querySelector("#starring"), warm: peopleWarm() }), phone);
-      await p.evaluate(() => { PEOPLE_QUICK_FROM = 300; });
+      await p.evaluate(() => { PEOPLE_QUICK_FROM = 300; if (typeof CHAPTERS === "object") state.chapter = "films"; });
       assert(first.soon && !first.people && first.top && !then.soon && then.people && then.warm, `${file} people a moment after the rest: ${JSON.stringify({ first, then })}`);
     }
     // the review of 1 Nov 2026: tied places are shared ("=2"), and a diary that never marks a rewatch leaves out what would
@@ -168,10 +170,11 @@ export default async function ({ browser, base }) {
         const look = () => phone ? { tile: /Rewatches/.test(document.querySelector("#screen .tiles").textContent), alt: /Back in time/.test(document.querySelector("#screen .tiles").textContent) }
           : { tile: /Rewatches/.test(document.querySelector("#tiles").textContent), alt: /Liked/.test(document.querySelector("#tiles").textContent),
             column: [...document.querySelectorAll("#sections th")].some((t) => t.textContent === "Rewatches") };
+        if (!phone) { state.chapter = "when"; render(); } // the computer's Year by year table is in When you watch
         const was = look();
         EXAMPLE_LIB.entries.forEach((e) => { e.rewatch = false; }); if (phone) DATA_REV++; render();
         const none = look();
-        EXAMPLE_LIB.entries.forEach((e, i) => { e.rewatch = saved[i]; }); if (phone) DATA_REV++; render();
+        EXAMPLE_LIB.entries.forEach((e, i) => { e.rewatch = saved[i]; }); if (!phone) state.chapter = "films"; if (phone) DATA_REV++; render();
         return { ties, before, was, none };
       }, phone);
       assert(r.ties === "1 =2 =2 =4 =4 =4" && r.before && r.was.tile && !r.none.tile && r.none.alt && (phone || (r.was.column && !r.none.column)),
@@ -305,34 +308,59 @@ export default async function ({ browser, base }) {
   r = await recent();
   assert(r.title === "Last watched in 2024" && r.dates.join() === r.want.join() && r.dates.every((x) => x.endsWith("2024")), `last watched in 2024: ${JSON.stringify(r)}`);
   await d.click('[data-scope="all"]'); await d.waitForTimeout(150);
-  // the main page (owner, Oct 2026): the best decade in full near the top, highest and lowest rated down in Ratings,
-  // every chapter in full sections, trimmed: a row of posters each in Ratings, one calendar in Logged, one row of charts
-  // in Year by year, and the countries on the map rather than in Genre & origin
-  const lay = await d.evaluate(() => { const ids = [...document.querySelectorAll("#sections .ch-mark, #sections section")].map((e) => e.id);
-    const full = (ch) => { const out = []; let m = document.getElementById(ch).nextElementSibling;
-      while (m && !m.classList.contains("ch-mark")) { out.push(m.classList.contains("credit") ? m.id : `!${m.className}`); m = m.nextElementSibling; } return out; };
-    const rows = (sel) => [...document.querySelectorAll(`${sel} .posters.one-row`)].map((r) => r.children.length);
-    return { ids, cards: document.querySelectorAll("#sections .dc, #sections .dash").length,
-      films: full("ch-films"), people: full("ch-people"), origin: full("ch-origin"), when: full("ch-when"), ratings: full("ch-ratings"), reviews: full("ch-reviews"), next: full("ch-next"),
-      crowdRows: rows("#crowd"), topRows: rows("#top"), seeAll: document.querySelectorAll("#top .row-h .dlink").length,
-      calendar: /Last 12 months/.test($("#logged").textContent), charts: document.querySelectorAll("#years .mult").length, rewatchCol: /Rewatches/.test($("#years thead").textContent),
-      mapTops: [...document.querySelectorAll("#world .wtops .k")].map((k) => k.textContent),
-      crew: [...document.querySelectorAll("#crew .crew-grid > div")].map((c) => [c.querySelector("h3 span").textContent, c.querySelectorAll(".rank-row").length]),
-      faces: document.querySelectorAll("#starring .person").length, cats: document.querySelectorAll("#origin .cat-grid h3").length,
-      // the best decade, then the second and third with their posters, smaller
-      decades: bestDecades(computeStats(state.lib, metaOf, "all")).length, runners: [...document.querySelectorAll("#best-decade .bd-runner")].map((r) => r.querySelectorAll(".poster").length),
-      sizes: [document.querySelector("#best-decade .best-decade .poster"), document.querySelector("#best-decade .bd-runner .poster")].map((p) => p && Math.round(p.getBoundingClientRect().width)) }; });
-  const at = (id) => lay.ids.indexOf(id);
-  assert(at("best-decade") > at("recent") && at("best-decade") < at("ch-films") && at("top") > at("ch-ratings") && at("top") > at("rated"), `main page order: ${lay.ids.join(" ")}`);
-  assert(lay.cards === 0 && lay.films.join() === "released,milestones,records,rewatched" && lay.people.join() === "starring,directed,crew,people-years"
-    && lay.origin.join() === "origin,world,genre-years,genre-rates" && lay.faces >= 5 && lay.cats === 2
-    && lay.when.join() === "logged,months,seasons,years,habits" && lay.ratings.join() === "rated,crowd,top" && lay.reviews.join() === "reviews,review-stats" && lay.next.join() === "next",
-    `every chapter in full: ${JSON.stringify(lay)}`);
-  assert(lay.crowdRows.length >= 2 && lay.crowdRows.every((n) => n >= 1 && n <= 7) && lay.topRows.length >= 1 && lay.topRows.every((n) => n >= 1 && n <= 7) && lay.seeAll >= 1
-    && !lay.calendar && lay.charts === 3 && lay.rewatchCol && lay.mapTops.join() === "Most watched,Highest rated"
-    && lay.crew.map((c) => c[0]).join() === "Written by,Shot by,Music by" && lay.crew.every((c) => c[1] >= 1 && c[1] <= 5), `the trims: ${JSON.stringify(lay)}`);
-  assert(lay.decades >= 3 && lay.runners.length === 2 && lay.runners.every((n) => n >= 3 && n <= 6) && lay.sizes[1] < lay.sizes[0],
-    `second and third best decades: ${JSON.stringify({ decades: lay.decades, runners: lay.runners, sizes: lay.sizes })}`);
+  // the main page (owner, Oct 2026; one chapter at a time since 5 Nov 2026, "homepage is too cluttered"): under the tiles
+  // Recently watched, On this day and the best decade, always; then the chapter tabs, and only the chosen chapter, every
+  // section in full, trimmed: a row of posters each in Ratings, one calendar in Logged, one row of charts in Year by
+  // year, and the countries on the map rather than in Genre & origin
+  const chap = async (id) => { await d.click(`#jump [data-chapter="${id}"]`); await d.waitForTimeout(80); };
+  const lay = { glance: await d.$$eval("#glance > section", (x) => x.map((e) => e.id)), chapters: {}, cards: 0, others: [] };
+  const allIds = ["recent", "onthisday", "best-decade", "released", "milestones", "records", "rewatched", "starring", "voices", "directed", "crew", "people-years",
+    "origin", "world", "genre-years", "genre-rates", "logged", "months", "seasons", "years", "habits", "rated", "crowd", "top", "reviews", "review-stats", "next"];
+  lay.tabs = await desktopChapters(d, async (id) => {
+    const got = await d.evaluate((allIds) => ({ ids: [...document.querySelectorAll("#sections > section")].map((e) => e.id), cards: document.querySelectorAll("#sections .dc, #sections .dash").length,
+      // only the chosen chapter is on the page, and the bar sits between the top and it
+      onPage: allIds.filter((x) => document.getElementById(x)), order: $("#glance").compareDocumentPosition($("#jump")) & 4 && $("#jump").compareDocumentPosition($("#sections")) & 4 }), allIds);
+    lay.chapters[id] = got.ids; lay.cards += got.cards;
+    const extra = got.onPage.filter((x) => !got.ids.includes(x) && !lay.glance.includes(x));
+    if (extra.length || !got.order) lay.others.push(`${id}: ${extra.join()} ${got.order ? "" : "out of order"}`);
+  });
+  const C = lay.chapters;
+  assert(lay.glance.join() === "recent,onthisday,best-decade" || lay.glance.join() === "recent,best-decade", `the top of the main page: ${lay.glance}`);
+  assert(lay.tabs.join() === "films,people,origin,when,ratings,reviews,next" && !lay.others.length && lay.cards === 0
+    && C.films.join() === "released,milestones,records,rewatched" && C.people.join() === "starring,directed,crew,people-years"
+    && C.origin.join() === "origin,world,genre-years,genre-rates" && C.when.join() === "logged,months,seasons,years,habits"
+    && C.ratings.join() === "rated,crowd,top" && C.reviews.join() === "reviews,review-stats" && C.next.join() === "next",
+    `one chapter at a time, each in full: ${JSON.stringify(lay)}`);
+  // the chapter is remembered for the next visit, and a tab clicked further down the page shows its chapter from the top
+  await chap("ratings");
+  await d.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight)); await chap("when");
+  const pos = await d.evaluate(() => ({ bar: Math.round($("#jump").getBoundingClientRect().top), ch: Math.round($("#sections").getBoundingClientRect().top), h: $("#jump").offsetHeight,
+    saved: store.get(KEYS.view, {}).chapter }));
+  assert(pos.bar === 0 && Math.abs(pos.ch - pos.h) <= 2 && pos.saved === "when", `a tab further down shows its chapter from the top: ${JSON.stringify(pos)}`);
+  await d.keyboard.press("ArrowRight"); await d.waitForTimeout(80);
+  assert(await d.evaluate(() => state.chapter === "ratings" && document.activeElement.dataset.chapter === "ratings"), "the arrow keys move along the tabs");
+  await d.reload(); await d.waitForFunction(() => typeof state === "object" && state.lib); await d.waitForTimeout(200);
+  assert(await d.evaluate(() => state.chapter === "ratings" && !!document.getElementById("crowd")), "the chapter wasn't remembered");
+  // the trims, chapter by chapter
+  const trims = {};
+  await chap("ratings");
+  Object.assign(trims, await d.evaluate(() => { const rows = (sel) => [...document.querySelectorAll(`${sel} .posters.one-row`)].map((r) => r.children.length);
+    return { crowdRows: rows("#crowd"), topRows: rows("#top"), seeAll: document.querySelectorAll("#top .row-h .dlink").length }; }));
+  await chap("when");
+  Object.assign(trims, await d.evaluate(() => ({ calendar: /Last 12 months/.test($("#logged").textContent), charts: document.querySelectorAll("#years .mult").length,
+    rewatchCol: /Rewatches/.test($("#years thead").textContent) })));
+  await chap("origin");
+  Object.assign(trims, await d.evaluate(() => ({ mapTops: [...document.querySelectorAll("#world .wtops .k")].map((k) => k.textContent), cats: document.querySelectorAll("#origin .cat-grid h3").length })));
+  await chap("people");
+  Object.assign(trims, await d.evaluate(() => ({ crew: [...document.querySelectorAll("#crew .crew-grid > div")].map((c) => [c.querySelector("h3 span").textContent, c.querySelectorAll(".rank-row").length]),
+    faces: document.querySelectorAll("#starring .person").length })));
+  assert(trims.crowdRows.length >= 2 && trims.crowdRows.every((n) => n >= 1 && n <= 7) && trims.topRows.length >= 1 && trims.topRows.every((n) => n >= 1 && n <= 7) && trims.seeAll >= 1
+    && !trims.calendar && trims.charts === 3 && trims.rewatchCol && trims.mapTops.join() === "Most watched,Highest rated" && trims.cats === 2 && trims.faces >= 5
+    && trims.crew.map((c) => c[0]).join() === "Written by,Shot by,Music by" && trims.crew.every((c) => c[1] >= 1 && c[1] <= 5), `the trims: ${JSON.stringify(trims)}`);
+  // the best decade, then the second and third with their posters, smaller
+  const dec = await d.evaluate(() => ({ decades: bestDecades(computeStats(state.lib, metaOf, "all")).length, runners: [...document.querySelectorAll("#best-decade .bd-runner")].map((r) => r.querySelectorAll(".poster").length),
+    sizes: [document.querySelector("#best-decade .best-decade .poster"), document.querySelector("#best-decade .bd-runner .poster")].map((p) => p && Math.round(p.getBoundingClientRect().width)) }));
+  assert(dec.decades >= 3 && dec.runners.length === 2 && dec.runners.every((n) => n >= 3 && n <= 6) && dec.sizes[1] < dec.sizes[0], `second and third best decades: ${JSON.stringify(dec)}`);
   // favourite years beside them (asked 31 Oct 2026): the switch shows the top release years the same way, then goes back
   // the example diary has only two release years with 5 rated films: not enough for a list, and it says so; then with the
   // bar lowered for the check, the list itself
@@ -351,6 +379,7 @@ export default async function ({ browser, base }) {
   assert(/^The \d{4}s$/.test(await d.textContent("#best-decade .bd-title")), "back to decades on the computer");
   // under the faces: actors down to the 21st, directors down to their first row of ties, the same number of rows (and the
   // same height) on Most watched and Highest rated; Show more brings the rest
+  await chap("people");
   const peopleRows = () => d.evaluate(() => Object.fromEntries(["starring", "directed"].map((id) => [id, { r: [...document.querySelectorAll(`#${id} .people-rows .rank-row`)].map((x) => x.querySelector(".r").textContent),
     h: Math.round(document.getElementById(id).getBoundingClientRect().height) }])));
   const most = await peopleRows();
@@ -372,6 +401,7 @@ export default async function ({ browser, base }) {
     assert(r1 > r0 && r2 === r0 && await d.$("#starring [data-more]"), `show more, show less: ${[r0, r1, r2]}`);
   }
   // the world map zooms (and the view stays through a redraw), and comes back out
+  await chap("origin");
   await d.evaluate(() => document.getElementById("world").scrollIntoView());
   const vb = () => d.$eval("#world .wsvg", (s) => s.getAttribute("viewBox"));
   const vb0 = await vb();
@@ -380,12 +410,14 @@ export default async function ({ browser, base }) {
   await d.click('#world [data-wz="reset"]'); const vb3 = await vb();
   assert(vb1 !== vb0 && +vb1.split(" ")[2] < +vb0.split(" ")[2] && vb2 === vb1 && vb3 === vb0, `map zoom: ${[vb0, vb1, vb2, vb3].join(" | ")}`);
   // a row's "See all" opens the whole list in the pop-up
+  await chap("ratings");
   await d.click("#top .row-h .dlink"); await d.waitForTimeout(150);
   const seen = await d.evaluate(() => [$("#dlg").open, $("#dlg h2, #dlg h3").textContent, $("#dlg").querySelectorAll(".drill-row, .film-row, li, .dr").length]);
   assert(seen[0] && seen[1] === "Highest rated", `See all highest rated: ${JSON.stringify(seen)}`);
   await d.keyboard.press("Escape"); await d.waitForTimeout(100);
   // tables that compare their rows: the highest of each column in gold, the lowest in purple; the average rating column
   // marks exactly its top and bottom, the films column leaves out a year still under way
+  await chap("when");
   const marks = await d.evaluate(() => {
     const num = (td) => parseFloat(td.textContent.replace(/[^\d.−-]/g, "").replace("−", "-"));
     const rows = [...$("#years table.data tbody").rows], col = (i) => rows.map((r) => r.cells[i]).filter((td) => /\d/.test(td.textContent));
@@ -405,12 +437,16 @@ export default async function ({ browser, base }) {
     && marks.unit === " hi/ lo// | //// hi | / | // lo/" && marks.chart.length <= 2 && marks.chart.every((h) => /^<b class="(hi|lo)">\d\.\d\d<\/b>$/.test(h))
     && marks.ticks === "’21,’12,,’26,", `highest in gold, lowest in purple: ${JSON.stringify(marks)}`);
   // the full sections keep their switches: Highest rated for actors, and for genres
-  await d.click('#starring [data-tab="cast"][data-val="best"]'); await d.waitForTimeout(150);
-  await d.click('#origin [data-tab="cats"][data-val="best"]'); await d.waitForTimeout(150);
-  const sw = await d.evaluate(() => [$('#starring [data-val="best"]').getAttribute("aria-selected"), $('#origin [data-val="best"]').getAttribute("aria-selected")]);
+  const sw = [];
+  for (const [ch, sec, tab] of [["people", "starring", "cast"], ["origin", "origin", "cats"]]) {
+    await chap(ch);
+    await d.click(`#${sec} [data-tab="${tab}"][data-val="best"]`); await d.waitForTimeout(150);
+    sw.push(await d.evaluate((sec) => $(`#${sec} [data-val="best"]`).getAttribute("aria-selected"), sec));
+    await d.click(`#${sec} [data-tab="${tab}"][data-val="most"]`); await d.waitForTimeout(150);
+  }
   assert(sw[0] === "true" && sw[1] === "true", `switches in the full sections: ${sw}`);
-  await d.click('#starring [data-tab="cast"][data-val="most"]'); await d.click('#origin [data-tab="cats"][data-val="most"]'); await d.waitForTimeout(150);
   // Reviewed on the main page: the latest two, the rest one click away
+  await chap("reviews");
   const rv = await d.evaluate(() => ({ cards: document.querySelectorAll("#reviews article.review").length, total: reviewsIn(state.lib, null).length,
     first: $("#reviews .rv-title").textContent.trim(), latest: reviewsIn(state.lib, null)[0].film.name, link: $("#reviews .rv-all").textContent }));
   assert(rv.cards === 2 && rv.first.startsWith(rv.latest) && rv.link === `All ${rv.total} reviews`, `reviewed: ${JSON.stringify(rv)}`);

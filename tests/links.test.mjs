@@ -1,5 +1,5 @@
 // Every kind of link on every page opens the data behind it: a pop-up on a computer, a sheet on a phone.
-import { open, assert, noErrors, phoneTour } from "./lib.mjs";
+import { open, assert, noErrors, phoneTour, desktopChapters } from "./lib.mjs";
 
 async function clickThrough(page, scope, panel, where, min = 6) {
   const sel = `${scope} [data-list]`;
@@ -28,7 +28,8 @@ async function clickThrough(page, scope, panel, where, min = 6) {
 
 export default async function ({ browser, base }) {
   const d = await open(browser, base, "desktop.html");
-  await clickThrough(d, ".wrap", "#dlg", "desktop stats");
+  await clickThrough(d, ":is(#tiles, #glance, #jump)", "#dlg", "desktop stats");
+  await desktopChapters(d, (id) => clickThrough(d, "#sections", "#dlg", `desktop stats, ${id}`, 1));
   await d.click("#btn-insights"); await d.waitForTimeout(150);
   await clickThrough(d, "#insights", "#dlg", "desktop insights");
   await d.click('[data-insyear="2025"]'); await d.waitForTimeout(150);
