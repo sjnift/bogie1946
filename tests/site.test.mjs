@@ -146,7 +146,7 @@ export default async function ({ browser, base }) {
   await a.click('#site-box [data-site="create"]');
   await until(a, () => !site.job && site.index && SITEPUB && SITEPUB.at, "the first copy to go up");
   const idx = JSON.parse(gh.file("docs/diary/index.json"));
-  const wantParts = ["rows", "keys", "lbx", "friends", "logs", ...Array.from({ length: 16 }, (_, i) => `m${i}`), ...Array.from({ length: 16 }, (_, i) => `p${i}`)];
+  const wantParts = ["rows", "keys", "lbx", "friends", "logs", "lmeta", ...Array.from({ length: 16 }, (_, i) => `m${i}`), ...Array.from({ length: 16 }, (_, i) => `p${i}`)];
   assert(idx.v === 2 && idx.user === "tester" && wantParts.every((p) => idx.parts[p]) && JSON.stringify(diaryFiles(gh)) === JSON.stringify([...wantParts.map((p) => `${p}.bin`), "index.json"].sort()),
     `on the site: ${diaryFiles(gh)}`);
   const everything = () => diaryFiles(gh).map((f) => gh.file(`docs/diary/${f}`).toString("latin1")).join();

@@ -199,7 +199,7 @@ function picturesBlock(phone) {
 
 /* ---------- backups: the same diary on another device ---------- */
 function backupData(withKeys) {
-  const b = { app: "credits-roll", v: 1, at: new Date().toISOString(), rows: store.get(KEYS.rows, null), meta: META, photos: PHOTOS, lbx: LBX, facts: FACTS, friends: store.get(KEYS.friends, []), logs: store.get(KEYS.logs, []) };
+  const b = { app: "credits-roll", v: 1, at: new Date().toISOString(), rows: store.get(KEYS.rows, null), meta: META, photos: PHOTOS, lbx: LBX, facts: FACTS, friends: store.get(KEYS.friends, []), logs: store.get(KEYS.logs, []), lmeta: LMETA() };
   if (withKeys) b.keys = { tmdb: store.get(KEYS.tmdb, ""), omdb: store.get(KEYS.omdb, ""), apify: store.get(KEYS.apify, "") };
   return b;
 }
@@ -220,6 +220,7 @@ async function restoreBackup(file) {
   saveMeta(); store.set(KEYS.lbx, LBX); store.set(KEYS.facts, FACTS);
   if (Array.isArray(b.friends) && b.friends.length) { store.set(KEYS.friends, safeFriends(b.friends)); loadFriends(); }
   if (Array.isArray(b.logs) && b.logs.length) store.set(KEYS.logs, mergeLogs(store.get(KEYS.logs, []), safeLogs(b.logs))); // films logged on the site
+  if (b.lmeta && typeof b.lmeta === "object") { LIST_META = mergeMeta(LMETA(), safeMetaMap(b.lmeta)); store.set(KEYS.lmeta, LIST_META); } // films only on your lists
   for (const k of ["tmdb", "omdb", "apify"]) if (typeof (b.keys || {})[k] === "string" && b.keys[k]) store.set(KEYS[k], b.keys[k]); // only the keys, nothing else
   await store.flush();
   return `Restored the backup from ${fmtDate(String(b.at || "").slice(0, 10))}${b.keys ? ", keys included" : ""}.`;

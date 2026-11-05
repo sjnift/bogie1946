@@ -311,7 +311,7 @@ The owner asked for this to be checked every time. A film, diary entry, person o
 - Storage (`store` in `05-core.js`): small things in localStorage (API keys `cr-tmdb-key`, `cr-omdb-key`,
   `cr-apify-key`; views `cr-view-v1`, `cr-mview-v1`; `cr-letterboxd-run`; `cr-imdbcast-run`; the quiz's best scores `cr-quiz-v1`; the diary on the site `cr-site-v1`, `cr-site-pub-v1`, `cr-site-dirty`); big things in IndexedDB database
   `credits-roll`, store `kv` (`cr-rows-v1`, `cr-meta-v1`, `cr-photos-v1`, `cr-letterboxd-v1`, `cr-friends-v1`,
-  `cr-filmo-v1`, `cr-foryou-v1` For you's last list, `cr-logs-v1` films logged on the site), read into memory by `await store.init()` at start (both `init()`s), moved over from
+  `cr-filmo-v1`, `cr-foryou-v1` For you's last list, `cr-logs-v1` films logged on the site, `cr-listmeta-v1` details of films only on your lists), read into memory by `await store.init()` at start (both `init()`s), moved over from
   localStorage automatically (a localStorage copy wins: only an older page version writes one).
 
 ### The phone app's structure and speed
@@ -662,7 +662,7 @@ standard errors or more from what the rest of the diary gives; every sentence op
   (`lists/` in the ZIP; an export imported before that day has none until the next import). `buildLibrary` makes
   `lib.lists`, newest first: each film matched to the diary by `titleKey`, **once a list** (two spellings are one film),
   `seen` when it's one of the diary's films (watched.csv or the diary), else the watchlist's own object or a film-like
-  object (`listed: true`, one however many lists hold it, never looked up, so a title card); `listOf` gives seen, rated
+  object (`listed: true`, one however many lists hold it); `listOf` gives seen, rated
   and your average; the description and notes as plain text (`plainText`). Lists count nothing in the stats. A filter
   narrows them like everything else (`filteredLib`); the year doesn't. Desktop: a **Lists** chapter tab (between
   Reviews and Watch next, only with lists): a card each (`listCardsHtml`: the first five posters fanned out, name, films
@@ -674,6 +674,15 @@ standard errors or more from what the rest of the diary gives; every sentence op
   which is right by the diary. The `import` (list files read, `deleted/` ones not, `lists/diary.csv` never the diary),
   `counts` (a film once a list, seen exactly when in the diary, two spellings one film), `extras` (both layouts) and
   `xss` (names, descriptions, notes, links) checks cover them. The feed carries no lists: they come with an export.
+  **Posters for films on a list you haven't seen** (asked 6 Nov 2026: "import posters for the films in the list from
+  tmdb even if i have not watched them"; 06-lookup): `runListLookups` (after `autoLookup`'s own lookups, four at a time)
+  matches each `listed` film on TMDB as the diary's are (`tmdbFilm` with `noPhotos`: no faces kept for their people),
+  and keeps it **apart from META** in `LIST_META` (`LMETA()`, `KEYS.lmeta` `cr-listmeta-v1`, the diary on the site's
+  `lmeta` part, backups), trimmed by `listLight` (directors, the top 8 cast, 3 writers, genres, countries, language,
+  length, poster, scores): nothing that counts (stats, the people index, cameos and small parts, For you) ever sees
+  them. Both layouts' `metaOf` read it for `f.listed`. On the owner's export: 161 of 162 found in 13 s, 159 with a poster
+  (Maid Servant, 1981, not found). The `lists` check (both layouts, a stand-in TMDB: kept apart, no faces, no director
+  counted, the poster on the card, the director on the film card) covers it.
 - **Logging a film here** (asked 5 Nov 2026: "add an option to log films on the website itself similar to letterboxd ui
   ux and update data on the website. use tmdb as the search resource"; `06u-log.js`, data in `06h-more.js`). A panel
   in the pop-up or the sheet (`D.log`, drill kind `log`, like the quiz; `LOGGERS` by `lid`), in Letterboxd's order:
@@ -1006,7 +1015,7 @@ app**. `06j-site.js`:
 - `docs/diary/` in this repository: `index.json` (in the clear: `v` 2, `user`, `imported`, `at`, `from`, PBKDF2 `salt`
   and `iter` (600,000), `check`, and when each part last changed) and encrypted parts (`SITE_PARTS`): `rows` (the
   export), `keys` (`SITE_KEYS` TMDB, OMDb, Apify, plus `github` and `repo`), `lbx`, `friends`, `logs` (films logged on
-  the site, merged by id, going up within seconds like a new import), and film details and
+  the site, merged by id, going up within seconds like a new import), `lmeta` (films only on your lists, looked up), and film details and
   people's photos spread over 16 parts each (`m0`–`m15`, `p0`–`p15`, by `siteShard` = FNV-1a `hash32` of the key), so a
   few newly found films send a few small parts. Each part is one byte of kind (2 = gzipped), a 12-byte IV, then
   AES-GCM. Version 1 diaries (`rows`, `meta`, `extra`, `keys`) are read, and replaced by the new layout on the next
@@ -1180,7 +1189,7 @@ until the next render, so `counts` visits them all before its audit)), `run.mjs`
 `apify`, `imdbcast` (the owner's cast checked on IMDb), `people` (people by TMDB id, the people check, cameos, voices, small parts and who counts by hand), `check` (film data check), `counts` (double counting, also with filters on), `reviews` (missing review text spotted; six-film actors), `welcome` (no example diary; import saved at once), `extras` (year picture, On this day, Watch next, PWA), `feed`, `import`,
 `links` (every link opens something), `pages` (nothing broken shows, no sideways scroll on the phone),
 `routes`, `storage` (IndexedDB move, backup and restore), `site` (the diary on the site: a stand-in GitHub and site),
-`tmdb` (fixing a match, filmography, search), `quiz` (the quiz's answers and a round on both layouts), `foryou` (For you against a stand-in TMDB), `log` (logging a film here against a stand-in TMDB), `extras` also covers the story and every kind and shape of picture, `xss` (nothing from outside can run code, about three minutes: it opens lists in every chapter), `study` (a
+`tmdb` (fixing a match, filmography, search), `quiz` (the quiz's answers and a round on both layouts), `foryou` (For you against a stand-in TMDB), `log` (logging a film here against a stand-in TMDB), `lists` (posters for films on a list you haven't seen), `extras` also covers the story and every kind and shape of picture, `xss` (nothing from outside can run code, about three minutes: it opens lists in every chapter), `study` (a
 five-year diary with patterns planted in it: the study finds them on both layouts and for a year, repeats nothing from
 the Stats page, and every list it opens holds each film once). `lib.mjs`
 also cuts off api.github.com and jsdelivr, answers `diary/` with "not found", and counts anything the security policy

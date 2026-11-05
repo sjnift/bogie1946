@@ -13,6 +13,7 @@ const showImages = !IN_VIEWER; // pages inside Claude can't load outside images
 // for a film of the same name not looked up yet, so a guest with no key saw a handful of actors counted from those)
 function metaOf(f) {
   if (f.fy) return f.fy; // a film of For you (06s) carries its own details
+  if (f.listed) { const m = LMETA()[f.key]; return m && !m.miss ? m : null; } // a film only on your lists (06-lookup)
   if (state.mode === "example") return EXAMPLE_META[f.key] || null;
   const m = META[f.key];
   return m && !m.miss ? m : null;

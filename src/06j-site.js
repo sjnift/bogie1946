@@ -13,7 +13,7 @@ const SITE_REC = "cr-site-v1";      // every device that opened it: { salt, key,
 const SITE_PUB = "cr-site-pub-v1";  // a device that puts it there: { repo, token, at }
 const SITE_DIRTY = "cr-site-dirty"; // changes here not yet on the site: { at, now: a new import, friend or key }
 const SITE_SHARDS = 16;
-const SITE_PARTS = ["rows", "keys", "lbx", "friends", "logs", ...Array.from({ length: SITE_SHARDS }, (_, i) => `m${i}`), ...Array.from({ length: SITE_SHARDS }, (_, i) => `p${i}`)];
+const SITE_PARTS = ["rows", "keys", "lbx", "friends", "logs", "lmeta", ...Array.from({ length: SITE_SHARDS }, (_, i) => `m${i}`), ...Array.from({ length: SITE_SHARDS }, (_, i) => `p${i}`)];
 const siteShard = (key) => hash32(String(key)) % SITE_SHARDS;
 const SITE_KEYS = ["tmdb", "omdb", "apify"]; // with the GitHub key, these travel with the diary
 const SITE_PATH = "docs/diary/";    // in the repository; the site serves docs/ at its root
@@ -22,7 +22,7 @@ const SITE_MIN_PASS = 10;
 const SITE_ON = !IN_VIEWER && /^https?:$/.test(location.protocol);
 const SITE_DEVICE = document.querySelector(".tabbar") ? "phone" : "computer";
 const SITE_GH_REPO = SITE_REPO ? SITE_REPO.split("/").slice(3, 5).join("/") : "";
-const PUBLISHED = new Set([KEYS.rows, KEYS.meta, KEYS.photos, KEYS.lbx, KEYS.friends, KEYS.logs, ...SITE_KEYS.map((k) => KEYS[k])]);
+const PUBLISHED = new Set([KEYS.rows, KEYS.meta, KEYS.photos, KEYS.lbx, KEYS.friends, KEYS.logs, KEYS.lmeta, ...SITE_KEYS.map((k) => KEYS[k])]);
 const SITE_SOON = new Set([KEYS.rows, KEYS.friends, KEYS.logs, ...SITE_KEYS.map((k) => KEYS[k])]); // go up within seconds
 let SITE = ls.get(SITE_REC, null), SITEPUB = ls.get(SITE_PUB, null);
 // the key works for the site's repository whatever it's called, so a renamed one is followed
@@ -140,7 +140,7 @@ function siteRows(rows) {
 function siteLocal() {
   const keys = Object.fromEntries(SITE_KEYS.map((k) => [k, store.get(KEYS[k], "")]).filter(([, v]) => v));
   if (SITEPUB) Object.assign(keys, { github: SITEPUB.token, repo: SITEPUB.repo });
-  const out = { rows: siteRows(store.get(KEYS.rows, null)), keys, lbx: LBX, friends: store.get(KEYS.friends, []).map((f) => ({ ...f, rows: siteRows(f.rows) })), logs: store.get(KEYS.logs, []) };
+  const out = { rows: siteRows(store.get(KEYS.rows, null)), keys, lbx: LBX, friends: store.get(KEYS.friends, []).map((f) => ({ ...f, rows: siteRows(f.rows) })), logs: store.get(KEYS.logs, []), lmeta: LMETA() };
   for (let i = 0; i < SITE_SHARDS; i++) { out[`m${i}`] = {}; out[`p${i}`] = {}; }
   for (const [k, m] of Object.entries(META)) out[`m${siteShard(k)}`][k] = m;
   for (const [k, v] of Object.entries(PHOTOS)) out[`p${siteShard(k)}`][k] = v;
@@ -187,13 +187,14 @@ async function siteTake(parts, idx, draw) {
       if (!mine || mine.site || newerRows(parts.rows, mine)) { store.set(KEYS.rows, { ...parts.rows, site: idx.parts.rows }); newRows = true; }
     }
     // film details and photos come in parts (m0…, p0…), or whole from a version 1 diary (meta, extra)
-    let metaIn = null, photosIn = null, lbxIn = null, friendsIn = null, logsIn = null;
+    let metaIn = null, photosIn = null, lbxIn = null, friendsIn = null, logsIn = null, lmetaIn = null;
     for (const [p, v] of Object.entries(parts)) {
       if (p === "meta" || /^m\d+$/.test(p)) metaIn = Object.assign(metaIn || {}, v);
       else if (/^p\d+$/.test(p)) photosIn = Object.assign(photosIn || {}, v);
       else if (p === "lbx") lbxIn = v;
       else if (p === "friends") friendsIn = v;
       else if (p === "logs") logsIn = v; // films logged on the site, from any device
+      else if (p === "lmeta") lmetaIn = v; // films only on your lists, looked up by any device
       else if (p === "extra") { photosIn = Object.assign(photosIn || {}, v.photos); lbxIn = v.lbx; friendsIn = v.friends; }
     }
     if (metaIn) META = mergeMeta(META, safeMetaMap(metaIn));
@@ -201,6 +202,7 @@ async function siteTake(parts, idx, draw) {
     if (lbxIn) { LBX = mergeLbx(LBX, safeLbx(lbxIn)); store.set(KEYS.lbx, LBX); }
     if (friendsIn) { store.set(KEYS.friends, mergeFriends(store.get(KEYS.friends, []), safeFriends(friendsIn))); loadFriends(); }
     if (logsIn) store.set(KEYS.logs, mergeLogs(store.get(KEYS.logs, []), safeLogs(logsIn)));
+    if (lmetaIn) { LIST_META = mergeMeta(LMETA(), safeMetaMap(lmetaIn)); store.set(KEYS.lmeta, LIST_META); }
     if (parts.keys) {
       // the site's keys replace this device's, unless a key changed here hasn't gone up yet; with the GitHub key
       // this device keeps the site up to date too

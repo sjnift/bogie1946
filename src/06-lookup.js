@@ -211,7 +211,7 @@ function keepPhotos(cast, directors) {
   for (const p of cast) CAST_SEEN.add(personKey(p.name));
 }
 // `prev` is what the film was matched to before: when the match hasn't changed, its details are kept.
-async function tmdbFilm(f, key, signal, prev) {
+async function tmdbFilm(f, key, signal, prev, opts = {}) {
   const again = rereadRef(prev);
   if (again && (prev.pin || !knownId(f) || fromKnownId(f, prev))) {
     const m = await tmdbFetch(again, key, signal);
@@ -236,17 +236,63 @@ async function tmdbFilm(f, key, signal, prev) {
   // (a pinned film TMDB doesn't know keeps the pin, so it isn't asked for again every time)
   if (!hit) return { src: "tmdb", miss: true, v: TMDB_MISS_VERSION, ...(known ? { via: known } : {}) };
   if (prev && prev.src === "tmdb" && !prev.miss && prev.id === hit.id && prev.c && prev.v >= TMDB_DETAILS_V) return { ...prev, v: TMDB_MATCH_VERSION, y: parseInt((hit.release_date || "").slice(0, 4), 10) || prev.y || null };
-  return tmdbDetails(hit.id, key, signal);
+  return tmdbDetails(hit.id, key, signal, opts);
+}
+/* ----- films on your lists you haven't seen (asked 6 Nov 2026: "import posters for the films in the list from tmdb
+   even if I have not watched them"): matched on TMDB the way the diary's films are (`tmdbFilm`, no photos kept), and
+   kept apart from META (KEYS.lmeta, and the diary on the site's `lmeta` part), trimmed to what a poster and a film card
+   need, so nothing in the stats (people, the people index, cameos, For you's taste) ever counts them. Both layouts'
+   `metaOf` read it for a list's film (`f.listed`). ----- */
+let LIST_META = null;
+const LMETA = () => LIST_META || (LIST_META = store.get(KEYS.lmeta, {}) || {});
+const listJob = { running: false, done: 0, total: 0 };
+function listLight(m) {
+  const t = new Date().toISOString();
+  if (!m || m.miss) return { src: "tmdb", miss: true, v: TMDB_MISS_VERSION, t };
+  const out = { src: "tmdb", v: m.v, id: m.id, poster: m.poster, y: m.y, g: m.g || [], k: m.k || [], l: m.l || "", r: m.r || null, va: m.va, vc: m.vc, im: m.im, t };
+  for (const [a, b, n] of [["d", "di", 4], ["c", "ci", 8], ["w", "wi", 3]]) { out[a] = (m[a] || []).slice(0, n); out[b] = (m[b] || []).slice(0, n); }
+  if (typeof m.cg === "string") out.cg = m.cg.slice(0, 8);
+  return out;
+}
+// Films on your lists not yet looked up (or missed before matching learnt more), each once.
+function listToLook() {
+  const L = LMETA(), seen = new Set(), out = [];
+  for (const list of (MY_LIB && MY_LIB.lists) || []) for (const x of list.items) {
+    const f = x.f;
+    if (!f.listed || seen.has(f.key)) continue;
+    seen.add(f.key);
+    const m = L[f.key];
+    if (!m || (m.miss && (m.v || 0) < TMDB_MISS_VERSION)) out.push(f);
+  }
+  return out;
+}
+async function runListLookups(key) {
+  if (listJob.running || IN_VIEWER || !key) return;
+  const queue = listToLook();
+  if (!queue.length) return;
+  Object.assign(listJob, { running: true, done: 0, total: queue.length });
+  let stop = false, since = 0;
+  const save = () => { store.set(KEYS.lmeta, LIST_META); DATA_REV++; lookupRender(); };
+  const worker = async () => {
+    while (queue.length && !stop) {
+      const f = queue.shift();
+      try { LMETA()[f.key] = listLight(await tmdbFilm(f, key, undefined, undefined, { noPhotos: true })); }
+      catch (e) { if ((e && e.code === "auth") || e instanceof TypeError) { stop = true; return; } } // no key or no connection: next time
+      listJob.done++;
+      if (++since >= 25) { since = 0; save(); }
+    }
+  };
+  try { await Promise.all(Array.from({ length: 4 }, worker)); } finally { listJob.running = false; save(); }
 }
 // A role's people as kept: their names, and their TMDB person ids beside them (`c` and `ci`…).
 const credits = (role, list) => ({ [ROLE_FIELD[role]]: list.map((x) => x.name), [ROLE_IDS[role]]: list.map((x) => Number(x.id) || 0),
   ...(ROLE_GENDER[role] ? { [ROLE_GENDER[role]]: list.map((x) => [1, 2, 3].includes(Number(x.gender)) ? Number(x.gender) : 0).join("") } : {}) });
 // One TMDB film's details and credits, by its id.
-async function tmdbDetails(id, key, signal) {
+async function tmdbDetails(id, key, signal, opts = {}) {
   const d = await tmdbGet(`/movie/${id}`, { append_to_response: "credits" }, key, signal);
   if (!d) return { src: "tmdb", miss: true, v: TMDB_MISS_VERSION };
   const { meta, cast, crew } = detailsMeta(d);
-  keepPhotos(cast, crew.filter((c) => c.job === "Director"));
+  if (!opts.noPhotos) keepPhotos(cast, crew.filter((c) => c.job === "Director")); // (none for films on your lists alone)
   return meta;
 }
 // A TMDB film's details (with `credits`) as the app keeps a film, the same for the diary and for For you (06s), which
@@ -389,6 +435,7 @@ async function autoLookup(lib) {
   await sharedKeyReady;
   if (tmdbKey() && needsLookup(lib, "tmdb").length) await runTmdb(lib, tmdbKey());
   if (tmdbKey()) runFacts(lib, tmdbKey());
+  if (tmdbKey()) runListLookups(tmdbKey()); // posters for films on your lists you haven't seen
   if (omdbKey() && !imdbJob.badKey && needsImdb(lib).length && siteLeadsLookups()) runOmdb(lib, omdbKey());
 }
 
