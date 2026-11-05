@@ -249,9 +249,10 @@ async function init() {
   countVisit(); // (06j-site)
 }
 async function refreshFeed() {
-  if (!MY_LIB || !(await feedFresh(MY_LIB.profile.username))) return;
+  if (!MY_LIB || !(await feedFresh(MY_LIB.profile.username))) return false;
   MY_LIB = myLibrary(); SEARCH_INDEX = null; DATA_REV++;
   render();
+  return true;
 }
 init();
 </script>

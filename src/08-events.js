@@ -251,9 +251,10 @@ async function init() {
 }
 // Loads the feed for the imported member and redraws with any entries it adds.
 async function refreshFeed() {
-  if (!MY_LIB || !(await feedFresh(MY_LIB.profile.username))) return;
+  if (!MY_LIB || !(await feedFresh(MY_LIB.profile.username))) return false;
   MY_LIB = myLibrary(); SEARCH_INDEX = null;
   render();
+  return true;
 }
 init();
 </script>

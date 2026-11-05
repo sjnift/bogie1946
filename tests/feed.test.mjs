@@ -42,7 +42,8 @@ export default async function ({ browser, base }) {
   for (const [file, phone] of [["desktop.html", false], ["mobile.html", true]]) {
     const p = await open(browser, base, file, { phone });
     const old = { ...feed, items: feed.items.map((x) => x.title === "Twilight's Last Gleaming" ? { ...x, title: "Twilight&#039;s Last Gleaming" } : x) };
-    await p.context().route(/\/feed\/tester\.json/, (r) => r.fulfill({ contentType: "application/json", body: JSON.stringify(old) }));
+    let served = old;
+    await p.context().route(/\/feed\/tester\.json/, (r) => r.fulfill({ contentType: "application/json", body: JSON.stringify(served) }));
     await seed(p, { profile: [{ Username: "Tester" }], watched: [{ Name: "Heat", Year: "1995" }, { Name: "Brick", Year: "2005" }, { Name: "Twilight’s Last Gleaming", Year: "1977" }],
       diary: [{ Name: "Heat", Year: "1995", "Watched Date": "2024-01-01", Rating: "4.5" }, { Name: "Brick", Year: "2005", "Watched Date": "2024-02-03", Rating: "4" },
         { Name: "Twilight’s Last Gleaming", Year: "1977", "Watched Date": "2026-10-02", Rating: "3.5" }],
@@ -50,6 +51,20 @@ export default async function ({ browser, base }) {
     await p.waitForFunction(() => FEED && MY_LIB.films.length >= 4);
     const got = await p.evaluate(() => ({ films: MY_LIB.films.map((f) => `${f.name} ${f.entries.length}${f.liked ? "♥" : ""}`).join(), reviews: MY_LIB.reviews.length, known: KNOWN_IDS["love & mercy|2014"], kept: store.get(KEYS.rows).diary.length }));
     assert(got.films === "Heat 2♥,Brick 1,Twilight’s Last Gleaming 1,Love & Mercy 1" && got.reviews === 1 && got.known === 271714 && got.kept === 3, `${file}: ${JSON.stringify(got)}`);
+    // Heat, rated 4.5 in the export, logged again at 5★: the film's rating is the newest (one rating a film, as on
+    // Letterboxd), while the saved export keeps its own
+    const heat = await p.evaluate(() => ({ film: MY_LIB.films.find((f) => f.name === "Heat").rating, saved: store.get(KEYS.rows).ratings.find((r) => r.Name === "Heat").Rating }));
+    assert(heat.film === 5 && heat.saved === "4.5", `${file}: a rewatch's new rating: ${JSON.stringify(heat)}`);
+    // the page left open: a film logged since comes in when the page is back in view after a while, without a restart
+    served = { ...old, items: [{ guid: "letterboxd-watch-77", title: "Heat", year: 1995, watched: "2026-11-04", logged: "2026-11-04", rating: 4, rewatch: true, liked: true, tmdb: 949, review: "", link: "" },
+      { guid: "letterboxd-watch-78", title: "Thief", year: 1981, watched: "2026-11-05", logged: "2026-11-05", rating: 4.5, rewatch: false, liked: false, tmdb: 11524, review: "", link: "" }, ...old.items] };
+    await p.evaluate(() => { feedAgain(); }); await p.waitForTimeout(200); // too soon: not asked again
+    assert(!(await p.evaluate(() => MY_LIB.films.some((f) => f.name === "Thief"))), `${file}: the feed was asked again too soon`);
+    await p.evaluate(() => { FEED_ASKED -= FEED_AGAIN; document.dispatchEvent(new Event("visibilitychange")); window.dispatchEvent(new Event("visibilitychange")); });
+    await p.waitForFunction(() => MY_LIB.films.some((f) => f.name === "Thief"), null, { timeout: 5000 }).catch(() => {});
+    const later = await p.evaluate((phone) => ({ thief: MY_LIB.films.some((f) => f.name === "Thief"), heat: MY_LIB.films.find((f) => f.name === "Heat").rating, entries: MY_LIB.entries.length,
+      shown: phone ? /\b5\b/.test(document.querySelector("#screen .hero, #screen").textContent) : /5 films/.test(document.querySelector("#hero-sub").textContent) }), phone);
+    assert(later.thief && later.heat === 4 && later.entries === 7 && later.shown, `${file}: a film logged while the page was open: ${JSON.stringify(later)}`);
     noErrors(p, file);
   }
 }

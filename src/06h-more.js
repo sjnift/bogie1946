@@ -61,12 +61,27 @@ function withFeed(rows, feed) {
     out.diary.push(entry);
     if (!watched.has(tk)) { out.watched.push({ ...base, Date: x.logged || x.watched, "Letterboxd URI": "" }); watched.add(tk); }
     if (x.rating && !rated.has(tk)) { out.ratings.push({ ...base, Rating: String(x.rating) }); rated.add(tk); }
+    // a film rated before and logged again with a rating: Letterboxd keeps one rating a film, the newest given (5 Nov
+    // 2026: the export's older rating had stayed until the next export); the saved export itself isn't changed
+    else if (x.rating) { const i = out.ratings.findIndex((r) => t(r) === tk); if (i >= 0) out.ratings[i] = { ...out.ratings[i], Rating: String(x.rating) }; }
     if (x.liked && !liked.has(tk)) { out.likes.push(base); liked.add(tk); }
     if (x.review) out.reviews.push({ ...entry, Review: x.review, feed: true });
     added.push({ ...x, title });
   }
   return { rows: out, added };
 }
+// While the page stays open (a tab left open, or the installed app kept in the background), the feed is asked again
+// when the page comes back into view after FEED_AGAIN, and every half hour while it's in view, so a film logged since
+// shows without closing the app (5 Nov 2026; it was read only when the page started). Then its details are looked up.
+const FEED_AGAIN = 10 * 60e3;
+let FEED_ASKED = Date.now();
+async function feedAgain() {
+  if (typeof MY_LIB === "undefined" || !MY_LIB || document.visibilityState !== "visible" || Date.now() - FEED_ASKED < FEED_AGAIN) return;
+  FEED_ASKED = Date.now();
+  try { if (await refreshFeed() && !job.running) autoLookup(allFilmsLib()); } catch {}
+}
+addEventListener("visibilitychange", feedAgain);
+setInterval(feedAgain, 30 * 60e3);
 // Builds your library from the saved export and whatever the feed adds.
 function myLibrary() {
   const saved = store.get(KEYS.rows, null);

@@ -1096,6 +1096,19 @@ shows the latest ~50, so it accumulates), commits, and asks Pages to rebuild. Th
 `feed/<username>.json` when the imported export's username matches and merges entries the export lacks
 (`withFeed`/`myLibrary` in `06h-more.js`), never changing the saved export. The feed decodes character codes
 (`&#039;`), keeps a viewing as one entry when a review is added (watch-123 → review-123), and gives exact TMDB ids.
+**A film logged reaches every list** (asked 5 Nov 2026, "does every data set … update when a new movie is logged?";
+tested on a copy of the owner's diary with a Hitchcock film added through the feed, both layouts): films, hours,
+ratings, likes, the director, actors and actresses, genres, countries, language, decade, release year, weekday, month,
+season, year by year, Back in time, Insights' study, the quiz, search, Recently watched, Watch next (it leaves the
+watchlist) and For you (`fySig`) all took it in; the caches follow the library's identity, `META`'s size and `META_REV`.
+Its cast and crew come from TMDB on the device a moment after (`autoLookup`, by the feed's TMDB id). Two gaps were
+fixed then: the feed was read only when the page started, so a tab or installed app left open missed the day's run
+(now `feedAgain`: when the page comes back into view after `FEED_AGAIN` 10 minutes, and every half hour in view;
+`refreshFeed` says whether anything changed); and a film rated in the export and logged again with a new rating kept
+the old one (now the newest rating given is the film's, as on Letterboxd; the saved export isn't changed). What the
+feed never carries waits for a fresh export: films marked watched, rated or liked without a diary entry, and edits or
+deletions of entries older than the feed's latest ~50. The `feed` check covers the rating and a film logged while the
+page was open, on both layouts.
 
 ## Checks and CI
 

@@ -233,7 +233,8 @@ export default async function ({ browser, base }) {
         map: (({ by, gone, off }) => [by.get("US").count, [...by.values()].map((p) => `${p.code}:${p.names.join("+")}`).join(), gone.map((g) => `${g.name} ${g.count}`).join(), off.map((c) => c.name).join()])(worldData(s.countries)).join("|") };
     });
     assert(got.films === 4, `${file}: ${got.films} films, not 4 (one film spelled four ways, or two titles in other scripts merged)`);
-    assert(got.twilight === 2 && got.rating === 3.5 && got.liked && got.reviews === 2, `${file}: Twilight's Last Gleaming ${JSON.stringify(got)}`);
+    // (rated 3.5 in the export, logged again at 4 since: the film's rating is the newest, as on Letterboxd)
+    assert(got.twilight === 2 && got.rating === 4 && got.liked && got.reviews === 2, `${file}: Twilight's Last Gleaming ${JSON.stringify(got)}`);
     assert(got.mcgraw === 1 && got.thriller === 1, `${file}: a name or genre listed twice in one film counted twice: ${JSON.stringify(got)}`);
     assert(got.watchlist === "Ikiru" && !got.next.includes("Twilight"), `${file}: a watched film is still to watch next: ${got.watchlist}`);
     assert(got.studioRule === "false,7,71,true,ABCDEFG,68", `${file}: the studios pie's rule (Other up to 10%, else the top 7): ${got.studioRule}`);
