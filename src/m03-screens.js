@@ -367,7 +367,12 @@ function profileScreen(s) {
   const fav = favouriteCards(s, 3), decade = fav ? `<div style="margin-top:22px">${fav}</div>` : "";
   // For you (06s): a hundred films you'd love, a screen of its own
   const fyRow = !ex && MY_LIB ? `<button class="banner fy" type="button" data-act="foryou"><span class="ico g">${ICON.sparkle}</span><span><b>100 films you'd love</b><small>${FY && FY.user === (MY_LIB.profile.username || "") ? `Picked ${esc(fmtDate(FY.at.slice(0, 10)))} from your ratings and likes` : "Picked from your ratings, likes and favourite people"}</small></span>${CHEV}</button>` : "";
-  return hero + scopeBar() + onSite + notice + note + iosTip + reimport + fill + tiles + fyRow + storyRow + recentRow + otd + decade + ratings + people;
+  // your lists (06t-lists), the same whatever the year (a filter narrows them)
+  const lists = lib.lists || [];
+  const listRow = lists.length ? sh("Lists", `<span class="count">${plural(lists.length, "list")}</span>`) + `<div class="scroller lists">${lists.map((L) =>
+    `<button class="lcard" type="button" data-k="${esc(L.name)}" ${dl(listDrill(L))}><span class="lstack" aria-hidden="true">${L.items.slice(0, 4).map((x) => poster(x.f)).join("")}</span>
+      <span class="nm">${esc(L.name)}</span><span class="ct">Seen ${fmtN(L.seen)} of ${fmtN(L.items.length)}</span><span class="lbar" aria-hidden="true"><span style="width:${listPct(L)}%"></span></span></button>`).join("")}</div>` : "";
+  return hero + scopeBar() + onSite + notice + note + iosTip + reimport + fill + tiles + fyRow + storyRow + recentRow + otd + decade + listRow + ratings + people;
 }
 
 /* ---------- Stats: films, people, genres ---------- */

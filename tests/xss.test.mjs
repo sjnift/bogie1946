@@ -27,6 +27,7 @@ const rows = (user, given) => ({
   reviews: films.map((f, i) => ({ ...f, Date: `2024-0${i + 1}-04`, "Watched Date": `2024-0${i + 1}-03`, Rating: "4", Review: review, Tags: nasty("rtag") })),
   likes: films.slice(0, 2).map((f) => ({ ...f })),
   watchlist: [{ Name: nasty("Wanted"), Year: "2020", "Letterboxd URI": P.url }, { Name: "Le Samouraï", Year: "1967" }],
+  lists: [{ name: nasty("List"), date: "2024-01-01", tags: nasty("ltag"), url: P.url, desc: review, films: [[1, films[0].Name, films[0].Year, P.url, review], [2, nasty("Unseen"), "1999", "javascript:alert(1)", nasty("note")]] }],
 });
 // film details as another device (or TMDB, which anyone can edit) could send them: nothing cleaned
 const meta = (i) => ({ src: "tmdb", v: 15, id: 1000 + i, poster: `/p${i}.jpg${P.quote}`, y: 1990 + i, d: [nasty("Director")], c: [nasty("Actor"), `${P.single} Star`], w: [nasty("Writer")], co: [nasty("Studio"), "Warner Bros. Pictures"],

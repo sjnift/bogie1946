@@ -244,6 +244,7 @@ The owner asked for this to be checked every time. A film, diary entry, person o
   `06k-study.js` (Insights: `computeStudy`, `computeYearStudy`, and the pieces both layouts draw, `driftCols`,
   `chapterStrip`; see "Insights, the study"; also `crowdOf`, the Stats page's against-the-crowd numbers),
   `06p-studios.js` (the studios pie in Insights: `STUDIOS`, `filmStudio`, `studioData`, `pieSvg`, `studiosHtml`),
+  `06t-lists.js` (your lists: `listDrill`, `listToGo`, `listsLine`; see "Lists"),
   `06q-quiz.js` (the quiz: `D.quiz`, `QUIZ_KINDS`, `quizQuestions`, `quizBodyHtml`), `06r-asof.js` (Back in time, most
   watched as of a date: `ASOF`, `filmSince`, `asofBase`, `asofCount`, `asofHtml`, `asofOut`), `06s-foryou.js` (For you,
   a hundred films you'd love: `fyLove`, `fyModel`, `fyMake`, `fyPick`, `fyBodyHtml`; see "For you"),
@@ -266,8 +267,9 @@ The owner asked for this to be checked every time. A film, diary entry, person o
 ### Data
 
 - `readExport(files)` reads the ZIP or CSVs into rows: `diary, watched, ratings, reviews, likes, watchlist,
-  profile, files`. Only top-level files count, plus `likes/films.csv`; `likes/` (other people's reviews you
-  liked), `lists/`, `deleted/` and `orphaned/` are skipped, and a `reviews.csv` must have a Review column.
+  profile, files, lists`. Only top-level files count, plus `likes/films.csv` and, since 5 Nov 2026, each `lists/*.csv`
+  (`parseList`: the list's row, then its films as `[position, name, year, link, note]`); `likes/` (other people's
+  reviews you liked), `deleted/` and `orphaned/` are skipped, and a `reviews.csv` must have a Review column.
   A `.json` file is a backup and is restored instead.
 - Saving: `store.set` writes to IndexedDB 250 ms later; imports and restores call `await store.flush()`, and the
   page flushes when it's hidden or closed. If the database can't be opened at start, `store.failed` is set and the
@@ -655,6 +657,22 @@ standard errors or more from what the rest of the diary gives; every sentence op
   border (`--hb-a`, `--hb-b`); on hover or keyboard focus each lifts 2px with a glow in its colour, a band of light
   sweeps across (`::after`), and its icon moves (▶ nudges on, the picture tilts, the quiz mark wobbles: `hb-wobble`);
   the movement only without reduced motion.
+- **Lists** (asked 5 Nov 2026: "not done anything with lists"; `06t-lists.js`): your Letterboxd lists from the export
+  (`lists/` in the ZIP; an export imported before that day has none until the next import). `buildLibrary` makes
+  `lib.lists`, newest first: each film matched to the diary by `titleKey`, **once a list** (two spellings are one film),
+  `seen` when it's one of the diary's films (watched.csv or the diary), else the watchlist's own object or a film-like
+  object (`listed: true`, one however many lists hold it, never looked up, so a title card); `listOf` gives seen, rated
+  and your average; the description and notes as plain text (`plainText`). Lists count nothing in the stats. A filter
+  narrows them like everything else (`filteredLib`); the year doesn't. Desktop: a **Lists** chapter tab (between
+  Reviews and Watch next, only with lists): a card each (`listCardsHtml`: the first five posters fanned out, name, films
+  and when made, a bar and "Seen N of M · your average · K to go", the description in three lines), the card opening
+  the list in its own order (`listDrill`: "Not seen yet" or when watched, and the list's note), "K to go" only what's
+  left (`listToGo`), and a line over them all (`listsLine`, each film once). Phone: a "Lists" row on Profile after the
+  best decade (`.scroller.lists .lcard`). On the owner's export: 11 lists, 404 films, 224 seen; three track films they
+  never logged (Buster Keaton Shorts, Indian parallel/indie cinema, Started but not Finished), so those read 0 seen,
+  which is right by the diary. The `import` (list files read, `deleted/` ones not, `lists/diary.csv` never the diary),
+  `counts` (a film once a list, seen exactly when in the diary, two spellings one film), `extras` (both layouts) and
+  `xss` (names, descriptions, notes, links) checks cover them. The feed carries no lists: they come with an export.
 - **For you** (asked 5 Nov 2026: "write an algorithm to predict movies I would like based on my letterboxd ratings,
   director actor genre data … correlate all the data you have about my viewing habits … a list of 100 films I would
   love"; then, the same day: "the engine should update when I log movies in the future and the ratings I give them and

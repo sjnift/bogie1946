@@ -180,6 +180,27 @@ export default async function ({ browser, base }) {
       assert(r.ties === "1 =2 =2 =4 =4 =4" && r.before && r.was.tile && !r.none.tile && r.none.alt && (phone || (r.was.column && !r.none.column)),
         `${file} shared places and a diary with no rewatches: ${JSON.stringify(r)}`);
     }
+    // your lists (5 Nov 2026): the computer's Lists chapter and the phone's Profile row, a card each; a card opens the list
+    // in its own order with the films not seen marked and its notes; on the computer "N to go" opens only those
+    {
+      await p.goto(`${base}${file}?example${phone ? "#/profile" : "#/"}`); await p.waitForFunction(() => typeof state === "object" && state.lib); await p.waitForTimeout(300);
+      if (!phone) await p.click('#jump [data-chapter="lists"]');
+      const cards = await p.$$eval(phone ? ".scroller.lists .lcard" : "#lists .lcard", (x) => x.map((c) => c.textContent.replace(/\s+/g, " ").trim()));
+      await p.click(phone ? ".scroller.lists .lcard" : "#lists .lmain"); await p.waitForTimeout(250);
+      const rowsOf = () => p.evaluate((phone) => { const d = document.querySelector(phone ? "#sheet" : "#dlg");
+        return { rows: [...d.querySelectorAll(".drill-row .dr-s")].map((e) => e.textContent), text: d.innerText }; }, phone);
+      const open = await rowsOf();
+      assert(cards.length === 2 && /Favourite performances/.test(cards[0]) && /Seen 3 of 5/.test(cards[0]) && /Favourite performances/.test(open.text) && open.rows.length === 5
+        && open.rows.filter((r) => /^Not seen yet/.test(r)).length === 2 && / · The lead$/.test(open.rows[0]) && open.rows.some((r) => r === "Not seen yet · Victor Sjöström"),
+        `${file} lists: ${JSON.stringify({ cards, open })}`);
+      if (!phone) {
+        await p.keyboard.press("Escape"); await p.waitForTimeout(100);
+        await p.click("#lists .lseen .dlink"); await p.waitForTimeout(250);
+        const left = await rowsOf();
+        assert(left.rows.length === 2 && left.rows.every((r) => /^Not seen yet/.test(r)), `${file} a list's films not seen yet: ${JSON.stringify(left.rows)}`);
+        await p.keyboard.press("Escape");
+      }
+    }
     // a poster's title card never breaks a word (it showed "MANHATTA / N" where pictures didn't load, 1 Nov 2026): with
     // breaking turned off, no card's longest word runs past its edge, here in the wide stand-in font the checks have
     if (phone) { await p.goto(`${base}${file}?example#/profile`); await p.waitForFunction(() => typeof state === "object" && state.lib); }
@@ -315,7 +336,7 @@ export default async function ({ browser, base }) {
   const chap = async (id) => { await d.click(`#jump [data-chapter="${id}"]`); await d.waitForTimeout(80); };
   const lay = { glance: await d.$$eval("#glance > section", (x) => x.map((e) => e.id)), chapters: {}, cards: 0, others: [] };
   const allIds = ["recent", "onthisday", "best-decade", "released", "milestones", "records", "rewatched", "starring", "voices", "directed", "crew", "people-years",
-    "origin", "world", "genre-years", "genre-rates", "logged", "months", "seasons", "years", "habits", "rated", "crowd", "top", "reviews", "review-stats", "next"];
+    "origin", "world", "genre-years", "genre-rates", "logged", "months", "seasons", "years", "habits", "rated", "crowd", "top", "reviews", "review-stats", "lists", "next"];
   lay.tabs = await desktopChapters(d, async (id) => {
     const got = await d.evaluate((allIds) => ({ ids: [...document.querySelectorAll("#sections > section")].map((e) => e.id), cards: document.querySelectorAll("#sections .dc, #sections .dash").length,
       // only the chosen chapter is on the page, and the bar sits between the top and it
@@ -326,7 +347,7 @@ export default async function ({ browser, base }) {
   });
   const C = lay.chapters;
   assert(lay.glance.join() === "recent,onthisday,best-decade" || lay.glance.join() === "recent,best-decade", `the top of the main page: ${lay.glance}`);
-  assert(lay.tabs.join() === "films,people,origin,when,ratings,reviews,next" && !lay.others.length && lay.cards === 0
+  assert(lay.tabs.join() === "films,people,origin,when,ratings,reviews,lists,next" && !lay.others.length && lay.cards === 0 && C.lists.join() === "lists"
     && C.films.join() === "released,milestones,records,rewatched" && C.people.join() === "starring,directed,crew,people-years"
     && C.origin.join() === "origin,world,genre-years,genre-rates" && C.when.join() === "logged,months,seasons,years,habits"
     && C.ratings.join() === "rated,crowd,top" && C.reviews.join() === "reviews,review-stats" && C.next.join() === "next",

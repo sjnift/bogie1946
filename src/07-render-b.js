@@ -203,6 +203,18 @@ function posterHtml(f) {
   return `<button class="poster" type="button" ${dl(D.film(f))}>${artHtml(f)}
     <span class="cap"><span class="stars">${stars(f.rating)}</span>${f.liked ? ' <span class="heart" title="Liked">♥</span>' : ""}</span></button>`;
 }
+// Your lists as cards: its first posters fanned out, its name, how much of it you've seen, your average, and what it's
+// about (06t-lists). The card opens the list; "N to go" only what you haven't seen.
+function listCardsHtml(lists) {
+  return `<div class="lcards">${lists.map((L) => {
+    const left = L.items.length - L.seen;
+    return `<div class="lcard"><button class="lmain" type="button" ${dl(listDrill(L))}><span class="lstack" aria-hidden="true">${L.items.slice(0, 5).map((x) => `<span class="poster">${artHtml(x.f)}</span>`).join("")}</span>
+      <span class="lname">${esc(L.name)}</span><span class="lmeta">${plural(L.items.length, "film")}${L.date ? ` · made ${fmtDate(L.date)}` : ""}</span></button>
+      <span class="lbar" aria-hidden="true"><span style="width:${listPct(L)}%"></span></span>
+      <span class="lseen">Seen ${fmtN(L.seen)} of ${fmtN(L.items.length)}${L.avg ? ` · your average <span class="stars">★</span> ${L.avg.toFixed(2)}` : ""}${left ? ` · ${dlink(listToGo(L), `${fmtN(left)} to go`)}` : " · all seen"}</span>
+      ${L.desc ? `<p class="ldesc">${esc(L.desc)}</p>` : ""}</div>`;
+  }).join("")}</div>`;
+}
 // How many times a film was watched in the period.
 const viewsOf = (s) => (f) => viewsIn(f, s.scope);
 // The records: longest, shortest, oldest, newest, and the liked films.

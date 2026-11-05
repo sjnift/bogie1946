@@ -249,6 +249,19 @@ function parseCsv(text) {
   rows.fields = (out.meta && out.meta.fields) || Object.keys(out.data[0] || {});
   return rows;
 }
+// A list file of the export: a line naming the export, the list's own row (Date, Name, Tags, URL, Description), then
+// its films (Position, Name, Year, URL, and Description, a note on the film). Kept small: each film is
+// [position, name, year, link, note].
+const LB_LINK = /^https:\/\/(boxd\.it|letterboxd\.com)\//;
+function parseList(text) {
+  const all = Papa.parse(String(text).replace(/^\uFEFF/, ""), { skipEmptyLines: true }).data;
+  const head = all.findIndex((r) => r[0] === "Date" && r[1] === "Name"), at = all.findIndex((r) => r[0] === "Position" && r[1] === "Name");
+  if (head < 0 || at < 0) return null;
+  const m = all[head + 1] && head + 1 < at ? all[head + 1] : [], cut = (s, n) => String(s ?? "").slice(0, n);
+  const films = all.slice(at + 1).filter((r) => r[1] && String(r[1]).trim()).slice(0, 5000)
+    .map((r) => [parseInt(r[0], 10) || 0, cut(r[1], 300), cut(r[2], 4), LB_LINK.test(r[3] || "") ? cut(r[3], 200) : "", cut(r[4], 600)]);
+  return { name: cut(m[1], 200).trim(), date: /^\d{4}-\d{2}-\d{2}$/.test(m[0] || "") ? m[0] : "", tags: cut(m[2], 300), url: LB_LINK.test(m[3] || "") ? cut(m[3], 200) : "", desc: cut(m[4], 3000), films };
+}
 // Keep only the columns the stats use, so the saved copy stays small.
 function slim(kind, rows) {
   const pick = (r, cols) => Object.fromEntries(cols.map((c) => [c, r[c] ?? ""]));
@@ -281,11 +294,13 @@ function needReader(name) {
 }
 async function readExport(fileList) {
   try { await needReader("Papa"); } catch { throw new Error("The CSV reader didn't load. Check your internet connection and try again."); }
-  const rows = { diary: [], watched: [], ratings: [], reviews: [], likes: [], watchlist: [], profile: [], files: [] };
+  const rows = { diary: [], watched: [], ratings: [], reviews: [], likes: [], watchlist: [], profile: [], files: [], lists: [] };
   let found = 0;
   // Besides the files at the top, an export has lists/, deleted/, orphaned/ and likes/ folders, and
   // likes/ holds a reviews.csv of other people's reviews you liked. Only likes/films.csv counts from those.
   const take = (path, text) => {
+    // your lists, one file each in lists/ (5 Nov 2026; deleted and orphaned ones are left out)
+    if (/(^|\/)lists\/[^/]+\.csv$/i.test(path) && !/(^|\/)(deleted|orphaned)\//i.test(path)) { const L = parseList(text); if (L) rows.lists.push(L); return; }
     if (/(^|\/)(deleted|orphaned|lists)\//i.test(path)) return;
     const inLikes = /(^|\/)likes\//i.test(path);
     for (const [kind, re] of Object.entries(WANTED)) {
@@ -420,19 +435,48 @@ function buildLibrary(input) {
     if (!f.rating) { const rated = f.entries.filter((e) => e.rating); if (rated.length) f.rating = rated[rated.length - 1].rating; }
   }
   const p = rows.profile[0] || {};
+  // a film still on the watchlist after it was watched isn't something to watch next
+  const watchlistFilms = rows.watchlist.filter((r) => !films.has(keyOf(r))).map((r) => ({ key: filmKey(r.Name, r.Year), name: String(r.Name).trim(), year: parseInt(r.Year, 10) || null,
+    rating: null, liked: false, entries: [], reviews: 0, uri: /^https?:\/\//.test(r["Letterboxd URI"] || "") ? r["Letterboxd URI"] : "", watchlist: true }));
+  // your lists (5 Nov 2026), newest first: each film matched to the diary by its title, once a list; a film you haven't
+  // seen stands in as a film-like object, one however many lists hold it (the watchlist's own where it's there too).
+  // Lists count nothing in the stats: they only say what's in them and how much of it you've seen.
+  const wlByTitle = new Map(watchlistFilms.map((w) => [titleKey(w.name, w.year), w])), unseen = new Map();
+  const lists = (Array.isArray(rows.lists) ? rows.lists : []).filter((L) => L && Array.isArray(L.films)).map((L) => {
+    const keys = new Set(), items = [];
+    for (const row of L.films) {
+      const [pos, name, year, url, note] = Array.isArray(row) ? row : [];
+      if (!String(name ?? "").trim()) continue;
+      const r = { Name: String(name), Year: String(year ?? "") }, t = titleKey(r.Name, r.Year);
+      if (keys.has(t)) continue;
+      keys.add(t);
+      const mine = films.get(spelling.get(t));
+      let f = mine || wlByTitle.get(t) || unseen.get(t);
+      if (!f) unseen.set(t, (f = { key: filmKey(r.Name, r.Year), name: r.Name.trim(), year: parseInt(r.Year, 10) || null, rating: null, liked: false, entries: [], reviews: 0,
+        uri: LB_LINK.test(url || "") ? String(url) : "", listed: true }));
+      items.push({ f, pos: Number(pos) || items.length + 1, note: plainText(note, 300), seen: !!mine });
+    }
+    return listOf({ name: String(L.name || "").trim() || "Untitled list", date: /^\d{4}-\d{2}-\d{2}$/.test(L.date || "") ? L.date : "", tags: String(L.tags || "").slice(0, 300),
+      url: LB_LINK.test(L.url || "") ? String(L.url) : "", desc: plainText(L.desc, 600) }, items);
+  }).filter((L) => L.items.length).sort((a, b) => b.date.localeCompare(a.date) || a.name.localeCompare(b.name));
   return {
-    films: [...films.values()], entries, reviews,
+    films: [...films.values()], entries, reviews, lists,
     // a saved import from before review text was kept: the export's reviews are counted but their words are
     // missing (reviews from the daily feed have words, so they don't count here)
     reviewTextMissing: reviews.some((r) => !r.feed) && reviews.every((r) => r.feed || !r.text),
     profile: { username: p.Username || "", joined: (p["Date Joined"] || "").slice(0, 10), name: [p["Given Name"], p["Family Name"]].filter(Boolean).join(" ") },
-    watchlist: rows.watchlist.length,
-    // a film still on the watchlist after it was watched isn't something to watch next
-    watchlistFilms: rows.watchlist.filter((r) => !films.has(keyOf(r))).map((r) => ({ key: filmKey(r.Name, r.Year), name: String(r.Name).trim(), year: parseInt(r.Year, 10) || null,
-      rating: null, liked: false, entries: [], reviews: 0, uri: /^https?:\/\//.test(r["Letterboxd URI"] || "") ? r["Letterboxd URI"] : "", watchlist: true })),
+    watchlist: rows.watchlist.length, watchlistFilms,
   };
 }
 
+// A list with these of its films: how many you've seen, and your average for those (also for a filtered diary, 06l)
+const listOf = (L, items) => { const seen = items.filter((x) => x.seen), rated = seen.filter((x) => x.f.rating);
+  return { ...L, items, seen: seen.length, rated: rated.length, avg: rated.length ? avg(rated.map((x) => x.f.rating)) : null }; };
+// A list's description or a film's note as plain text: Letterboxd writes some HTML (links, line breaks) into them.
+function plainText(s, n) {
+  const t = String(s ?? "");
+  return (/[<&]/.test(t) ? reviewParts(t).text : t).replace(/\s+/g, " ").trim().slice(0, n);
+}
 // One line saying what an import brought in, so a missing part (say, reviews) is easy to spot.
 function importSummary(rows, lib) {
   const skipped = rows.reviews.length - lib.reviews.length;

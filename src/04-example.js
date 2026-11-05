@@ -269,6 +269,15 @@ function buildExample() {
   for (const [name, year, d, c, g, k, l, r, w, p, m, va, vc] of EXAMPLE_EXTRA)
     meta[filmKey(name, year)] = { src: "example", d: split(d), c: split(c), cg: exampleGenders(split(c)), g: split(g), k: split(k), l, r, w: split(w), p: split(p), m: split(m), va, vc };
   rows.watchlist = EXAMPLE_WATCHLIST.map(([Name, Year]) => ({ Name, Year: String(Year) }));
+  // two lists (5 Nov 2026): one partly seen, with a film on the watchlist and one nowhere else in the diary, and one
+  // naming a film twice (it counts once)
+  const F = EXAMPLE_FILMS.map(([n, y]) => [n, String(y)]);
+  rows.lists = [
+    { name: "Favourite performances", date: "2026-03-14", tags: "", url: "https://boxd.it/ex01", desc: 'Chronological. <a href="https://example.com/">A work</a> in progress.',
+      films: [[1, ...F[0], "", "The lead"], [2, ...F[3], "", ""], [3, "Seven Samurai", "1954", "", "Mifune"], [4, "Wild Strawberries", "1957", "https://boxd.it/ex02", "Victor Sjöström"], [5, ...F[7], "", ""]] },
+    { name: "Comfort films", date: "2025-11-02", tags: "", url: "", desc: "",
+      films: [...F.slice(10, 16).map(([n, y], i) => [i + 1, n, y, "", ""]), [7, ...F[10], "", "Again"]] },
+  ];
   return { rows, meta };
 }
 

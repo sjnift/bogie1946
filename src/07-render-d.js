@@ -8,9 +8,9 @@
    beside it. Only the chapter on screen is worked out. */
 // The chapters, in order.
 const CHAPTERS = [["films", "Films"], ["people", "People"], ["origin", "Genres &amp; countries"], ["when", "When you watch"],
-  ["ratings", "Ratings"], ["reviews", "Reviews"], ["next", "Watch next"]];
+  ["ratings", "Ratings"], ["reviews", "Reviews"], ["lists", "Lists"], ["next", "Watch next"]];
 // The chapters this diary has (Watch next needs a watchlist), and the one to show.
-const chaptersOf = (lib) => CHAPTERS.filter(([id]) => id !== "next" || lib.watchlistFilms.length);
+const chaptersOf = (lib) => CHAPTERS.filter(([id]) => (id !== "next" || lib.watchlistFilms.length) && (id !== "lists" || (lib.lists || []).length));
 function chapterOn(lib) {
   const have = chaptersOf(lib);
   return (have.find(([id]) => id === state.chapter) || have[0])[0];
@@ -89,6 +89,9 @@ function dashChapter(s, id) {
   if (id === "reviews") return [
     section("reviews", "Reviewed", all ? "Your latest reviews. Search finds any of them." : `What you wrote about films you watched in ${esc(s.scope)}, latest first.`, reviewsBlock(s)),
     lib.reviewTextMissing || !lib.reviews.length ? "" : section("review-stats", all ? "Your reviews in numbers" : `Your ${esc(s.scope)} reviews in numbers`, "What you write, and when you bother.", reviewInsightsBlock(lib, all ? null : s.scope))];
+
+  // your lists (06t-lists): the same whatever the year, since a list isn't of a year; a filter narrows them
+  if (id === "lists") return [section("lists", "Lists", `${esc(listsLine(lib.lists))} Your lists on Letterboxd, newest first. They come with an export.`, listCardsHtml(lib.lists))];
 
   if (id === "next") { const W = lib.watchlistFilms.length ? watchNext(lib) : undefined;
     return [W !== undefined ? section("next", "Watch next", "Your watchlist, likeliest favourites first.", watchNextBlock(W)) : ""]; }

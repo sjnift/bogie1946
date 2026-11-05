@@ -24,6 +24,12 @@ function audit() {
   };
   for (const d of LISTS.values()) walk(d, location.hash);
   const lib = state.lib;
+  // your lists (5 Nov 2026): a film once a list; seen exactly when it's one of the diary's films; the counts add up
+  for (const L of lib.lists || []) {
+    once(L.items, (x) => film(x.f), `list ${L.name}`);
+    if (L.items.filter((x) => x.seen).length !== L.seen) bad.push(`list ${L.name}: ${L.seen} seen, but ${L.items.filter((x) => x.seen).length} marked`);
+    for (const x of L.items) if (x.seen !== lib.films.includes(x.f)) bad.push(`list ${L.name}: ${x.f.name} is ${x.seen ? "" : "not "}seen`);
+  }
   once(lib.films, film, "library");
   once(lib.entries, (e) => e, "diary");
   for (const scope of ["all", ...new Set(lib.entries.map((e) => e.date.slice(0, 4)))]) {
@@ -206,6 +212,8 @@ export default async function ({ browser, base }) {
     likes: [{ Name: "twilight’s last gleaming", Year: "1977" }],
     reviews: [{ Name: "Twilight's Last Gleaming", Year: "1977", Date: "2026-10-02", "Watched Date": "2026-10-02", Rating: "3.5", Review: "<p>Tense.</p>" }],
     watchlist: [{ Name: "Twilight’s Last Gleaming", Year: "1977" }, { Name: "Ikiru", Year: "1952" }],
+    // a list naming Twilight's Last Gleaming in two spellings (one film, seen) and Ikiru (still on the watchlist)
+    lists: [{ name: "Aldrich and more", date: "2026-01-01", tags: "", url: "", desc: "", films: [[1, "Twilight's Last Gleaming", "1977", "", ""], [2, "TWILIGHT’S LAST GLEAMING", "1977", "", "again"], [3, "Ikiru", "1952", "", ""]] }],
   };
   const meta = { "twilight’s last gleaming|1977": { src: "tmdb", v: 3, id: 75938, d: ["Robert Aldrich"], c: ["Burt Lancaster", "Charles McGraw", "Charles McGraw"], w: [], p: [], m: [], g: ["Thriller", "Thriller"], k: ["USA", "United States of America", "Soviet Union", "Elbonia"], co: ["Lorimar Productions", "Bavaria Film", "Lorimar Productions"], l: "English", r: 146 } };
   const feed = { user: "tester", items: [
@@ -224,6 +232,7 @@ export default async function ({ browser, base }) {
       return { films: MY_LIB.films.length, twilight: t.entries.length, rating: t.rating, liked: t.liked, reviews: MY_LIB.reviews.length,
         mcgraw: s.cast.most.find((p) => p.name === "Charles McGraw").count, thriller: s.genres.most.find((g) => g.name === "Thriller").count,
         watchlist: MY_LIB.watchlistFilms.map((w) => w.name).join(), next: (watchNext(MY_LIB) || { picks: [] }).picks.map((p) => p.f.name).join(),
+        list: MY_LIB.lists.map((L) => `${L.items.length}:${L.seen}:${L.items[0].f === t}:${L.items[1].f === MY_LIB.watchlistFilms[0]}`).join(),
         // the pie's rule: "Other studios" while the rest is 10% or less of the films, else only the top 7
         studioRule: (() => { const mk = (n, co) => Array.from({ length: n }, (_, i) => ({ key: co + i, rating: 3, co })), mo = (f) => ({ co: [f.co] });
           const many = [...mk(20, "A"), ...mk(15, "B"), ...mk(10, "C"), ...mk(8, "D"), ...mk(6, "E"), ...mk(5, "F"), ...mk(4, "G"), ...mk(3, "H")];
@@ -237,6 +246,7 @@ export default async function ({ browser, base }) {
     assert(got.twilight === 2 && got.rating === 4 && got.liked && got.reviews === 2, `${file}: Twilight's Last Gleaming ${JSON.stringify(got)}`);
     assert(got.mcgraw === 1 && got.thriller === 1, `${file}: a name or genre listed twice in one film counted twice: ${JSON.stringify(got)}`);
     assert(got.watchlist === "Ikiru" && !got.next.includes("Twilight"), `${file}: a watched film is still to watch next: ${got.watchlist}`);
+    assert(got.list === "2:1:true:true", `${file}: a list naming one film in two spellings: ${got.list}`);
     assert(got.studioRule === "false,7,71,true,ABCDEFG,68", `${file}: the studios pie's rule (Other up to 10%, else the top 7): ${got.studioRule}`);
     assert(got.studios === "1:Lorimar Productions 1", `${file}: a film listed twice under one studio, or under two: ${got.studios}`);
     assert(/^1\|(.*,)?US:United States of America\+USA(,.*)?\|Soviet Union 1\|Elbonia$/.test(got.map), `${file}: the world map counted a country's two spellings twice, or lost one: ${got.map}`);

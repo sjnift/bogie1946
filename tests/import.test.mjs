@@ -12,6 +12,7 @@ async function exportZip() {
   f("likes/films.csv", "Date,Name,Year,Letterboxd URI\n2026-01-01,Heat,1995,x\n2026-01-01,Coney Island,1917,x\n");
   f("likes/reviews.csv", "Date,Name,Year,Letterboxd URI\n");
   f("lists/diary.csv", "Letterboxd list export v7\nDate,Name,Tags,URL,Description\n2026-01-01,diary,,x,\n\nPosition,Name,Year,URL,Description\n1,Dune,2021,x,\n");
+  f("deleted/lists/gone.csv", "Letterboxd list export v7\nDate,Name,Tags,URL,Description\n2026-01-01,gone,,x,\n\nPosition,Name,Year,URL,Description\n1,Heat,1995,x,\n");
   f("deleted/reviews.csv", "Date,Name,Year,Letterboxd URI,Rating,Rewatch,Review,Tags,Watched Date\n2026-01-01,Brick,2005,x,1,,gone,,\n");
   return z.generateAsync({ type: "nodebuffer" });
 }
@@ -23,12 +24,15 @@ export default async function ({ browser, base }) {
     await p.setInputFiles("#file-input", [{ name: "letterboxd-tester-2026-10-22-16-45-utc.zip", mimeType: "application/zip", buffer: await exportZip() }]);
     await p.waitForFunction(() => MY_LIB && state.mode === "mine");
     const got = await p.evaluate(() => ({ films: MY_LIB.films.map((f) => f.name).sort(), entries: MY_LIB.entries.length, reviews: MY_LIB.reviews.map((r) => r.html),
-      liked: MY_LIB.films.filter((f) => f.liked).map((f) => f.name), watchlist: MY_LIB.watchlistFilms.map((w) => w.name), uri: MY_LIB.films.find((f) => f.name === "Heat").uri }));
+      liked: MY_LIB.films.filter((f) => f.liked).map((f) => f.name), watchlist: MY_LIB.watchlistFilms.map((w) => w.name), uri: MY_LIB.films.find((f) => f.name === "Heat").uri,
+      lists: MY_LIB.lists.map((L) => `${L.name}:${L.items.map((x) => `${x.f.name}${x.seen ? "+" : "-"}`).join("/")}:${L.seen}`).join() }));
     assert(got.films.join() === "Brick,Heat", `${file}: films ${got.films}`);
     assert(got.entries === 2, `${file}: ${got.entries} diary entries (lists/diary.csv read as the diary?)`);
     assert(got.reviews.length === 1 && got.reviews[0].includes("<i>coffee shop</i>") && !got.reviews[0].includes("script"), `${file}: review ${got.reviews[0]}`);
     assert(got.liked.join() === "Heat", `${file}: liked ${got.liked} (a liked-only film counted?)`);
     assert(got.watchlist.join() === "Knives Out" && got.uri === "https://boxd.it/a", `${file}: watchlist or film link missing`);
+    // lists/diary.csv is a list called "diary" (5 Nov 2026: lists are read), its Dune not seen; deleted/ lists aren't read
+    assert(got.lists === "diary:Dune-:0", `${file}: lists ${got.lists}`);
     const summary = await p.evaluate(() => (document.querySelector("#import-done") || {}).textContent || state.importNote);
     assert(/2 films, 2 diary entries and 1 review/.test(summary), `${file}: summary "${summary}"`);
     // Settings says when the export was made, under "Import a newer export"

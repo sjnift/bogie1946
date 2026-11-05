@@ -35,7 +35,9 @@ function filteredLib(lib, metaOf) {
   const films = lib.films.filter(keep), set = new Set(films);
   const watchlistFilms = lib.watchlistFilms.filter(keep);
   const out = { ...lib, films, entries: lib.entries.filter((e) => set.has(e.film)), reviews: lib.reviews.filter((r) => set.has(r.film)),
-    watchlistFilms, watchlist: watchlistFilms.length, filtered: true };
+    watchlistFilms, watchlist: watchlistFilms.length, filtered: true,
+    // your lists, with only their films that pass (a list left with none is left out)
+    lists: (lib.lists || []).map((L) => listOf(L, L.items.filter((x) => keep(x.f)))).filter((L) => L.items.length) };
   FILTERED = { base: lib, sig, meta: META, lib: out };
   return out;
 }
