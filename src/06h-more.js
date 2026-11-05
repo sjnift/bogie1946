@@ -50,12 +50,21 @@ function withFeed(rows, feed) {
   const t = (r) => titleKey(r.Name, r.Year);
   const inDiary = new Set(out.diary.map((r) => `${t(r)}|${r["Watched Date"] || r.Date}`));
   const watched = new Set(out.watched.map(t)), rated = new Set(out.ratings.map(t)), liked = new Set(out.likes.map(t));
+  const reviewed = new Set(out.reviews.map((r) => `${t(r)}|${r["Watched Date"] || r.Date}`));
   const added = [];
   for (const x of [...feed.items].sort((a, b) => a.watched.localeCompare(b.watched))) {
     const title = spelled.get(titleKey(x.title, x.year)) || unescapeText(x.title);
     const base = { Name: title, Year: x.year ? String(x.year) : "" }, fk = k(base), tk = t(base);
     if (x.tmdb) KNOWN_IDS[fk] = x.tmdb;
-    if (inDiary.has(`${tk}|${x.watched}`) || (x.logged && x.logged < exportedUpTo)) continue;
+    if (inDiary.has(`${tk}|${x.watched}`) || (x.logged && x.logged < exportedUpTo)) {
+      // a review written since for a viewing the export already has: its words, once (5 Nov 2026: they waited for the
+      // next export); the viewing itself isn't added again
+      if (x.review && watched.has(tk) && !reviewed.has(`${tk}|${x.watched}`)) {
+        out.reviews.push({ ...base, Date: x.logged || x.watched, "Watched Date": x.watched, Rating: x.rating ? String(x.rating) : "", Rewatch: x.rewatch ? "Yes" : "", Tags: "", Review: x.review, feed: true });
+        reviewed.add(`${tk}|${x.watched}`);
+      }
+      continue;
+    }
     inDiary.add(`${tk}|${x.watched}`);
     const entry = { ...base, Date: x.logged || x.watched, "Watched Date": x.watched, Rating: x.rating ? String(x.rating) : "", Rewatch: x.rewatch ? "Yes" : "", Tags: "" };
     out.diary.push(entry);
@@ -65,7 +74,7 @@ function withFeed(rows, feed) {
     // 2026: the export's older rating had stayed until the next export); the saved export itself isn't changed
     else if (x.rating) { const i = out.ratings.findIndex((r) => t(r) === tk); if (i >= 0) out.ratings[i] = { ...out.ratings[i], Rating: String(x.rating) }; }
     if (x.liked && !liked.has(tk)) { out.likes.push(base); liked.add(tk); }
-    if (x.review) out.reviews.push({ ...entry, Review: x.review, feed: true });
+    if (x.review && !reviewed.has(`${tk}|${x.watched}`)) { out.reviews.push({ ...entry, Review: x.review, feed: true }); reviewed.add(`${tk}|${x.watched}`); }
     added.push({ ...x, title });
   }
   return { rows: out, added };

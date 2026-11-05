@@ -327,14 +327,19 @@ async function readExport(fileList) {
 
 // The line under "Import a newer export" in Settings, both layouts (asked 5 Nov 2026): when the export in hand was made,
 // so it's clear when a fresh one is due (ratings changed later and films marked watched without a diary entry come only
-// with one). Imports before then kept only when they were imported, so those say that instead.
+// with one). Imports before then kept only when they were imported, so those say that instead; imports before 23 Oct
+// 2026 kept neither (the owner's showed nothing), so those give the date of the newest entry in the export.
 function exportLine(rows) {
-  const at = rows && (rows.exportedAt || rows.importedAt), d = at && new Date(at);
-  if (!d || isNaN(d)) return "";
-  const p2 = (n) => String(n).padStart(2, "0"), day = `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
-  const today = new Date(), ago = Math.round((new Date(today.getFullYear(), today.getMonth(), today.getDate()) - new Date(d.getFullYear(), d.getMonth(), d.getDate())) / 864e5);
+  if (!rows) return "";
+  const at = rows.exportedAt || rows.importedAt, d = at ? new Date(at) : null, p2 = (n) => String(n).padStart(2, "0");
+  const day = d && !isNaN(d) ? `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`
+    : ["diary", "watched", "reviews"].flatMap((k) => (rows[k] || []).map((r) => String(r.Date || ""))).reduce((m, x) => /^\d{4}-\d{2}-\d{2}$/.test(x) && x > m ? x : m, "");
+  if (!day) return "";
+  const [y, m, dd] = day.split("-").map(Number), today = new Date();
+  const ago = Math.round((new Date(today.getFullYear(), today.getMonth(), today.getDate()) - new Date(y, m - 1, dd)) / 864e5);
   const when = ago <= 0 ? "today" : ago === 1 ? "yesterday" : `${fmtN(ago)} days ago`;
-  return `${rows.exportedAt ? "Last export" : "Last export imported"}: ${fmtDate(day)} (${when}).`;
+  return rows.exportedAt ? `Last export: ${fmtDate(day)} (${when}).` : rows.importedAt && d && !isNaN(d) ? `Last export imported: ${fmtDate(day)} (${when}).`
+    : `Last export: around ${fmtDate(day)}, the date of its newest entry (${when}).`;
 }
 
 // Letterboxd keeps reviews with some HTML. Keep the formatting people use (paragraphs, line breaks,

@@ -276,7 +276,9 @@ The owner asked for this to be checked every time. A film, diary entry, person o
   and, since 5 Nov 2026, when Letterboxd made the export (`exportedAt`: from its file name,
   `letterboxd-<user>-YYYY-MM-DD-HH-MM-utc.zip`, else the newest time on the files inside). Settings shows it under
   "Import a newer export" on both layouts (`exportLine`, `#set-export-date` / the phone's `.export-date`: "Last export:
-  22 Oct 2026 (14 days ago)."; an import from before says "Last export imported: …"), asked by the owner after hearing
+  22 Oct 2026 (14 days ago)."; an import from before says "Last export imported: …", and one from before 23 Oct 2026,
+  which kept neither (the owner's: the line didn't show, they reported), "Last export: around 21 Oct 2026, the date of
+  its newest entry (…)"), asked by the owner after hearing
   that ratings changed later and films marked watched without a diary entry come only with a fresh export. The
   `import` check covers it.
 - `buildLibrary(rows)` makes the library: `films` (one per film: key, name, year, rating, liked, entries,
@@ -1112,7 +1114,10 @@ Its cast and crew come from TMDB on the device a moment after (`autoLookup`, by 
 fixed then: the feed was read only when the page started, so a tab or installed app left open missed the day's run
 (now `feedAgain`: when the page comes back into view after `FEED_AGAIN` 10 minutes, and every half hour in view;
 `refreshFeed` says whether anything changed); and a film rated in the export and logged again with a new rating kept
-the old one (now the newest rating given is the film's, as on Letterboxd; the saved export isn't changed). What the
+the old one (now the newest rating given is the film's, as on Letterboxd; the saved export isn't changed). A review comes
+in with its entry, formatting kept; and (asked the same day, "is my text review … also picked up") a review written
+since for a viewing the export already has now comes in too, once, without adding the viewing again (it had waited for
+the next export). What the
 feed never carries waits for a fresh export: films marked watched, rated or liked without a diary entry, and edits or
 deletions of entries older than the feed's latest ~50. The `feed` check covers the rating and a film logged while the
 page was open, on both layouts.

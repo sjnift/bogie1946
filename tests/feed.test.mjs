@@ -56,15 +56,18 @@ export default async function ({ browser, base }) {
     const heat = await p.evaluate(() => ({ film: MY_LIB.films.find((f) => f.name === "Heat").rating, saved: store.get(KEYS.rows).ratings.find((r) => r.Name === "Heat").Rating }));
     assert(heat.film === 5 && heat.saved === "4.5", `${file}: a rewatch's new rating: ${JSON.stringify(heat)}`);
     // the page left open: a film logged since comes in when the page is back in view after a while, without a restart
-    served = { ...old, items: [{ guid: "letterboxd-watch-77", title: "Heat", year: 1995, watched: "2026-11-04", logged: "2026-11-04", rating: 4, rewatch: true, liked: true, tmdb: 949, review: "", link: "" },
-      { guid: "letterboxd-watch-78", title: "Thief", year: 1981, watched: "2026-11-05", logged: "2026-11-05", rating: 4.5, rewatch: false, liked: false, tmdb: 11524, review: "", link: "" }, ...old.items] };
+    served = { ...old, items: [{ guid: "letterboxd-review-1", title: "Brick", year: 2005, watched: "2024-02-03", logged: "2024-02-03", rating: 4, rewatch: false, liked: false, tmdb: 9270, review: "<p>Written <i>later</i>.</p>", link: "" },
+      { guid: "letterboxd-watch-77", title: "Heat", year: 1995, watched: "2026-11-04", logged: "2026-11-04", rating: 4, rewatch: true, liked: true, tmdb: 949, review: "", link: "" },
+      { guid: "letterboxd-watch-78", title: "Thief", year: 1981, watched: "2026-11-05", logged: "2026-11-05", rating: 4.5, rewatch: false, liked: false, tmdb: 11524, review: "", link: "" }, ...old.items.filter((x) => x.guid !== "letterboxd-watch-1")] };
     await p.evaluate(() => { feedAgain(); }); await p.waitForTimeout(200); // too soon: not asked again
     assert(!(await p.evaluate(() => MY_LIB.films.some((f) => f.name === "Thief"))), `${file}: the feed was asked again too soon`);
     await p.evaluate(() => { FEED_ASKED -= FEED_AGAIN; document.dispatchEvent(new Event("visibilitychange")); window.dispatchEvent(new Event("visibilitychange")); });
     await p.waitForFunction(() => MY_LIB.films.some((f) => f.name === "Thief"), null, { timeout: 5000 }).catch(() => {});
+    // (with a review written since for Brick's 2024 viewing, which the export has: the words come in, the viewing once)
     const later = await p.evaluate((phone) => ({ thief: MY_LIB.films.some((f) => f.name === "Thief"), heat: MY_LIB.films.find((f) => f.name === "Heat").rating, entries: MY_LIB.entries.length,
+      brick: MY_LIB.films.find((f) => f.name === "Brick").entries.length, late: MY_LIB.reviews.filter((r) => r.film.name === "Brick").map((r) => r.html).join("|"),
       shown: phone ? /\b5\b/.test(document.querySelector("#screen .hero, #screen").textContent) : /5 films/.test(document.querySelector("#hero-sub").textContent) }), phone);
-    assert(later.thief && later.heat === 4 && later.entries === 7 && later.shown, `${file}: a film logged while the page was open: ${JSON.stringify(later)}`);
+    assert(later.thief && later.heat === 4 && later.entries === 7 && later.shown && later.brick === 1 && later.late === "<p>Written <i>later</i>.</p>", `${file}: a film logged while the page was open: ${JSON.stringify(later)}`);
     noErrors(p, file);
   }
 }

@@ -36,9 +36,11 @@ export default async function ({ browser, base }) {
     else { await p.click("#btn-settings"); await p.waitForSelector("#set-export-date:not([hidden])"); }
     const made = await p.evaluate((phone) => ({ line: document.querySelector(phone ? "#screen .export-date" : "#set-export-date").textContent,
       under: phone ? document.querySelector("#screen .export-date").previousElementSibling.dataset.act === "import" : !!document.querySelector(".lookup-row + #set-export-date"),
-      at: store.get(KEYS.rows).exportedAt, older: exportLine({ importedAt: "2026-10-01T12:00:00Z" }), none: exportLine({}) }), phone);
+      at: store.get(KEYS.rows).exportedAt, older: exportLine({ importedAt: "2026-10-01T12:00:00Z" }), none: exportLine({}),
+      // an import from before either was kept (the owner's): the newest entry in it
+      oldest: exportLine({ diary: [{ Date: "2026-09-01" }, { Date: "2026-10-21" }], watched: [{ Date: "2026-10-02" }], reviews: [{ Date: "" }] }) }), phone);
     assert(/^Last export: 22 Oct 2026 \((today|yesterday|[\d,]+ days ago)\)\.$/.test(made.line) && made.under && made.at === "2026-10-22T16:45:00Z"
-      && /^Last export imported: 1 Oct 2026 \(/.test(made.older) && made.none === "", `${file}: the export's date: ${JSON.stringify(made)}`);
+      && /^Last export imported: 1 Oct 2026 \(/.test(made.older) && made.none === "" && /^Last export: around 21 Oct 2026, the date of its newest entry \(/.test(made.oldest), `${file}: the export's date: ${JSON.stringify(made)}`);
     noErrors(p, file);
   }
 }
