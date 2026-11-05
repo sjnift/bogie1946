@@ -80,8 +80,8 @@ const ACT_ICON = {
   quiz: `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.3a2.6 2.6 0 0 1 5 .9c0 1.8-2.5 2.3-2.5 3.8"/><path d="M12 17.2h.01"/></svg>`,
 };
 const actButtons = (scope, quiz) => `<button class="btn hbtn hbtn-main" type="button" ${dl(D.story(scope))}>${ACT_ICON.story}Play as a story</button>
-  <button class="btn hbtn" type="button" ${dl(D.share(scope))}>${ACT_ICON.share}Share as a picture</button>${quiz ? `
-  <button class="btn hbtn" type="button" ${dl(D.quiz(scope))}>${ACT_ICON.quiz}Take the quiz</button>` : ""}`;
+  <button class="btn hbtn hbtn-pic" type="button" ${dl(D.share(scope))}>${ACT_ICON.share}Share as a picture</button>${quiz ? `
+  <button class="btn hbtn hbtn-quiz" type="button" ${dl(D.quiz(scope))}>${ACT_ICON.quiz}Take the quiz</button>` : ""}`;
 // The page with nothing imported: what to do, and why the diary isn't showing if the browser lost hold of it.
 function renderWelcome() {
   $("#example-notice").hidden = false;

@@ -661,10 +661,45 @@ body.empty #settings, body.empty .foot-settings, body.has-diary #btn-import { di
 .hero-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
 .hero-btns:empty { display: none; }
 .hero-btns.in-sec { margin: 0 0 16px; }
-.btn.hbtn { font-size: 13.5px; padding: 7px 14px 7px 12px; }
-.btn.hbtn svg { flex: none; color: var(--gold-ink); }
-.btn.hbtn-main { border-color: color-mix(in srgb, var(--gold) 55%, var(--line)); }
-.btn.hbtn:hover { border-color: var(--gold-ink); }
+/* each its own colour, standing apart from the page's quiet buttons, and alive under the pointer (asked 5 Nov 2026:
+   "too sombre … distinct from the website and animate when one hovers over"): the story a gold pill with a shine
+   that sweeps across, the picture a coral-edged one whose icon tilts, the quiz a lilac-edged one whose mark wobbles */
+.btn.hbtn {
+  --hb-a: var(--gold-ink); --hb-b: #FF8A5B; --hb-glow: rgba(230, 182, 90, .35);
+  position: relative; overflow: hidden; isolation: isolate; font-size: 14px; font-weight: 650; padding: 9px 17px 9px 13px; gap: 9px;
+  color: var(--ink); border: 1.5px solid transparent;
+  background: linear-gradient(160deg, #2E2436, #211A28) padding-box, linear-gradient(120deg, var(--hb-a), var(--hb-b)) border-box;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, .35);
+  transition: transform .18s cubic-bezier(.3, .7, .4, 1.4), box-shadow .2s ease, filter .2s ease;
+}
+.btn.hbtn svg { flex: none; color: var(--hb-a); transition: transform .25s cubic-bezier(.3, .7, .4, 1.6); }
+.btn.hbtn-pic { --hb-a: #FF9E6B; --hb-b: var(--gold-ink); --hb-glow: rgba(255, 140, 90, .35); }
+.btn.hbtn-quiz { --hb-a: #B2A4FF; --hb-b: var(--lilac); --hb-glow: rgba(150, 132, 255, .38); }
+.btn.hbtn-main {
+  color: var(--on-gold); border: 0; padding: 10.5px 18px 10.5px 10px;
+  background: linear-gradient(120deg, #F2CB73, #D99A2B 55%, #C27F1C);
+  box-shadow: 0 3px 14px rgba(214, 150, 40, .35), inset 0 1px 0 rgba(255, 255, 255, .35);
+}
+.btn.hbtn-main svg { color: var(--ink); background: var(--on-gold); border-radius: 50%; width: 22px; height: 22px; padding: 5px 4px 5px 6px; box-sizing: border-box; }
+/* the shine: a band of light that crosses the button on hover */
+.btn.hbtn::after {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, .22) 48%, transparent 66%);
+  transform: translateX(-120%);
+}
+.btn.hbtn-main::after { background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, .55) 48%, transparent 66%); }
+.btn.hbtn:hover, .btn.hbtn:focus-visible { box-shadow: 0 8px 22px var(--hb-glow), 0 0 0 1px var(--hb-glow); filter: brightness(1.08); }
+.btn.hbtn-main:hover, .btn.hbtn-main:focus-visible { box-shadow: 0 8px 26px rgba(230, 170, 60, .55), inset 0 1px 0 rgba(255, 255, 255, .45); }
+.btn.hbtn:focus-visible { outline: 2px solid var(--hb-a); outline-offset: 3px; }
+@media (prefers-reduced-motion: no-preference) {
+  .btn.hbtn:hover, .btn.hbtn:focus-visible { transform: translateY(-2px); }
+  .btn.hbtn:active { transform: translateY(0) scale(.97); transition-duration: .06s; }
+  .btn.hbtn:hover::after, .btn.hbtn:focus-visible::after { transform: translateX(120%); transition: transform .7s ease; }
+  .btn.hbtn-main:hover svg { transform: translateX(2px) scale(1.12); }
+  .btn.hbtn-pic:hover svg { transform: rotate(-12deg) scale(1.15); }
+  .btn.hbtn-quiz:hover svg { animation: hb-wobble .6s ease; }
+  @keyframes hb-wobble { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-16deg) scale(1.15); } 55% { transform: rotate(12deg) scale(1.15); } 80% { transform: rotate(-5deg) scale(1.1); } }
+}
 .taste-offer { border: 1px solid var(--gold); border-radius: var(--radius); padding: 14px 16px; background: color-mix(in srgb, var(--gold) 8%, var(--surface)); max-width: 640px; }
 .story { position: relative; display: grid; aspect-ratio: 9 / 16; max-height: 62vh; width: min(100%, calc(62vh * 9 / 16)); margin: 0 auto; border-radius: 14px; overflow: hidden;
   background: radial-gradient(120% 70% at 0% 0%, color-mix(in srgb, var(--gold) 22%, transparent), transparent 60%), #141017; color: #F3EEF4; cursor: pointer; user-select: none; outline: none; }

@@ -625,7 +625,12 @@ standard errors or more from what the rest of the diary gives; every sentence op
   under the hero's line, "▶ Play as a story", "Share as a picture", "Take the quiz" (`#hero-acts`, `actButtons(scope,
   quiz)`, `.hero-btns`, `.btn.hbtn`; not `.story` or `.act`, which the story's own cards use), and the first two at the
   top of the Insights year's "In short" (`#y-glance`); the hero's line keeps only its numbers and people. The phone
-  already had buttons (Profile's story row, the Insights year).
+  already had buttons (Profile's story row, the Insights year). **Bold and alive** (asked the same day: "too sombre … a
+  bit distinct from the website and animate when one hovers over"): the story a gold gradient pill with its ▶ in a dark
+  disc (`.hbtn-main`), the picture coral-edged (`.hbtn-pic`), the quiz lilac-edged (`.hbtn-quiz`), each edge a gradient
+  border (`--hb-a`, `--hb-b`); on hover or keyboard focus each lifts 2px with a glow in its colour, a band of light
+  sweeps across (`::after`), and its icon moves (▶ nudges on, the picture tilts, the quiz mark wobbles: `hb-wobble`);
+  the movement only without reduced motion.
 - **Pictures to share** (`06i-share.js`): a year, all time (desktop hero and phone Profile, "Share as a picture";
   the desktop's Insights year, the phone's Insights year) or a taste match (Compare, both layouts), as a feed post or a
   story, chosen with two chips over the picture. Drawn on a canvas; posters that can't be copied leave title cards.
