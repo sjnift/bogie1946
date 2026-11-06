@@ -464,14 +464,15 @@ friend replaces the address instead.
 - **By year of release** (asked 31 Oct 2026: "a year wise graph with the number of films released in each year I've
   watched like letterboxd"; `releaseYearsChart` in `06b-charts.js`, `s.relYears`): every release year from the first to
   the last as a bar (years with none left empty), films or your average rating, each opening its films, a label every
-  ten years (twenty on the phone past 70 years) and a tick every ten. **One stretched SVG** (`.ry`; the owner, the same
+  year, 2, 5, 10 or 20 years, as many as fit (16 on the computer, 7 on the phone; 6 Nov 2026, it had been every ten
+  years, so a filtered 1940s showed "1940" alone) and a tick at each label and every tenth year. **One stretched SVG** (`.ry`; the owner, the same
   day: "all the bars are overlapping on each other"): the owner's 107 years are under 2px a year on a phone, which boxes
   round to 1px or 2px, and the phone's bars had taken the switch's padding (6px each); SVG bars share the width evenly,
   each year's whole slot is its target, at least a dozen slots so a few years aren't huge bars. Rating: a dashed line
   at your average, years with fewer than `RY_FEW` 3 ratings paler, and (asked 31 Oct 2026) a solid trend line, your
   average for the films released within `RY_SPAN` 2 years either side where they have `RY_TREND_MIN` 5 ratings
   (`vector-effect` keeps it 2px however the SVG stretches; each year's tip says it), a line under it saying all three,
-  and faint guide lines with their value at each half star (each star over a wide range) for a scale (1 Nov 2026). The phone puts the
+  and faint guide lines with their value at each half star (each star over a wide range) for a scale (1 Nov 2026; since 6 Nov 2026 every chart's y scale is down the left, see "Every bar chart's axes are labelled"). The phone had put the
   gridline's number in a gutter on the left so the bars get the card's width. The `extras` check measures a century in
   300px on both layouts (equal bars, each inside its slot), opens a year and the rating view. Desktop: the Released
   section's switch "Films by year / Rating by year / By decade" (`state.tab.released`, films first); phone: Stats ›
@@ -637,7 +638,22 @@ standard errors or more from what the rest of the diary gives; every sentence op
   keeps it (`memo`: `study|crowd`, `ystudy|year|crowd`); the desktop keeps it until the data changes (`STUDY_CACHE`).
 - **Compare**: add friends' export ZIPs (stored in the browser); taste match, overlap, agree/disagree, rating
   style, genres, people, watch next for each other, watch together, habits; Everyone view for 2+ friends.
-- **Charts** (`colChart`): `{ unit }` names what the gridline counts ("20 films", "50 h", "20%"); averages (rating by
+- **Every bar chart's axes are labelled** (asked 6 Nov 2026: "all the bar charts in the website have no clearly labelled x
+  and y axis", with a filtered Rating by year whose x axis read "1940" alone and whose y scale was one faint line with
+  its number off to the right). `axisFrame` (06b-charts) draws them all, on both layouts: the y axis's name over a column
+  of labels down the left (`.cx-yt`, `.cx-y`), a hairline across at each label, the x labels and the x axis's name under
+  the plot (`.cx-x`, `.cx-xt`). `yScale` picks the labels: 0 (or the value columns start from, rounded down to a step,
+  its label saying so) up to a step at or over the highest, steps of 1, 2, 2.5 or 5 times a power of ten (whole numbers
+  for counts), four intervals on a tall chart, three or two on smaller ones; `tickN` (10K past 10,000), `tickStar`
+  (3½★). Every caller names both axes (`{ y, x }`): ratings spread "Films" / "Rating given", diary "Films watched" /
+  Week, Month or Year, decades, year by year (and its rating, `yFmt: tickStar`), directors discovered, reviews each
+  year, pace "Pace, % of your usual" / Month, the study's drifts (`driftCols` gives each its `yt`, `yf`, real values from
+  a `base`), release years "Films" or "Your average rating" / "Year of release", Compare's rating style (`pairHist` in
+  06e-compare, both layouts) and the weekdays (`axisNames`: names only, each bar has its number). The phone's Profile
+  ratings chart keeps its star labels (it had "½ … ★★★★★" ends instead). The `axes` check opens every chart on both
+  layouts (chapters, Insights, Compare, the phone's tour) and fails one without both names, x labels, or a scale of two
+  or more labels rising evenly and not cut off.
+- **Charts** (`colChart`): `{ unit: "%" }` writes the scale as percentages; averages (rating by
   year) are drawn with `{ values, base }`, columns that start just under the lowest (`valuesBase`), and only the best
   year's number (gold) and the worst's (purple) over them, the rest on hover or tap (`avgYearsChart`; the owner found a
   number on every column congested, 25 Oct 2026). Year labels under charts thin out on long diaries (`yearTick`: every
@@ -1211,7 +1227,7 @@ until the next render, so `counts` visits them all before its audit)), `run.mjs`
 `apify`, `imdbcast` (the owner's cast checked on IMDb), `people` (people by TMDB id, the people check, cameos, voices, small parts and who counts by hand), `check` (film data check), `counts` (double counting, also with filters on), `reviews` (missing review text spotted; six-film actors), `welcome` (no example diary; import saved at once), `extras` (year picture, On this day, Watch next, PWA), `feed`, `import`,
 `links` (every link opens something), `pages` (nothing broken shows, no sideways scroll on the phone),
 `routes`, `storage` (IndexedDB move, backup and restore), `site` (the diary on the site: a stand-in GitHub and site),
-`tmdb` (fixing a match, filmography, search), `quiz` (the quiz's answers and a round on both layouts), `foryou` (For you against a stand-in TMDB), `log` (logging a film here against a stand-in TMDB), `lists` (posters for films on a list you haven't seen), `favs` (recent favourites: the window, liked first, the most varied four, colour, both layouts), `extras` also covers the story and every kind and shape of picture, `xss` (nothing from outside can run code, about three minutes: it opens lists in every chapter), `study` (a
+`tmdb` (fixing a match, filmography, search), `quiz` (the quiz's answers and a round on both layouts), `foryou` (For you against a stand-in TMDB), `log` (logging a film here against a stand-in TMDB), `lists` (posters for films on a list you haven't seen), `axes` (every bar chart's axes named and scaled, both layouts), `favs` (recent favourites: the window, liked first, the most varied four, colour, both layouts), `extras` also covers the story and every kind and shape of picture, `xss` (nothing from outside can run code, about three minutes: it opens lists in every chapter), `study` (a
 five-year diary with patterns planted in it: the study finds them on both layouts and for a year, repeats nothing from
 the Stats page, and every list it opens holds each film once). `lib.mjs`
 also cuts off api.github.com and jsdelivr, answers `diary/` with "not found", and counts anything the security policy

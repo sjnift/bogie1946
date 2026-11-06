@@ -63,12 +63,12 @@ function crowdScreen(s) {
 }
 
 const TRENDS = {
-  films: { label: "Films", unit: "films", value: (p) => p.films, tip: (p) => `${p.year}: ${plural(p.films, "film")}${p.pace ? `, on pace for about ${fmtN(p.pace)}` : ""}`, extra: (p) => p.pace && p.pace > p.films ? p.pace - p.films : 0 },
-  hours: { label: "Hours", unit: "h", value: (p) => Math.round(p.hours), tip: (p) => `${p.year}: ${fmtN(Math.round(p.hours))} hours` },
+  films: { yt: "Films", label: "Films", unit: "films", value: (p) => p.films, tip: (p) => `${p.year}: ${plural(p.films, "film")}${p.pace ? `, on pace for about ${fmtN(p.pace)}` : ""}`, extra: (p) => p.pace && p.pace > p.films ? p.pace - p.films : 0 },
+  hours: { yt: "Hours", label: "Hours", unit: "h", value: (p) => Math.round(p.hours), tip: (p) => `${p.year}: ${fmtN(Math.round(p.hours))} hours` },
   rating: { label: "Rating", value: (p) => p.avgRating, tip: (p) => `${p.year}: ${p.avgRating ? starsNum(p.avgRating) : "no ratings"}` },
-  age: { label: "Film age", unit: "yrs", value: (p) => p.age, tip: (p) => `${p.year}: ${p.age != null ? Math.round(p.age) + " years old on average" : "—"}` },
-  nonEnglish: { label: "Not English", unit: "%", value: (p) => p.nonEnglish, tip: (p) => `${p.year}: ${p.nonEnglish != null ? p.nonEnglish + "% not in English" : "not enough details"}` },
-  rewatches: { label: "Rewatches", unit: "%", value: (p) => pctOf(p.rewatches, p.entries), tip: (p) => `${p.year}: ${pctOf(p.rewatches, p.entries)}% of entries were rewatches` },
+  age: { yt: "Years old", label: "Film age", unit: "yrs", value: (p) => p.age, tip: (p) => `${p.year}: ${p.age != null ? Math.round(p.age) + " years old on average" : "—"}` },
+  nonEnglish: { yt: "% not in English", label: "Not English", unit: "%", value: (p) => p.nonEnglish, tip: (p) => `${p.year}: ${p.nonEnglish != null ? p.nonEnglish + "% not in English" : "not enough details"}` },
+  rewatches: { yt: "% rewatches", label: "Rewatches", unit: "%", value: (p) => pctOf(p.rewatches, p.entries), tip: (p) => `${p.year}: ${pctOf(p.rewatches, p.entries)}% of entries were rewatches` },
 };
 function mYears(I) {
   if (I.years.length < 2) return sh("Year by year") + twoYears("Year-by-year trends");
@@ -77,7 +77,7 @@ function mYears(I) {
   const anyPace = t === "films" && I.years.some((p) => p.pace && p.pace > p.films);
   const legend = anyPace ? `<div class="legend"><span><i style="background:var(--green-mark)"></i>Watched</span><span><i style="background:var(--blue-mark)"></i>Rest of this year at your pace</span></div>` : "";
   const chart = colChart(I.years.map((p, i) => ({ a: Math.max(0, T.value(p) || 0), b: T.extra ? T.extra(p) : 0, label: yearTick(i, I.years.length, p.year), year: p.year, tip: T.tip(p), to: p.entries ? yearDrill(p, t) : null })), `${T.label} by year`, legend, 130,
-    t === "rating" ? avgYearsChart(I.years) : { unit: T.unit });
+    t === "rating" ? { ...avgYearsChart(I.years), y: "Average rating", x: "Year watched", yFmt: tickStar } : { unit: T.unit, y: T.yt, x: "Year watched" });
   const ys = [...I.years].reverse(), H = yearsHiLo(ys);
   const rows = ys.map((p, i) => {
     const cell = (what, v, label) => `<span class="c${(H[what] || [])[i] || ""}"><b>${v == null ? "—" : dlink(yearDrill(p, what), v)}</b><small>${label}</small></span>`;
@@ -129,7 +129,7 @@ function mPeopleYears(I) {
   if (comp.length) html += sh("Long-time companions") + `<div class="group">${comp.map((p, i) => row(p, i, `${p.years.size}y`, (q) => `${q.role} · ${plural(q.years.size, "year")} of your diary`)).join("")}</div>`;
   if (P.discoveries.length >= 2) html += sh("Directors discovered each year") + `<div class="card">` +
     colChart(P.discoveries.map((d, i) => ({ a: d.count, b: 0, label: yearTick(i, P.discoveries.length, d.year), tip: `${d.year}: ${plural(d.count, "new director")}`,
-      to: d.count && D.names(`Directors new in ${d.year}`, plural(d.count, "director"), d.people, { faces: true }) })), "New directors by year", "", 80, { unit: "new" }) + `</div>`;
+      to: d.count && D.names(`Directors new in ${d.year}`, plural(d.count, "director"), d.people, { faces: true }) })), "New directors by year", "", 80, { y: "New directors", x: "Year" }) + `</div>`;
   return html;
 }
 

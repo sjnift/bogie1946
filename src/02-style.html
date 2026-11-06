@@ -277,6 +277,9 @@ main { padding-block: 8px 64px; }
 .spread .col .seg { max-width: 34px; }
 .stars-axis { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 2px; margin-top: 6px; }
 .stars-axis span { text-align: center; font-size: 11px; color: var(--muted); white-space: nowrap; letter-spacing: -.04em; }
+.phist-x { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 6px; margin-top: 6px; }
+.phist-x span { text-align: center; font-family: var(--mono); font-size: 11px; color: var(--muted); white-space: nowrap; }
+.cx .phist { position: relative; z-index: 1; }
 
 /* ---------- people ---------- */
 /* six across, so the twelve faces fill two rows (seven across left two empty places, Nov 2026) */
@@ -978,6 +981,21 @@ body.empty #settings, body.empty .foot-settings, body.has-diary #btn-import, bod
 .ry-axis span { position: absolute; top: 7px; transform: translateX(-50%); font-family: var(--mono); font-size: 11px; color: var(--muted); white-space: nowrap; }
 .ry-axis span.l { transform: translateX(-2px); } .ry-axis span.r { transform: translateX(calc(-100% + 2px)); }
 .ry-note { margin: 4px 0 0; font-size: 13px; color: var(--muted); }
+/* every bar chart's axes (asked 6 Nov 2026: "no clearly labelled x and y axis"; `axisFrame` in 06b-charts): the y
+   axis's name over a column of its labels down the left, a hairline across at each label, then the x labels and the x
+   axis's name under the plot */
+.cx { display: grid; grid-template-columns: var(--yw, 0) minmax(0, 1fr); column-gap: 10px; align-items: end; font-size: 11px; }
+.cx-yt { grid-column: 1 / -1; font-size: 12.5px; font-weight: 600; color: var(--ink-2); margin: 2px 0 8px; }
+.cx-y { grid-column: 1; position: relative; margin-bottom: 1px; font-family: var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.cx-y span { position: absolute; right: 0; transform: translateY(50%); line-height: 1; white-space: nowrap; }
+.cx-p, .cx-x, .cx-xt { grid-column: 2; min-width: 0; }
+.cx-xt { text-align: center; font-size: 12.5px; font-weight: 600; color: var(--ink-2); margin-top: 6px; }
+.cx .chart, .cx .chart.unit, .cx .axis, .cx .ry-plot, .cx .ry-axis { margin-right: 0; }
+.cx .ry-plot { margin-top: 0; }
+.cx .gridline { left: 0; right: 0; border-top: 1px solid rgba(255, 255, 255, .07); }
+.cx .ry-line.guide { right: 0; border-top: 1px solid rgba(255, 255, 255, .07); }
+.cx.plain { display: block; } .cx.plain .cx-xt { margin-top: 8px; }
+.mult .cx-yt, .drift .cx-yt { font-size: 12px; margin-bottom: 6px; } .mult .cx-xt, .drift .cx-xt { font-size: 12px; }
 /* back in time: most watched as of a date (06r-asof) */
 .asof { --rlw: 84px; --pie-1: #c98500; --pie-2: #3987e5; --pie-3: #d95926; --pie-4: #199e70; --pie-5: #9085e9; --pie-6: #d55181; --pie-7: #008300; }
 .asof-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px 24px; flex-wrap: wrap; margin: 0 0 16px; }

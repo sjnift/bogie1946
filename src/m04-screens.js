@@ -17,7 +17,7 @@ function diaryScreen(s) {
     fact("Favourite day", WEEKDAYS_LONG[fav], null, memo(`wd|${s.scope}`, () => s.weekday.map((n, i) => DR.weekday(s.entries, i)))[fav]),
   ].join("")}</div>`;
   const legend = s.rewatches ? `<div class="legend"><span><i style="background:var(--green-mark)"></i>First watch</span><span><i style="background:var(--blue-mark)"></i>Rewatch</span></div>` : "";
-  let chart = colChart(cols, `Diary entries by ${unit}`, legend, 120, { unit: "films" });
+  let chart = colChart(cols, `Diary entries by ${unit}`, legend, 120, { y: "Films watched", x: unit === "week" ? `Week of ${s.scope}` : capFirst(unit) });
   if (cols.length > 24) chart = chart.replace('class="axis"', 'class="axis dense"');
   const wmax = Math.max(1, ...s.weekday), byWeekday = memo(`wd|${s.scope}`, () => s.weekday.map((n, i) => DR.weekday(s.entries, i)));
   const weekdays = `<div class="weekdays" role="group" aria-label="Diary entries by day of the week">${s.weekday.map((n, i) =>
@@ -35,7 +35,7 @@ function diaryScreen(s) {
   const more = s.entries.length > state.diaryLimit ? `<button class="row" type="button" data-act="more-diary" data-auto style="padding-inline:0"><span>Show older entries</span><span class="count">${fmtN(s.entries.length - state.diaryLimit)} more</span>${CHEV}</button>` : "";
   return head + facts +
     sh(`Films by ${unit}`, `<span class="count">${plural(s.entries.length, "entry", "entries")}</span>`) + `<div class="card">${chart}</div>` +
-    sh("Days of the week") + `<div class="card">${weekdays}</div>` +
+    sh("Days of the week") + `<div class="card">${axisNames("Films", weekdays, "Day of the week")}</div>` +
     sh(s.scope === "all" ? "Last 12 months" : `Every day of ${s.scope}`) + `<div class="card">${heatmap(s).replace("Fewer", "Less")}</div>` +
     sh("Entries") + `<div>${rows}</div>` + more;
 }
@@ -140,7 +140,7 @@ function genresScreen(s) {
     const rel = state.relMode === "rating" ? "rating" : "films";
     html += sh("By year of release") + segBar("relmode", [["films", "Films"], ["rating", "Your rating"]], rel, "small") + `<div class="card">${releaseYearsChart(s, rel, 130)}</div>` +
       (ranked.length ? sh("Decades, best rated first") + `<div class="group">${ranked.map(decadeRow).join("")}</div>` : "") +
-      sh("Films by decade of release") + `<div class="card">${colChart(cols, "Films by decade of release", "", 100, { unit: "films" })}</div>`;
+      sh("Films by decade of release") + `<div class="card">${colChart(cols, "Films by decade of release", "", 100, { y: "Films", x: "Decade of release" })}</div>`;
   }
   if (s.scope === "all" && s.withMeta) { const I = soonInsights("all"); html += I ? mGenres(I) : sh("Genres as you rate them") + soonCard("your genres"); }
   return html;

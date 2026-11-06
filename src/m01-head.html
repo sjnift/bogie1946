@@ -464,6 +464,9 @@ img.fade.in { opacity: 1; }
 .heat-key { display: flex; align-items: center; gap: 4px; font-size: 11.5px; color: var(--muted); margin-top: 8px; }
 .heat-key i { width: 11px; height: 11px; border-radius: 3px; display: inline-block; background: var(--surface-2); }
 .hist-ends { display: flex; justify-content: space-between; font-size: 12px; margin-top: 5px; }
+.phist-x { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 4px; margin-top: 6px; }
+.phist-x span { text-align: center; font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+.cx .phist { position: relative; z-index: 1; margin-top: 0; }
 .big-n { color: var(--ink); font-size: 30px; font-weight: 800; letter-spacing: -.02em; line-height: 1; font-variant-numeric: tabular-nums; }
 
 /* ---------- detail screens ---------- */
@@ -979,6 +982,22 @@ body.nodata .hero .avatar svg { width: 40px; height: 40px; color: var(--green); 
 .ry-axis span { position: absolute; top: 7px; transform: translateX(-50%); font-size: 11.5px; color: var(--muted); white-space: nowrap; }
 .ry-axis span.l { transform: translateX(-2px); } .ry-axis span.r { transform: translateX(calc(-100% + 2px)); }
 .ry-note { margin: 6px 0 0; font-size: 12.5px; color: var(--muted); line-height: 1.4; }
+/* every bar chart's axes (asked 6 Nov 2026: "no clearly labelled x and y axis"; `axisFrame` in 06b-charts): the y
+   axis's name over a column of its labels down the left, a hairline across at each label, then the x labels and the x
+   axis's name under the plot */
+.cx { display: grid; grid-template-columns: var(--yw, 0) minmax(0, 1fr); column-gap: 8px; align-items: end; font-size: 11px; }
+.cx-yt { grid-column: 1 / -1; font-size: 12.5px; font-weight: 600; color: var(--ink-2); margin: 2px 0 8px; }
+.cx-y { grid-column: 1; position: relative; margin-bottom: 1px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.cx-y span { position: absolute; right: 0; transform: translateY(50%); line-height: 1; white-space: nowrap; }
+.cx-p, .cx-x, .cx-xt { grid-column: 2; min-width: 0; }
+.cx-xt { text-align: center; font-size: 12.5px; font-weight: 600; color: var(--ink-2); margin-top: 6px; }
+.cx .chart, .cx .chart.unit, .cx .axis, .cx .ry-axis, .cx .chart + .axis { margin-right: 0; margin-left: 0; }
+.cx .chart, .cx .ry-plot { margin: 0; }
+.cx .gridline { left: 0; right: 0; border-top: 1px solid rgba(255, 255, 255, .08); }
+.cx .ry-line.guide { left: 0; border-top: 1px solid rgba(255, 255, 255, .08); }
+.cx .ry-line.avg { left: 0; }
+.cx.plain { display: block; } .cx.plain .cx-xt { margin-top: 8px; }
+.drift .cx-yt { font-size: 12px; margin-bottom: 6px; } .drift .cx-xt { font-size: 12px; }
 /* back in time: most watched as of a date (06r-asof) */
 .asof { --rlw: 58px; --pie-1: #00A845; --pie-2: #3987e5; --pie-3: #d95926; --pie-4: #199e70; --pie-5: #9085e9; --pie-6: #c98500; --pie-7: #d55181; margin-top: 12px; }
 .asof-head { background: var(--surface); border-radius: 16px 16px 0 0; padding: 16px 14px 10px; display: flex; flex-direction: column; gap: 12px; }

@@ -43,11 +43,8 @@ function mPair(C, tab) {
   if (tab === "ratings") {
     let h = "";
     if (A.rated.length && B.rated.length) {
-      const mx = Math.max(1, ...A.spread, ...B.spread);
       h += sh("Rating style") + `<div class="card"><div class="legend"><span><i style="background:var(--green-mark)"></i>You · ${A.avg.toFixed(2)} avg</span><span><i style="background:var(--blue-mark)"></i>${esc(B.name)} · ${B.avg.toFixed(2)} avg</span></div>
-        <div class="phist" role="group" aria-label="Share of each person's ratings at each half-star">${A.spread.map((a, i) => `<button class="pgroup" type="button" ${a || B.spread[i] ? dl(to.stars((i + 1) / 2)) : "disabled"} aria-label="${stars((i + 1) / 2)}: you ${Math.round(a)}%, ${esc(B.name)} ${Math.round(B.spread[i])}%">
-          <span class="pa" style="height:${(a / mx * 100).toFixed(1)}%"></span><span class="pb" style="height:${(B.spread[i] / mx * 100).toFixed(1)}%"></span></button>`).join("")}</div>
-        <div class="hist-ends"><span class="stars">½</span><span class="stars">★★★★★</span></div></div>`;
+        ${pairHist(A, B, to, 120)}</div>`;
     }
     if (C.topGenres.length) {
       const gmax = Math.max(1, ...C.topGenres.map((g) => Math.max(g.a, g.b)));

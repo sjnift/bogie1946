@@ -59,9 +59,9 @@ function yearsBlock(I) {
   const legend = anyPace ? `<div class="legend"><span><i style="background:var(--gold)"></i>Watched</span><span><i style="background:var(--lilac)"></i>Rest of this year at your current pace</span></div>` : "";
   // one row of charts; hours, not in English and rewatches are in the table below (the owner's trim, Oct 2026)
   const charts = `<div class="mults">
-    ${mult("Films", "films", (p) => p.films, (p) => `${p.year}: ${plural(p.films, "film")}${p.pace ? `, on pace for about ${fmtN(p.pace)}` : ""}`, (p) => p.pace && p.pace > p.films ? p.pace - p.films : 0, { unit: "films" })}
-    ${mult("Average rating", "rating", (p) => p.avgRating, (p) => `${p.year}: ${p.avgRating ? starsNum(p.avgRating) : "no ratings"}`, null, ratingOpts)}
-    ${mult("Film age when watched (years)", "age", (p) => p.age, (p) => `${p.year}: films were ${p.age != null ? Math.round(p.age) : "—"} years old on average`, null, { unit: "yrs" })}
+    ${mult("Films", "films", (p) => p.films, (p) => `${p.year}: ${plural(p.films, "film")}${p.pace ? `, on pace for about ${fmtN(p.pace)}` : ""}`, (p) => p.pace && p.pace > p.films ? p.pace - p.films : 0, { y: "Films", x: "Year watched" })}
+    ${mult("Average rating", "rating", (p) => p.avgRating, (p) => `${p.year}: ${p.avgRating ? starsNum(p.avgRating) : "no ratings"}`, null, { ...ratingOpts, y: "Average rating", x: "Year watched", yFmt: tickStar })}
+    ${mult("Film age when watched (years)", "age", (p) => p.age, (p) => `${p.year}: films were ${p.age != null ? Math.round(p.age) : "—"} years old on average`, null, { y: "Years old", x: "Year watched" })}
   </div>`;
   const top = (p, pair, role) => pair && pair[1] > 1 ? `${dlink(personDrill(state.lib, pair[0], role, p.F), esc(pair[0]))} <span class="muted">${pair[1]}</span>` : "—";
   const ys = [...I.years].reverse(), H = yearsHiLo(ys), rw = everRewatched(wholeLib()); // no column of 0%s
@@ -116,7 +116,7 @@ function peopleYearsBlock(I) {
   const obs = top8(obsAll, (p) => p.inLatest), comp = top8(compAll, (p) => p.years.size);
   const allOf = (all, title, sub) => all.length > 8 ? `<p class="status">${dlink(D.names(title, sub, all, { faces: true }), `See all ${fmtN(all.length)} ›`)}</p>` : "";
   const disc = P.discoveries.length >= 2 ? `<div><h3>Directors discovered each year</h3>${colChart(P.discoveries.map((d, i) => ({ a: d.count, b: 0, label: yearTick(i, P.discoveries.length, d.year), tip: `${d.year}: ${plural(d.count, "new director")}`,
-      to: d.count && D.names(`Directors new in ${d.year}`, plural(d.count, "director"), d.people, { faces: true }) })), "New directors by year", "", 90, { unit: "new" })}
+      to: d.count && D.names(`Directors new in ${d.year}`, plural(d.count, "director"), d.people, { faces: true }) })), "New directors by year", "", 90, { y: "New directors", x: "Year" })}
     <p class="status">Directors whose first film in your diary came that year. Your first diary year is left out.</p></div>` : "";
   return `<div class="ins-grid">
     <div><h3>New in ${esc(I.latest)}</h3>${list(obs, (p) => plural(p.inLatest, "film"), (p) => `${p.role === "director" ? "Director" : "Actor"} · ${plural(p.inLatest, "film")} in ${I.latest}, none before`)}${allOf(obsAll, `New in ${I.latest}`, `Directors and actors with films in ${I.latest} and none before, most first`)}</div>

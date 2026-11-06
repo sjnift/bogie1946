@@ -144,6 +144,18 @@ function ratedByBoth(P, Q, title, order = "close") {
 const pairOf = (title, sub, a, b) => D.groups(title, sub, [a, b]);
 
 /* ----- you and one other person ----- */
+// Two people's rating spreads side by side (Compare's "Rating style"), as columns with their axes named (asked 6 Nov
+// 2026: every bar chart labelled), for both layouts: each half-star a pair, opening the films either of them gave it.
+function pairHist(A, B, to, H) {
+  const mx = Math.max(1, ...A.spread, ...B.spread), S = yScale(0, mx, H);
+  const lines = S.ticks.filter((t) => t > 0).map((t) => `<div class="gridline" style="bottom:${(S.at(t) * H).toFixed(1)}px"></div>`).join("");
+  const bars = A.spread.map((a, i) => { const tip = `${stars((i + 1) / 2)}: you ${Math.round(a)}%, ${esc(B.name)} ${Math.round(B.spread[i])}%`;
+    return `<button class="pgroup" type="button" ${a || B.spread[i] ? dl(to.stars((i + 1) / 2)) : "disabled"} data-tip="${tip}" aria-label="${tip}">
+      <span class="pa" style="height:${(S.at(a) * 100).toFixed(1)}%"></span><span class="pb" style="height:${(S.at(B.spread[i]) * 100).toFixed(1)}%"></span></button>`; }).join("");
+  const plot = `<div class="chart">${lines}<div class="phist" style="height:${H}px" role="group" aria-label="Share of each person's ratings at each half-star">${bars}</div></div>`;
+  const xl = `<div class="phist-x">${A.spread.map((_, i) => `<span>${i === 0 ? "½" : (i + 1) % 2 ? "" : `${(i + 1) / 2}★`}</span>`).join("")}</div>`;
+  return axisFrame(S, H, plot, xl, { unit: "%", y: "% of each one's ratings", x: "Rating given" });
+}
 function comparePair(A, B, metaOf) {
   const shared = A.films.filter((f) => B.byKey.has(f.key));
   const union = A.films.length + B.films.length - shared.length;

@@ -250,15 +250,15 @@ function driftDefs(B) {
     { id: "newDir", kind: "share", big: "Exploring", big2: "Old favourites", name: "directors new to you", test: (x) => x.newDir, needs: (x) => x.d.length, min: 0.08,
       text: (a, b, y0, y1) => b > a ? `You're exploring more: ${pc(b)}% of the films you saw for the first time in ${y1} were by directors you'd never seen before, against ${pc(a)}% in ${y0}.`
         : `You're going back to directors you know: ${pc(b)}% of your new films in ${y1} were by someone you'd never seen before, against ${pc(a)}% in ${y0}.` },
-    { id: "age", kind: "median", big: "Older films", big2: "Newer films", name: "age when you saw it", val: (x) => x.age, min: 5, fmt: (v) => ageWord(v), sort: "old", note: (x) => `${ageWord(x.age)} when you saw it`,
+    { id: "age", kind: "median", yt: "Years old when seen", big: "Older films", big2: "Newer films", name: "age when you saw it", val: (x) => x.age, min: 5, fmt: (v) => ageWord(v), sort: "old", note: (x) => `${ageWord(x.age)} when you saw it`,
       text: (a, b, y0, y1) => `You've moved toward ${b > a ? "older" : "newer"} films: the typical film you saw in ${y0} was about ${ageWord(a)} at the time; in ${y1}, about ${ageWord(b)}.` },
-    { id: "rt", kind: "mean", big: "Longer films", big2: "Shorter films", name: "length", val: (x) => x.rt, min: 8, fmt: (v) => `${Math.round(v)} min`, sort: "runtime", note: (x) => `${x.rt} min`,
+    { id: "rt", kind: "mean", yt: "Minutes", big: "Longer films", big2: "Shorter films", name: "length", val: (x) => x.rt, min: 8, fmt: (v) => `${Math.round(v)} min`, sort: "runtime", note: (x) => `${x.rt} min`,
       text: (a, b, y0, y1) => `Your films have got ${b > a ? "longer" : "shorter"}: ${Math.round(a)} minutes on average in ${y0}, ${Math.round(b)} in ${y1}.` },
-    { id: "votes", kind: "logmedian", big: "Better-known films", big2: "Off the beaten path", name: `${B.popSrc} ratings`, val: (x) => x.votes, min: Math.log(1.8), fmt: (v) => fmtN(Math.round(v)), note: (x) => `${fmtN(x.votes)} ${B.popSrc} ratings`,
+    { id: "votes", kind: "logmedian", yt: `${B.popSrc} ratings`, big: "Better-known films", big2: "Off the beaten path", name: `${B.popSrc} ratings`, val: (x) => x.votes, min: Math.log(1.8), fmt: (v) => fmtN(Math.round(v)), note: (x) => `${fmtN(x.votes)} ${B.popSrc} ratings`,
       text: (a, b, y0, y1) => `You've moved ${b < a ? "off the beaten path" : "toward better-known films"}: the typical film you watched in ${y1} had about ${fmtN(roundish(b))} ${B.popSrc} ratings, against ${fmtN(roundish(a))} in ${y0}.` },
-    { id: "crowd", kind: "mean", big: "Better-regarded films", big2: "Less acclaimed films", name: `${C.label}'s score`, val: (x) => x.crowd, min: 0.15, fmt: fmtC, note: (x) => `${C.short} ${fmtC(x.crowd)}`,
+    { id: "crowd", kind: "mean", yt: `${C.label}'s score`, yf: fmtC, big: "Better-regarded films", big2: "Less acclaimed films", name: `${C.label}'s score`, val: (x) => x.crowd, min: 0.15, fmt: fmtC, note: (x) => `${C.short} ${fmtC(x.crowd)}`,
       text: (a, b, y0, y1) => `You're picking ${b > a ? "better-regarded" : "less acclaimed"} films: ${C.label} give what you watched in ${y1} ${fmtC(b)} on average, against ${fmtC(a)} in ${y0}.` },
-    { id: "range", kind: "range", big: "A wider world", big2: "A narrower world", name: "range of countries", min: 1.5, fmt: (v) => v.toFixed(1),
+    { id: "range", kind: "range", yt: "Countries in 20 films", big: "A wider world", big2: "A narrower world", name: "range of countries", min: 1.5, fmt: (v) => v.toFixed(1),
       text: (a, b, y0, y1) => `Your range has ${b > a ? "widened" : "narrowed"}: any 20 films you watched in ${y0} came from about ${Math.round(a)} countries; in ${y1}, from about ${Math.round(b)}.` },
   ];
 }
@@ -311,7 +311,7 @@ function drifts(B, periods) {
       return { v, label: q.p.axis, minor: q.p.minor, tip: `${q.p.label}: ${shown}`, to: xs.length ? listOf(`${capFirst(def.name)} · ${q.p.label}`, xs) : null };
     });
     if (Math.abs(fit.t) >= STUDY_Z && moved >= def.min && Math.sign(fit.b) === Math.sign(b - a)) {
-      list.push({ id: def.id, big: b > a ? def.big : (def.big2 || `Fewer ${def.name}`), text: def.text(a, b, y0, y1), t: fit.t, r2: fit.r2, up: b > a, to, series, kind: def.kind });
+      list.push({ id: def.id, big: b > a ? def.big : (def.big2 || `Fewer ${def.name}`), text: def.text(a, b, y0, y1), t: fit.t, r2: fit.r2, up: b > a, to, series, kind: def.kind, yt: def.yt, yf: def.yf });
     } else if (def.id.startsWith("g:") && Math.abs(fit.t) < 1.5) {
       const all = films(P), share = all.length / P.reduce((s, p) => s + p.F.filter((x) => x.m).length, 0);
       if (share >= 0.15) steady.push({ share, text: `${capFirst(def.name)} have held steady at about ${pc(share)}% of what you see for the first time, year after year.`, to });
@@ -735,11 +735,13 @@ function apartLine(C) {
 }
 /* ----- pieces both layouts draw ----- */
 // A drift's periods as columns. Shares start from zero; typical values (age, length…) from a little under the
-// lowest, so a change shows, and then the chart has no gridline to misread.
+// lowest, so a change shows, and the label at the baseline says where they start (6 Nov 2026: every chart's axes
+// named, `yt` the y axis's, `yf` how its ticks read).
 function driftCols(d) {
   const vs = d.series.filter((c) => c.v != null).map((c) => c.v), lo = Math.min(...vs), hi = Math.max(...vs);
   const floor = d.kind === "share" || !vs.length ? 0 : Math.max(0, lo - (hi - lo) * 0.35 - 1e-6);
-  return { grid: !floor, unit: d.kind === "share" ? "%" : "", cols: d.series.map((c) => ({ a: c.v == null ? 0 : Math.max(0.0001, c.v - floor), b: 0, label: c.label, minor: c.minor, tip: c.tip, to: c.to })) };
+  return { opts: { base: floor, unit: d.kind === "share" ? "%" : "", y: d.kind === "share" ? "% of the films" : d.yt || "", yFmt: d.yf || null, x: "When you watched" },
+    cols: d.series.map((c) => ({ a: c.v == null ? 0 : Math.max(floor + 1e-4, c.v), b: 0, label: c.label, minor: c.minor, tip: c.tip, to: c.to })) };
 }
 // Where each chapter falls between the diary's first and last day, as shares of the whole.
 // The pace of each month against your usual, as columns, for both layouts.
@@ -747,7 +749,8 @@ function driftCols(d) {
 function paceChart(M, H, few) {
   const far = new Set([...M.profile].sort((a, b) => Math.abs(b.a - 100) - Math.abs(a.a - 100)).slice(0, few || 12));
   return colChart(M.profile, "Your pace each month, against your usual", "", H,
-    { values: (c) => far.has(c) ? `${c.a >= 100 ? "+" : "−"}${Math.abs(c.a - 100)}%` : "", base: Math.max(0, Math.min(...M.profile.map((c) => c.a)) - 15) });
+    { values: (c) => far.has(c) ? `${c.a >= 100 ? "+" : "−"}${Math.abs(c.a - 100)}%` : "", base: Math.max(0, Math.min(...M.profile.map((c) => c.a)) - 15),
+      unit: "%", y: "Pace, % of your usual", x: "Month" });
 }
 function chapterStrip(chs, from, to) {
   const a = dayIndex(from), span = Math.max(1, dayIndex(to) - a + 1);

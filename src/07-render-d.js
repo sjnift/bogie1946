@@ -33,7 +33,7 @@ function dashChapter(s, id) {
       section("released", "Released", L.released || "Films by year of release.", (() => {
         const rel = state.tab.released || "films";
         return tabs("released", [["films", "Films by year"], ["rating", "Rating by year"], ["decades", "By decade"]], rel) + (rel === "decades"
-          ? (s.decades.length ? colChart(decCols, "Films by decade of release", "", 162, { unit: "films" }) : `<div class="empty">No release years in this period.</div>`)
+          ? (s.decades.length ? colChart(decCols, "Films by decade of release", "", 162, { y: "Films", x: "Decade of release" }) : `<div class="empty">No release years in this period.</div>`)
           : releaseYearsChart(s, rel, 162, 10));
       })()),
       section("milestones", "Milestones", "Counted through your diary in date order.", milestonesBlock(s)),

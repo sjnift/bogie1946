@@ -75,7 +75,7 @@ function mMonthsIns(M) {
 function mDrift(d) {
   if (!d.enough) return sh("How your taste has moved") + `<div class="empty">Changes in taste need a few years of diary, or a year or two with plenty of films.</div>`;
   const rows = d.list.map((x) => { const c = driftCols(x);
-    return `<div class="card drift"><p class="ctitle">${dlink(x.to, esc(x.big))}</p><p class="ctext">${dline(x.to, esc(x.text))}</p>${colChart(c.cols, x.big, "", 48, { grid: c.grid, unit: c.unit })}</div>`; }).join("");
+    return `<div class="card drift"><p class="ctitle">${dlink(x.to, esc(x.big))}</p><p class="ctext">${dline(x.to, esc(x.text))}</p>${colChart(c.cols, x.big, "", 56, c.opts)}</div>`; }).join("");
   return sh("How your taste has moved") + `<p class="note" style="margin:-4px 0 12px">Your first years of diary against your latest. Each column is a stretch of it; tap one for its films.</p>` +
     (rows || `<p class="lead">No clear, lasting change in what you watch: your taste has held its course.</p>`) +
     (d.steady.length ? sh("What hasn't changed") + mLines(d.steady, () => "=") : "");

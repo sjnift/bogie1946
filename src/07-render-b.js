@@ -47,7 +47,7 @@ function ratingBlock(s) {
     ["Average", dlink(DR.rated(s), `${s.avgRating.toFixed(2)} of 5`)], ["Given most", dlink(DR.rating(s.films, most.r), `${stars(most.r)} · ${plural(most.count, "time")}`)],
     ["Rated films", dlink(DR.rated(s), fmtN(s.rated))], ["Five stars", dlink(s.spread[9].count && DR.rating(s.films, 5), plural(s.spread[9].count, "film"))],
   ].map(([k, v]) => `<div class="fact"><span class="k">${k}</span><span class="v">${v}</span></div>`).join("");
-  return `<div class="facts">${facts}</div>${colChart(cols, "How many films you gave each rating", "", 162, { unit: "films" })}`;
+  return `<div class="facts">${facts}</div>${colChart(cols, "How many films you gave each rating", "", 162, { y: "Films", x: "Rating given" })}`;
 }
 // The films watched most often in the period, ties of four or more folded into one row.
 function rewatchedBlock(s) {
@@ -152,8 +152,8 @@ function diaryBlock(s) {
     shown.map((c, i) => { const first = c.es.filter((e) => !e.rewatch), again = c.es.filter((e) => e.rewatch);
       return `<tr><td>${dlink(c.to, esc(c.tipLabel))}</td><td class="n${hA[i]}">${dlink(c.a && D.entries(`${c.tipLabel}: ${rw ? "first watches" : "diary entries"}`, entriesSub(first), first, { order: "asc" }), c.a)}</td>
       ${rw ? `<td class="n${hB[i]}">${dlink(c.b && D.entries(`${c.tipLabel}: rewatches`, entriesSub(again), again, { order: "asc" }), c.b)}</td>` : ""}</tr>`; }).join("")}</tbody></table></div><p class="status">${HILO_NOTE}</p></details>`;
-  return `<div class="facts">${facts}</div>${colChart(cols, `Diary entries by ${unit}`, legend, 162, { unit: "films" })}${table}
-    <div class="facts" style="align-items:end; gap:28px 48px"><div class="fact"><span class="k" style="margin-bottom:8px">By day of the week</span>${weekdays}</div>
+  return `<div class="facts">${facts}</div>${colChart(cols, `Diary entries by ${unit}`, legend, 162, { y: "Films watched", x: unit === "week" ? `Week of ${s.scope}` : capFirst(unit) })}${table}
+    <div class="facts" style="align-items:end; gap:28px 48px"><div class="fact"><span class="k" style="margin-bottom:8px">By day of the week</span>${axisNames("Films", weekdays, "Day of the week")}</div>
     ${s.scope === "all" ? "" /* the months are in Month by month, just below (the owner's trim, Oct 2026) */
       : `<div class="fact" style="min-width:0; max-width:100%"><span class="k" style="margin-bottom:8px">Every day of ${s.scope}</span>${heatmap(s)}</div>`}</div>`;
 }

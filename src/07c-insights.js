@@ -87,7 +87,7 @@ function monthsInsBlock(M) {
 function driftBlock(d) {
   if (!d.enough) return `<div class="empty">Changes in taste need a few years of diary, or a year or two with plenty of films in each stretch.</div>`;
   const rows = d.list.map((x) => { const c = driftCols(x);
-    return `<div class="drift"><div class="dt"><h3>${dlink(x.to, esc(x.big))}</h3><p>${dline(x.to, esc(x.text))}</p></div><div class="dc">${colChart(c.cols, x.big, "", 56, { grid: c.grid, unit: c.unit })}</div></div>`; }).join("");
+    return `<div class="drift"><div class="dt"><h3>${dlink(x.to, esc(x.big))}</h3><p>${dline(x.to, esc(x.text))}</p></div><div class="dc">${colChart(c.cols, x.big, "", 64, c.opts)}</div></div>`; }).join("");
   const steady = d.steady.length ? `<h3 class="sub-h">What hasn't changed</h3>` + lineItems(d.steady, () => "=") : "";
   return (rows ? `<div class="drifts">${rows}</div><p class="status">Each column is a stretch of your diary; click one to see its films.</p>` : `<p class="lead">No clear, lasting change in what you watch: your taste has held its course.</p>`) + steady;
 }

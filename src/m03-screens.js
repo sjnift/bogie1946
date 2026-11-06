@@ -349,9 +349,8 @@ function profileScreen(s) {
   const otd = T && T.entries.length ? sh(esc(T.title), T.entries.length > 4 ? seeAll(dl(T.to)) : "") +
     `<div class="scroller">${T.entries.slice(0, 12).map((e) => posterItem(e.film, D.film(e.film, { entry: e }), `<span class="pmeta"><span class="stars">${stars(e.rating)}</span></span><span class="mdate">${T.week ? fmtDate(e.date) : e.date.slice(0, 4)}</span>`)).join("")}</div>` : "";
   const ratings = s.rated ? sh("Ratings", `<span class="count">${plural(s.rated, "film")} · ★ ${s.avgRating.toFixed(2)}</span>`) + `<div class="card">` +
-    colChart(s.spread.map((x) => ({ a: x.count, b: 0, tip: `${stars(x.r)} · ${plural(x.count, "film")}`, to: x.count && DR.rating(s.films, x.r) })), "How many films you gave each rating", "", 84, { unit: "films" })
-      .replace('class="chart"', 'class="chart slate"').replace(/<div class="axis"[^]*?<\/div>/, "") +
-    `<div class="hist-ends" style="margin-right:28px"><span class="stars">½</span><span class="stars">★★★★★</span></div></div>` : "";
+    colChart(s.spread.map((x) => ({ a: x.count, b: 0, label: x.r === 0.5 ? "½" : x.r % 1 ? "" : `${x.r}★`, tip: `${stars(x.r)} · ${plural(x.count, "film")}`, to: x.count && DR.rating(s.films, x.r) })), "How many films you gave each rating", "", 84, { y: "Films", x: "Rating given" })
+      .replace('class="chart"', 'class="chart slate"') + `</div>` : "";
   const strip = (label, data, role) => {
     const list = data.most.slice(0, 12);
     if (!list.length) return "";

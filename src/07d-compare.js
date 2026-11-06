@@ -48,11 +48,8 @@ function pairSections(C) {
       ${seg("va", o.onlyA, `Only you: ${plural(o.onlyA, "film")}`, to.onlyA)}${seg("vboth", o.both, `Both: ${plural(o.both, "film")}`, to.shared)}${seg("vb", o.onlyB, `Only ${esc(B.name)}: ${plural(o.onlyB, "film")}`, to.onlyB)}</div>
     <div class="legend"><span><i style="background:var(--gold)"></i>Only you · ${dlink(o.onlyA && to.onlyA, fmtN(o.onlyA))}</span><span><i style="background:var(--muted)"></i>Both · ${dlink(o.both && to.shared, fmtN(o.both))}</span><span><i style="background:var(--lilac)"></i>Only ${esc(B.name)} · ${dlink(o.onlyB && to.onlyB, fmtN(o.onlyB))}</span></div>
     <p class="status">${Math.round(o.jaccard * 100)}% of all the films either of you has seen, you've both seen.</p>`;
-  const mx = Math.max(1, ...A.spread, ...B.spread);
   const hist = A.rated.length && B.rated.length ? `<div class="legend"><span><i style="background:var(--gold)"></i>You · ${A.avg.toFixed(2)} avg</span><span><i style="background:var(--lilac)"></i>${esc(B.name)} · ${B.avg.toFixed(2)} avg</span></div>
-    <div class="phist" role="group" aria-label="Share of each person's ratings at each half-star">${A.spread.map((a, i) => `<button class="pgroup" type="button" ${a || B.spread[i] ? dl(to.stars((i + 1) / 2)) : "disabled"} data-tip="${stars((i + 1) / 2)}: you ${Math.round(a)}%, ${esc(B.name)} ${Math.round(B.spread[i])}%" aria-label="${stars((i + 1) / 2)}: you ${Math.round(a)}%, ${esc(B.name)} ${Math.round(B.spread[i])}%">
-      <span class="pa" style="height:${(a / mx * 100).toFixed(1)}%"></span><span class="pb" style="height:${(B.spread[i] / mx * 100).toFixed(1)}%"></span></button>`).join("")}</div>
-    <div class="stars-axis">${A.spread.map((_, i) => `<span>${i === 0 ? "½" : (i + 1) % 2 ? "" : `${(i + 1) / 2}★`}</span>`).join("")}</div>
+    ${pairHist(A, B, to, 140)}
     <p class="status">Share of each person's ratings at each half-star.</p>` : `<div class="empty">Both of you need rated films for this.</div>`;
   const gmax = Math.max(1, ...C.topGenres.map((g) => Math.max(g.a, g.b)));
   const genres = C.topGenres.length ? `<div class="legend"><span><i style="background:var(--gold)"></i>You</span><span><i style="background:var(--lilac)"></i>${esc(B.name)}</span></div>
