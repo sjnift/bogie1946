@@ -656,8 +656,28 @@ body.empty #settings, body.empty .foot-settings, body.has-diary #btn-import, bod
 .chapter-empty { margin-top: 24px; }
 .export-date { margin-top: -8px; color: var(--muted); }
 /* logging a film here (06u-log): the header's Log button, and the panel */
-.btn-log { background: var(--gold-btn); border-color: var(--gold-btn); color: var(--on-gold); font-weight: 700; }
-.btn-log:hover { filter: brightness(1.1); }
+/* the Log button: a gold pill that stands out in the header, its + in a dark disc (asked 6 Nov 2026: "the log button
+   looks barren"); under the pointer it lifts and glows, the + turns a quarter and a band of light crosses it, like the
+   story button's */
+.btn.btn-log {
+  position: relative; overflow: hidden; isolation: isolate; gap: 8px; padding: 6px 16px 6px 6px; border: 0;
+  font-weight: 700; letter-spacing: .01em; color: var(--on-gold);
+  background: linear-gradient(120deg, #F2CB73, #D99A2B 55%, #C27F1C);
+  box-shadow: 0 2px 12px rgba(214, 150, 40, .38), inset 0 1px 0 rgba(255, 255, 255, .38);
+  transition: transform .18s cubic-bezier(.3, .7, .4, 1.4), box-shadow .2s ease, filter .2s ease;
+}
+.btn-log .plus { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; flex: none;
+  background: var(--on-gold); color: #F2CB73; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08); transition: transform .35s cubic-bezier(.3, .7, .4, 1.6); }
+.btn-log::after { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, .55) 48%, transparent 66%); transform: translateX(-120%); }
+.btn.btn-log:hover, .btn.btn-log:focus-visible { box-shadow: 0 8px 24px rgba(230, 170, 60, .55), inset 0 1px 0 rgba(255, 255, 255, .45); filter: brightness(1.06); }
+.btn.btn-log:focus-visible { outline: 2px solid var(--gold-ink); outline-offset: 3px; }
+@media (prefers-reduced-motion: no-preference) {
+  .btn.btn-log:hover, .btn.btn-log:focus-visible { transform: translateY(-2px); }
+  .btn.btn-log:active { transform: translateY(0) scale(.96); transition-duration: .06s; }
+  .btn-log:hover .plus, .btn-log:focus-visible .plus { transform: rotate(90deg) scale(1.1); }
+  .btn-log:hover::after, .btn-log:focus-visible::after { transform: translateX(120%); transition: transform .7s ease; }
+}
 .logp { display: grid; gap: 14px; }
 .lg-label, .lg-k { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .lg-q, .lg-date, .lg-review { font: inherit; color: var(--ink); background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; width: 100%; box-sizing: border-box; }

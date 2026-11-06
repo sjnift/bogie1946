@@ -709,8 +709,11 @@ standard errors or more from what the rest of the diary gives; every sentence op
   default, never a day to come), "I've watched this film before", a review, half stars (`logStarsHtml`: two halves a
   star; the same rating again takes it away) and a heart, Save; then "Logged" with "See the film" and "Log another
   film". Fields are never redrawn while in use (typing refreshes only the results; stars and heart change in place),
-  and the panel's links are registered with the pop-up (`inPanel`) so a page redraw doesn't kill them. Desktop: a gold
-  "+ Log" first in the header (`#btn-log`); phone: a green "+" in the top bar of the main screens (`data-act="log"`);
+  and the panel's links are registered with the pop-up (`inPanel`) so a page redraw doesn't kill them. Desktop: "Log a film"
+  first in the header (`#btn-log`), a gold gradient pill with its + in a dark disc, lifting and glowing under the pointer,
+  the + turning a quarter and a band of light crossing it (asked 6 Nov 2026: "the log button looks barren"; it had been
+  a flat gold "+ Log"); phone: a filled Letterboxd-green disc with a white + in the top bar of the main screens
+  (`data-act="log"`, `.nav-btn.log`; it had been a bare green +), shrinking and turning its + when pressed;
   only with your own diary, not the example, not inside Claude (`canLog`). **Data**: logs are kept apart from the
   export (`KEYS.logs` `cr-logs-v1`, IndexedDB; each `{ id, user, tmdb, title, year, poster, watched, logged, rating,
   liked, rewatch, review, at }`, deleted ones `{ id, deleted, at }` so another device's copy doesn't bring them back),

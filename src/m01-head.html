@@ -212,7 +212,14 @@ img.fade.in { opacity: 1; }
 .scroller > * { scroll-snap-align: start; }
 .scroller .pitem { flex: none; width: 96px; }
 /* logging a film here (06u-log): the panel in the sheet; the top bar's + */
-.nav-btn.log { color: var(--green); }
+/* the Log button: a filled green disc with a white +, Letterboxd's own (asked 6 Nov 2026: "the log button looks
+   barren"); a press shrinks it and turns the + a quarter */
+.nav-btn.log, .top.solid .nav-btn.log, .top.detail .nav-btn.log { color: #fff; width: 34px; height: 34px; margin: 1px 2px 0 0;
+  background: linear-gradient(145deg, #3DF08A, var(--green) 45%, var(--green-mark));
+  box-shadow: 0 3px 12px rgba(0, 224, 84, .35), inset 0 1px 0 rgba(255, 255, 255, .35); }
+.nav-btn.log svg { width: 19px; height: 19px; stroke-width: 2.8; filter: drop-shadow(0 1px 1px rgba(0, 60, 20, .35)); transition: transform .3s cubic-bezier(.3, .7, .4, 1.6); }
+.nav-btn.log:active { background: linear-gradient(145deg, #3DF08A, var(--green) 45%, var(--green-mark)); transform: scale(.88); }
+@media (prefers-reduced-motion: no-preference) { .nav-btn.log:active svg { transform: rotate(90deg); } }
 .logp { display: grid; gap: 14px; }
 .lg-label, .lg-k { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .lg-q, .lg-date, .lg-review { font: inherit; font-size: 16px; color: var(--ink-1); background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; width: 100%; box-sizing: border-box; }
