@@ -42,6 +42,38 @@ export default async function ({ browser, base }) {
     return [s.castMinRated, s.cast.best.every((p) => p.ratings.length >= 6 && p.lead >= 2), years.length > 0, years.every(fair), years.some((y) => y.cast.best.length > 0),
       s.cast.best.length + lead === rankPeople(state.lib.films, metaOf, "c", 6).best.length, /2 of them billed in the top 8/.test(castBarText(s))]; });
   assert(cast.join() === "6,true,true,true,true,true,true", `highest-rated actors: six rated films over all time, two billed in the top 8, a bar that follows each year: ${cast}`);
+  // with a filter on (a decade, 6 Nov 2026), all time follows its films too: the bar comes down from 6 only where fewer
+  // than ten actors would make it; two films billed in the top 8 while it stays at 6, one once it comes down; the line
+  // under Starring says so, on both layouts
+  for (const [file, phone] of [["desktop.html", false], ["mobile.html", true]]) {
+    const p = phone ? await open(browser, base, file, { phone }) : d;
+    const f = await p.evaluate(() => {
+      const base = typeof wholeLib === "function" ? wholeLib() : BASE_LIB; // the whole diary, on each layout
+      const dec = filterOptions(base, metaOf, "d").sort((a, b) => b[1] - a[1]);
+      const out = [];
+      for (const [d] of dec) {
+        FILTER.d = [d];
+        const F = filteredLib(base, metaOf), s = computeStats(F, metaOf, "all"), t = s.castMinRated;
+        const all = rankPeople(s.films, metaOf, "c", 1, 1).best, n = (k) => all.filter((p) => p.ratings.length >= k).length, lead = t >= 6 ? 2 : 1;
+        out.push({ d, t, lead: s.castLead, films: s.films.length, ok: s.castLead === lead && s.cast.best.every((p) => p.ratings.length >= t && p.lead >= lead)
+          && s.cast.best.length === all.filter((p) => p.ratings.length >= t && p.lead >= lead).length && (t === 6 || n(t + 1) < 10) && (n(t) >= 10 || t <= 2),
+          text: castBarText(s) });
+      }
+      clearFilters();
+      return out;
+    });
+    assert(f.length >= 2 && f.every((x) => x.ok) && f.some((x) => x.t < 6) && f.filter((x) => x.t < 6).every((x) => / one billed in the top 8/.test(x.text)),
+      `${file}: highest-rated actors with a decade filter on: ${JSON.stringify(f)}`);
+    // and on the page: the line under the actors says the decade's bar
+    const low = f.find((x) => x.t < 6);
+    await p.evaluate((d) => { FILTER.d = [d]; refreshFilters(); }, low.d); await p.waitForTimeout(300);
+    if (phone) { await p.evaluate(() => { state.view = "people"; state.role = "c"; state.sort = "best"; render(); }); await p.waitForTimeout(200); }
+    else { await p.evaluate(() => { setChapter("people"); }); await p.waitForTimeout(300); }
+    const shown = await p.evaluate(() => document.body.textContent.includes(castBarText(computeStats(filteredLib(typeof wholeLib === "function" ? wholeLib() : BASE_LIB, metaOf), metaOf, "all"))));
+    assert(shown, `${file}: the line under the actors with ${low.d} on`);
+    await p.evaluate(() => { clearFilters(); refreshFilters(); }); await p.waitForTimeout(200);
+    if (phone) noErrors(p, file);
+  }
   // the bar for a year: the most rated films that still lists ten actors, from 6 down to 2
   const bars = await d.evaluate(() => { const ppl = (counts) => counts.map((n) => ({ ratings: Array(n).fill(4) }));
     return [castBar(ppl(Array(11).fill(9))), castBar(ppl([...Array(10).fill(5), 2])), castBar(ppl([...Array(5).fill(4), ...Array(7).fill(3)])), castBar(ppl([2, 2, 1])), castBar([])]; });

@@ -983,7 +983,10 @@ function inScope(lib, scope) {
 // CAST_TOP actors, never above CAST_MIN_RATED; a quieter year comes down to 2 (one film each would only rank films).
 // And some of those films must be ones they're billed in the top LEAD_TOP of (asked 26 Oct 2026, then eased the same
 // day from 3 in the top 5): CAST_LEAD over all time, one in a year, so a character actor's many good films in small
-// parts don't top the list.
+// parts don't top the list. With a filter on (asked 6 Nov 2026: "highest rated for single decades (using filter)
+// requirement for actors should be dynamic based on the number of films watched that decade"), all time follows its
+// films the same way: the bar comes down from CAST_MIN_RATED only where fewer than CAST_TOP actors would make it, and
+// CAST_LEAD of the films billed in the top LEAD_TOP while the bar stays at CAST_MIN_RATED, one once it comes down.
 const CAST_MIN_RATED = 6, CAST_TOP = 10, CAST_LEAD = 2;
 function castBar(rated) {
   for (let t = CAST_MIN_RATED; t > 2; t--) if (rated.filter((p) => p.ratings.length >= t).length >= CAST_TOP) return t;
@@ -1090,10 +1093,13 @@ function computeStats(lib, metaOf, scope) {
   let castCore = null;
   const core = () => {
     if (castCore) return castCore;
-    const cast = rankPeople(films, metaOf, "c", scope === "all" ? CAST_MIN_RATED : 1, scope === "all" ? CAST_LEAD : 1);
-    const castMinRated = scope === "all" ? CAST_MIN_RATED : castBar(cast.best);
-    if (scope !== "all") cast.best = cast.best.filter((p) => p.ratings.length >= castMinRated);
-    return (castCore = { cast, castMinRated, castTop: scope !== "all" && castMinRated < CAST_MIN_RATED && cast.best.length >= CAST_TOP });
+    // a year, or the diary narrowed by a filter: the bar follows the films in view (`castBar`)
+    const dynamic = scope !== "all" || !!lib.filtered;
+    const cast = rankPeople(films, metaOf, "c", dynamic ? 1 : CAST_MIN_RATED, dynamic ? 1 : CAST_LEAD);
+    const castMinRated = dynamic ? castBar(cast.best) : CAST_MIN_RATED;
+    const castLead = scope !== "all" ? 1 : castMinRated >= CAST_MIN_RATED ? CAST_LEAD : 1;
+    if (dynamic) cast.best = cast.best.filter((p) => p.ratings.length >= castMinRated && p.lead >= castLead);
+    return (castCore = { cast, castMinRated, castLead, castTop: dynamic && castMinRated < CAST_MIN_RATED && cast.best.length >= CAST_TOP });
   };
   const out = {
     scope, films, entries, withMeta: withMeta.length, minRated,
@@ -1110,7 +1116,7 @@ function computeStats(lib, metaOf, scope) {
   };
   const lazy = (name, fn) => { let v, done = false; Object.defineProperty(out, name, { enumerable: true, configurable: true,
     get() { if (!done) { v = fn(); done = true; } return v; }, set(x) { v = x; done = true; } }); };
-  lazy("cast", () => core().cast); lazy("castMinRated", () => core().castMinRated); lazy("castTop", () => core().castTop);
+  lazy("cast", () => core().cast); lazy("castMinRated", () => core().castMinRated); lazy("castLead", () => core().castLead); lazy("castTop", () => core().castTop);
   lazy("voice", () => rankPeople(films, metaOf, "v", minRated)); lazy("directors", () => rankPeople(films, metaOf, "d", minRated));
   lazy("writers", () => rankPeople(films, metaOf, "w", minRated)); lazy("dop", () => rankPeople(films, metaOf, "p", minRated));
   lazy("music", () => rankPeople(films, metaOf, "m", minRated));

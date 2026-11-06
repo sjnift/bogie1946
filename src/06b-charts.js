@@ -16,7 +16,8 @@ const titleFit = (name) => { const w = titleLen(name); return w > 11 ? " xlong" 
 // with `--len` the card works out a size its longest word fits at, by its own width (where the browser can; else titleFit)
 const titleLenAttr = (name) => ` style="--len:${titleLen(name)}"`;
 // "Highest rated needs 4+ rated films, the most that still gives 2024 a top 10."
-const castBarText = (s) => `Highest rated needs ${s.castMinRated}+ rated films${s.castTop ? `, the most that still gives ${s.scope} a top ${CAST_TOP}` : ""}, ${s.scope === "all" ? `${CAST_LEAD} of them` : "one"} billed in the top ${LEAD_TOP}.`;
+// (with a filter on, the bar follows the films it leaves: "these films"; 6 Nov 2026)
+const castBarText = (s) => `Highest rated needs ${s.castMinRated}+ rated films${s.castTop ? `, the most that still gives ${s.scope === "all" ? "these films" : s.scope} a top ${CAST_TOP}` : ""}, ${s.castLead > 1 ? `${s.castLead} of them` : "one"} billed in the top ${LEAD_TOP}.`;
 const personSub = (p) => `${plural(p.count, "film")}${p.avg ? ` · ${p.avg.toFixed(2)} average from ${plural(p.ratings.length, "rating")}` : ""}`;
 
 /* ---------- the axes every bar chart shares ---------- */

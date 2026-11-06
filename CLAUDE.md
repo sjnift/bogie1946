@@ -85,8 +85,13 @@ Where it lives:
     lists 10 actors (`castBar`, `CAST_TOP`), from 6 down to 2, never 1 (one film each only ranks films); the line under
     Starring / the phone's People says the bar (`castBarText`). **And 2 of those rated films billed in the top 8**
     (asked 26 Oct 2026, first as 3 in the top 5, eased the same day; so a character actor's many good films in small
-    parts don't top the list: `CAST_LEAD`, `LEAD_TOP`, `roleLeads`, `p.lead` in `rankPeople`; one in a year). Every other kind of person keeps `minRated` (2,
-    or 3 for 150+ films). The `reviews` check covers both.
+    parts don't top the list: `CAST_LEAD`, `LEAD_TOP`, `roleLeads`, `p.lead` in `rankPeople`; one in a year). **With a filter
+    on, all time follows its films the same way** (asked 6 Nov 2026: "highest rated for single decades (using filter)
+    requirement for actors should be dynamic based on the number of films watched that decade"; any filter, as
+    `lib.filtered` says): `castBar` from 6 down to 2, so a filter that leaves 10 actors at 6 changes nothing; 2 billed in
+    the top 8 while the bar stays at 6, one once it comes down (`s.castLead`); the line says "the most that still gives
+    these films a top 10". Every other kind of person keeps `minRated` (2, or 3 for 150+ films). The `reviews` check
+    covers all three (all time, each year, each decade filtered, on both layouts).
   - The best-rated decade is featured prominently with its films' posters (asked again Oct 2026): the desktop's "Best
     decade" in full right under On this day (`bestDecadeBlock`: its head above eight large posters), the phone's Profile
     under On this day and Breakdown. **The second and third best follow it with their posters, a little smaller**
