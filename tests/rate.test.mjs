@@ -59,7 +59,18 @@ export default async function ({ browser, base }) {
     });
     assert(later.kept === 4 && later.newerExport === 3 && later.newerViewing === 1 && later.other === 3 && later.safe.includes('"kind":"rate"') && !later.safe.includes("evil") && !later.safe.includes("rtbad")
       && later.safe.includes('"k":"x|1","title":"","year":null,"rating":null'), `${file}: who has the last word: ${JSON.stringify(later)}`);
-    // it lasts through a reload, and goes to the diary on the site with the logs
+    // it lasts through a reload, and goes to the diary on the site with the logs (once the browser's database has it:
+    // the write is asynchronous, and a slow machine can reload before it lands)
+    const saved = await p.evaluate(async () => {
+      const inDb = () => new Promise((ok) => { const r = indexedDB.open("credits-roll");
+        r.onsuccess = () => { try { const g = r.result.transaction("kv").objectStore("kv").get("cr-logs-v1");
+          g.onsuccess = () => { const s = JSON.stringify(g.result || ""); r.result.close(); ok(/"k":"rope\|1948"[^}]*"rating":4[,}]/.test(s)); };
+          g.onerror = () => { r.result.close(); ok(false); }; } catch { ok(false); } };
+        r.onerror = () => ok(false); });
+      for (let i = 0; i < 150; i++) { if (await inDb()) return true; await new Promise((ok) => setTimeout(ok, 100)); }
+      return false;
+    });
+    assert(saved, `${file}: the changed rating never reached the browser's database`);
     await p.reload(); await p.waitForFunction(() => typeof MY_LIB === "object" && MY_LIB && MY_LIB.films.length === 2);
     const kept = await p.evaluate(() => ({ r: MY_LIB.films.find((x) => x.name === "Rope").rating, site: (siteLocal().logs || []).some((x) => x.kind === "rate") }));
     assert(kept.r === 4 && kept.site, `${file}: after a reload: ${JSON.stringify(kept)}`);
