@@ -317,7 +317,7 @@ The owner asked for this to be checked every time. A film, diary entry, person o
 - Storage (`store` in `05-core.js`): small things in localStorage (API keys `cr-tmdb-key`, `cr-omdb-key`,
   `cr-apify-key`; views `cr-view-v1`, `cr-mview-v1`; `cr-letterboxd-run`; `cr-imdbcast-run`; the quiz's best scores `cr-quiz-v1`; the diary on the site `cr-site-v1`, `cr-site-pub-v1`, `cr-site-dirty`); big things in IndexedDB database
   `credits-roll`, store `kv` (`cr-rows-v1`, `cr-meta-v1`, `cr-photos-v1`, `cr-letterboxd-v1`, `cr-friends-v1`,
-  `cr-filmo-v1`, `cr-foryou-v1` For you's last list, `cr-logs-v1` films logged on the site, `cr-listmeta-v1` details of films only on your lists), read into memory by `await store.init()` at start (both `init()`s), moved over from
+  `cr-filmo-v1`, `cr-foryou-v1` For you's last list, `cr-logs-v1` films logged on the site (and ratings changed here, `kind: "rate"`), `cr-listmeta-v1` details of films only on your lists), read into memory by `await store.init()` at start (both `init()`s), moved over from
   localStorage automatically (a localStorage copy wins: only an older page version writes one).
 
 ### The phone app's structure and speed
@@ -753,6 +753,28 @@ standard errors or more from what the rest of the diary gives; every sentence op
   counted once, imports, merging, deleting), `site` (a log from the computer reaches the phone, one made on the phone
   before it heard isn't lost, a deletion on one reaches the other, nothing sent twice), `counts` (a log never beside
   Letterboxd's copy) and `xss` cover it.
+- **Your rating, changed here** (asked 7 Nov 2026: a rating changed on Letterboxd for a film watched in March didn't
+  reach the site: the feed carries only the latest ~50 entries, back to July then, and an edited older entry never comes
+  back into it). Reading the member's films pages daily was tried from the feed's workflow (an honest robot, the feed's
+  user agent; robots.txt allows `/<user>/films/`): Letterboxd's Cloudflare answered every page with a "Just a moment…"
+  challenge (403/503), and the owner's "get around the check" was declined (it's bot-protection circumvention). So the
+  film card of your own diary (`canLog`, not Compare, For you or a list) has **"Your rating"**, the log panel's half
+  stars (`filmRateHtml`, `logStarsHtml(r, "data-fc-rate")`, `rateFilm`, `rateUndo`, `rateRedraw`: the card redrawn
+  where it was scrolled to), and a line: "Changed here on …; Letterboxd had … Change it on Letterboxd too: your next
+  export has the last word. Undo". The same rating again takes it away, as on Letterboxd. **Data**: kept with the logs
+  (`KEYS.logs`, so the diary on the site's `logs` part, backups and `mergeLogs` carry it), one record a film,
+  `{ id: rateId(titleKey) "rt…", kind: "rate", user, k, title, year, rating (null: no rating), day, at }`, Undo a
+  `{ id, deleted }`; `safeLogs` keeps that shape; `withLogs` skips them (no `watched`). `withRates` (06h-more), after the
+  feed and the logs in `myLibrary`: the film's ratings row, and its latest viewing's rating where that carried the
+  film's rating (an earlier viewing keeps its own); nothing is added or counted. Letterboxd's word wins again when it's
+  newer: an export made after the change (`rows.exportedAt`), or a viewing logged after its day (the feed or a log
+  here); another account's export is left alone. `RATES_APPLIED` (title key → the record and the rating before) feeds
+  the card's line. **The reminder**: once the export in hand is more than `EXPORT_OLD` 14 days old (`exportAge`, the
+  same day `exportLine` gives; `exportStale`, `exportStaleText`), the desktop's `#lookup-mini` (after its other lines)
+  and the phone's Profile banner (`.ico.b`, after the others) say "Your Letterboxd export is N days old: ratings you've
+  changed there on older films, and films marked watched without a diary entry, come in with a fresh one" with a way
+  to Settings. The `rate` check covers both layouts: a change, taking it away, Undo, a second viewing, an export or a
+  viewing since, another account, safeLogs, a reload and the site's part, the reminder, and no control in the example.
 - **For you** (asked 5 Nov 2026: "write an algorithm to predict movies I would like based on my letterboxd ratings,
   director actor genre data … correlate all the data you have about my viewing habits … a list of 100 films I would
   love"; then, the same day: "the engine should update when I log movies in the future and the ratings I give them and
@@ -1232,7 +1254,7 @@ until the next render, so `counts` visits them all before its audit)), `run.mjs`
 `apify`, `imdbcast` (the owner's cast checked on IMDb), `people` (people by TMDB id, the people check, cameos, voices, small parts and who counts by hand), `check` (film data check), `counts` (double counting, also with filters on), `reviews` (missing review text spotted; six-film actors), `welcome` (no example diary; import saved at once), `extras` (year picture, On this day, Watch next, PWA), `feed`, `import`,
 `links` (every link opens something), `pages` (nothing broken shows, no sideways scroll on the phone),
 `routes`, `storage` (IndexedDB move, backup and restore), `site` (the diary on the site: a stand-in GitHub and site),
-`tmdb` (fixing a match, filmography, search), `quiz` (the quiz's answers and a round on both layouts), `foryou` (For you against a stand-in TMDB), `log` (logging a film here against a stand-in TMDB), `lists` (posters for films on a list you haven't seen), `axes` (every bar chart's axes named and scaled, both layouts), `favs` (recent favourites: the window, liked first, the most varied four, colour, both layouts), `extras` also covers the story and every kind and shape of picture, `xss` (nothing from outside can run code, about three minutes: it opens lists in every chapter), `study` (a
+`tmdb` (fixing a match, filmography, search), `quiz` (the quiz's answers and a round on both layouts), `foryou` (For you against a stand-in TMDB), `log` (logging a film here against a stand-in TMDB), `lists` (posters for films on a list you haven't seen), `axes` (every bar chart's axes named and scaled, both layouts), `rate` (a film's rating changed on its card, and the old-export reminder, both layouts), `favs` (recent favourites: the window, liked first, the most varied four, colour, both layouts), `extras` also covers the story and every kind and shape of picture, `xss` (nothing from outside can run code, about three minutes: it opens lists in every chapter), `study` (a
 five-year diary with patterns planted in it: the study finds them on both layouts and for a year, repeats nothing from
 the Stats page, and every list it opens holds each film once). `lib.mjs`
 also cuts off api.github.com and jsdelivr, answers `diary/` with "not found", and counts anything the security policy

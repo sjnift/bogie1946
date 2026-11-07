@@ -99,7 +99,7 @@ setInterval(feedAgain, 30 * 60e3);
    whose copy then counts. The saved export isn't changed, so a newer import keeps them; another account's export on
    this device doesn't take them. */
 const LOG_NEAR = 7; // a week either way (the owner's call, 6 Nov 2026; it was a day)
-let LOGS_ADDED = [], LOGS_DROPPED = [];
+let LOGS_ADDED = [], LOGS_DROPPED = [], RATES_APPLIED = new Map();
 const logReviewHtml = (s) => String(s || "").trim().split(/\n{2,}/).filter(Boolean).map((p) => `<p>${esc(p).replace(/\n/g, "<br>")}</p>`).join("");
 function withLogs(rows, logs) {
   const user = String((((rows && rows.profile) || [])[0] || {}).Username || "").toLowerCase();
@@ -146,15 +146,51 @@ function withLogs(rows, logs) {
   }
   return { rows: out, added, dropped };
 }
+/* A film's rating changed on this site (asked 7 Nov 2026: a rating changed on Letterboxd for a film watched in March
+   didn't reach the site, as the feed carries only the latest ~50 entries and Letterboxd turns away automated readers
+   of its other pages; so the owner sets it here too). Kept with the logs (KEYS.logs, the diary on the site's `logs`
+   part, backups), one record a film, `{ id: "rt…", kind: "rate", user, k: titleKey, title, year, rating (null: no
+   rating), day, at }`, merged by id like a log (the newer change wins; Undo leaves `{ id, deleted }`). Applied after the
+   feed and the logs: the film's rating, and its latest viewing's where that carried the film's rating, as on
+   Letterboxd. Letterboxd's word wins again when it's newer: an export made after the change, or a viewing logged after
+   its day (through the feed or here). Nothing is added or counted: only a film already in the diary changes. */
+const rateId = (k) => `rt${hash32(k).toString(36)}`;
+function withRates(rows, logs) {
+  const user = String((((rows && rows.profile) || [])[0] || {}).Username || "").toLowerCase();
+  const live = (logs || []).filter((x) => x && x.kind === "rate" && !x.deleted && x.k && (!x.user || !user || x.user.toLowerCase() === user));
+  const applied = new Map();
+  if (!rows || !live.length) return { rows, applied };
+  const out = { ...rows, diary: [...(rows.diary || [])], ratings: [...(rows.ratings || [])] };
+  const t = (r) => titleKey(r.Name, r.Year), num = (v) => Number(v) || 0;
+  const since = String(rows.exportedAt || "");
+  for (const x of live) {
+    if (since && String(x.at) <= since) continue; // an export made since has Letterboxd's word on it
+    const day = x.day || String(x.at).slice(0, 10);
+    const views = out.diary.map((r, i) => [r, i]).filter(([r]) => t(r) === x.k);
+    const ri = out.ratings.findIndex((r) => t(r) === x.k);
+    if (!views.length && ri < 0 && !(rows.watched || []).some((r) => t(r) === x.k)) continue; // not a film of this diary
+    if (views.some(([r]) => (r.Date || "") > day)) continue; // a viewing logged since gave the film its rating then
+    const was = ri >= 0 ? num(out.ratings[ri].Rating) : 0, base = ri >= 0 ? out.ratings[ri] : views.length ? views[0][0] : { Name: x.title, Year: x.year ? String(x.year) : "" };
+    if (x.rating) { const row = { Name: base.Name, Year: base.Year, Rating: String(x.rating) }; if (ri >= 0) out.ratings[ri] = { ...out.ratings[ri], Rating: String(x.rating) }; else out.ratings.push(row); }
+    else if (ri >= 0) out.ratings.splice(ri, 1);
+    // the latest viewing carried the film's rating: it takes the new one too
+    const last = views.sort(([a], [b]) => ((a["Watched Date"] || a.Date || "") + (a.Date || "")).localeCompare((b["Watched Date"] || b.Date || "") + (b.Date || ""))).pop();
+    if (last && num(last[0].Rating) === was) out.diary[last[1]] = { ...last[0], Rating: x.rating ? String(x.rating) : "" };
+    applied.set(x.k, { x, was });
+  }
+  return { rows: out, applied };
+}
 // Logs from elsewhere (the site, a backup) as they may be kept: nothing but these fields, of these kinds.
 function safeLogs(list) {
   const day = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s || "") ? s : "", str = (s, n) => typeof s === "string" ? s.slice(0, n) : "";
   return (Array.isArray(list) ? list : []).filter((x) => x && typeof x.id === "string" && /^[\w-]{4,40}$/.test(x.id)).slice(0, 20000).map((x) => x.deleted
     ? { id: x.id, deleted: true, at: str(x.at, 30) }
+    : x.kind === "rate" ? { id: x.id, kind: "rate", user: str(x.user, 60), k: str(x.k, 400), title: str(x.title, 300).trim(), year: Number(x.year) > 1800 ? Math.floor(Number(x.year)) : null,
+      rating: [0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5].includes(Number(x.rating)) ? Number(x.rating) : null, day: day(x.day), at: str(x.at, 30) }
     : { id: x.id, user: str(x.user, 60), tmdb: Number(x.tmdb) > 0 ? Math.floor(Number(x.tmdb)) : null, title: str(x.title, 300).trim(), year: Number(x.year) > 1800 ? Math.floor(Number(x.year)) : null,
       poster: /^\/[\w.-]{1,80}$/.test(x.poster || "") ? x.poster : "", watched: day(x.watched), logged: day(x.logged),
       rating: [0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5].includes(Number(x.rating)) ? Number(x.rating) : null, liked: !!x.liked, rewatch: !!x.rewatch, review: str(x.review, 20000), at: str(x.at, 30) })
-    .filter((x) => x.deleted || (x.title && x.watched));
+    .filter((x) => x.deleted || (x.kind === "rate" ? x.k && x.at : x.title && x.watched));
 }
 // Two devices' logs: each log once, the newer edit (or deletion) of it kept, in the order of their ids, so two devices
 // with the same logs hold the same list (else each would think the other's differs and send it again).
@@ -170,7 +206,9 @@ function myLibrary() {
   FEED_ADDED = added;
   const L = withLogs(rows, store.get(KEYS.logs, []));
   LOGS_ADDED = L.added; LOGS_DROPPED = L.dropped;
-  return buildLibrary(L.rows);
+  const R = withRates(L.rows, store.get(KEYS.logs, []));
+  RATES_APPLIED = R.applied;
+  return buildLibrary(R.rows);
 }
 // The feed's line in the Cast & crew box, or how to switch it on.
 function feedBlock(lib, phone) {

@@ -773,6 +773,10 @@ dialog.sheet.closing::backdrop { animation: fade-out .22s ease forwards; }
 .fc-sec h4 { margin: 0 0 8px; font-size: 12px; font-weight: 750; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); }
 .fc-line { margin: 0 0 8px; color: var(--ink-1); }
 .fc-entries { display: grid; }
+/* your rating, changed here (7 Nov 2026): the log panel's half stars, a little smaller, and a line on what changed it */
+.fc-rate { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 6px 0 2px; }
+.fc-rate .lg-star { font-size: 26px; }
+.fc-rnote { margin: 2px 0 10px; }
 .fc-entry { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 14px; color: var(--ink-1); }
 .fc-entry small { color: var(--muted); }
 .fc-entry.on { background: var(--green-tint); margin-inline: -14px; padding-inline: 14px; }

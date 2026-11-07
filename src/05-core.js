@@ -344,14 +344,24 @@ async function readExport(fileList) {
 // so it's clear when a fresh one is due (ratings changed later and films marked watched without a diary entry come only
 // with one). Imports before then kept only when they were imported, so those say that instead; imports before 23 Oct
 // 2026 kept neither (the owner's showed nothing), so those give the date of the newest entry in the export.
-function exportLine(rows) {
-  if (!rows) return "";
+function exportAge(rows) {
+  if (!rows) return null;
   const at = rows.exportedAt || rows.importedAt, d = at ? new Date(at) : null, p2 = (n) => String(n).padStart(2, "0");
   const day = d && !isNaN(d) ? `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`
     : ["diary", "watched", "reviews"].flatMap((k) => (rows[k] || []).map((r) => String(r.Date || ""))).reduce((m, x) => /^\d{4}-\d{2}-\d{2}$/.test(x) && x > m ? x : m, "");
-  if (!day) return "";
+  if (!day) return null;
   const [y, m, dd] = day.split("-").map(Number), today = new Date();
-  const ago = Math.round((new Date(today.getFullYear(), today.getMonth(), today.getDate()) - new Date(y, m - 1, dd)) / 864e5);
+  return { day, d, ago: Math.round((new Date(today.getFullYear(), today.getMonth(), today.getDate()) - new Date(y, m - 1, dd)) / 864e5) };
+}
+// A reminder on the main page once the export in hand is older than EXPORT_OLD days (7 Nov 2026, with rating changes
+// here: what the feed can't carry, a rating changed on an older film, comes only with a fresh export).
+const EXPORT_OLD = 14;
+const exportStale = (rows) => { const A = exportAge(rows); return A && A.ago > EXPORT_OLD ? A.ago : 0; };
+const exportStaleText = (n) => `Your Letterboxd export is ${fmtN(n)} days old: ratings you've changed there on older films, and films marked watched without a diary entry, come in with a fresh one.`;
+function exportLine(rows) {
+  const A = exportAge(rows);
+  if (!A) return "";
+  const { day, d, ago } = A;
   const when = ago <= 0 ? "today" : ago === 1 ? "yesterday" : `${fmtN(ago)} days ago`;
   return rows.exportedAt ? `Last export: ${fmtDate(day)} (${when}).` : rows.importedAt && d && !isNaN(d) ? `Last export imported: ${fmtDate(day)} (${when}).`
     : `Last export: around ${fmtDate(day)} (${when}).`; // (the newest entry's date; the owner asked to leave that unsaid)

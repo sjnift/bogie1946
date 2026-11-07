@@ -218,10 +218,12 @@ function recordHtml(p, d, solo) {
   if (!g) return `<section class="fc-sec">${head}<p class="dr-s">${esc(p.missing || "Not logged.")}</p></section>`;
   const line = [g.rating ? `<span class="stars">${stars(g.rating)}</span>` : "Not rated", g.liked ? '<span class="heart">♥</span> Liked' : "",
     g.entries.length ? plural(g.entries.length, "diary entry", "diary entries") : "Logged without a date"].filter(Boolean).join(" · ");
-  const rows = [...g.entries].reverse().map((e) => `<div class="fc-entry${d.entry === e ? " on" : ""}"><span>${fmtDate(e.date)}${e.logged && e.logged !== e.date ? ` <small>logged ${fmtDate(e.logged)}</small>` : ""}</span>
+  // (the card drawn again after a change here has the diary's new copy of the entry: the same day of the same film)
+  const isOn = (e) => d.entry && (d.entry === e || (d.entry.date === e.date && d.entry.film && d.entry.film.key === e.film.key && d.entry.order === e.order));
+  const rows = [...g.entries].reverse().map((e) => `<div class="fc-entry${isOn(e) ? " on" : ""}"><span>${fmtDate(e.date)}${e.logged && e.logged !== e.date ? ` <small>logged ${fmtDate(e.logged)}</small>` : ""}</span>
     <span><span class="stars">${stars(e.rating)}</span>${e.rewatch ? ' <span title="Rewatch">↻</span>' : ""}${e.review ? ' <span title="Reviewed">≡</span>' : ""}</span>${logEntryTools(e, d)}</div>`).join("");
   const reviews = p.lib.reviews.filter((r) => r.film === g && r.html).map((r) => `<div class="fc-review"><p class="dr-s">Review${r.date ? `, ${fmtDate(r.date)}` : ""}</p><div class="rv-text">${r.html}</div></div>`).join("");
-  return `<section class="fc-sec">${head}<p class="fc-line">${line}</p>${rows ? `<div class="fc-entries">${rows}</div>` : ""}${reviews}</section>`;
+  return `<section class="fc-sec">${head}<p class="fc-line">${line}</p>${solo ? filmRateHtml(g, d) : ""}${rows ? `<div class="fc-entries">${rows}</div>` : ""}${reviews}</section>`;
 }
 function filmCardHtml(d) {
   const f = d.film, m = metaOf(f), lib = d.lib || state.lib;

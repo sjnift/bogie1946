@@ -93,9 +93,9 @@ function logResults(d) {
 }
 
 /* ----- step two: the log itself ----- */
-function logStarsHtml(r) {
+function logStarsHtml(r, attr = "data-lg-rate") {
   return `<span class="lg-rate" role="radiogroup" aria-label="Rating">${[1, 2, 3, 4, 5].map((n) => `<span class="lg-star${r >= n ? " full" : r >= n - 0.5 ? " half" : ""}" aria-hidden="false">★
-    <button type="button" class="lg-h l" data-lg-rate="${n - 0.5}" role="radio" aria-checked="${r === n - 0.5}" aria-label="${stars(n - 0.5)}"></button><button type="button" class="lg-h r" data-lg-rate="${n}" role="radio" aria-checked="${r === n}" aria-label="${stars(n)}"></button></span>`).join("")}</span>`;
+    <button type="button" class="lg-h l" ${attr}="${n - 0.5}" role="radio" aria-checked="${r === n - 0.5}" aria-label="${stars(n - 0.5)}"></button><button type="button" class="lg-h r" ${attr}="${n}" role="radio" aria-checked="${r === n}" aria-label="${stars(n)}"></button></span>`).join("")}</span>`;
 }
 function logFormHtml(d) {
   const p = d.pick, f = d.form;
@@ -164,6 +164,47 @@ function logDelete(id) {
 // On the film card: an entry logged here, with Edit and Delete (the first tap on Delete asks again).
 const logEntryTools = (e, d) => e.local && !d.who && canLog() ? `<span class="fc-local">Logged here · <button class="linkish" type="button" ${dl(D.log({ edit: e.local }))}>Edit</button> ·
   <button class="linkish" type="button" data-lg-del="${esc(e.local)}">Delete</button></span>` : "";
+
+/* ----- a film's rating changed here (7 Nov 2026; the data: `withRates`, 06h-more) ----- */
+// On the film card of your own diary: your rating as half stars to tap, and what changed it here, with Undo.
+function filmRateHtml(g, d) {
+  if (!g || d.who || !canLog() || g.fy || g.listed) return "";
+  const k = titleKey(g.name, g.year), on = RATES_APPLIED.get(k);
+  const note = on ? `Changed here on ${fmtDate(on.x.day || on.x.at.slice(0, 10))}${on.was ? `; Letterboxd had ${stars(on.was)}` : "; it had no rating"}. Change it on Letterboxd too: your next export has the last word.
+      <button class="linkish" type="button" data-fc-undo="${esc(on.x.id)}">Undo</button>`
+    : "Changed it on Letterboxd? Tap the stars to change it here too: every page takes it in, until your next export.";
+  return `<div class="fc-rate" data-fc-film="${esc(k)}"><span class="lg-k">Your rating</span>${logStarsHtml(g.rating, "data-fc-rate")}<span class="lg-rv">${g.rating ? stars(g.rating) : "Not rated"}</span></div>
+    <p class="dr-s fc-rnote">${note}</p>`;
+}
+// Saved like a log (one record a film, so a newer change replaces it on every device), then every page and the card
+// are drawn again, the card where it was scrolled to.
+function rateFilm(k, r) {
+  const f = MY_LIB && MY_LIB.films.find((x) => titleKey(x.name, x.year) === k);
+  if (!f) return;
+  const now = new Date(), rating = f.rating === r ? null : r; // the same rating again takes it away, as on Letterboxd
+  store.set(KEYS.logs, mergeLogs(logsAll(), [{ id: rateId(k), kind: "rate", user: MY_LIB.profile.username || "", k, title: f.name, year: f.year || null,
+    rating: LOG_RATINGS.includes(rating) ? rating : null, day: isoDay(now), at: now.toISOString() }]));
+  store.flush();
+  rateRedraw();
+}
+function rateUndo(id) {
+  store.set(KEYS.logs, mergeLogs(logsAll(), [{ id, deleted: true, at: new Date().toISOString() }]));
+  store.flush();
+  rateRedraw();
+}
+function rateRedraw() {
+  const body = () => document.querySelector("#dlg[open] .dlg-body, #sheet[open] .sheet-body"), y = body() ? body().scrollTop : 0;
+  logApply();
+  if (typeof repaintDrill === "function") repaintDrill();
+  if (body()) body().scrollTop = y;
+}
+document.addEventListener("click", (e) => {
+  const b = e.target.closest && e.target.closest("[data-fc-rate], [data-fc-undo]");
+  if (!b) return;
+  if (b.dataset.fcUndo) return rateUndo(b.dataset.fcUndo);
+  const box = b.closest(".fc-rate");
+  if (box) rateFilm(box.dataset.fcFilm, Number(b.dataset.fcRate));
+});
 
 document.addEventListener("input", (e) => {
   const q = e.target.closest && e.target.closest(".lg-q");
