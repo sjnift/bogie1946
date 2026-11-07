@@ -2,6 +2,19 @@
  "user": "bogie1946",
  "items": [
   {
+   "guid": "letterboxd-watch-1574497333",
+   "title": "Alias Nick Beal",
+   "year": 1949,
+   "watched": "2026-11-06",
+   "logged": "2026-11-06",
+   "rating": 3,
+   "rewatch": false,
+   "liked": false,
+   "tmdb": 32887,
+   "review": "",
+   "link": "https://letterboxd.com/bogie1946/film/alias-nick-beal/"
+  },
+  {
    "guid": "letterboxd-review-1573290027",
    "title": "Violent Saturday",
    "year": 1955,
@@ -11,7 +24,7 @@
    "rewatch": false,
    "liked": false,
    "tmdb": 39834,
-   "review": "<p>a noirish caper stapled over a Sirkian melodrama. I can&#039;t recall an earlier example of mosaic storytelling in American Studio System.</p>",
+   "review": "<p>noirish caper stapled over a Sirkian melodrama. I can&#039;t recall an earlier example of mosaic storytelling in American Studio System.</p>",
    "link": "https://letterboxd.com/bogie1946/film/violent-saturday/"
   },
   {
