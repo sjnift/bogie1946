@@ -327,10 +327,7 @@ function profileScreen(s) {
       <span><b>${job.running ? "Looking up cast &amp; crew" : "Fill in cast &amp; crew"}</b><small>${job.running ? `${fmtN(job.done)} of ${fmtN(job.total)} films` : `${fmtN(have)} of ${plural(total, "film")} have details`}</small>
       <span class="meter" aria-hidden="true"><span style="width:${Math.round((job.running ? job.done / Math.max(1, job.total) : have / Math.max(1, total)) * 100)}%"></span></span></span>${CHEV}</button>`
     : !ex && MY_LIB && partsNotice(MY_LIB).length ? `<button class="banner" type="button" data-act="settings"><span class="ico o">${ICON.sparkle}</span>
-      <span><b>${plural(partsNotice(MY_LIB).length, "part")} to check</b><small>${partsNotice(MY_LIB).length === 1 ? "A famous name far down a big cast, left out as a walk-on" : "Famous names far down a big cast, left out as walk-ons"}</small></span>${CHEV}</button>`
-    // a reminder once the export in hand is old (7 Nov 2026)
-    : !ex && MY_LIB && exportStale(store.get(KEYS.rows, null)) ? `<button class="banner" type="button" data-act="settings"><span class="ico b">${ICON.next}</span>
-      <span><b>Time for a fresh export</b><small>${esc(exportStaleText(exportStale(store.get(KEYS.rows, null))))}</small></span>${CHEV}</button>` : "";
+      <span><b>${plural(partsNotice(MY_LIB).length, "part")} to check</b><small>${partsNotice(MY_LIB).length === 1 ? "A famous name far down a big cast, left out as a walk-on" : "Famous names far down a big cast, left out as walk-ons"}</small></span>${CHEV}</button>` : "";
   const nReviews = lib.reviewTextMissing ? s.reviews : reviewsIn(lib, s.scope === "all" ? null : s.scope).length;
   const tile = (attrs, ico, cls, label, sub) => `<button class="tile" type="button" ${attrs}><span class="ico ${cls}">${ico}</span><span style="min-width:0"><b>${label}</b><small>${sub}</small></span></button>`;
   const tiles = `<div class="tiles">${tile(`data-act="reviews"`, ICON.review, "b", "Reviews", plural(nReviews, "review"))}

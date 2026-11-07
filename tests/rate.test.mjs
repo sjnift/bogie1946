@@ -2,7 +2,8 @@
 // in March never reached the site, the feed carrying only the latest entries): on both layouts, the film and its
 // latest viewing take the new rating everywhere, nothing is counted twice, the same rating again takes it away, Undo
 // gives Letterboxd's back, a newer export or a viewing logged since has the last word, another account's export isn't
-// touched, the change travels like a log; and a reminder shows once the export is old.
+// touched, the change travels like a log. No reminder about an old export (added 7 Nov 2026, removed the same day at
+// the owner's request: "remove reminder").
 import { open, seed, assert, noErrors } from "./lib.mjs";
 
 const daysAgo = (n) => new Date(Date.now() - n * 864e5).toISOString();
@@ -21,9 +22,6 @@ export default async function ({ browser, base }) {
     const panel = phone ? "#sheet" : "#dlg";
     const state = (name) => p.evaluate((name) => { const f = MY_LIB.films.find((x) => x.name === name), s = computeStats(MY_LIB, metaOf, "all");
       return { rating: f.rating, entries: f.entries.map((e) => e.rating), films: MY_LIB.films.length, all: MY_LIB.entries.length, avg: +s.avgRating.toFixed(2), rated: s.rated }; }, name);
-    // a fresh export: no reminder
-    const fresh = await p.evaluate((phone) => phone ? !document.querySelector(".banner .ico.b") : !/Letterboxd export is/.test($("#lookup-mini").textContent), phone);
-    assert(fresh, `${file}: a reminder with a three-day-old export`);
     await card("Heat");
     await p.waitForSelector(`${panel} .fc-rate`);
     const before = await state("Heat");
@@ -65,15 +63,16 @@ export default async function ({ browser, base }) {
     await p.reload(); await p.waitForFunction(() => typeof MY_LIB === "object" && MY_LIB && MY_LIB.films.length === 2);
     const kept = await p.evaluate(() => ({ r: MY_LIB.films.find((x) => x.name === "Rope").rating, site: (siteLocal().logs || []).some((x) => x.kind === "rate") }));
     assert(kept.r === 4 && kept.site, `${file}: after a reload: ${JSON.stringify(kept)}`);
-    // an old export: the reminder on the main page
+    // an old export: no reminder on the main page (the owner asked for it to go, 7 Nov 2026)
     await seed(p, rows(daysAgo(30)), { "cr-meta-v1": { "heat|1995": { src: "tmdb", v: 16, id: 949, d: ["Michael Mann"], c: [], w: [], p: [], m: [], g: ["Crime"], k: ["USA"], l: "English", r: 170 },
       "rope|1948": { src: "tmdb", v: 16, id: 1580, d: ["Alfred Hitchcock"], c: [], w: [], p: [], m: [], g: ["Thriller"], k: ["USA"], l: "English", r: 80 } } });
     await p.waitForFunction(() => typeof MY_LIB === "object" && MY_LIB && MY_LIB.films.length === 2);
     if (phone) await p.evaluate(() => { state.view = "profile"; render(); });
     else await p.evaluate(() => render());
     await p.waitForTimeout(200);
-    const remind = await p.evaluate((phone) => phone ? (document.querySelector(".banner .ico.b") || {}).closest?.(".banner")?.textContent || "" : $("#lookup-mini").hidden ? "" : $("#lookup-mini").textContent, phone);
-    assert(/30 days old/.test(remind) && /fresh/.test(remind), `${file}: the reminder with a 30-day-old export: "${remind}"`);
+    const remind = await p.evaluate((phone) => { const t = phone ? [...document.querySelectorAll(".banner")].map((b) => b.textContent).join(" ") : $("#lookup-mini").textContent;
+      return /export is \d+ days old|fresh export/i.test(t); }, phone);
+    assert(!remind, `${file}: a reminder about an old export shows`);
     noErrors(p, file);
   }
   // the example diary (and anyone else's films in Compare) has no rating to change
