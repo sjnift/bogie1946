@@ -1,0 +1,16 @@
+# One-off: can the daily robot read a member's films pages on Letterboxd? (temporary branch, deleted after)
+name: Ratings probe
+on:
+  push:
+    branches: [ratings-probe]
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - run: node scripts/ratings-probe.mjs
