@@ -115,8 +115,8 @@ Where it lives:
     watched (with Recent favourites as its other tab), On this day and the best decade (`#glance`); then the bar that stays at the top (`#jump`) holds the chapter
     tabs (`CHAPTERS`, `.jump-tab`, display-font capitals, the chosen one gold-underlined; Watch next only with a
     watchlist, `chaptersOf`), and under it only the chosen chapter (`#sections`, `role="tabpanel"`): Films (Released,
-    Milestones in one row of seven, Records, Most rewatched), People, Genres & countries, When you watch, Ratings, Reviews
-    or Watch next, as `section()`s from `dashChapter(s, id)` (`07-render-d.js`), **only the chosen chapter worked out**
+    Milestones in one row of seven, Records, Most rewatched), Diary (since 7 Nov 2026, see "The diary as Letterboxd shows
+    it"), People, Genres & countries, When you watch, Ratings, Reviews, Lists or Watch next, as `section()`s from `dashChapter(s, id)` (`07-render-d.js`), **only the chosen chapter worked out**
     (0.1–0.3 s a tab on the owner's diary; the page is 3–5 screens instead of 19). `state.chapter`, kept in `cr-view-v1`
     so the next visit opens where they left (`chapterOn` falls back to Films); a tab clicked with the bar stuck at the top
     shows its chapter from its start (`setChapter`); arrow keys, Home and End move along the tabs; the chapter eyebrows
@@ -250,7 +250,8 @@ The owner asked for this to be checked every time. A film, diary entry, person o
   `chapterStrip`; see "Insights, the study"; also `crowdOf`, the Stats page's against-the-crowd numbers),
   `06p-studios.js` (the studios pie in Insights: `STUDIOS`, `filmStudio`, `studioData`, `pieSvg`, `studiosHtml`),
   `06t-lists.js` (your lists: `listDrill`, `listToGo`, `listsLine`; see "Lists"), `06u-log.js` (logging a film here:
-  `D.log`, `logBodyHtml`, `logSearch`, `logSave`, `logDelete`, `logEntryTools`; see "Logging a film here"),
+  `D.log`, `logBodyHtml`, `logSearch`, `logSave`, `logDelete`, `logEntryTools`; see "Logging a film here"), `06v-diary.js` (the diary
+  as Letterboxd shows it: `DIARY`, `diaryList`, `diaryBarHtml`, `diaryCountHtml`, `diaryMenu`; see "The diary as Letterboxd shows it"),
   `06q-quiz.js` (the quiz: `D.quiz`, `QUIZ_KINDS`, `quizQuestions`, `quizBodyHtml`), `06r-asof.js` (Back in time, most
   watched as of a date: `ASOF`, `filmSince`, `asofBase`, `asofCount`, `asofHtml`, `asofOut`), `06s-foryou.js` (For you,
   a hundred films you'd love: `fyLove`, `fyModel`, `fyMake`, `fyPick`, `fyBodyHtml`; see "For you"),
@@ -773,6 +774,25 @@ standard errors or more from what the rest of the diary gives; every sentence op
   banner once the export was over 14 days old) and taken out at the owner's request ("remove reminder"); `exportAge` (the
   day and how long ago, for `exportLine`) stayed. The `rate` check covers both layouts: a change, taking it away, Undo, a second viewing, an export or a
   viewing since, another account, safeLogs, a reload and the site's part, no reminder, and no control in the example.
+- **The diary as Letterboxd shows it** (asked 7 Nov 2026: "build a diary tab on website", then "build it like letterboxd
+  with same filters"; the owner had looked for a Diary tab on the computer to find a film and change its rating;
+  `06v-diary.js`). Computer: a **Diary** chapter tab after Films (`CHAPTERS`, `diaryBlockD` in 07-render-d), Letterboxd's
+  diary page as a table, a row an entry: a gold month chip on each month's first row, the day, a small poster and the
+  title ("Logged here" for a log made on the site), released, your rating, a red heart, ↻ (only for a diary that marks
+  rewatches, `everRewatched`), ≡ for a review; a row opens that entry's film card (where the rating can be changed); a
+  hundred rows, then "Show 100 more" (`DIARY_PAGE`, `DIARY.n`). Phone: the Diary tab's Entries get the same bar (months
+  head the list only in date order; otherwise each row says its month). **Letterboxd's diary filters** over both, as
+  pills that open a list of choices in place (`diaryMenu` only shows and hides, so a click elsewhere still does what it
+  does; never a `<select>`): **Year** (the year chips' own `data-scope`), **Rating** (any, none, each half star; the
+  entry's rating), **Decade** and **Genre** (the page's own `FILTER`, a single pick, so the strip says so and the other
+  chapters follow), **Show** (every entry, liked, reviewed, rewatches and first watches where marked, logged on this
+  site), **Sort by** (Letterboxd's: when watched, film name without a leading article, release date, your rating,
+  average rating (Letterboxd's, else TMDB's in stars), popularity (Letterboxd's ratings, else TMDB's votes), length;
+  anything without the value last). "N of M diary entries" and "Clear filters" (`data-dclear`, also clears `FILTER`).
+  Escape closes a menu, the arrows move in it. They last until the page is closed. The phone already had `.dbar` (a chart
+  bar in Stats), hence `.dfilt`. The `diary` check (both layouts: every entry once in order, paging, each filter and sort,
+  Decade and Genre as the page filter, Year, Clear, the menus, a row's card, no sideways scroll) and `extras` (the
+  chapter list) cover it.
 - **For you** (asked 5 Nov 2026: "write an algorithm to predict movies I would like based on my letterboxd ratings,
   director actor genre data … correlate all the data you have about my viewing habits … a list of 100 films I would
   love"; then, the same day: "the engine should update when I log movies in the future and the ratings I give them and
@@ -1252,7 +1272,7 @@ until the next render, so `counts` visits them all before its audit)), `run.mjs`
 `apify`, `imdbcast` (the owner's cast checked on IMDb), `people` (people by TMDB id, the people check, cameos, voices, small parts and who counts by hand), `check` (film data check), `counts` (double counting, also with filters on), `reviews` (missing review text spotted; six-film actors), `welcome` (no example diary; import saved at once), `extras` (year picture, On this day, Watch next, PWA), `feed`, `import`,
 `links` (every link opens something), `pages` (nothing broken shows, no sideways scroll on the phone),
 `routes`, `storage` (IndexedDB move, backup and restore), `site` (the diary on the site: a stand-in GitHub and site),
-`tmdb` (fixing a match, filmography, search), `quiz` (the quiz's answers and a round on both layouts), `foryou` (For you against a stand-in TMDB), `log` (logging a film here against a stand-in TMDB), `lists` (posters for films on a list you haven't seen), `axes` (every bar chart's axes named and scaled, both layouts), `rate` (a film's rating changed on its card, both layouts), `favs` (recent favourites: the window, liked first, the most varied four, colour, both layouts), `extras` also covers the story and every kind and shape of picture, `xss` (nothing from outside can run code, about three minutes: it opens lists in every chapter), `study` (a
+`tmdb` (fixing a match, filmography, search), `quiz` (the quiz's answers and a round on both layouts), `foryou` (For you against a stand-in TMDB), `log` (logging a film here against a stand-in TMDB), `lists` (posters for films on a list you haven't seen), `axes` (every bar chart's axes named and scaled, both layouts), `rate` (a film's rating changed on its card, both layouts), `diary` (the diary as Letterboxd shows it, its filters and sorts, both layouts), `favs` (recent favourites: the window, liked first, the most varied four, colour, both layouts), `extras` also covers the story and every kind and shape of picture, `xss` (nothing from outside can run code, about three minutes: it opens lists in every chapter), `study` (a
 five-year diary with patterns planted in it: the study finds them on both layouts and for a year, repeats nothing from
 the Stats page, and every list it opens holds each film once). `lib.mjs`
 also cuts off api.github.com and jsdelivr, answers `diary/` with "not found", and counts anything the security policy

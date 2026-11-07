@@ -336,7 +336,7 @@ export default async function ({ browser, base }) {
   const chap = async (id) => { await d.click(`#jump [data-chapter="${id}"]`); await d.waitForTimeout(80); };
   const lay = { glance: await d.$$eval("#glance > section", (x) => x.map((e) => e.id)), chapters: {}, cards: 0, others: [] };
   const allIds = ["recent", "onthisday", "best-decade", "released", "milestones", "records", "rewatched", "starring", "voices", "directed", "crew", "people-years",
-    "origin", "world", "genre-years", "genre-rates", "logged", "months", "seasons", "years", "habits", "rated", "crowd", "top", "reviews", "review-stats", "lists", "next"];
+    "origin", "world", "genre-years", "genre-rates", "logged", "months", "seasons", "years", "habits", "rated", "crowd", "top", "reviews", "review-stats", "lists", "next", "diary"];
   lay.tabs = await desktopChapters(d, async (id) => {
     const got = await d.evaluate((allIds) => ({ ids: [...document.querySelectorAll("#sections > section")].map((e) => e.id), cards: document.querySelectorAll("#sections .dc, #sections .dash").length,
       // only the chosen chapter is on the page, and the bar sits between the top and it
@@ -347,7 +347,7 @@ export default async function ({ browser, base }) {
   });
   const C = lay.chapters;
   assert(lay.glance.join() === "recent,onthisday,best-decade" || lay.glance.join() === "recent,best-decade", `the top of the main page: ${lay.glance}`);
-  assert(lay.tabs.join() === "films,people,origin,when,ratings,reviews,lists,next" && !lay.others.length && lay.cards === 0 && C.lists.join() === "lists"
+  assert(lay.tabs.join() === "films,diary,people,origin,when,ratings,reviews,lists,next" && !lay.others.length && lay.cards === 0 && C.lists.join() === "lists" && C.diary.join() === "diary"
     && C.films.join() === "released,milestones,records,rewatched" && C.people.join() === "starring,directed,crew,people-years"
     && C.origin.join() === "origin,world,genre-years,genre-rates" && C.when.join() === "logged,months,seasons,years,habits"
     && C.ratings.join() === "rated,crowd,top" && C.reviews.join() === "reviews,review-stats" && C.next.join() === "next",

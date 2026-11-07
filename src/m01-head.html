@@ -423,6 +423,29 @@ img.fade.in { opacity: 1; }
 .drow .t span { color: var(--ink-2); font-weight: 400; }
 .drow .m { font-size: 12.5px; display: flex; gap: 6px; align-items: center; margin-top: 2px; }
 .drow .icons { display: flex; gap: 7px; font-size: 14px; color: var(--muted); }
+.drow .here { font-size: 10.5px; font-weight: 650; color: var(--muted); border: 1px solid var(--line-2); border-radius: 999px; padding: 0 6px; }
+/* the diary's filters, as on Letterboxd (06v-diary): pills that open a list of choices under the bar */
+.dfilt { position: relative; display: flex; flex-wrap: wrap; gap: 7px; margin: 2px 0 10px; }
+.dfilt-gap { display: none; }
+.dd-btn { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; padding: 7px 12px; border-radius: 999px; background: var(--surface);
+  border: 1px solid var(--line-2); color: var(--ink-2); font-size: 13px; font-weight: 600; -webkit-tap-highlight-color: transparent; }
+.dd-btn b { color: var(--ink); font-weight: 650; }
+.dd-btn .stars { color: var(--green); }
+.dd-btn[aria-expanded="true"] { border-color: var(--ink-2); color: var(--ink); }
+.dd.on .dd-btn { background: var(--green-tint); border-color: var(--green-mark); color: var(--ink); }
+.dd-btn:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.dd-caret { font-size: 9px; opacity: .75; }
+.dd-menu { position: absolute; z-index: 30; top: calc(100% + 6px); left: 0; right: 0; max-height: min(50vh, 380px); overflow: auto; overscroll-behavior: contain;
+  display: grid; padding: 6px; background: var(--surface-2); border: 1px solid var(--line-2); border-radius: 14px; box-shadow: 0 18px 40px rgba(0, 0, 0, .5); }
+.dd-menu[hidden] { display: none; }
+.dd-opt { all: unset; cursor: pointer; display: flex; justify-content: space-between; align-items: center; padding: 11px 12px; border-radius: 9px; font-size: 15px; color: var(--ink-1); }
+.dd-opt:active, .dd-opt:focus-visible { background: var(--surface-3); }
+.dd-opt[aria-checked="true"] { color: var(--green); font-weight: 650; }
+.dd-opt[aria-checked="true"]::after { content: "✓"; }
+.dd-opt .stars { color: var(--green); }
+.dd-h { padding: 10px 12px 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.dcount { margin: 0 0 4px; font-size: 13px; color: var(--muted); }
+.dclear { all: unset; cursor: pointer; margin-left: 6px; color: var(--blue); font-weight: 600; }
 .drow .val { color: var(--ink); font-weight: 700; }
 
 /* ---------- charts ---------- */

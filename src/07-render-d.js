@@ -7,7 +7,7 @@
    calendar in When you watch, one row of charts in Year by year, and the countries on the map rather than in a column
    beside it. Only the chapter on screen is worked out. */
 // The chapters, in order.
-const CHAPTERS = [["films", "Films"], ["people", "People"], ["origin", "Genres &amp; countries"], ["when", "When you watch"],
+const CHAPTERS = [["films", "Films"], ["diary", "Diary"], ["people", "People"], ["origin", "Genres &amp; countries"], ["when", "When you watch"],
   ["ratings", "Ratings"], ["reviews", "Reviews"], ["lists", "Lists"], ["next", "Watch next"]];
 // The chapters this diary has (Watch next needs a watchlist), and the one to show.
 const chaptersOf = (lib) => CHAPTERS.filter(([id]) => (id !== "next" || lib.watchlistFilms.length) && (id !== "lists" || (lib.lists || []).length));
@@ -40,6 +40,9 @@ function dashChapter(s, id) {
       recordsBlock(s) ? section("records", "Records", "The longest, shortest, oldest and newest films.", recordsBlock(s)) : "",
       re.length ? section("rewatched", "Most rewatched", `${L.rewatched} ${dlink(re.length > 8 && D.films("Most rewatched", filmsSub(re), re, { scope, sort: "given", note: (f) => plural(views(f), "viewing") }), `All ${fmtN(re.length)} rewatched films`)}`, rewatchedBlock(s)) : ""];
   }
+
+  // the diary as Letterboxd shows it, with its filters (7 Nov 2026; 06v-diary)
+  if (id === "diary") return [section("diary", "Diary", `Every film you've logged, as on Letterboxd. Click one for its card${canLog() ? ", where you can also change your rating" : ""}.`, diaryBlockD(s))];
 
   if (id === "people") {
     const everyone = (data, label) => dlink(data.total && D.names(label, `${fmtN(data.total)} in all, most watched first`, data.most, { faces: true }), `${fmtN(data.total)} ${label.toLowerCase()}`);
@@ -96,5 +99,26 @@ function dashChapter(s, id) {
   if (id === "next") { const W = lib.watchlistFilms.length ? watchNext(lib) : undefined;
     return [W !== undefined ? section("next", "Watch next", "Your watchlist, likeliest favourites first.", watchNextBlock(W)) : ""]; }
   return [];
+}
+// The Diary chapter: Letterboxd's diary page, a row an entry (month, day, film, released, rating, like, rewatch, review),
+// its filters over it, a hundred rows at a time.
+function diaryBlockD(s) {
+  const bar = diaryBarHtml(s);
+  if (!s.entries.length) return bar + `<div class="empty">No diary dates ${s.scope === "all" ? "in your diary" : `in ${esc(s.scope)}`}${filterOn() ? " for these films" : ""}. Films logged without a date still count everywhere else.</div>`;
+  const list = diaryList(s.entries), rows = list.slice(0, DIARY_PAGE + DIARY.n), rw = everRewatched(wholeLib());
+  const thumb = (f) => { const m = metaOf(f), p = showImages && m && m.poster; return `<span class="dt-art" aria-hidden="true">${p ? `<img src="${imgBase("w92")}${esc(p)}" alt="" loading="lazy">` : ""}</span>`; };
+  let prev = "";
+  const body = rows.map((e) => {
+    const f = e.film, mo = e.date.slice(0, 7), chip = mo !== prev ? `<span class="dt-cal"><b>${MONTHS[+mo.slice(5, 7) - 1]}</b><small>${mo.slice(0, 4)}</small></span>` : "";
+    prev = mo;
+    const label = `${f.name}${f.year ? ` (${f.year})` : ""}, watched ${fmtDate(e.date)}${e.rating ? `, rated ${e.rating} ${e.rating === 1 ? "star" : "stars"}` : ""}${f.liked ? ", liked" : ""}${e.rewatch ? ", a rewatch" : ""}${e.review ? ", reviewed" : ""}${e.local ? ", logged on this site" : ""}`;
+    return `<button class="dt-row" type="button" ${dl(D.film(f, { entry: e }))} aria-label="${esc(label)}"><span class="dt-m">${chip}</span><span class="dt-d">${+e.date.slice(8, 10)}</span>
+      <span class="dt-f">${thumb(f)}<span class="dt-t">${esc(f.name)}${e.local ? '<span class="dt-here">Logged here</span>' : ""}</span></span>
+      <span class="dt-y">${f.year || ""}</span><span class="dt-r stars">${stars(e.rating)}</span><span class="dt-l">${f.liked ? '<span class="heart">♥</span>' : ""}</span>${rw ? `<span class="dt-w${e.rewatch ? " on" : ""}">↻</span>` : ""}<span class="dt-v">${e.review ? "≡" : ""}</span></button>`;
+  }).join("");
+  const left = list.length - rows.length;
+  const more = left > 0 ? `<div class="dmore"><button class="btn small" type="button" data-dmore>Show ${fmtN(Math.min(DIARY_PAGE, left))} more</button><span class="muted">${fmtN(left)} left</span></div>` : "";
+  return bar + diaryCountHtml(list.length, s) + (list.length ? `<div class="dtable${rw ? " rw" : ""}"><div class="dt-head" aria-hidden="true"><span>Month</span><span>Day</span><span>Film</span><span>Released</span><span>Rating</span><span>Like</span>${rw ? "<span>Rewatch</span>" : ""}<span>Review</span></div>${body}</div>${more}`
+    : `<div class="empty">No diary entries match. <button class="linkish" type="button" data-dclear>Clear filters</button></div>`);
 }
 </script>

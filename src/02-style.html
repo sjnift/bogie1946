@@ -1062,4 +1062,57 @@ body.empty #settings, body.empty .foot-settings, body.has-diary #btn-import, bod
 @media (max-width: 900px) { .asof-cols, .asof-cols.n2 { grid-template-columns: 1fr; } }
 .season-even { margin: 4px 0 14px; font-size: 14px; color: var(--ink-2); line-height: 1.5; }
 .pie-cap { margin: 10px 0 0; text-align: center; font-size: 13px; color: var(--ink-2); }
+/* ---------- the Diary chapter: Letterboxd's diary page and its filters (06v-diary, 07-render-d) ---------- */
+.dfilt { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.dfilt-gap { flex: 1 1 0; }
+.dd { position: relative; }
+.dd-btn { cursor: pointer; display: inline-flex; align-items: center; gap: 6px; padding: 7px 11px; border-radius: 7px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--muted); font: 650 11.5px/1.2 var(--sans); text-transform: uppercase; letter-spacing: .09em; transition: color .15s, border-color .15s; }
+.dd-btn:hover, .dd-btn[aria-expanded="true"] { color: var(--ink); border-color: var(--muted); }
+.dd-btn b { text-transform: none; letter-spacing: .01em; font-size: 13px; font-weight: 650; color: var(--ink); }
+.dd-btn .stars { color: var(--gold-ink); }
+.dd.on .dd-btn { border-color: var(--gold); color: var(--gold-ink); }
+.dd-caret { font-size: 10px; opacity: .8; }
+.dd-menu { position: absolute; top: calc(100% + 6px); left: 0; z-index: 15; min-width: 200px; max-height: 360px; overflow: auto; display: grid; gap: 1px;
+  padding: 6px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 9px; box-shadow: var(--shadow); }
+.dd-menu[hidden] { display: none; }
+.dd:last-child .dd-menu { left: auto; right: 0; }
+.dd-opt { cursor: pointer; display: flex; align-items: center; gap: 10px; justify-content: space-between; border: 0; background: none; text-align: left;
+  padding: 7px 10px; border-radius: 6px; color: var(--ink-2); font: 500 14px/1.25 var(--sans); white-space: nowrap; }
+.dd-opt:hover, .dd-opt:focus-visible { background: var(--surface); color: var(--ink); outline: none; }
+.dd-opt[aria-checked="true"] { color: var(--gold-ink); font-weight: 650; }
+.dd-opt[aria-checked="true"]::after { content: "✓"; font-size: 12px; }
+.dd-h { padding: 9px 10px 3px; font: 600 10.5px var(--mono); text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+.dd-h:first-child { padding-top: 4px; }
+.dcount { margin: 0; font-size: 13.5px; color: var(--ink-2); }
+.dclear { all: unset; cursor: pointer; margin-left: 8px; color: var(--gold-ink); font-weight: 600; }
+.dclear:hover { text-decoration: underline; } .dclear:focus-visible { outline: 2px solid var(--gold-ink); outline-offset: 2px; }
+.dtable { --dt: 58px 40px minmax(0, 1fr) 76px 96px 44px 56px; display: grid; }
+.dtable.rw { --dt: 58px 40px minmax(0, 1fr) 76px 96px 44px 64px 56px; }
+.dt-head, .dt-row { display: grid; grid-template-columns: var(--dt); gap: 14px; align-items: center; }
+.dt-head { padding: 0 10px 9px; border-bottom: 1px solid var(--line); font: 600 10.5px var(--mono); text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+.dt-head span:nth-child(n+4) { text-align: center; }
+.dt-row { cursor: pointer; width: 100%; border: 0; border-bottom: 1px solid var(--line); background: none; color: inherit; font: inherit; text-align: left;
+  padding: 9px 10px; border-radius: 0; transition: background .12s; }
+.dt-row:hover { background: var(--surface); }
+.dt-row:focus-visible { outline: 2px solid var(--gold-ink); outline-offset: -2px; }
+.dt-cal { display: grid; width: 46px; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--surface-2); text-align: center; }
+.dt-cal b { font: 700 11px/1 var(--mono); text-transform: uppercase; letter-spacing: .1em; background: var(--gold); color: var(--on-gold); padding: 4px 0 3px; }
+.dt-cal small { font-size: 11.5px; line-height: 1; color: var(--ink-2); padding: 4px 0; font-variant-numeric: tabular-nums; }
+.dt-d { font-family: var(--display); font-weight: 800; font-size: 27px; line-height: 1; color: var(--ink); text-align: center; font-variant-numeric: tabular-nums; }
+.dt-f { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.dt-art { flex: none; width: 34px; aspect-ratio: 2 / 3; border-radius: 3px; overflow: hidden; background: var(--surface-2); box-shadow: 0 2px 7px rgba(0, 0, 0, .45); }
+.dt-art img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.dt-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 650; font-size: 15px; color: var(--ink); }
+.dt-row:hover .dt-t { color: var(--gold-ink); }
+.dt-here { margin-left: 8px; padding: 1px 7px; border: 1px solid var(--line); border-radius: 999px; font-size: 11px; font-weight: 600; color: var(--muted); vertical-align: 1px; }
+.dt-y { text-align: center; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.dt-r { text-align: center; font-size: 15px; }
+.dt-l, .dt-w, .dt-v { text-align: center; color: var(--muted); font-size: 16px; }
+.dt-w { opacity: .3; } .dt-w.on { opacity: 1; color: var(--ink); }
+.dmore { display: flex; align-items: center; gap: 12px; font-size: 13px; }
+@media (max-width: 760px) {
+  .dtable, .dtable.rw { --dt: 50px 34px minmax(0, 1fr) 88px 30px; }
+  .dt-head span:nth-child(4), .dt-head span:last-child, .dtable.rw .dt-head span:nth-child(7), .dt-y, .dt-w, .dt-v { display: none; }
+}
 </style>

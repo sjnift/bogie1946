@@ -22,22 +22,28 @@ function diaryScreen(s) {
   const wmax = Math.max(1, ...s.weekday), byWeekday = memo(`wd|${s.scope}`, () => s.weekday.map((n, i) => DR.weekday(s.entries, i)));
   const weekdays = `<div class="weekdays" role="group" aria-label="Diary entries by day of the week">${s.weekday.map((n, i) =>
     `<button class="wd${i === fav ? " fav" : ""}" type="button" ${dl(byWeekday[i])} aria-label="${WEEKDAYS_LONG[i]}: ${plural(n, "film")}"><span class="cnt">${n}</span><span class="bar-v"><span style="height:${(n / wmax * 100).toFixed(1)}%"></span></span><span class="lbl">${WEEKDAYS[i].slice(0, 2)}</span></button>`).join("")}</div>`;
-  const list = [...s.entries].reverse().slice(0, state.diaryLimit);
+  // the entries, with Letterboxd's diary filters over them (7 Nov 2026; 06v-diary): months head them when they're in date
+  // order, otherwise each row says its month
+  const all = diaryList(s.entries), list = all.slice(0, state.diaryLimit), dated = DIARY.sort.startsWith("watched");
+  const perMonth = new Map();
+  if (dated) for (const e of all) { const m = e.date.slice(0, 7); perMonth.set(m, (perMonth.get(m) || 0) + 1); }
   let rows = "", month = "";
   for (const e of list) {
     const m = e.date.slice(0, 7);
-    if (m !== month) { month = m; rows += `<div class="month-h" data-k="m${m}"><span>${MONTHS_LONG[+m.slice(5, 7) - 1]} ${m.slice(0, 4)}</span><span>${fmtN(s.byMonth.get(m) || 0)}</span></div>`; }
-    rows += `<button class="drow" type="button" data-k="${esc(e.film.key)}|${e.date}|${e.order}" ${dl(D.film(e.film, { entry: e }))}><span class="day"><b>${+e.date.slice(8, 10)}</b><small>${WEEKDAYS[weekdayOf(e.date)]}</small></span>${poster(e.film)}
+    if (dated && m !== month) { month = m; rows += `<div class="month-h" data-k="m${m}"><span>${MONTHS_LONG[+m.slice(5, 7) - 1]} ${m.slice(0, 4)}</span><span>${fmtN(perMonth.get(m) || 0)}</span></div>`; }
+    rows += `<button class="drow" type="button" data-k="${esc(e.film.key)}|${e.date}|${e.order}" ${dl(D.film(e.film, { entry: e }))}><span class="day"><b>${+e.date.slice(8, 10)}</b><small>${dated ? WEEKDAYS[weekdayOf(e.date)] : `${MONTHS[+m.slice(5, 7) - 1]} ’${m.slice(2, 4)}`}</small></span>${poster(e.film)}
       <span style="min-width:0"><span class="t">${esc(e.film.name)} <span>${e.film.year || ""}</span></span>
-      <span class="m"><span class="stars">${stars(e.rating)}</span></span></span>
+      <span class="m"><span class="stars">${stars(e.rating)}</span>${e.local ? '<span class="here">Logged here</span>' : ""}</span></span>
       <span class="icons">${e.rewatch ? '<span class="rewatch" title="Rewatch">↻</span>' : ""}${e.film.liked ? '<span class="heart" title="Liked">♥</span>' : ""}${e.review ? '<span title="Reviewed">≡</span>' : ""}</span></button>`;
   }
-  const more = s.entries.length > state.diaryLimit ? `<button class="row" type="button" data-act="more-diary" data-auto style="padding-inline:0"><span>Show older entries</span><span class="count">${fmtN(s.entries.length - state.diaryLimit)} more</span>${CHEV}</button>` : "";
+  const more = all.length > state.diaryLimit ? `<button class="row" type="button" data-act="more-diary" data-auto style="padding-inline:0"><span>${DIARY.sort === "watched" ? "Show older entries" : "Show more"}</span><span class="count">${fmtN(all.length - state.diaryLimit)} more</span>${CHEV}</button>` : "";
+  const entries = diaryBarHtml(s) + diaryCountHtml(all.length, s) + (all.length ? `<div>${rows}</div>` + more
+    : `<div class="empty" style="padding:18px 0">No diary entries match. <button class="linkish" type="button" data-dclear>Clear filters</button></div>`);
   return head + facts +
     sh(`Films by ${unit}`, `<span class="count">${plural(s.entries.length, "entry", "entries")}</span>`) + `<div class="card">${chart}</div>` +
     sh("Days of the week") + `<div class="card">${axisNames("Films", weekdays, "Day of the week")}</div>` +
     sh(s.scope === "all" ? "Last 12 months" : `Every day of ${s.scope}`) + `<div class="card">${heatmap(s).replace("Fewer", "Less")}</div>` +
-    sh("Entries") + `<div>${rows}</div>` + more;
+    sh("Entries") + entries;
 }
 
 /* ---------- Stats › Films ---------- */

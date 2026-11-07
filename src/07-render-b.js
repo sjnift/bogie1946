@@ -300,7 +300,7 @@ function renderSections(s) {
   // out (1 Nov 2026: they held up the whole page, over a second on a slower computer).
   const have = chaptersOf(state.lib), on = chapterOn(state.lib), quick = peopleLater(state.lib);
   if (quick) warmPeople(state.lib, metaOf).then(() => { if (state.page === "stats") render(); });
-  const body = quick && on !== "films" ? `<section class="credit soon"><p class="status">Counting the people in your films…</p></section>`
+  const body = quick && on !== "films" && on !== "diary" ? `<section class="credit soon"><p class="status">Counting the people in your films…</p></section>`
     : trim(dashChapter(s, on).filter(Boolean).join(""));
   const name = (have.find(([id]) => id === on) || [])[1] || "";
   $("#sections").setAttribute("aria-label", name.replace("&amp;", "&"));
