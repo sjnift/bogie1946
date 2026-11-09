@@ -32,7 +32,7 @@ const sortTitle = (n) => String(n || "").replace(/^(the|a|an)\s+/i, "");
 // Letterboxd's average where it's known, else TMDB's score in stars; how widely seen: Letterboxd's ratings, else TMDB's votes.
 const crowdStars = (f) => { const x = LBX[f.key], m = metaOf(f); return x && x.r ? x.r : m && m.va ? m.va / 2 : null; };
 const crowdSize = (f) => { const x = LBX[f.key], m = metaOf(f); return x && x.n ? x.n : m && m.vc ? m.vc : null; };
-const byWatched = (a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : (a.order || 0) - (b.order || 0);
+const byWatched = (a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : (b.order || 0) - (a.order || 0);
 // The entries to show, in the order picked; anything without the value sorted on goes last, newest first among equals.
 function diaryList(entries) {
   const list = entries.filter(diaryPasses), S = DIARY.sort, up = /-asc$/.test(S), k = S.replace(/-(asc|desc)$/, "");
