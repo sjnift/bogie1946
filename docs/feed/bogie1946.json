@@ -2,6 +2,19 @@
  "user": "bogie1946",
  "items": [
   {
+   "guid": "letterboxd-watch-1579667139",
+   "title": "Obsession",
+   "year": 1949,
+   "watched": "2026-11-09",
+   "logged": "2026-11-09",
+   "rating": 3.5,
+   "rewatch": false,
+   "liked": true,
+   "tmdb": 35852,
+   "review": "",
+   "link": "https://letterboxd.com/bogie1946/film/obsession-1949/"
+  },
+  {
    "guid": "letterboxd-watch-1576343454",
    "title": "The World Is Not Enough",
    "year": 1999,
