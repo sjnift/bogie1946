@@ -2,6 +2,19 @@
  "user": "bogie1946",
  "items": [
   {
+   "guid": "letterboxd-watch-1581042560",
+   "title": "The Outfit",
+   "year": 1973,
+   "watched": "2026-11-10",
+   "logged": "2026-11-10",
+   "rating": 3.5,
+   "rewatch": false,
+   "liked": true,
+   "tmdb": 26762,
+   "review": "",
+   "link": "https://letterboxd.com/bogie1946/film/the-outfit/"
+  },
+  {
    "guid": "letterboxd-watch-1579667139",
    "title": "Obsession",
    "year": 1949,
