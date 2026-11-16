@@ -2,6 +2,19 @@
  "user": "bogie1946",
  "items": [
   {
+   "guid": "letterboxd-watch-1588275883",
+   "title": "The Harder They Fall",
+   "year": 1956,
+   "watched": "2026-11-15",
+   "logged": "2026-11-15",
+   "rating": 3,
+   "rewatch": false,
+   "liked": false,
+   "tmdb": 28528,
+   "review": "",
+   "link": "https://letterboxd.com/bogie1946/film/the-harder-they-fall/"
+  },
+  {
    "guid": "letterboxd-watch-1581042560",
    "title": "The Outfit",
    "year": 1973,
