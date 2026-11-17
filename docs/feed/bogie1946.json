@@ -2,6 +2,19 @@
  "user": "bogie1946",
  "items": [
   {
+   "guid": "letterboxd-watch-1589804342",
+   "title": "The Housemaid",
+   "year": 1960,
+   "watched": "2026-11-16",
+   "logged": "2026-11-16",
+   "rating": 2.5,
+   "rewatch": false,
+   "liked": false,
+   "tmdb": 42506,
+   "review": "",
+   "link": "https://letterboxd.com/bogie1946/film/the-housemaid/"
+  },
+  {
    "guid": "letterboxd-watch-1588275883",
    "title": "The Harder They Fall",
    "year": 1956,
