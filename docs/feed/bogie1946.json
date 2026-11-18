@@ -2,6 +2,19 @@
  "user": "bogie1946",
  "items": [
   {
+   "guid": "letterboxd-watch-1591296958",
+   "title": "Cria!",
+   "year": 1976,
+   "watched": "2026-11-17",
+   "logged": "2026-11-17",
+   "rating": 4,
+   "rewatch": false,
+   "liked": true,
+   "tmdb": 51857,
+   "review": "",
+   "link": "https://letterboxd.com/bogie1946/film/cria/"
+  },
+  {
    "guid": "letterboxd-watch-1589804342",
    "title": "The Housemaid",
    "year": 1960,
