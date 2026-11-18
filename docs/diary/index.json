@@ -1,10 +1,10 @@
 {
  "app": "credits-roll",
  "v": 2,
- "n": 46,
+ "n": 47,
  "user": "bogie1946",
- "at": "2026-11-15T18:46:56.295Z",
- "from": "computer",
+ "at": "2026-11-18T08:38:39.345Z",
+ "from": "phone",
  "salt": "BLT3fFIX/4AfXeGO5Gk3IQ==",
  "iter": 600000,
  "check": "ARhwzv4y9DFIPTwEwmAzSWoy7w8+ioPOoRgW/oyiL1vuew9PA1OgYh/n+Q==",
@@ -46,7 +46,7 @@
   "p14": "2026-11-06T16:43:52.620Z",
   "p15": "2026-11-11T09:12:50.323Z",
   "logs": "2026-11-15T18:46:56.295Z",
-  "lmeta": "2026-11-11T09:12:50.323Z"
+  "lmeta": "2026-11-18T08:38:39.345Z"
  },
- "sig": "BPbwfZMMqsZZ7p1LpwSxn6c52GNOgfrJDxicVAWSbOpa4FW7CQP7m8tcktF1hABkOKswjAQDvSaLBk3rnKAOH97XQBXTRTvMf0Mph8oQtZGa8V3bAh2+hg82Ye79TKc="
+ "sig": "BJ62XaZWcol/f3n0XlJb4AjmQkpy5LM0hYQc9ItIvklomUAjxZPQBRZMi1QZa72Lq8DiEF8lA8TDsr6A6RrbXZTeeEoK3RAStNj+pZ71xgbHF4eBPAJAhRAWihM2Z0w="
 }
